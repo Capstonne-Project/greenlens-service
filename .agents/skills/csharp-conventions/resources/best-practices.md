@@ -80,6 +80,10 @@
 - **DO** use response envelope `{code, message, status, data}` on ALL responses
 - **DO** use `camelCase` for JSON keys, `kebab-case` for URL paths
 - **DO** paginate all list endpoints (max pageSize=100)
+- **DO** add `[SwaggerOperation(Summary, Description)]` to EVERY controller action
+- **DO** add `[SwaggerResponse(statusCode, description, typeof(ApiResponse<T>))]` for each response status
+- **DO** add `[Produces("application/json")]` on controller class
+- **DO** use `typeof(ApiResponse<TResponse>)` for success, `typeof(ApiResponse)` for errors
 - **DO** include rate limit headers on every response
 
 ### Documentation

@@ -1,0 +1,6 @@
+@Greenlens.Api_HostAddress = http://localhost:5162
+
+GET {{Greenlens.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

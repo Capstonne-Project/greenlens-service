@@ -133,22 +133,34 @@ NEVER import `IHttpContextAccessor` in Application.
 ```csharp
 [ApiController]
 [Route("v1/[controller]")]
+[Produces("application/json")]
 public sealed class ReportsController : ControllerBase
 {
     private readonly ISender _sender;
 
     public ReportsController(ISender sender) => _sender = sender;
 
-    /// <summary>Submit a new pollution report</summary>
     [HttpPost]
     [Authorize(Policy = Policies.CanSubmitReport)]
-    [ProducesResponseType(typeof(ApiResponse<Guid>), 201)]
+    [SwaggerOperation(
+        Summary = "Submit Report",
+        Description = "Submit a new pollution report with photos and GPS location.")]
+    [SwaggerResponse(200, "Report submitted successfully", typeof(ApiResponse<Guid>))]
+    [SwaggerResponse(401, "Unauthorized", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Validation error", typeof(ApiResponse))]
     public async Task<IActionResult> SubmitAsync(
         [FromBody] SubmitReportCommand cmd,
         CancellationToken ct)
         => (await _sender.Send(cmd, ct)).ToHttp();
 }
 ```
+
+> **MANDATORY:** Every controller action MUST have:
+> 1. `[SwaggerOperation(Summary = "...", Description = "...")]` — short summary + longer description
+> 2. `[SwaggerResponse(statusCode, "description", typeof(ApiResponse<T>))]` — for EACH possible response status
+> 3. Success response: `typeof(ApiResponse<TResponse>)`
+> 4. Error response: `typeof(ApiResponse)` (no generic param)
+> 5. `[Produces("application/json")]` on controller class
 
 **Response envelope** — ALL responses use:
 ```json
