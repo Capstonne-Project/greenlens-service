@@ -1,6 +1,6 @@
 # Best Practices & Common Pitfalls — GreenLens
 
-> Consolidated DO/DON'T rules and common traps from CLAUDE.md and 00_API_CONVENTIONS.md.
+> Consolidated DO/DON'T rules and common traps from OVERVIEW.md (v1.1) and 00_API_CONVENTIONS.md.
 
 ---
 
@@ -38,7 +38,7 @@
 
 ### Error Handling
 - **DO** use `Result<T>` for business rule violations
-- **DO** use exceptions only for infrastructure failures (DB down, S3 timeout)
+- **DO** use exceptions only for infrastructure failures (DB down, R2 timeout)
 - **DO** use RFC 7807 Problem Details for error responses
 - **DO** map `ErrorType` to HTTP status in the Api layer
 - **DO** use centralized `Errors.Module.ErrorName` definitions
@@ -54,12 +54,24 @@
 - **DO** use Respawn for schema reset between test classes
 - **DO** write happy path + ≥ 1 error case per endpoint
 
-### Security
+### Security (§13)
 - **DO** use authorization policies, not role strings
-- **DO** hash refresh tokens before storing in DB
-- **DO** use bcrypt ≥ 12 rounds for passwords
+- **DO** use RS256 for JWT in production (HS256 only dev)
+- **DO** fix `ValidAlgorithms` on verifier (prevent `alg=none` attack)
+- **DO** use bcrypt ≥ 12 rounds (`BcryptPasswordHasher`), NOT Identity default PBKDF2
+- **DO** hash refresh tokens with SHA-256 before storing
+- **DO** use `OwaspHeaders.Core` for HSTS, CSP, X-Frame-Options, nosniff
+- **DO** use `CF-Connecting-IP` for real IP (whitelist Cloudflare IPs)
+- **DO** verify Turnstile token BEFORE business logic (BR-AUTH-011)
+- **DO** validate Turnstile `action` + `hostname` fields
+- **DO** use strict CORS origin lists per policy
 - **DO** strip EXIF before sending images to AI service
 - **DO** validate content-type by magic bytes, not file extension
+- **DO** re-encode images via ImageSharp (remove malicious payloads)
+- **DO** use resource-based authorization for ownership (IDOR prevention)
+- **DO** write IDOR tests for every endpoint accepting an ID
+- **DO** use Azure Key Vault / Vault for secrets in production
+- **DO** rotate R2 keys every 90 days, JWT RS256 key every 90 days
 
 ### API Convention
 - **DO** use response envelope `{code, message, status, data}` on ALL responses
@@ -102,11 +114,23 @@
 - **DON'T** use try/catch for control flow
 - **DON'T** swallow exceptions silently
 
-### Security
-- **DON'T** commit connection strings, JWT keys, S3 credentials
+### Security (§13)
+- **DON'T** commit connection strings, JWT keys, R2 keys, Turnstile secrets, FCM keys
+- **DON'T** use env vars for secrets in production (process listing leaks)
 - **DON'T** log PII (email, phone, detailed GPS) at Information level
+- **DON'T** put PII in JWT claims (email, phone) — they leak via logs
 - **DON'T** trust file extensions for content-type validation
 - **DON'T** use role strings directly — use policies
+- **DON'T** use `AllowAnyOrigin().AllowCredentials()` — reflective CORS hole
+- **DON'T** trust `X-Forwarded-For` raw — anyone can spoof it
+- **DON'T** use `*.r2.dev` for production media (rate-limited)
+- **DON'T** use Identity default `PasswordHasher<TUser>` (prefer bcrypt)
+- **DON'T** use HS256 for JWT in production (use RS256)
+- **DON'T** use `FromSqlRaw` with user input (SQL injection)
+- **DON'T** use `UnsafeRelaxedJsonEscaping` for user-facing output
+- **DON'T** concat strings in email templates (XSS — use Razor/Scriban)
+- **DON'T** call Turnstile Siteverify from frontend (secret key leak)
+- **DON'T** skip hostname/action validation on Turnstile tokens
 
 ### Packages
 - **DON'T** add new large dependencies without asking the user
@@ -200,4 +224,31 @@ return new {
 // ✅ Redis sliding window (BR-REP-010, BR-SYS-004)
 if (await rateLimiter.IsRateLimitedAsync(userId, "submit", 5, TimeSpan.FromHours(1), ct))
     return Errors.Report.RateLimitExceeded;
+
+// ✅ 2-layer: Cloudflare WAF at edge + ASP.NET app layer
+// Edge blocks DDoS; app enforces per-userId limits
+```
+
+### 9. Using R2 Dev URL in Production
+```csharp
+// ❌ *.r2.dev is rate-limited, NOT for production
+return $"https://pub-xxx.r2.dev/{key}";
+
+// ✅ Custom domain via Cloudflare
+return $"https://media.ecoreport.example/{key}";
+```
+
+### 10. Reflective CORS
+```csharp
+// ❌ Security hole — reflects any origin with credentials
+services.AddCors(o => o.AddDefaultPolicy(p => p
+    .AllowAnyOrigin()
+    .AllowCredentials()));
+
+// ✅ Strict origin list
+services.AddCors(o => o.AddPolicy("AuthedApi", p => p
+    .WithOrigins("https://app.ecoreport.example")
+    .AllowCredentials()
+    .AllowAnyMethod()
+    .AllowAnyHeader()));
 ```
