@@ -1,6 +1,6 @@
 # Dependency Injection Patterns — GreenLens
 
-> **Source:** CLAUDE.md §3, §4.4, §4.8 | .NET 9 / ASP.NET Core 9
+> **Source:** OVERVIEW.md §3, §4.4, §4.8, §4.12 (v1.2)
 
 ## Core Principles
 
@@ -20,7 +20,7 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // ── Persistence ──────────────────────────────────
+        // ── Persistence (Strict Repo §4.12) ──────────────
         services.AddDbContext<ApplicationDbContext>(options =>
             options.UseNpgsql(
                 configuration.GetConnectionString("DefaultConnection"),
@@ -31,15 +31,28 @@ public static class DependencyInjection
                 })
             .UseSnakeCaseNamingConvention());
 
-        services.AddScoped<IApplicationDbContext>(sp =>
-            sp.GetRequiredService<ApplicationDbContext>());
+        // NO IApplicationDbContext — DbContext is internal to Infrastructure
+        // Register each repository individually
+        services.AddScoped<IReportRepository, ReportRepository>();
+        services.AddScoped<IReportMediaRepository, ReportMediaRepository>();
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<ICommentRepository, CommentRepository>();
+        services.AddScoped<IBadgeRepository, BadgeRepository>();
+        services.AddScoped<ICleanupTaskRepository, CleanupTaskRepository>();
+        services.AddScoped<IAuditLogRepository, AuditLogRepository>();
+        services.AddScoped<ICategoryRepository, CategoryRepository>();
+        services.AddScoped<INotificationRepository, NotificationRepository>();
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+        // ❌ NEVER register open generic:
+        // services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 
         // ── Identity & Auth ──────────────────────────────
         services.AddScoped<ICurrentUser, CurrentUser>();
         services.AddSingleton<IJwtService, JwtService>();
 
-        // ── Storage ──────────────────────────────────────
-        services.AddSingleton<IFileStorage, AwsS3FileStorage>();
+        // ── Storage (Cloudflare R2) ──────────────────────
+        services.AddSingleton<IFileStorage, R2FileStorage>();
 
         // ── Caching ──────────────────────────────────────
         services.AddStackExchangeRedisCache(options =>
@@ -77,8 +90,13 @@ public static class DependencyInjection
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
-        services.AddOptions<S3Options>()
-            .Bind(configuration.GetSection("S3"))
+        services.AddOptions<R2Options>()
+            .Bind(configuration.GetSection("Cloudflare:R2"))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        services.AddOptions<TurnstileOptions>()
+            .Bind(configuration.GetSection("Cloudflare:Turnstile"))
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
@@ -91,7 +109,7 @@ public static class DependencyInjection
 
 | Lifetime | When to use | GreenLens examples |
 |----------|------------|-------------------|
-| **Scoped** | Per-request state, DbContext, user context | `IApplicationDbContext`, `ICurrentUser`, `IEmailSender` |
+| **Scoped** | Per-request state, DbContext, user context | `IXxxRepository`, `IUnitOfWork`, `ICurrentUser`, `IEmailSender` |
 | **Singleton** | Stateless, thread-safe, expensive to create | `IJwtService`, `IFileStorage`, `ICacheService` |
 | **Transient** | Lightweight, no shared state | Validators, simple factories |
 
@@ -174,7 +192,7 @@ public sealed class ReportsController(IReportRepository repo) : ControllerBase /
 ```csharp
 // ❌ Singleton capturing Scoped — MEMORY LEAK
 services.AddSingleton<ISomeService, SomeService>(); // Singleton
-// SomeService depends on IApplicationDbContext (Scoped) → CAPTIVE!
+// SomeService depends on IReportRepository (Scoped) → CAPTIVE!
 
 // ✅ Fix: Use IServiceScopeFactory
 public sealed class SomeService(IServiceScopeFactory scopeFactory)
@@ -182,8 +200,9 @@ public sealed class SomeService(IServiceScopeFactory scopeFactory)
     public async Task DoWorkAsync()
     {
         using var scope = scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
-        // use db...
+        var reports = scope.ServiceProvider.GetRequiredService<IReportRepository>();
+        var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+        // use reports + uow...
     }
 }
 ```

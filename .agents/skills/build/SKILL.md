@@ -113,9 +113,19 @@ NEVER import `IHttpContextAccessor` in Application.
 
 **Migration naming:** `yyyyMMddHHmm_VerbNoun` (e.g., `202605091200_AddReportSlaColumns`)
 
-**File upload:** Presigned URL pattern (client → S3 direct), backend validates + stores metadata.
+**File upload (Cloudflare R2):** Presigned URL pattern (client → R2 direct), backend validates + stores metadata.
+- Use `AWSSDK.S3` with R2 endpoint (S3-compatible).
+- R2 gotchas: `DisablePayloadSigning = true`, `DisableDefaultChecksumValidation = true`.
+- Serve public media via `media.greenlens.example` (custom domain + Cloudflare Cache), NOT `*.r2.dev`.
+- Validate magic bytes (not file extension), limit image dimensions (max 8000×8000), re-encode via ImageSharp.
+- Strip EXIF before AI service (BR-AI-007). Keep encrypted EXIF via Data Protection API.
 
-**Background jobs:** Register in Hangfire with correct schedule per CLAUDE.md §4.11.
+**Security services (`Infrastructure/Security/`):**
+- `TurnstileVerifier`: verify Cloudflare Turnstile token via Siteverify endpoint.
+- `IpReputationCheck`: validate Cloudflare IP ranges for `CF-Connecting-IP`.
+- `SecretsRotator`: key rotation helper.
+
+**Background jobs:** Register in Hangfire with correct schedule per OVERVIEW.md §4.11.
 
 #### Step D: API Layer (`Greenlens.Api/`)
 
@@ -123,22 +133,34 @@ NEVER import `IHttpContextAccessor` in Application.
 ```csharp
 [ApiController]
 [Route("v1/[controller]")]
+[Produces("application/json")]
 public sealed class ReportsController : ControllerBase
 {
     private readonly ISender _sender;
 
     public ReportsController(ISender sender) => _sender = sender;
 
-    /// <summary>Submit a new pollution report</summary>
     [HttpPost]
     [Authorize(Policy = Policies.CanSubmitReport)]
-    [ProducesResponseType(typeof(ApiResponse<Guid>), 201)]
+    [SwaggerOperation(
+        Summary = "Submit Report",
+        Description = "Submit a new pollution report with photos and GPS location.")]
+    [SwaggerResponse(200, "Report submitted successfully", typeof(ApiResponse<Guid>))]
+    [SwaggerResponse(401, "Unauthorized", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Validation error", typeof(ApiResponse))]
     public async Task<IActionResult> SubmitAsync(
         [FromBody] SubmitReportCommand cmd,
         CancellationToken ct)
         => (await _sender.Send(cmd, ct)).ToHttp();
 }
 ```
+
+> **MANDATORY:** Every controller action MUST have:
+> 1. `[SwaggerOperation(Summary = "...", Description = "...")]` — short summary + longer description
+> 2. `[SwaggerResponse(statusCode, "description", typeof(ApiResponse<T>))]` — for EACH possible response status
+> 3. Success response: `typeof(ApiResponse<TResponse>)`
+> 4. Error response: `typeof(ApiResponse)` (no generic param)
+> 5. `[Produces("application/json")]` on controller class
 
 **Response envelope** — ALL responses use:
 ```json
@@ -157,6 +179,19 @@ options.AddPolicy(Policies.CanVerifyReport, p => p.RequireRole("Officer", "Admin
 - `BusinessRuleViolationException` → 422
 - Others → 500 + correlation ID
 - Format: RFC 7807 Problem Details
+
+**Security headers** — `OwaspHeaders.Core` middleware (§13.6):
+- HSTS, CSP (allow Turnstile + R2 domain), X-Frame-Options, nosniff
+- ForwardedHeaders with `CF-Connecting-IP` BEFORE authentication
+
+**CORS** — strict origin list per policy (§13.7):
+- Public API: GET-only, no credentials
+- Authed API: specific FE origin, allow credentials
+- NEVER `AllowAnyOrigin().AllowCredentials()`
+
+**Rate limiting** — 2 layers (§13.8, §14.3):
+- Cloudflare WAF at edge (DDoS, brute-force)
+- ASP.NET `RateLimiterMiddleware` per userId (BR-SYS-004)
 
 ### 3. Coding Standards Checklist
 
@@ -243,6 +278,9 @@ After coding, create notes documenting:
 - [ ] All handlers have BR ID XML comments
 - [ ] Response envelope matches `{code, message, status, data}`
 - [ ] CancellationToken passed to all I/O calls
+- [ ] Security headers via `OwaspHeaders.Core` configured
+- [ ] CORS policies strict (no AllowAnyOrigin+AllowCredentials)
+- [ ] ForwardedHeaders configured with CF-Connecting-IP
 - [ ] No new packages added without user approval
 
 ## Resources
@@ -257,13 +295,15 @@ Detailed pattern guides are in the `csharp-conventions` skill:
 | [result-pattern.md](../csharp-conventions/resources/result-pattern.md) | Result\<T\> implementation, Error definitions, HTTP mapping |
 | [data-access-patterns.md](../csharp-conventions/resources/data-access-patterns.md) | EF Core queries, projections, geo, auditing |
 | [caching-patterns.md](../csharp-conventions/resources/caching-patterns.md) | Multi-level cache, rate limiting, invalidation |
+| [security-patterns.md](../csharp-conventions/resources/security-patterns.md) | Auth hardening, HTTP headers, CORS, Turnstile, R2, secrets rotation |
+| [performance-patterns.md](../csharp-conventions/resources/performance-patterns.md) | Compression, caching layers, R2 zero-egress, DB optimization |
 | [best-practices.md](../csharp-conventions/resources/best-practices.md) | DO/DON'T rules, common pitfalls |
 
 ## Sources & References
 
 | Source | Path | Description |
 |--------|------|-------------|
-| OVERVIEW.md | `OVERVIEW.md` | Architecture, naming, DB, auth, validation conventions |
+| OVERVIEW.md | `OVERVIEW.md` (v1.1) | Architecture, naming, DB, auth, security (§13), Cloudflare (§14) |
 | API Conventions | `00_API_CONVENTIONS.md` | Response envelope, field naming, pagination, file upload |
 | Business Rules | `SU26SE049_BusinessRules_v1_0.docx` | All BR-*-NNN rule definitions |
 

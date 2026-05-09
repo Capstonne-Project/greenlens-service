@@ -1,6 +1,6 @@
 # Testing Patterns — xUnit + FluentAssertions + NSubstitute
 
-> **Source:** CLAUDE.md §7 — Testing Strategy
+> **Source:** OVERVIEW.md §7 — Testing Strategy
 
 ## Test Project Structure
 
@@ -200,7 +200,8 @@ public sealed class SubmitReportCommandValidatorTests
 ```csharp
 public sealed class SubmitReportCommandHandlerTests
 {
-    private readonly IApplicationDbContext _db = Substitute.For<IApplicationDbContext>();
+    private readonly IReportRepository _reports = Substitute.For<IReportRepository>();
+    private readonly IUnitOfWork _uow = Substitute.For<IUnitOfWork>();
     private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
     private readonly ICacheService _cache = Substitute.For<ICacheService>();
     private readonly SubmitReportCommandHandler _sut;
@@ -210,10 +211,7 @@ public sealed class SubmitReportCommandHandlerTests
         _currentUser.UserId.Returns(Guid.NewGuid());
         _currentUser.Role.Returns("Citizen");
 
-        var mockDbSet = Substitute.For<DbSet<Report>>();
-        _db.Reports.Returns(mockDbSet);
-
-        _sut = new SubmitReportCommandHandler(_db, _currentUser, _cache);
+        _sut = new SubmitReportCommandHandler(_reports, _uow, _currentUser, _cache);
     }
 
     [Fact]
@@ -230,8 +228,8 @@ public sealed class SubmitReportCommandHandlerTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().NotBeEmpty();
-        _db.Reports.Received(1).Add(Arg.Any<Report>());
-        await _db.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+        _reports.Received(1).Add(Arg.Any<Report>());
+        await _uow.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 }
 ```

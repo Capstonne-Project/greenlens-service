@@ -14,6 +14,7 @@
   <img src="https://img.shields.io/badge/ASP.NET_Core-9.0-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" alt="ASP.NET Core"/>
   <img src="https://img.shields.io/badge/PostgreSQL-18_+_PostGIS-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL"/>
   <img src="https://img.shields.io/badge/Redis-Cache-DC382D?style=for-the-badge&logo=redis&logoColor=white" alt="Redis"/>
+  <img src="https://img.shields.io/badge/Cloudflare-R2_+_WAF-F38020?style=for-the-badge&logo=cloudflare&logoColor=white" alt="Cloudflare"/>
   <img src="https://img.shields.io/badge/Docker-Containerized-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker"/>
 </p>
 
@@ -107,8 +108,8 @@ GreenLens follows **Clean Architecture** with strict dependency rules:
 │                   Greenlens.Api                  │  ◄── Composition Root (HTTP)
 │              Controllers · Middlewares           │
 ├─────────────────────────────────────────────────┤
-│              Greenlens.Infrastructure            │  ◄── Adapters (DB, S3, Redis, FCM)
-│     Persistence · Identity · Storage · AI · Geo  │
+│              Greenlens.Infrastructure            │  ◄── Adapters (DB, R2, Redis, FCM)
+│  Persistence · Identity · Storage · Security · Geo│
 ├─────────────────────────────────────────────────┤
 │              Greenlens.Application               │  ◄── Use Cases (CQRS + MediatR)
 │          Features · Behaviors · Interfaces       │
@@ -146,12 +147,15 @@ Api ──► Application ──► Domain
 | **ORM** | Entity Framework Core 9 |
 | **Database** | PostgreSQL 18 + PostGIS |
 | **Cache** | Redis (multi-level: L1 Memory + L2 Redis) |
-| **Object Storage** | AWS S3 (presigned URL upload) |
+| **Object Storage** | Cloudflare R2 (S3-compatible, zero egress) |
+| **CDN / WAF / DDoS** | Cloudflare (edge proxy, 300+ POP) |
+| **CAPTCHA** | Cloudflare Turnstile (BR-AUTH-011) |
 | **Message Queue** | RabbitMQ / MassTransit |
 | **Background Jobs** | Hangfire |
-| **Auth** | ASP.NET Core Identity + JWT (24h access / 30d refresh) |
-| **Validation** | FluentValidation (2-layer: input + business) |
+| **Auth** | ASP.NET Core Identity + JWT RS256 (24h access / 30d refresh) |
+| **Validation** | FluentValidation (3-layer: edge + input + business) |
 | **Mapping** | Mapster (source-gen, faster than AutoMapper) |
+| **Security** | OwaspHeaders.Core, Data Protection API, bcrypt.net-next |
 | **Logging** | Serilog → Seq / ELK |
 | **Observability** | OpenTelemetry → Jaeger / Tempo |
 | **API Docs** | Swashbuckle (OpenAPI 3.0) |
@@ -186,8 +190,9 @@ dotnet user-secrets init
 dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Port=5432;Database=greenlens;Username=postgres;Password=yourpassword"
 dotnet user-secrets set "ConnectionStrings:Redis" "localhost:6379"
 dotnet user-secrets set "Jwt:Secret" "your-256-bit-secret-key-here-minimum-32-chars"
-dotnet user-secrets set "S3:AccessKey" "your-s3-access-key"
-dotnet user-secrets set "S3:SecretKey" "your-s3-secret-key"
+dotnet user-secrets set "Cloudflare:R2:AccessKeyId" "your-r2-access-key"
+dotnet user-secrets set "Cloudflare:R2:SecretAccessKey" "your-r2-secret-key"
+dotnet user-secrets set "Cloudflare:Turnstile:SecretKey" "your-turnstile-secret"
 
 # 4. Apply database migrations
 dotnet ef database update --project ../Greenlens.Infrastructure
@@ -210,13 +215,15 @@ docker compose up -d
 |----------|------------|---------|
 | `ConnectionStrings__DefaultConnection` | PostgreSQL connection string | — |
 | `ConnectionStrings__Redis` | Redis connection string | `localhost:6379` |
-| `Jwt__Secret` | JWT signing key (≥ 32 chars) | — |
+| `Jwt__Secret` | JWT signing key (≥ 32 chars, HS256 dev only) | — |
 | `Jwt__Issuer` | JWT issuer | `greenlens-api` |
 | `Jwt__Audience` | JWT audience | `greenlens-client` |
-| `S3__BucketName` | S3 bucket for media | `greenlens-media` |
+| `Cloudflare__R2__Endpoint` | R2 endpoint URL | — |
+| `Cloudflare__R2__Bucket` | R2 bucket name | `greenlens-media` |
+| `Cloudflare__Turnstile__SiteKey` | Turnstile site key (public) | — |
 | `ASPNETCORE_ENVIRONMENT` | Environment name | `Development` |
 
-> ⚠️ **Never** commit real secrets. Use `dotnet user-secrets` for dev, environment variables or Key Vault for staging/production.
+> ⚠️ **Never** commit real secrets (R2 keys, Turnstile secret, JWT private key). Use `dotnet user-secrets` for dev, Azure Key Vault for production.
 
 ---
 
@@ -246,12 +253,13 @@ greenlens-service/
 │   │   │   └── Admin/                 # Users, Roles, Categories, AuditLog
 │   │   └── BusinessRules/             # BR-*-NNN constants
 │   │
-│   ├── Greenlens.Infrastructure/      # Adapters — DB, S3, Redis, FCM
+│   ├── Greenlens.Infrastructure/      # Adapters — DB, R2, Redis, FCM
 │   │   ├── Persistence/               # DbContext, Configurations, Migrations
 │   │   ├── Identity/                  # JWT service, CurrentUser
-│   │   ├── Storage/                   # AWS S3 adapter
+│   │   ├── Storage/                   # R2FileStorage (S3-compatible), ImageProcessor
 │   │   ├── Caching/                   # Redis cache service
 │   │   ├── Geo/                       # PostGIS query helpers
+│   │   ├── Security/                  # TurnstileVerifier, BcryptHasher, SecretsRotator
 │   │   ├── BackgroundJobs/            # Hangfire jobs
 │   │   └── DependencyInjection.cs     # All registrations
 │   │
@@ -336,10 +344,10 @@ Accept-Language: vi-VN
 
 | Scope | Limit |
 |-------|-------|
-| Anonymous API | 60 req/min/IP |
-| Authenticated user | 300 req/min/user |
-| Submit report | 5/hour, 20/24h per citizen |
-| Login attempts | 5 fail/15min → lock 30min |
+| Anonymous API | 60 req/min/IP (Cloudflare edge + app) |
+| Authenticated user | 300 req/min/user (app layer) |
+| Submit report | 5/hour, 20/24h per citizen (Redis-backed) |
+| Login attempts | 5 fail/15min → lock 30min + Turnstile from 3rd fail |
 
 ---
 
@@ -396,13 +404,15 @@ This repository includes configuration for **two** AI coding assistants:
     ├── test/                          # Test writing + failure triage
     ├── release/                       # Rollout checklist + risk log
     └── csharp-conventions/            # Coding standards + patterns
-        └── resources/                 # 7 detailed pattern guides
+        └── resources/                 # 9 detailed pattern guides
             ├── folder-structure.md
             ├── di-patterns.md
             ├── async-patterns.md
             ├── result-pattern.md
             ├── data-access-patterns.md
             ├── caching-patterns.md
+            ├── security-patterns.md    # NEW: §13 Security
+            ├── performance-patterns.md # NEW: §10 + §14
             └── best-practices.md
 ```
 

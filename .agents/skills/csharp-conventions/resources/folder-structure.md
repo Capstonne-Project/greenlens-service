@@ -1,6 +1,6 @@
 # Folder Structure — GreenLens Clean Architecture
 
-> **Source:** CLAUDE.md §3 — Solution Structure
+> **Source:** OVERVIEW.md §3 — Solution Structure (v1.1)
 
 ## Full Solution Tree
 
@@ -51,12 +51,20 @@ greenlens-service/
 │   │   │   │   ├── TransactionBehavior.cs  # Wraps commands in transaction
 │   │   │   │   └── CachingBehavior.cs
 │   │   │   ├── Interfaces/
-│   │   │   │   ├── IApplicationDbContext.cs
 │   │   │   │   ├── ICurrentUser.cs         # Wraps IHttpContextAccessor
-│   │   │   │   ├── IDateTime.cs
-│   │   │   │   ├── IFileStorage.cs         # S3 adapter interface
+│   │   │   │   ├── IDateTimeProvider.cs
+│   │   │   │   ├── IFileStorage.cs         # R2/S3 adapter interface
 │   │   │   │   ├── ICacheService.cs        # Redis adapter interface
-│   │   │   │   └── IAuditLogger.cs
+│   │   │   │   ├── ITurnstileVerifier.cs   # Cloudflare Turnstile verify
+│   │   │   │   ├── IAuditLogger.cs
+│   │   │   │   └── Persistence/            # Strict repo pattern (§4.12)
+│   │   │   │       ├── IGenericRepository.cs  # Base: Query, GetByIdAsync, Add, Remove
+│   │   │   │       ├── IUnitOfWork.cs         # SaveChangesAsync, BeginTransactionAsync
+│   │   │   │       ├── IDbTransaction.cs
+│   │   │   │       ├── IReportRepository.cs   # : IGenericRepository<Report> + business methods
+│   │   │   │       ├── IUserRepository.cs
+│   │   │   │       ├── ICategoryRepository.cs # : IGenericRepository<Category> (body rỗng)
+│   │   │   │       └── ...                    # 1 entity = 1 interface
 │   │   │   └── Mappings/
 │   │   │       └── MapsterConfig.cs        # Global Mapster configuration
 │   │   ├── Features/                       # VERTICAL SLICES
@@ -98,32 +106,42 @@ greenlens-service/
 │   │   │   │   ├── UserConfiguration.cs
 │   │   │   │   └── ...
 │   │   │   ├── Migrations/
-│   │   │   ├── Repositories/               # Only when DbContext isn't enough
+│   │   │   ├── Repositories/               # Strict: every entity has a repo
+│   │   │   │   ├── GenericRepository.cs    # internal abstract — base impl
+│   │   │   │   ├── ReportRepository.cs     # internal sealed : GenericRepository<Report>
+│   │   │   │   ├── UserRepository.cs
+│   │   │   │   ├── CategoryRepository.cs   # body rỗng, kế thừa base
+│   │   │   │   └── ...
 │   │   │   └── Interceptors/
-│   │   │       ├── AuditableEntityInterceptor.cs
-│   │   │       └── OutboxInterceptor.cs
+│   │   │       ├── AuditingSaveChangesInterceptor.cs
+│   │   │       └── SoftDeleteInterceptor.cs
 │   │   ├── Identity/
 │   │   │   ├── JwtService.cs
 │   │   │   ├── CurrentUser.cs              # Implements ICurrentUser
 │   │   │   └── IdentityUserExtensions.cs
 │   │   ├── Storage/
-│   │   │   ├── AwsS3FileStorage.cs         # Implements IFileStorage
-│   │   │   └── ImageProcessor.cs           # EXIF strip
+│   │   │   ├── R2FileStorage.cs         # Implements IFileStorage (S3-compatible → R2)
+│   │   │   └── ImageProcessor.cs        # EXIF strip, re-encode via ImageSharp
 │   │   ├── AI/
 │   │   │   └── AiClassificationService.cs
 │   │   ├── Geo/
 │   │   │   └── PostGisQueryHelper.cs
 │   │   ├── Caching/
-│   │   │   └── RedisCacheService.cs        # Implements ICacheService
+│   │   │   └── RedisCacheService.cs      # Implements ICacheService
 │   │   ├── Notifications/
 │   │   │   ├── EmailSender.cs
-│   │   │   └── PushNotifier.cs             # FCM
+│   │   │   └── PushNotifier.cs           # FCM
+│   │   ├── Security/                     # Cloudflare + auth services
+│   │   │   ├── TurnstileVerifier.cs      # Implements ITurnstileVerifier
+│   │   │   ├── IpReputationCheck.cs      # Cloudflare IP range validation
+│   │   │   ├── BcryptPasswordHasher.cs   # bcrypt ≥12, replaces Identity PBKDF2
+│   │   │   └── SecretsRotator.cs         # Key rotation helper
 │   │   ├── BackgroundJobs/
 │   │   │   ├── AutoCloseResolvedReportJob.cs
 │   │   │   ├── SlaBreachVerificationJob.cs
 │   │   │   ├── AiRetryJob.cs
 │   │   │   └── ...
-│   │   └── DependencyInjection.cs          # All infra registrations
+│   │   └── DependencyInjection.cs        # All infra registrations
 │   │
 │   ├── Greenlens.Api/                       # 🔵 Composition root — HTTP entry
 │   │   ├── Controllers/
@@ -154,7 +172,8 @@ greenlens-service/
 │   ├── Greenlens.Application.IntegrationTests/   # Testcontainers
 │   └── Greenlens.Api.FunctionalTests/            # WebApplicationFactory
 │
-├── CLAUDE.md
+├── OVERVIEW.md
+├── CLAUDE.md                                # → symlink / copy of OVERVIEW.md
 ├── 00_API_CONVENTIONS.md
 ├── .editorconfig
 ├── .gitignore
@@ -173,7 +192,7 @@ Api ──► Application ──► Domain
 | Layer | References | MUST NOT Reference |
 |-------|-----------|-------------------|
 | **Domain** | Nothing | `Microsoft.*`, `EntityFrameworkCore`, any other project |
-| **Application** | Domain | Infrastructure, Api, `IHttpContextAccessor` |
+| **Application** | Domain | Infrastructure, Api, `IHttpContextAccessor`, `DbContext` |
 | **Infrastructure** | Application, Domain | Api |
 | **Api** | Application, Infrastructure (DI only) | — |
 
@@ -189,9 +208,13 @@ Api ──► Application ──► Domain
 | Handler | `Application/Features/<Module>/<UseCase>/` | `SubmitReportCommandHandler.cs` (sealed class) |
 | Validator | `Application/Features/<Module>/<UseCase>/` | `SubmitReportCommandValidator.cs` |
 | Application interface | `Application/Common/Interfaces/` | `IFileStorage.cs` |
+| Repo interface | `Application/Common/Interfaces/Persistence/` | `IReportRepository.cs : IGenericRepository<Report>` |
 | Pipeline behavior | `Application/Common/Behaviors/` | `ValidationBehavior.cs` |
 | DB configuration | `Infrastructure/Persistence/Configurations/` | `ReportConfiguration.cs` |
-| External adapter | `Infrastructure/<Service>/` | `AwsS3FileStorage.cs` |
+| Repo implementation | `Infrastructure/Persistence/Repositories/` | `ReportRepository.cs : GenericRepository<Report>` |
+| UnitOfWork | `Infrastructure/Persistence/` | `UnitOfWork.cs` |
+| External adapter | `Infrastructure/<Service>/` | `R2FileStorage.cs` |
+| Security adapter | `Infrastructure/Security/` | `TurnstileVerifier.cs`, `BcryptPasswordHasher.cs` |
 | Background job | `Infrastructure/BackgroundJobs/` | `AutoCloseResolvedReportJob.cs` |
 | API controller | `Api/Controllers/` | `ReportsController.cs` (sealed class) |
 | Middleware | `Api/Middlewares/` | `ExceptionHandlingMiddleware.cs` |
