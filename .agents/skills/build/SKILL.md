@@ -244,3 +244,26 @@ After coding, create notes documenting:
 - [ ] Response envelope matches `{code, message, status, data}`
 - [ ] CancellationToken passed to all I/O calls
 - [ ] No new packages added without user approval
+
+## Resources
+
+Detailed pattern guides are in the `csharp-conventions` skill:
+
+| Resource | Description |
+|----------|-------------|
+| [folder-structure.md](../csharp-conventions/resources/folder-structure.md) | Full solution tree, "where things go" decision table |
+| [di-patterns.md](../csharp-conventions/resources/di-patterns.md) | DI registration, lifetime guidelines, Options pattern |
+| [async-patterns.md](../csharp-conventions/resources/async-patterns.md) | Async/await correct usage, CancellationToken, ConfigureAwait |
+| [result-pattern.md](../csharp-conventions/resources/result-pattern.md) | Result\<T\> implementation, Error definitions, HTTP mapping |
+| [data-access-patterns.md](../csharp-conventions/resources/data-access-patterns.md) | EF Core queries, projections, geo, auditing |
+| [caching-patterns.md](../csharp-conventions/resources/caching-patterns.md) | Multi-level cache, rate limiting, invalidation |
+| [best-practices.md](../csharp-conventions/resources/best-practices.md) | DO/DON'T rules, common pitfalls |
+
+## Sources & References
+
+| Source | Path | Description |
+|--------|------|-------------|
+| OVERVIEW.md | `OVERVIEW.md` | Architecture, naming, DB, auth, validation conventions |
+| API Conventions | `00_API_CONVENTIONS.md` | Response envelope, field naming, pagination, file upload |
+| Business Rules | `SU26SE049_BusinessRules_v1_0.docx` | All BR-*-NNN rule definitions |
+

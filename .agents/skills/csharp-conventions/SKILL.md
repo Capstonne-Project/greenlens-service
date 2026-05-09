@@ -121,3 +121,31 @@ Errors follow RFC 7807 Problem Details.
 ## Before Adding Packages
 
 > **Ask the user first.** Do not add new large dependencies without approval.
+
+## Resources
+
+Detailed pattern guides with full code examples are in `resources/`:
+
+| Resource | Description |
+|----------|-------------|
+| [folder-structure.md](resources/folder-structure.md) | Full solution tree, dependency rule, "where things go" decision table |
+| [di-patterns.md](resources/di-patterns.md) | DI registration, lifetime guidelines, Options pattern, captive dependency fix |
+| [async-patterns.md](resources/async-patterns.md) | Correct async/await, CancellationToken, ConfigureAwait, anti-patterns |
+| [result-pattern.md](resources/result-pattern.md) | Result\<T\> implementation, Error definitions, HTTP mapping, DO/DON'T |
+| [data-access-patterns.md](resources/data-access-patterns.md) | EF Core queries, projections, geo queries, auditing interceptor |
+| [caching-patterns.md](resources/caching-patterns.md) | Multi-level cache (L1 Memory + L2 Redis), cache keys, invalidation, rate limiting |
+| [best-practices.md](resources/best-practices.md) | Consolidated DO/DON'T rules and common pitfalls with code examples |
+
+## Sources & References
+
+| Source | Path | Description |
+|--------|------|-------------|
+| OVERVIEW.md | `OVERVIEW.md` | Project conventions, architecture, BR mapping, coding standards |
+| API Conventions | `00_API_CONVENTIONS.md` | Response envelope, HTTP codes, field naming, pagination, auth |
+| Business Rules | `SU26SE049_BusinessRules_v1_0.docx` | Source of truth for all BR-*-NNN rules |
+| .NET 9 Docs | [learn.microsoft.com](https://learn.microsoft.com/en-us/dotnet/core/whats-new/dotnet-9) | C# 13 / .NET 9 features |
+| EF Core 9 | [learn.microsoft.com](https://learn.microsoft.com/en-us/ef/core/what-is-new/ef-core-9.0/whatsnew) | EF Core 9 features and patterns |
+| Clean Architecture | Jason Taylor template | Layer separation and dependency rule |
+| MediatR | [github.com/jbogard/MediatR](https://github.com/jbogard/MediatR) | CQRS pipeline behaviors |
+| FluentValidation | [docs.fluentvalidation.net](https://docs.fluentvalidation.net) | Input validation rules |
+| Mapster | [github.com/MapsterMapper/Mapster](https://github.com/MapsterMapper/Mapster) | Object mapping and projection |

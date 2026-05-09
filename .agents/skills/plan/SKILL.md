@@ -113,3 +113,14 @@ Break the work into ordered, testable milestones:
 - [ ] User has approved the scope document
 
 > **STOP** — Do not proceed to the Build step until the user has reviewed and approved this plan.
+
+## Sources & References
+
+| Source | Path | Description |
+|--------|------|-------------|
+| OVERVIEW.md | `OVERVIEW.md` | Project overview, actors, BR mapping, architecture, coding standards |
+| API Conventions | `00_API_CONVENTIONS.md` | Response envelope, status codes, business codes, pagination |
+| Business Rules | `SU26SE049_BusinessRules_v1_0.docx` | Source of truth for all BR-*-NNN rules |
+| State Machine | `OVERVIEW.md §5` | Report state transitions (BR-REP-020, BR-REP-021) |
+| Folder Structure | `../csharp-conventions/resources/folder-structure.md` | Full solution tree and "where things go" table |
+

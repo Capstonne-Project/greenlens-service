@@ -150,3 +150,13 @@ description: >
 - [ ] BR IDs in commit message
 - [ ] PR review ≥ 1 approve
 - [ ] QA sign-off
+
+## Sources & References
+
+| Source | Path | Description |
+|--------|------|-------------|
+| OVERVIEW.md | `OVERVIEW.md §6-§10` | Coding standards, config, cross-cutting, performance |
+| API Conventions | `00_API_CONVENTIONS.md §12` | Definition of Done checklist |
+| Business Rules | `SU26SE049_BusinessRules_v1_0.docx` | BR-SYS-*, BR-DAT-*, BR-ADM-* for ops |
+| Best Practices | `../csharp-conventions/resources/best-practices.md` | Security, performance, data access pitfalls |
+

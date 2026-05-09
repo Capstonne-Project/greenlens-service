@@ -112,3 +112,22 @@ dotnet test --filter "FullyQualifiedName~BR_REP_001" # by BR ID
 - [ ] `dotnet test` passes with 0 failures
 - [ ] Every BR has ≥ 1 test
 - [ ] Happy path + ≥ 1 error case per endpoint
+
+## Resources
+
+| Resource | Description |
+|----------|-------------|
+| [testing-patterns.md](resources/testing-patterns.md) | Full test project structure, domain/validator/handler/integration/E2E test templates, response envelope assertions |
+
+## Sources & References
+
+| Source | Description |
+|--------|-------------|
+| `OVERVIEW.md §7` | Testing strategy, pyramid ratios, rules |
+| `00_API_CONVENTIONS.md §12` | Definition of Done checklist |
+| [xUnit](https://xunit.net/) | Test framework |
+| [FluentAssertions](https://fluentassertions.com/) | Assertion library |
+| [NSubstitute](https://nsubstitute.github.io/) | Mocking framework |
+| [Testcontainers](https://dotnet.testcontainers.org/) | Docker-based integration tests |
+| [Respawn](https://github.com/jbogard/Respawn) | Database reset between tests |
+
