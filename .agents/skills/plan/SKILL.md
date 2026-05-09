@@ -109,7 +109,8 @@ Break the work into ordered, testable milestones:
 - [ ] Scope does not introduce new packages without user approval
 - [ ] Migration naming follows `yyyyMMddHHmm_VerbNoun` convention
 - [ ] API contract follows `00_API_CONVENTIONS.md` response envelope
-- [ ] No `using Microsoft.EntityFrameworkCore` in Domain or Application (except `IApplicationDbContext`)
+- [ ] No `using Microsoft.EntityFrameworkCore` in Domain or Application (strict \u2014 NO exceptions)
+- [ ] Handlers use `IXxxRepository` + `IUnitOfWork`, never `IApplicationDbContext`
 - [ ] User has approved the scope document
 
 > **STOP** — Do not proceed to the Build step until the user has reviewed and approved this plan.

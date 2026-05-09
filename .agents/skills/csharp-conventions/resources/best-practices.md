@@ -29,10 +29,13 @@
 - **DO** use `ConfigureAwait(false)` in Application and Infrastructure
 - **DO** use `IAsyncEnumerable<T>` for streaming (CSV export)
 
-### Data Access
-- **DO** use `AsNoTracking()` for read-only queries
+### Data Access (Strict Repo — §4.12)
+- **DO** use `IXxxRepository : IGenericRepository<T>` for all data access in Application
+- **DO** use `IUnitOfWork.SaveChangesAsync()` for commit (never from repo)
+- **DO** create a repo interface for every entity (even CRUD-only with empty body)
+- **DO** use `QueryAsNoTracking()` for read-only queries
 - **DO** use Mapster `.ProjectToType<>()` for DTO projection
-- **DO** use one `SaveChanges()` per request via `TransactionBehavior`
+- **DO** register each repo individually (`AddScoped<IReportRepository, ReportRepository>()`)
 - **DO** inherit all entities from `AuditableEntity`
 - **DO** use global query filter for soft delete
 
@@ -91,6 +94,9 @@
 ### Architecture
 - **DON'T** import `Microsoft.EntityFrameworkCore` in Domain or Application
 - **DON'T** import `IHttpContextAccessor` in Application
+- **DON'T** import `IApplicationDbContext` or `DbContext` in Application handlers
+- **DON'T** inject `IGenericRepository<T>` directly — always inject `IXxxRepository`
+- **DON'T** register open generic `IGenericRepository<>` in DI
 - **DON'T** create monolithic "Service" classes (e.g., `ReportService` with 20 methods)
 - **DON'T** put business logic in controllers
 - **DON'T** inject repositories directly into controllers
@@ -103,8 +109,9 @@
 
 ### Data Access
 - **DON'T** mock `DbContext` in tests — use Testcontainers
+- **DON'T** call `SaveChangesAsync()` from repo — only from `IUnitOfWork`
 - **DON'T** call `SaveChanges()` multiple times in one request
-- **DON'T** use tracking for read-only queries
+- **DON'T** use tracking for read-only queries (`Query()` → use `QueryAsNoTracking()`)
 - **DON'T** create N+1 queries (load in loop)
 - **DON'T** auto-migrate in production (use migration bundle)
 - **DON'T** delete a merged migration — add a new reverting one
@@ -143,7 +150,7 @@
 ### 1. Captive Dependency
 ```csharp
 // ❌ Singleton captures Scoped → memory leak
-services.AddSingleton<MyService>(); // MyService depends on IApplicationDbContext (Scoped)
+services.AddSingleton<MyService>(); // MyService depends on IReportRepository (Scoped)
 
 // ✅ Fix: Use IServiceScopeFactory
 public sealed class MyService(IServiceScopeFactory scopeFactory) { ... }
@@ -235,7 +242,7 @@ if (await rateLimiter.IsRateLimitedAsync(userId, "submit", 5, TimeSpan.FromHours
 return $"https://pub-xxx.r2.dev/{key}";
 
 // ✅ Custom domain via Cloudflare
-return $"https://media.ecoreport.example/{key}";
+return $"https://media.greenlens.example/{key}";
 ```
 
 ### 10. Reflective CORS
@@ -247,7 +254,7 @@ services.AddCors(o => o.AddDefaultPolicy(p => p
 
 // ✅ Strict origin list
 services.AddCors(o => o.AddPolicy("AuthedApi", p => p
-    .WithOrigins("https://app.ecoreport.example")
+    .WithOrigins("https://app.greenlens.example")
     .AllowCredentials()
     .AllowAnyMethod()
     .AllowAnyHeader()));

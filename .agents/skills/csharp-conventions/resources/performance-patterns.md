@@ -119,7 +119,7 @@ var nearby = await db.Reports
 ```csharp
 // ✅ Cloudflare R2 — zero egress cost (vs AWS S3 $0.09/GB)
 // Upload: presigned URL → client direct upload to R2
-// Serve: media.ecoreport.example (custom domain) → Cloudflare CDN cache
+// Serve: media.greenlens.example (custom domain) → Cloudflare CDN cache
 
 // Cache headers on PUT:
 var metadata = new Dictionary<string, string>

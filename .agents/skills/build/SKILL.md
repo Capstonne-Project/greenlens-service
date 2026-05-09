@@ -116,7 +116,7 @@ NEVER import `IHttpContextAccessor` in Application.
 **File upload (Cloudflare R2):** Presigned URL pattern (client → R2 direct), backend validates + stores metadata.
 - Use `AWSSDK.S3` with R2 endpoint (S3-compatible).
 - R2 gotchas: `DisablePayloadSigning = true`, `DisableDefaultChecksumValidation = true`.
-- Serve public media via `media.ecoreport.example` (custom domain + Cloudflare Cache), NOT `*.r2.dev`.
+- Serve public media via `media.greenlens.example` (custom domain + Cloudflare Cache), NOT `*.r2.dev`.
 - Validate magic bytes (not file extension), limit image dimensions (max 8000×8000), re-encode via ImageSharp.
 - Strip EXIF before AI service (BR-AI-007). Keep encrypted EXIF via Data Protection API.
 

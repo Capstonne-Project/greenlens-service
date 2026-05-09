@@ -55,11 +55,11 @@ Api ──► Application ──► Domain
 ```
 
 - **Domain:** NO references to other projects. NO `Microsoft.*`, NO `EntityFrameworkCore`.
-- **Application:** References Domain only. Defines interfaces, Infrastructure implements.
-- **Infrastructure:** References Application + Domain. All framework-specific code here (EF, R2/S3 SDK, FCM, Turnstile…).
+- **Application:** References Domain only. Defines interfaces (`IGenericRepository<T>`, `IUnitOfWork`, `IXxxRepository`). **NO** `DbContext`, **NO** `IApplicationDbContext`.
+- **Infrastructure:** References Application + Domain. All framework-specific code here (EF, R2/S3 SDK, FCM, Turnstile…). `ApplicationDbContext` is `internal`.
 - **Api:** References Application + Infrastructure (DI only). Keep thin.
 
-**Hard rule:** If `using Microsoft.EntityFrameworkCore` appears in Domain or Application (except `IApplicationDbContext`) — **stop and fix**.
+**Hard rule:** If `using Microsoft.EntityFrameworkCore` appears in Domain or Application — **stop and fix**. Application must NEVER reference DbContext.
 
 ## Naming Conventions
 
@@ -82,6 +82,16 @@ Api ──► Application ──► Domain
 1. **Edge validation** (Cloudflare WAF / OWASP ManagedRuleset) — blocks known-bad payloads at edge.
 2. **Input validation** (FluentValidation) — format, length, range. Pipeline behavior.
 3. **Business validation** in handler — needs DB (role check, duplicate check).
+
+## Data Access (Strict Repository — §4.12)
+
+- All data access via `IXxxRepository : IGenericRepository<T>` + `IUnitOfWork`. **NEVER** `IApplicationDbContext` in Application.
+- `IGenericRepository<T>`: `Query()`, `QueryAsNoTracking()`, `GetByIdAsync()`, `Add()`, `Remove()`, `ExistsAsync()`.
+- Every entity has its own `IXxxRepository` (even CRUD-only with empty body).
+- `GenericRepository<T>` is `internal abstract` in Infrastructure.
+- Handler injects `IXxxRepository` + `IUnitOfWork`, **NEVER** `IGenericRepository<T>` directly.
+- No repo has `SaveChangesAsync` — commit only via `IUnitOfWork`.
+- DI: register each repo individually (`AddScoped<IReportRepository, ReportRepository>()`), NOT open generic.
 
 ## Database Conventions
 

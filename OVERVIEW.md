@@ -83,8 +83,10 @@ src/
 ├── Greenlens.Application/         # Use cases — phụ thuộc Domain
 │   ├── Common/
 │   │   ├── Behaviors/             # Validation, Logging, Transaction, Caching
-│   │   ├── Interfaces/            # IApplicationDbContext, ICurrentUser, IDateTime, IFileStorage
-│   │   └── Mappings/              # Mapster config
+│   │   ├── Interfaces/
+│   │   │   ├── ICurrentUser.cs, IDateTimeProvider.cs, IFileStorage.cs, ICacheService.cs, ITurnstileVerifier.cs
+│   │   │   └── Persistence/       # IGenericRepository<T>, IUnitOfWork, IXxxRepository (xem §4.12)
+│   │   └── Mappings/              # Mapster config (entity ↔ DTO projection)
 │   ├── Features/                  # Tổ chức theo VERTICAL SLICE (xem §4.1)
 │   │   ├── Auth/                  # Register, Login, RefreshToken, ResetPassword
 │   │   ├── Reports/               # Submit, Verify, Assign, Resolve, Close, FlagDuplicate
@@ -101,10 +103,11 @@ src/
 ├── Greenlens.Infrastructure/      # Adapters — DB, MQ, external services
 │   ├── Persistence/
 │   │   ├── ApplicationDbContext.cs
+│   │   ├── UnitOfWork.cs          # implement IUnitOfWork (§4.12)
 │   │   ├── Configurations/        # IEntityTypeConfiguration<>
 │   │   ├── Migrations/
-│   │   ├── Repositories/          # Chỉ tạo repo khi DbContext không đủ
-│   │   └── Interceptors/          # AuditableEntityInterceptor, OutboxInterceptor
+│   │   ├── Repositories/          # GenericRepository<T> (internal abstract) + XxxRepository (§4.12)
+│   │   └── Interceptors/          # AuditingSaveChangesInterceptor, SoftDeleteInterceptor
 │   ├── Identity/                  # IdentityUser extension, JWT service
 │   ├── Storage/                   # R2FileStorage (S3-compatible adapter), ImageProcessor (EXIF strip)
 │   ├── AI/                        # AIClassificationService (third-party adapter)
@@ -283,6 +286,140 @@ public sealed class ReportsController : ControllerBase
 | `LeaderboardSnapshotJob` | daily/weekly/monthly | BR-GAM-005 |
 | `AuditLogRetentionJob` | weekly | BR-ADM-010, BR-DAT-002 |
 | `AccountHardDeleteJob` | daily | BR-AUTH-022 |
+
+### 4.12. Repository & Unit of Work (Strict Pattern)
+
+> **Quyết định:** project dùng **strict repository** — mọi entity đều có repository interface riêng, kế thừa từ `IGenericRepository<T>` base. Application layer **KHÔNG** import `IApplicationDbContext` (hay bất kỳ DbContext nào). Mọi data access đi qua `IXxxRepository`, mọi commit đi qua `IUnitOfWork`. Lý do: nhất quán 100% — mọi handler đều giống nhau, không có ngoại lệ "entity này dùng repo, entity kia dùng DbContext".
+
+#### Cấu trúc
+
+```
+Application/Common/Interfaces/Persistence/
+├── IGenericRepository.cs          # base contract: Query, QueryAsNoTracking, GetByIdAsync, Add, Remove, ExistsAsync
+├── IUnitOfWork.cs                 # SaveChangesAsync, BeginTransactionAsync
+├── IDbTransaction.cs              # wrapper để Application không phải import EF
+│
+├── IReportRepository.cs           # : IGenericRepository<Report> + GetForVerificationAsync, FindDuplicatesAsync
+├── IReportMediaRepository.cs      # : IGenericRepository<ReportMedia>  (body rỗng — chỉ base)
+├── IUserRepository.cs             # : IGenericRepository<User> + GetByEmailAsync
+├── ICommentRepository.cs          # : IGenericRepository<Comment>
+├── IBadgeRepository.cs            # : IGenericRepository<Badge>
+├── ICleanupTaskRepository.cs      # : IGenericRepository<CleanupTask> + GetPendingByTeamAsync
+├── IAuditLogRepository.cs         # : IGenericRepository<AuditLog>
+├── ICategoryRepository.cs         # : IGenericRepository<PollutionCategory>
+├── INotificationRepository.cs     # : IGenericRepository<Notification>
+└── ...                            # 1 entity = 1 interface (bắt buộc)
+
+Infrastructure/Persistence/
+├── ApplicationDbContext.cs        # internal — CHỈ Infrastructure dùng, KHÔNG export ra Application
+├── UnitOfWork.cs                  # implement IUnitOfWork; dispatch domain events sau Save
+└── Repositories/
+    ├── GenericRepository.cs       # internal abstract — base impl của IGenericRepository<T>
+    ├── ReportRepository.cs        # internal sealed : GenericRepository<Report>, IReportRepository
+    ├── ReportMediaRepository.cs   # internal sealed : GenericRepository<ReportMedia>, IReportMediaRepository
+    ├── UserRepository.cs
+    ├── CommentRepository.cs
+    ├── BadgeRepository.cs
+    ├── CleanupTaskRepository.cs
+    ├── AuditLogRepository.cs
+    ├── CategoryRepository.cs      # body rỗng — kế thừa base là đủ
+    ├── NotificationRepository.cs
+    └── ...
+```
+
+#### `IGenericRepository<T>` — base interface
+
+```csharp
+public interface IGenericRepository<T> where T : BaseEntity
+{
+    IQueryable<T> Query();                        // tracking (cho write)
+    IQueryable<T> QueryAsNoTracking();            // no-tracking (cho read + projection)
+    Task<T?> GetByIdAsync(Guid id, CancellationToken ct);
+    void Add(T entity);
+    void AddRange(IEnumerable<T> entities);
+    void Remove(T entity);
+    void RemoveRange(IEnumerable<T> entities);
+    Task<bool> ExistsAsync(Expression<Func<T, bool>> predicate, CancellationToken ct);
+}
+```
+
+#### Specific repo — body rỗng hoặc thêm method nghiệp vụ
+
+```csharp
+// Body rỗng — CRUD đơn giản, base đủ dùng
+public interface ICategoryRepository : IGenericRepository<PollutionCategory>;
+
+// Có method nghiệp vụ riêng
+public interface IReportRepository : IGenericRepository<Report>
+{
+    Task<Report?> GetForVerificationAsync(Guid id, CancellationToken ct);        // bundle Include
+    Task<List<Report>> FindPotentialDuplicatesAsync(Point location, PollutionType type, CancellationToken ct);
+}
+```
+
+#### `IUnitOfWork`
+
+```csharp
+public interface IUnitOfWork
+{
+    Task<int> SaveChangesAsync(CancellationToken ct);         // commit + dispatch domain events
+    Task<IDbTransaction> BeginTransactionAsync(CancellationToken ct);
+}
+```
+
+#### Quy tắc cốt lõi
+
+1. **Mọi entity đều có `IXxxRepository : IGenericRepository<T>`** — kể cả entity CRUD đơn giản. Body interface rỗng nếu không cần method riêng.
+2. **`GenericRepository<T>` là `internal abstract`** trong Infrastructure — KHÔNG đăng ký DI open generic. Mỗi entity có class cụ thể kế thừa.
+3. **`ApplicationDbContext` là `internal`** — chỉ Infrastructure nhìn thấy. Application layer **KHÔNG BAO GIỜ** import `IApplicationDbContext` hay `DbContext`.
+4. **Handler chỉ inject `IXxxRepository` + `IUnitOfWork`**, không inject generic `IGenericRepository<T>` trực tiếp:
+   ```csharp
+   public sealed class VerifyReportCommandHandler(
+       IReportRepository reports,
+       IUserRepository users,
+       IAuditLogRepository auditLogs,
+       IUnitOfWork uow,
+       ICurrentUser currentUser) : ...
+   ```
+5. **Không repo nào có `SaveChangesAsync`.** Commit qua `IUnitOfWork` duy nhất. Một transaction = 1 lần `uow.SaveChangesAsync()`, có thể ảnh hưởng nhiều entity.
+6. **`TransactionBehavior` (MediatR pipeline)** tự bao `BeginTransactionAsync` / `CommitAsync` quanh mọi Command. Handler chỉ gọi `uow.SaveChangesAsync()` 1 lần.
+7. **Domain events dispatch SAU `SaveChangesAsync` thành công** — implement trong `UnitOfWork`.
+8. **Soft delete:** `repo.Remove(entity)` với `SoftDeletableEntity` được `SoftDeleteInterceptor` chuyển thành update `DeletedAt`. Hard delete chỉ qua job bảo trì (BR-AUTH-022).
+9. **Specific repo chỉ thêm method khi có lý do cụ thể:**
+   - ✅ Bundle Include phức tạp dùng ở nhiều handler (`GetForVerificationAsync`)
+   - ✅ Query PostGIS / raw SQL (`FindPotentialDuplicatesAsync`)
+   - ❌ Wrap lại `GetByIdAsync`, `ExistsAsync` — đã có ở base
+
+#### DI Registration (trong `DependencyInjection.cs`)
+
+```csharp
+// ❌ KHÔNG đăng ký open generic
+// services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
+
+// ✅ Đăng ký từng repo cụ thể
+services.AddScoped<IReportRepository, ReportRepository>();
+services.AddScoped<IReportMediaRepository, ReportMediaRepository>();
+services.AddScoped<IUserRepository, UserRepository>();
+services.AddScoped<ICommentRepository, CommentRepository>();
+services.AddScoped<IBadgeRepository, BadgeRepository>();
+services.AddScoped<ICleanupTaskRepository, CleanupTaskRepository>();
+services.AddScoped<IAuditLogRepository, AuditLogRepository>();
+services.AddScoped<ICategoryRepository, CategoryRepository>();
+services.AddScoped<INotificationRepository, NotificationRepository>();
+
+services.AddScoped<IUnitOfWork, UnitOfWork>();
+```
+
+#### Anti-pattern cần tránh
+
+| ❌ Sai | ✅ Đúng |
+|---|---|
+| `services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>))` | Đăng ký từng repo: `services.AddScoped<IReportRepository, ReportRepository>()` |
+| Handler inject `IGenericRepository<Report>` | Handler inject `IReportRepository` |
+| Handler inject `IApplicationDbContext` | Handler inject `IXxxRepository` + `IUnitOfWork` |
+| `await reportRepo.SaveChangesAsync(ct)` | `await uow.SaveChangesAsync(ct)` |
+| Entity CRUD đơn giản dùng DbContext trực tiếp | Entity CRUD đơn giản cũng có repo (body rỗng kế thừa base) |
+
 
 ---
 
@@ -1009,10 +1146,11 @@ Capstone scope **không** cần lên Pro plan — Free tier đủ cho 5,000 CCU 
 
 ---
 
-**Phiên bản OVERVIEW.md:** 1.1
+**Phiên bản CLAUDE.md:** 1.2
 **Đồng bộ với:** `SU26SE049_BusinessRules_v1_0.docx` v1.0 (17/04/2026).
 **Changelog:**
-- v1.1 (2026-05-09): Thêm `§13 Security` (threat model, auth hardening, secrets rotation, headers, CORS, rate limit, privacy, vuln management, IR). Thêm `§14 Cloudflare Integration` (R2, WAF, Turnstile, mTLS, logs). Cập nhật stack: AWS S3 → Cloudflare R2; bổ sung Turnstile cho BR-AUTH-011; rate limit 2 tầng (edge + app) cho BR-SYS-004.
+- v1.2 (2026-05-09): Thêm `§4.12 Repository & Unit of Work` (hybrid pattern: aggregate-specific repo + UoW, KHÔNG generic repository thuần). Cập nhật `§3` folder structure: thêm `Common/Interfaces/Persistence/`, `UnitOfWork.cs`.
+- v1.1 (2026-05-09): Thêm `§13 Security` + `§14 Cloudflare Integration`. Đổi AWS S3 → Cloudflare R2.
 - v1.0: Phiên bản đầu.
 
 Khi BR doc cập nhật → cập nhật §5 và `Application/BusinessRules/*.cs` constants tương ứng.

@@ -81,7 +81,7 @@ app.UseSecureHeadersMiddleware(SecureHeadersMiddlewareBuilder
             .From("https://challenges.cloudflare.com"))    // Turnstile JS
         .WithImgSrc(s => s.Self()
             .From("data:")
-            .From("https://media.ecoreport.example")))     // R2 domain
+            .From("https://media.greenlens.example")))     // R2 domain
     .UseXFrameOptions(XFrameOptions.Deny)
     .UseReferrerPolicy(ReferrerPolicy.NoReferrer)
     .UseCrossOriginResourcePolicy(CrossOriginResourcePolicy.SameOrigin)
@@ -102,12 +102,12 @@ app.UseSecureHeadersMiddleware(SecureHeadersMiddlewareBuilder
 services.AddCors(options =>
 {
     options.AddPolicy("PublicApi", p => p
-        .WithOrigins("https://ecoreport.example", "https://m.ecoreport.example")
+        .WithOrigins("https://greenlens.example", "https://m.greenlens.example")
         .WithMethods("GET")
         .WithHeaders("Content-Type"));
 
     options.AddPolicy("AuthedApi", p => p
-        .WithOrigins("https://app.ecoreport.example")
+        .WithOrigins("https://app.greenlens.example")
         .AllowCredentials()
         .AllowAnyMethod()
         .AllowAnyHeader());
@@ -180,7 +180,7 @@ var req = new PutObjectRequest
 };
 
 // Public URL via custom domain, NOT *.r2.dev
-public string GetPublicUrl(string key) => $"https://media.ecoreport.example/{key}";
+public string GetPublicUrl(string key) => $"https://media.greenlens.example/{key}";
 ```
 
 ## Forwarded Headers (§14.5)

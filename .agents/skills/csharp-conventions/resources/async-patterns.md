@@ -1,6 +1,6 @@
 # Async/Await Patterns — GreenLens
 
-> **Source:** CLAUDE.md §6 — C# 13 / .NET 9 coding standards
+> **Source:** OVERVIEW.md §6 — C# 13 / .NET 9 coding standards
 
 ## Golden Rules
 
@@ -16,7 +16,7 @@
 ```csharp
 // Handler
 public sealed class GetNearbyReportsQueryHandler(
-    IApplicationDbContext db,
+    IReportRepository reports,
     ICacheService cache)
     : IRequestHandler<GetNearbyReportsQuery, Result<List<ReportDto>>>
 {
@@ -31,8 +31,7 @@ public sealed class GetNearbyReportsQueryHandler(
         if (cached is not null)
             return Result.Success(cached);
 
-        var reports = await db.Reports
-            .AsNoTracking()
+        var result = await reports.QueryAsNoTracking()
             .Where(r => r.Location.IsWithinDistance(
                 new Point(request.Lng, request.Lat) { SRID = 4326 },
                 request.RadiusMeters))
@@ -42,11 +41,11 @@ public sealed class GetNearbyReportsQueryHandler(
 
         await cache.SetAsync(
             $"nearby:{request.Lat}:{request.Lng}",
-            reports,
+            result,
             TimeSpan.FromMinutes(10),
             cancellationToken).ConfigureAwait(false);
 
-        return Result.Success(reports);
+        return Result.Success(result);
     }
 }
 ```

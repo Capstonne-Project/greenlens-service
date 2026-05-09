@@ -219,7 +219,7 @@ docker compose up -d
 | `Jwt__Issuer` | JWT issuer | `greenlens-api` |
 | `Jwt__Audience` | JWT audience | `greenlens-client` |
 | `Cloudflare__R2__Endpoint` | R2 endpoint URL | — |
-| `Cloudflare__R2__Bucket` | R2 bucket name | `ecoreport-media` |
+| `Cloudflare__R2__Bucket` | R2 bucket name | `greenlens-media` |
 | `Cloudflare__Turnstile__SiteKey` | Turnstile site key (public) | — |
 | `ASPNETCORE_ENVIRONMENT` | Environment name | `Development` |
 

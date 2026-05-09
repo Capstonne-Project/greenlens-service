@@ -75,7 +75,7 @@ description: >
 - [ ] Rate limits 2 layers: Cloudflare WAF edge + ASP.NET app (BR-SYS-004)
 - [ ] Turnstile integrated for login 3rd fail + register + forgot password (BR-AUTH-011)
 - [ ] `OwaspHeaders.Core` configured: HSTS, CSP, X-Frame-Options, nosniff (§13.6)
-- [ ] CSP allows `challenges.cloudflare.com` (Turnstile) + `media.ecoreport.example` (R2)
+- [ ] CSP allows `challenges.cloudflare.com` (Turnstile) + `media.greenlens.example` (R2)
 - [ ] CORS strict origin list — NO `AllowAnyOrigin().AllowCredentials()` (§13.7)
 - [ ] ForwardedHeaders reads `CF-Connecting-IP`, NOT `X-Forwarded-For` (§14.5)
 - [ ] No PII in logs at Information level
