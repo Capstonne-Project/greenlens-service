@@ -10,14 +10,22 @@ obj/
 *.nupkg
 **/[Pp]ackages/*
 !**/[Pp]ackages/build/
+project.lock.json
+**/packages.lock.json
 
-## IDE
+## IDE — Visual Studio
 .vs/
+*.csproj.user
+*.dbmdl
+*.jfm
+launchSettings.json
+
+## IDE — VS Code
 .vscode/
 *.swp
 *~
 
-## Rider
+## IDE — Rider
 .idea/
 *.sln.iml
 
@@ -34,24 +42,52 @@ bld/
 [Oo]bj/
 [Ll]og/
 [Ll]ogs/
+msbuild.log
+msbuild.err
+msbuild.wrn
 
 ## Test Results
 [Tt]est[Rr]esult*/
 [Bb]uild[Ll]og.*
 TestResult.xml
+coverage*/
+*.coverage
+*.coveragexml
+*.trx
+
+## Publish / Deploy
+publish/
+*.publish.xml
 
 ## OS
 .DS_Store
 Thumbs.db
 desktop.ini
+ehthumbs.db
+ehthumbs_vista.db
 
 ## Secrets — NEVER commit
 **/appsettings.*.json
 !**/appsettings.json
 **/firebase-adminsdk*.json
+*.pfx
+*.key
+*.pem
+
+## Docker (local overrides)
+docker-compose.override.yml
+.env
+.env.*
+!.env.example
+
+## EF Core
+**/Migrations/*.Designer.cs
 
 ## Misc
 *.tmp
 *.bak
 *.cache
-project.lock.json
+*.log
+*.orig
+.angular/
+node_modules/
