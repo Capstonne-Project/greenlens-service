@@ -1,0 +1,72 @@
+---
+description: Performance and scaling targets for GreenLens. p95 < 2s at 5,000 CCU, mandatory pagination, caching, no N+1.
+alwaysApply: true
+---
+
+# Performance & Scaling
+
+## Targets (BR-SYS-001..004)
+
+| Metric | Target |
+|--------|--------|
+| API p95 | < 2s at 5,000 CCU |
+| Uptime | ≥ 99.5% / month |
+| Throughput | 100,000+ reports total |
+| RPO | ≤ 24h |
+| RTO | ≤ 4h |
+
+## Mandatory rules
+
+- **Pagination on EVERY list endpoint.** Never return unbounded lists.
+  - Default `pageSize=20`, max `100`. Cursor-based for very large.
+- **Projection for queries** — `.ProjectToType<DTO>()` (Mapster) or `Select(...)`. Don't hydrate full entities only to map.
+- **`AsNoTracking()`** for read-only queries.
+- **No N+1.** Use `.Include()` with intent or projection.
+- **Response compression** — Brotli enabled in `Program.cs`.
+- **Heavy work → background jobs** — AI calls, notifications, exports go through Hangfire / outbox.
+
+## Caching (Redis)
+
+| Endpoint | TTL | Key pattern |
+|----------|-----|-------------|
+| Public hotspots | 10 min | `map:hotspots:{bbox}:{filters}` |
+| Public map data | 10 min | `map:nearby:{bbox}:{filters}` (BR-MAP-012) |
+| Leaderboard | 5 min | `gamification:leaderboard:{period}` |
+| Categories / dropdowns | 1 hour | `catalog:categories` |
+
+Invalidate on writes (e.g. new report verified → invalidate hotspot keys for that area).
+
+## Anti-patterns
+
+```csharp
+// ❌ N+1
+var reports = await db.Reports.ToListAsync(ct);
+foreach (var r in reports)
+    r.Comments = await db.Comments.Where(c => c.ReportId == r.Id).ToListAsync(ct);
+
+// ❌ Unbounded list
+return await db.Reports.ToListAsync(ct);
+
+// ❌ Synchronous-over-async
+var u = db.Users.FirstOrDefault(x => x.Id == id);   // missing async
+```
+
+## Index discipline
+
+Add indexes for any new column used in `WHERE`, `ORDER BY`, or `JOIN`. Justify each index in the migration comment.
+
+## DB connection pool
+
+- Pool size = `2 * cpu_count + effective_spindle_count`. Default ~50 for our workload.
+- Use `Npgsql` connection multiplexing for high-concurrency reads.
+
+## Streaming exports (BR-OFF-022)
+
+```csharp
+public async IAsyncEnumerable<ReportCsvRow> StreamAsync(
+    [EnumeratorCancellation] CancellationToken ct)
+{
+    await foreach (var r in db.Reports.AsAsyncEnumerable().WithCancellation(ct))
+        yield return Map(r);
+}
+```

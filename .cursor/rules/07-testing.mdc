@@ -1,0 +1,74 @@
+---
+description: Testing pyramid for GreenLens. xUnit + FluentAssertions + NSubstitute + Testcontainers Postgres + Respawn.
+globs: tests/**/*.cs
+alwaysApply: false
+---
+
+# Testing Conventions
+
+## Pyramid
+
+| Layer       | Ratio | Stack                                            |
+|-------------|-------|--------------------------------------------------|
+| Unit        | ~70%  | xUnit + FluentAssertions + NSubstitute           |
+| Integration | ~25%  | + Testcontainers Postgres + Respawn              |
+| E2E         | ~5%   | + WebApplicationFactory                          |
+
+## Test naming convention
+
+`{Method}_{Scenario}_{ExpectedResult}_{BR_ID}`
+
+```csharp
+[Fact]
+public async Task SubmitReport_NoPhoto_ReturnsValidationError_BR_REP_001() { ... }
+
+[Fact]
+public void Verify_FromSubmitted_RaisesReportVerifiedEvent_BR_REP_020() { ... }
+```
+
+## Hard rules
+
+- AAA (Arrange-Act-Assert), no shared state via static fields.
+- **NEVER mock `DbContext`** — use Testcontainers Postgres.
+- Mock ONLY boundaries: S3, AI, email, FCM, SMS gateway.
+- Respawn for schema reset between test classes (NOT full DB drop).
+- Every BR listed in a handler MUST have ≥ 1 test.
+- Happy path + ≥ 1 error case per endpoint.
+
+## Integration test scaffold
+
+```csharp
+public sealed class ReportQueryTests : IAsyncLifetime
+{
+    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder()
+        .WithImage("postgis/postgis:18-3.4")
+        .Build();
+
+    public async Task InitializeAsync()
+    {
+        await _postgres.StartAsync();
+        // build DbContext, apply migrations
+    }
+
+    public async Task DisposeAsync() => await _postgres.DisposeAsync();
+}
+```
+
+## Run tests
+
+```powershell
+dotnet test                                              # all
+dotnet test tests/Greenlens.Domain.UnitTests/            # one project
+dotnet test --filter "FullyQualifiedName~BR_REP_001"     # by BR ID
+dotnet test --collect:"XPlat Code Coverage"              # coverage
+```
+
+## Failure triage
+
+When a test fails, classify:
+- **Code Bug** — fix the production code.
+- **Test Bug** — fix the test only after confirming production code is correct.
+- **Environment** — Testcontainers / Docker / network — fix infra, not code.
+- **Flaky** — async race, time-dependence, ordering — add `[Retry]` only after root cause analysis.
+
+Always reference the related BR in the fix commit.

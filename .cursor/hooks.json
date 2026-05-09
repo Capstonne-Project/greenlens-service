@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/session-context.ps1",
+        "timeout": 10
+      }
+    ],
+    "beforeSubmitPrompt": [
+      {
+        "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/scan-secrets.ps1",
+        "failClosed": true,
+        "timeout": 10
+      }
+    ],
+    "beforeShellExecution": [
+      {
+        "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/audit-shell.ps1",
+        "failClosed": false,
+        "timeout": 10
+      }
+    ],
+    "afterFileEdit": [
+      {
+        "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/block-domain-ef-leak.ps1",
+        "failClosed": false,
+        "timeout": 10
+      },
+      {
+        "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/enforce-br-comments.ps1",
+        "failClosed": false,
+        "timeout": 10
+      },
+      {
+        "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/format-on-save.ps1",
+        "failClosed": false,
+        "timeout": 30
+      }
+    ],
+    "subagentStart": [
+      {
+        "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/log-subagent.ps1",
+        "failClosed": false,
+        "timeout": 5
+      }
+    ]
+  }
+}

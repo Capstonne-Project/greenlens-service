@@ -1,0 +1,79 @@
+---
+description: Authentication, authorization, and security conventions. JWT + refresh, policy-based authz, bcrypt cost, rate limiting, EXIF stripping, no PII in logs.
+alwaysApply: true
+---
+
+# Auth & Security
+
+## JWT lifecycle (BR-AUTH-013)
+
+| Token         | Lifetime | Storage (client)                                           |
+|---------------|----------|------------------------------------------------------------|
+| Access        | 24h      | Memory + AsyncStorage (mobile) / httpOnly cookie (web)     |
+| Refresh       | 30d      | Secure storage. **Hash** before persisting in DB.          |
+| OTP email     | 10m      | Server-side Redis                                          |
+| OTP SMS       | 5m       | Server-side Redis                                          |
+| Reset link    | 15m      | Server-side Redis                                          |
+
+- Refresh token rotation on every use.
+- Web inactivity > 30m → server denies refresh.
+
+## Authorization — policies, NOT role strings
+
+```csharp
+// ✅ GOOD
+[Authorize(Policy = Policies.CanVerifyReport)]
+
+options.AddPolicy(Policies.CanVerifyReport,
+    p => p.RequireRole("Officer", "Admin"));
+
+// ❌ BAD
+[Authorize(Roles = "Officer,Admin")]   // scattered role strings, hard to audit
+```
+
+## Password (BR-AUTH-005, BR-DAT-001)
+
+- bcrypt cost ≥ 12.
+- Strength regex: ≥ 8 chars, upper + lower + digit + special.
+- Lockout after 5 failed logins / 15 min → 30 min lock (BR-AUTH-011).
+- CAPTCHA from attempt 3.
+
+## Rate limits (BR-SYS-004)
+
+| Scope | Limit |
+|-------|-------|
+| Anonymous public API | 60 rpm/IP |
+| Authenticated user | 300 rpm/user |
+| Submit report | 5/h, 20/24h per Citizen (BR-REP-010) |
+| Map refresh | 20/min/user (BR-MAP-012) |
+
+Use ASP.NET Core 9 `RateLimiter` middleware + Redis sliding-window for per-feature limits.
+
+## Logging — NEVER log PII at Information level
+
+- ❌ `logger.LogInformation("User {Email} logged in", user.Email);`
+- ✅ `logger.LogInformation("User {UserId} logged in", user.Id);`
+
+PII to mask/exclude: email, phone, GPS detail, CCCD, full address.
+
+## Image / EXIF (BR-AI-007, BR-REP-011)
+
+- Strip EXIF GPS before sending to AI service.
+- Keep encrypted EXIF for verification — accessible only via admin policy + audit log.
+
+## Secrets management
+
+- ❌ NEVER commit connection strings, JWT signing keys, S3 credentials, FCM keys.
+- Dev → `dotnet user-secrets`.
+- Staging/Prod → env vars or AWS Secrets Manager / Azure Key Vault.
+
+```csharp
+builder.Services.AddOptions<JwtOptions>()
+    .Bind(builder.Configuration.GetSection("Jwt"))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+```
+
+## Audit log (BR-ADM-010)
+
+Sensitive actions go through `IAuditLogger` → `audit_logs` table. EF interceptor for entity changes; manual log for config changes. Retention 12 months (BR-DAT-002).

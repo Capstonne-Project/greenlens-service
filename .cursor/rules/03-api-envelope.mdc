@@ -1,0 +1,81 @@
+---
+description: API response envelope and HTTP conventions for all GreenLens controllers. Every response must use {code, message, status, data}.
+globs: src/Greenlens.Api/**/*.cs
+alwaysApply: false
+---
+
+# API Response Envelope
+
+> Source of truth: `00_API_CONVENTIONS.md`. Do NOT deviate from the envelope.
+
+## Envelope (every response, success AND error)
+
+```json
+{
+  "code": "SUCCESS",
+  "message": "Operation completed",
+  "status": 200,
+  "data": { ... }
+}
+```
+
+- `code` — UPPER_SNAKE_CASE business code (`SUCCESS`, `INVALID_GPS`, `RATE_LIMIT_EXCEEDED`).
+- `message` — i18n via `Accept-Language` (`vi-VN` default, `en-US` supported).
+- `status` — HTTP status (200/201/204/400/401/403/404/409/422/429/500/503).
+- `data` — payload, `null` on errors without field info.
+
+## Controller pattern
+
+```csharp
+[ApiController]
+[Route("v1/[controller]")]
+public sealed class ReportsController(ISender sender) : ControllerBase
+{
+    /// <summary>Submit a new pollution report.</summary>
+    [HttpPost]
+    [Authorize(Policy = Policies.CanSubmitReport)]
+    [ProducesResponseType(typeof(ApiResponse<Guid>), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> SubmitAsync(
+        [FromBody] SubmitReportCommand cmd,
+        CancellationToken ct)
+        => (await sender.Send(cmd, ct)).ToHttp();
+}
+```
+
+## URL naming
+
+- URL paths → `kebab-case` (`/pollution-reports`, `/cleanup-tasks`).
+- Query params → `camelCase` (`?pageSize=20&sortBy=createdAt&sortOrder=desc`).
+- JSON keys → `camelCase`. Enum JSON values → `UPPER_SNAKE_CASE`.
+
+## Pagination — mandatory on all list endpoints
+
+```
+GET /v1/reports?page=1&pageSize=20&sortBy=createdAt&sortOrder=desc
+```
+
+- `page` 1-indexed, `pageSize` default 20, max 100.
+- Response: `{ items, pagination: { page, pageSize, totalItems, totalPages, hasNext, hasPrev } }`.
+- Cursor-based preferred for very large datasets.
+
+## Auth headers
+
+```
+Authorization: Bearer {accessToken}
+Accept-Language: vi-VN
+X-Request-ID: {uuid}            # server generates if absent
+```
+
+## Rate limit headers (always present)
+
+```
+X-RateLimit-Limit: 60
+X-RateLimit-Remaining: 45
+X-RateLimit-Reset: 1715234600
+Retry-After: 30                 # only on 429
+```
+
+## Common business codes
+
+`SUCCESS`, `VALIDATION_ERROR`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `RATE_LIMIT_EXCEEDED`, `INTERNAL_ERROR`, `SERVICE_UNAVAILABLE`, `INVALID_GPS`, `OUT_OF_VIETNAM`, `IMAGE_TOO_LARGE`, `TOO_MANY_IMAGES`, `INVALID_STATE_TRANSITION`, `DUPLICATE_REPORT`, `INVALID_CREDENTIALS`, `ACCOUNT_LOCKED`, `OTP_EXPIRED`, `AI_UNAVAILABLE`, `AI_TIMEOUT`.

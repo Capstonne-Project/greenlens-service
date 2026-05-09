@@ -1,0 +1,94 @@
+---
+description: Domain layer purity rules. Domain has zero dependencies on framework code, controls its own state machine, raises domain events.
+globs: src/Greenlens.Domain/**/*.cs
+alwaysApply: false
+---
+
+# Domain Purity
+
+## Zero framework dependencies
+
+- ❌ `using Microsoft.EntityFrameworkCore` — forbidden.
+- ❌ `using Microsoft.AspNetCore.*` — forbidden.
+- ❌ `using MediatR` — forbidden in Domain (events use a local `IDomainEvent` marker).
+- ❌ `using AutoMapper` / `using Mapster` — forbidden.
+- ✅ `NetTopologySuite.Geometries` — allowed (it's a math library, not infra).
+
+## Entity contract
+
+```csharp
+public sealed class Report : AuditableEntity, IAggregateRoot
+{
+    private readonly List<IDomainEvent> _events = [];
+    private readonly List<ReportMedia> _media = [];
+
+    public Guid Id { get; private set; }
+    public ReportStatus Status { get; private set; }     // private setter — only domain methods change state
+    public Point Location { get; private set; }
+    public IReadOnlyList<ReportMedia> Media => _media.AsReadOnly();
+    public IReadOnlyList<IDomainEvent> DomainEvents => _events.AsReadOnly();
+
+    private Report() { }   // EF needs this; keep private
+
+    public static Report Create(PollutionType type, Point location, Guid userId)
+    {
+        // BR-REP-013: initial state is Submitted
+        var report = new Report { Id = Guid.NewGuid(), Status = ReportStatus.Submitted, /*...*/ };
+        report._events.Add(new ReportSubmittedEvent(report.Id, userId));
+        return report;
+    }
+}
+```
+
+## State transitions ARE domain methods
+
+```csharp
+// ✅ State machine guarded by domain
+public void Verify(Guid officerId)
+{
+    // BR-REP-020: only Submitted → Verified is valid
+    if (Status != ReportStatus.Submitted)
+        throw new DomainException("Invalid transition: Verify requires Submitted state");
+
+    Status = ReportStatus.Verified;
+    VerifiedBy = officerId;
+    VerifiedAt = DateTime.UtcNow;
+    _events.Add(new ReportVerifiedEvent(Id, officerId));
+}
+
+// ❌ NEVER do this
+public ReportStatus Status { get; set; }   // public setter bypasses state machine
+```
+
+## State machine (BR-REP-020, BR-REP-021)
+
+```
+                ┌─► Rejected   (Officer, reason ≥ 20 chars)
+Submitted ─────┼─► Verified ──► InProgress ──► Resolved ──┬─► Closed (Citizen confirm OR auto 7d)
+                └─► Duplicate  (Officer/AI)               └─► InProgress (re-open, max 2 times)
+```
+
+Every transition method:
+1. Guards state precondition.
+2. Mutates state via private setters.
+3. Sets audit fields.
+4. Adds the corresponding `DomainEvent` to `_events`.
+
+## Value objects
+
+```csharp
+public readonly record struct GeoLocation(double Latitude, double Longitude)
+{
+    public static GeoLocation Create(double lat, double lng)
+    {
+        // BR-REP-003: Vietnam bounds
+        if (lat is < 8.0 or > 24.0) throw new DomainException("Latitude out of Vietnam range");
+        if (lng is < 102.0 or > 110.0) throw new DomainException("Longitude out of Vietnam range");
+        return new GeoLocation(lat, lng);
+    }
+}
+```
+
+## Domain events
+
+`record XxxEvent(...) : IDomainEvent` — handled by Application via outbox dispatcher.

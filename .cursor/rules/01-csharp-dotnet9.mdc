@@ -1,0 +1,65 @@
+---
+description: C# 13 / .NET 9 coding standards for the GreenLens backend.
+globs: **/*.cs
+alwaysApply: false
+---
+
+# C# 13 / .NET 9 Standards
+
+## Project-wide
+
+- `Nullable` enabled. NO nullable warnings allowed.
+- `ImplicitUsings` enabled, but explicit when ambiguous.
+- File-scoped namespaces everywhere.
+- Primary constructors for DI.
+- Collection expressions (`[1, 2, 3]`).
+- `record` for DTO / Command / Query / Event (immutable).
+- `class` for entities (have behavior + identity).
+- `sealed` by default for non-abstract classes.
+- `record struct` for small value objects (GeoLocation, Money).
+
+## Async / Await
+
+- `async`/`await` throughout. **NO** `.Result`, `.Wait()`, `GetAwaiter().GetResult()`.
+- Every I/O method accepts `CancellationToken ct` as the **last parameter**.
+- `ConfigureAwait(false)` in **Application** and **Infrastructure** (libraries). Skip in `Api` project.
+- `IAsyncEnumerable<T>` for streaming queries (CSV export — BR-OFF-022).
+
+## Examples
+
+```csharp
+// ✅ GOOD
+public sealed class SubmitReportCommandHandler(IApplicationDbContext db)
+    : IRequestHandler<SubmitReportCommand, Result<Guid>>
+{
+    public async Task<Result<Guid>> Handle(SubmitReportCommand cmd, CancellationToken ct)
+    {
+        var report = Report.Create(cmd.Type, cmd.Location, cmd.UserId);
+        db.Reports.Add(report);
+        await db.SaveChangesAsync(ct).ConfigureAwait(false);
+        return Result.Success(report.Id);
+    }
+}
+```
+
+```csharp
+// ❌ BAD
+public class Handler {
+    public Task<Result<Guid>> Handle(...) {
+        var report = db.Reports.FirstOrDefault(...).Result; // sync-over-async
+        ...
+    }
+}
+```
+
+## Naming
+
+- Async methods → `Async` suffix.
+- DTO output → `XxxDto`. HTTP input → `XxxRequest`. Application input → `XxxCommand`/`XxxQuery`.
+- Enum singular, PascalCase. Use `[JsonStringEnumConverter]` on JSON output.
+- Migration → `yyyyMMddHHmm_VerbNoun` (e.g. `202605091200_AddSlaColumns`).
+
+## Comments
+
+- English in code. Vietnamese OK in XML doc when describing BR terminology.
+- Only **why** comments. Never **what** comments (`// increment counter` is forbidden).

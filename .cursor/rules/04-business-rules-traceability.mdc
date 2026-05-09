@@ -1,0 +1,65 @@
+---
+description: Business Rule (BR-*-***) traceability requirements. Every handler, validator, job, and test that implements business logic must reference its BR IDs.
+alwaysApply: true
+---
+
+# Business Rule Traceability
+
+> Source of truth: `SU26SE049_BusinessRules_v1_0.docx`. Module map in `CLAUDE.md §5`.
+
+## Mandatory: BR ID in XML doc on every business handler
+
+```csharp
+/// <summary>
+/// Verify a submitted pollution report.
+/// </summary>
+/// <remarks>
+/// Implements: BR-REP-020 (state machine), BR-OFF-002 (verify SLA 24h),
+/// BR-OFF-004 (segregation of duties), BR-ADM-010 (audit log).
+/// </remarks>
+public sealed class VerifyReportCommandHandler : IRequestHandler<VerifyReportCommand, Result>
+```
+
+## Mandatory: BR ID in test names
+
+Pattern: `{Method}_{Scenario}_{ExpectedResult}_{BR_ID}`
+
+```csharp
+[Fact]
+public async Task SubmitReport_NoPhoto_ReturnsValidationError_BR_REP_001() { ... }
+
+[Fact]
+public async Task Verify_FromSubmitted_ChangesStatus_BR_REP_020() { ... }
+```
+
+**Every BR ID listed in a handler MUST have at least 1 test.**
+
+## Mandatory: BR ID in commit messages
+
+Conventional Commits + BR IDs:
+
+```
+feat(reports): submit report endpoint (BR-REP-001..013, BR-REP-030)
+fix(auth): correct lockout window calculation (BR-AUTH-011)
+```
+
+## Module → folder map
+
+| Prefix       | Folder                                       |
+|--------------|----------------------------------------------|
+| `BR-AUTH-*`  | `Application/Features/Auth/*`                |
+| `BR-REP-*`   | `Application/Features/Reports/*`             |
+| `BR-MAP-*`   | `Application/Features/Map/*`                 |
+| `BR-OFF-*`   | `Application/Features/Officer/*`             |
+| `BR-CLN-*`   | `Application/Features/Cleanup/*`             |
+| `BR-NTF-*`   | `Application/Features/Notifications/*`       |
+| `BR-CMT-*`   | `Application/Features/Comments/*`            |
+| `BR-GAM-*`   | `Application/Features/Gamification/*`        |
+| `BR-AI-*`    | `Infrastructure/Ai/*`                        |
+| `BR-ADM-*`   | `Application/Features/Admin/*`               |
+| `BR-DAT-*`   | infrastructure-level (cross-cutting)         |
+| `BR-SYS-*`   | infrastructure-level (hosting/non-functional)|
+
+## When BR is unclear
+
+**STOP** and ask the user: "BR-XXX-yyy chưa rõ điểm Z, anh/chị xác nhận giúp?" — never invent rules.

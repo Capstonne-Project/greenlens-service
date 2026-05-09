@@ -1,0 +1,56 @@
+---
+description: CQRS handler conventions and Result<T> pattern for the Application layer. Business rule violations return Result.Failure, never throw.
+globs: src/Greenlens.Application/**/*.cs
+alwaysApply: false
+---
+
+# CQRS + Result Pattern
+
+## Command vs Query
+
+| Type     | Convention                                                | Pipeline                          |
+|----------|-----------------------------------------------------------|-----------------------------------|
+| Command  | `record XxxCommand(...) : IRequest<Result<T>>`            | Validation + Transaction + Logging|
+| Query    | `record XxxQuery(...) : IRequest<Result<TDto>>`           | Validation + Caching (optional)   |
+
+- Commands ALWAYS go through `TransactionBehavior` (one `SaveChanges` per request).
+- Queries use `AsNoTracking()` or Mapster `.ProjectToType<>()` projection — never hydrate full entities just to map.
+
+## Result Pattern — NO exceptions for business logic
+
+```csharp
+// ✅ Business rule violation → Result.Failure
+if (user.LockoutEnd > DateTime.UtcNow)
+    return Result.Failure<LoginDto>(Errors.Auth.AccountLocked);   // BR-AUTH-011
+
+// ❌ Don't throw exceptions for business cases
+throw new AccountLockedException();
+```
+
+Exceptions are only for:
+- Infrastructure failures (DB down, S3 timeout).
+- Programmer bugs (null in non-nullable, invalid argument).
+
+## Error categories
+
+`Validation | NotFound | Conflict | Forbidden | BusinessRule | Unexpected` — these map to HTTP status in the API middleware.
+
+## Handler XML comments — MANDATORY
+
+Every handler that implements business rules MUST list BR IDs:
+
+```csharp
+/// <summary>
+/// Submit a new pollution report.
+/// </summary>
+/// <remarks>
+/// Implements: BR-REP-001 (photo required), BR-REP-003 (Vietnam GPS bounds),
+/// BR-REP-005 (category required), BR-REP-010 (rate limit), BR-REP-013 (initial state).
+/// </remarks>
+public sealed class SubmitReportCommandHandler : IRequestHandler<SubmitReportCommand, Result<Guid>>
+```
+
+## Validation — 2 layers
+
+1. **Input** (FluentValidation) — format, length, range. Runs in pipeline behavior **before** the handler.
+2. **Business** in handler — needs DB access (role check, duplicate check, state machine guard).

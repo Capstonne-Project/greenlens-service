@@ -1,0 +1,46 @@
+---
+description: Clean Architecture dependency rules for GreenLens .NET 9 backend (Domain → Application → Infrastructure → Api).
+alwaysApply: true
+---
+
+# Clean Architecture Dependency Rule
+
+```
+Api ──► Application ──► Domain
+ │           │
+ └──► Infrastructure ──► Application (interfaces) ──► Domain
+```
+
+## Hard rules (non-negotiable)
+
+- **Domain** has ZERO references to other projects. NO `Microsoft.*`, NO `EntityFrameworkCore`, NO `AspNetCore`.
+- **Application** references **Domain only**. Defines interfaces in `Application/Common/Interfaces/`; Infrastructure implements them.
+- **Infrastructure** references Application + Domain. ALL framework-specific code (EF, S3, FCM, MassTransit, NodaTime adapters) lives here.
+- **Api** references Application + Infrastructure (for DI composition). Keep controllers thin — delegate to `ISender.Send(command)`.
+
+## Vertical slice in Application
+
+Each use case is one folder with up to 4 files:
+
+```
+Application/Features/<Module>/<UseCase>/
+├── <Name>Command.cs            // record ... : IRequest<Result<T>>
+├── <Name>CommandHandler.cs     // sealed class with BR XML doc
+├── <Name>CommandValidator.cs   // FluentValidation
+└── <Name>Response.cs           // optional, only when shape is custom
+```
+
+## Forbidden patterns
+
+```csharp
+// ❌ BAD — EF leak in Application
+using Microsoft.EntityFrameworkCore;        // Only IApplicationDbContext is allowed.
+
+// ❌ BAD — IHttpContextAccessor in Application
+public class Handler(IHttpContextAccessor http) { ... }
+
+// ✅ GOOD — abstract via ICurrentUser, implement in Infrastructure
+public class Handler(ICurrentUser user) { ... }
+```
+
+If you see any forbidden pattern, **stop and fix** before continuing.

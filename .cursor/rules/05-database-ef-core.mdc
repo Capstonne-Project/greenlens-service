@@ -1,0 +1,92 @@
+---
+description: PostgreSQL + PostGIS + EF Core 9 conventions. Snake_case naming, AuditableEntity, soft delete, GIST indexes, migrations.
+globs: src/Greenlens.Infrastructure/**/*.cs
+alwaysApply: false
+---
+
+# Database & EF Core 9 Conventions
+
+## Naming
+
+- Snake_case in DB, PascalCase in C# — via `EFCore.NamingConventions` package.
+- Migration name → `yyyyMMddHHmm_VerbNoun` (e.g. `202605091200_AddReportSlaColumns`).
+
+## AuditableEntity (mandatory for every entity)
+
+```csharp
+public abstract class AuditableEntity
+{
+    public DateTime CreatedAt { get; set; }
+    public Guid? CreatedBy { get; set; }
+    public DateTime? UpdatedAt { get; set; }
+    public Guid? UpdatedBy { get; set; }
+}
+```
+
+Populated by `AuditableEntityInterceptor` reading `ICurrentUser` + `IDateTime`.
+
+## Soft delete (User, Report, Comment)
+
+- `DeletedAt` nullable column.
+- Global query filter: `modelBuilder.Entity<Report>().HasQueryFilter(r => r.DeletedAt == null);`
+- BR-AUTH-022: Account hard-deleted after 90 days; user reports become `Anonymized`.
+
+## Geo (PostGIS)
+
+```csharp
+// Domain
+public Point Location { get; private set; }   // NetTopologySuite.Geometries
+
+// Configuration
+builder.Property(r => r.Location)
+    .HasColumnType("geometry(Point, 4326)")
+    .IsRequired();
+builder.HasIndex(r => r.Location).HasMethod("GIST");
+```
+
+## Required indexes
+
+| Table | Columns | Type |
+|-------|---------|------|
+| Report | `(Status, CreatedAt)` | btree |
+| Report | `Location` | GIST |
+| User   | `Email` | unique |
+| User   | `PhoneNumber` | unique |
+
+## Transaction boundary
+
+- ONE `SaveChangesAsync` per request — owned by `TransactionBehavior` or `IUnitOfWork`.
+- Never call `SaveChangesAsync` inside loops or repository methods.
+
+## Query patterns
+
+```csharp
+// ✅ Projection, no tracking, paginated
+var items = await db.Reports
+    .Where(r => r.Status == ReportStatus.Submitted)
+    .OrderByDescending(r => r.CreatedAt)
+    .Skip((page - 1) * pageSize).Take(pageSize)
+    .ProjectToType<ReportDto>()             // Mapster
+    .ToListAsync(ct).ConfigureAwait(false);
+
+// ❌ N+1 / over-fetching
+var reports = await db.Reports.ToListAsync(ct);
+foreach (var r in reports) {
+    var media = await db.Media.Where(m => m.ReportId == r.Id).ToListAsync(ct);
+}
+```
+
+## Migrations in production
+
+- Dev → migrate at startup is OK.
+- Staging/Prod → `dotnet ef migrations bundle` or external tool. **Never** auto-migrate at startup in prod.
+- Never delete a merged migration. Add a new revert migration instead.
+
+## Duplicate detection (BR-REP-030)
+
+```sql
+-- Same category + within 50m + within 24h
+ST_DWithin(r1.location::geography, r2.location::geography, 50)
+  AND r1.pollution_type = r2.pollution_type
+  AND r2.created_at >= r1.created_at - INTERVAL '24 hours'
+```
