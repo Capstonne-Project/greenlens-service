@@ -26,6 +26,8 @@ public sealed class ValidationBehavior<TRequest, TResponse>(
         var failures = validationResults
             .SelectMany(r => r.Errors)
             .Where(f => f is not null)
+            .GroupBy(f => f.PropertyName)
+            .Select(g => g.First())
             .ToList();
 
         if (failures.Count != 0)

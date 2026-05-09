@@ -98,12 +98,16 @@ public static class DependencyInjection
     }
 
     /// <summary>
-    /// Apply pending EF Core migrations. Use in Development only.
+    /// Apply pending EF Core migrations and seed initial data. Use in Development only.
     /// </summary>
     public static async Task MigrateDatabaseAsync(this IServiceProvider services)
     {
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var logger = scope.ServiceProvider.GetRequiredService<Microsoft.Extensions.Logging.ILoggerFactory>()
+            .CreateLogger("DatabaseSeeder");
+
         await db.Database.MigrateAsync().ConfigureAwait(false);
+        await DatabaseSeeder.SeedAsync(db, logger).ConfigureAwait(false);
     }
 }
