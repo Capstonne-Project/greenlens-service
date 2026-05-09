@@ -67,8 +67,6 @@ ehthumbs.db
 ehthumbs_vista.db
 
 ## Secrets — NEVER commit
-**/appsettings.*.json
-!**/appsettings.json
 **/firebase-adminsdk*.json
 *.pfx
 *.key
