@@ -7,6 +7,8 @@ using Greenlens.Infrastructure.Email;
 using Greenlens.Infrastructure.Identity;
 using Greenlens.Infrastructure.Persistence;
 using Greenlens.Infrastructure.Persistence.Repositories;
+using Greenlens.Infrastructure.Persistence.Repositories.Location;
+using Greenlens.Infrastructure.Persistence.Seeders.Location;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -68,9 +70,18 @@ public static class DependencyInjection
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
+        // ── Map Migrations ────────────────────────────────
+        services.AddScoped<IAdministrativeRegionRepository, AdministrativeRegionRepository>();
+        services.AddScoped<IAdministrativeUnitRepository, AdministrativeUnitRepository>();
+        services.AddScoped<IProvinceRepository, ProvinceRepository>();
+        services.AddScoped<IWardRepository, WardRepository>();
+
         // ── JWT Authentication ───────────────────────────
         var jwtSection = configuration.GetSection("Jwt");
         var secret = jwtSection["Secret"]!;
+
+
+        
 
         services.AddAuthentication(options =>
         {
@@ -109,5 +120,8 @@ public static class DependencyInjection
 
         await db.Database.MigrateAsync().ConfigureAwait(false);
         await DatabaseSeeder.SeedAsync(db, logger).ConfigureAwait(false);
+
+        // Administrative catalog (~regions/units/provinces/wards): DbContext is scoped — use same scope.
+        await scope.ServiceProvider.SeedLocationAsync().ConfigureAwait(false);
     }
 }
