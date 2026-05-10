@@ -1,5 +1,5 @@
 // =============================================================================
-// EcoReport Repository — template
+// Greenlens Repository — template
 // Project: SU26SE049
 //
 // Generate this ONLY after the gate in SKILL.md Step 1 has opened.
@@ -13,18 +13,18 @@
 // =============================================================================
 
 
-// === FILE: src/EcoReport.Application/Common/Interfaces/Persistence/I__ENTITY__Repository.cs ===
-using EcoReport.Domain.Entities;
+// === FILE: src/Greenlens.Application/Common/Interfaces/Persistence/I__ENTITY__Repository.cs ===
+using Greenlens.Domain.Entities;
 
-namespace EcoReport.Application.Common.Interfaces.Persistence;
+namespace Greenlens.Application.Common.Interfaces.Persistence;
 
 /// <summary>
 /// Repository for the __ENTITY__ aggregate.
 ///
 /// Lives in Application so handlers depend on the abstraction, not on EF Core.
-/// Implementation: <c>EcoReport.Infrastructure.Persistence.Repositories.__ENTITY__Repository</c>.
+/// Implementation: <c>Greenlens.Infrastructure.Persistence.Repositories.__ENTITY__Repository</c>.
 ///
-/// Design rules (CLAUDE.md §3 / repository skill):
+/// Design rules (OVERVIEW.md §3 / repository skill):
 ///   - Read-shaped methods only. Mutation goes through the entity + UoW
 ///     (IApplicationDbContext.SaveChangesAsync) — do NOT add Add/Update/Delete here.
 ///   - No IQueryable&lt;T&gt; on the surface — that leaks EF across the boundary.
@@ -59,12 +59,12 @@ public interface I__ENTITY__Repository
 }
 
 
-// === FILE: src/EcoReport.Infrastructure/Persistence/Repositories/__ENTITY__Repository.cs ===
+// === FILE: src/Greenlens.Infrastructure/Persistence/Repositories/__ENTITY__Repository.cs ===
 using Microsoft.EntityFrameworkCore;
-using EcoReport.Application.Common.Interfaces.Persistence;
-using EcoReport.Domain.Entities;
+using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Domain.Entities;
 
-namespace EcoReport.Infrastructure.Persistence.Repositories;
+namespace Greenlens.Infrastructure.Persistence.Repositories;
 
 /// <summary>
 /// EF Core implementation of <see cref="I__ENTITY__Repository"/>.
@@ -90,7 +90,7 @@ public sealed class __ENTITY__Repository(ApplicationDbContext db) : I__ENTITY__R
 }
 
 
-// === SNIPPET: append to src/EcoReport.Infrastructure/DependencyInjection.cs ===
+// === SNIPPET: append to src/Greenlens.Infrastructure/DependencyInjection.cs ===
 //
 // Inside AddInfrastructure(this IServiceCollection services, IConfiguration cfg):
 //

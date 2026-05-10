@@ -1,8 +1,8 @@
 // =============================================================================
-// EcoReport — IEntityTypeConfiguration<T> template
+// Greenlens — IEntityTypeConfiguration<T> template
 // Project: SU26SE049
 //
-// Drop into: src/EcoReport.Infrastructure/Persistence/Configurations/__ENTITY__Configuration.cs
+// Drop into: src/Greenlens.Infrastructure/Persistence/Configurations/__ENTITY__Configuration.cs
 // One file per entity. ApplicationDbContext picks them up automatically via
 // modelBuilder.ApplyConfigurationsFromAssembly(...).
 //
@@ -14,9 +14,9 @@
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using EcoReport.Domain.Entities;
+using Greenlens.Domain.Entities;
 
-namespace EcoReport.Infrastructure.Persistence.Configurations;
+namespace Greenlens.Infrastructure.Persistence.Configurations;
 
 public sealed class __ENTITY__Configuration : IEntityTypeConfiguration<__ENTITY__>
 {

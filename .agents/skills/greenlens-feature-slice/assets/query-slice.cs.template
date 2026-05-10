@@ -1,5 +1,5 @@
 // =============================================================================
-// EcoReport Vertical Slice — QUERY template
+// Greenlens Vertical Slice — QUERY template
 // Project: SU26SE049 — Crowdsourced Application for Reporting Environmental Pollution
 //
 // HOW TO USE
@@ -16,11 +16,11 @@
 // =============================================================================
 
 
-// === FILE: src/EcoReport.Application/Features/__MODULE__/__USECASE__/__USECASE__Query.cs ===
+// === FILE: src/Greenlens.Application/Features/__MODULE__/__USECASE__/__USECASE__Query.cs ===
 using MediatR;
-using EcoReport.Domain.Common;
+using Greenlens.Domain.Common;
 
-namespace EcoReport.Application.Features.__MODULE__.__USECASE__;
+namespace Greenlens.Application.Features.__MODULE__.__USECASE__;
 
 /// <summary>
 /// __BR_SUMMARY__
@@ -44,10 +44,10 @@ public sealed record __USECASE__Query(
 // ) : IRequest<Result<PagedList<__RESULT_TYPE__>>>;
 
 
-// === FILE: src/EcoReport.Application/Features/__MODULE__/__USECASE__/__USECASE__QueryValidator.cs ===
+// === FILE: src/Greenlens.Application/Features/__MODULE__/__USECASE__/__USECASE__QueryValidator.cs ===
 using FluentValidation;
 
-namespace EcoReport.Application.Features.__MODULE__.__USECASE__;
+namespace Greenlens.Application.Features.__MODULE__.__USECASE__;
 
 public sealed class __USECASE__QueryValidator : AbstractValidator<__USECASE__Query>
 {
@@ -66,16 +66,16 @@ public sealed class __USECASE__QueryValidator : AbstractValidator<__USECASE__Que
 }
 
 
-// === FILE: src/EcoReport.Application/Features/__MODULE__/__USECASE__/__USECASE__QueryHandler.cs ===
+// === FILE: src/Greenlens.Application/Features/__MODULE__/__USECASE__/__USECASE__QueryHandler.cs ===
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Mapster;
 using MapsterMapper;
-using EcoReport.Application.Common.Interfaces;
-using EcoReport.Application.Common.Models;     // PagedList<T>
-using EcoReport.Domain.Common;
+using Greenlens.Application.Common.Interfaces;
+using Greenlens.Application.Common.Models;     // PagedList<T>
+using Greenlens.Domain.Common;
 
-namespace EcoReport.Application.Features.__MODULE__.__USECASE__;
+namespace Greenlens.Application.Features.__MODULE__.__USECASE__;
 
 /// <summary>
 /// __BR_SUMMARY__
@@ -127,11 +127,11 @@ public sealed class __USECASE__QueryHandler(
 }
 
 
-// === FILE: src/EcoReport.Application/Features/__MODULE__/__USECASE__/__USECASE__Response.cs ===
+// === FILE: src/Greenlens.Application/Features/__MODULE__/__USECASE__/__USECASE__Response.cs ===
 // Define the DTO returned by this query. Keep it flat. Do NOT leak Domain
 // entities; Mapster will project from entity → DTO at the database level.
 
-namespace EcoReport.Application.Features.__MODULE__.__USECASE__;
+namespace Greenlens.Application.Features.__MODULE__.__USECASE__;
 
 public sealed record __USECASE__Response(
     Guid Id,

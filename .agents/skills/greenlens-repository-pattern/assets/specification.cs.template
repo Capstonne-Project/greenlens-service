@@ -1,5 +1,5 @@
 // =============================================================================
-// EcoReport Specification — alternative to a fat repository
+// Greenlens Specification — alternative to a fat repository
 //
 // USE WHEN: you have many query variants of the same entity (e.g. "reports
 // pending verification in district X", "reports overdue SLA", "reports by
@@ -15,12 +15,12 @@
 // =============================================================================
 
 
-// === FILE: src/EcoReport.Application/Common/Specifications/Specification.cs ===
+// === FILE: src/Greenlens.Application/Common/Specifications/Specification.cs ===
 // (One-time scaffolding — only create if it doesn't already exist.)
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore.Query;
 
-namespace EcoReport.Application.Common.Specifications;
+namespace Greenlens.Application.Common.Specifications;
 
 public abstract class Specification<T>
 {
@@ -35,12 +35,12 @@ public abstract class Specification<T>
 }
 
 
-// === FILE: src/EcoReport.Infrastructure/Persistence/SpecificationEvaluator.cs ===
+// === FILE: src/Greenlens.Infrastructure/Persistence/SpecificationEvaluator.cs ===
 // (One-time scaffolding.)
 using Microsoft.EntityFrameworkCore;
-using EcoReport.Application.Common.Specifications;
+using Greenlens.Application.Common.Specifications;
 
-namespace EcoReport.Infrastructure.Persistence;
+namespace Greenlens.Infrastructure.Persistence;
 
 internal static class SpecificationEvaluator
 {
@@ -60,11 +60,11 @@ internal static class SpecificationEvaluator
 }
 
 
-// === FILE: src/EcoReport.Application/Common/Specifications/__ENTITY___Specs/__SPEC__Spec.cs ===
-using EcoReport.Domain.Entities;
-using EcoReport.Domain.Enums;
+// === FILE: src/Greenlens.Application/Common/Specifications/__ENTITY___Specs/__SPEC__Spec.cs ===
+using Greenlens.Domain.Entities;
+using Greenlens.Domain.Enums;
 
-namespace EcoReport.Application.Common.Specifications.__ENTITY___Specs;
+namespace Greenlens.Application.Common.Specifications.__ENTITY___Specs;
 
 /// <summary>
 /// Reports waiting for officer verification, scoped to a district.

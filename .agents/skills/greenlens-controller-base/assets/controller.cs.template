@@ -1,5 +1,5 @@
 // =============================================================================
-// EcoReport API Controller — template
+// Greenlens API Controller — template
 // Project: SU26SE049
 //
 // PLACEHOLDERS:
@@ -17,18 +17,18 @@
 // =============================================================================
 
 
-// === FILE: src/EcoReport.Api/Controllers/V1/__RESOURCE__Controller.cs ===
+// === FILE: src/Greenlens.Api/Controllers/V1/__RESOURCE__Controller.cs ===
 using Asp.Versioning;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using EcoReport.Api.Common;                                  // ToActionResult()
-using EcoReport.Application.Common.Models;                    // PagedList<T>
-using EcoReport.Application.Features.__MODULE__.__CMD_USECASE__;
-using EcoReport.Application.Features.__MODULE__.__QUERY_USECASE__;
-using EcoReport.Application.Features.__MODULE__.__LIST_USECASE__;
+using Greenlens.Api.Common;                                  // ToActionResult()
+using Greenlens.Application.Common.Models;                    // PagedList<T>
+using Greenlens.Application.Features.__MODULE__.__CMD_USECASE__;
+using Greenlens.Application.Features.__MODULE__.__QUERY_USECASE__;
+using Greenlens.Application.Features.__MODULE__.__LIST_USECASE__;
 
-namespace EcoReport.Api.Controllers.V1;
+namespace Greenlens.Api.Controllers.V1;
 
 /// <summary>
 /// HTTP surface for the __RESOURCE__ resource.

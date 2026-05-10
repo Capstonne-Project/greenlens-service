@@ -1,6 +1,6 @@
 // =============================================================================
-// EcoReport Repository + UoW — BASE PATTERN (one-time setup per project)
-// Project: SU26SE049
+// Greenlens Repository + UoW — BASE PATTERN (one-time setup per project)
+// Project: SU26SE049 — Crowdsourced Application for Reporting Environmental Pollution
 //
 // Generate this ONCE per project, before any specific repository.
 // Contains: IRepository<T>, IUnitOfWork, IDbTransaction, EfRepository<T>,

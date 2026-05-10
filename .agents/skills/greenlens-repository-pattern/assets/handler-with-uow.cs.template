@@ -1,6 +1,6 @@
 // =============================================================================
-// EcoReport — Handler patterns with Repository + Unit of Work
-// Project: SU26SE049
+// Greenlens — Handler patterns with Repository + Unit of Work
+// Project: SU26SE049 — Crowdsourced Application for Reporting Environmental Pollution
 //
 // 3 patterns thường gặp:
 //   A) Single-aggregate mutation (90% case)
@@ -41,7 +41,7 @@ public sealed class __USECASE__CommandHandler(
         if (entity is null)
             return Result<Guid>.Failure(Errors.__ENTITY__.NotFound);
 
-        // 2. Authorize (resource-based, see CLAUDE.md §13.3)
+        // 2. Authorize (resource-based, see OVERVIEW.md §4.8)
         if (entity.OwnerId != currentUser.UserId)
             return Result<Guid>.Failure(Errors.Auth.Forbidden);
 

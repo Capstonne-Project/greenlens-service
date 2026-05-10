@@ -1,5 +1,5 @@
 // =============================================================================
-// EcoReport API — single action snippet
+// Greenlens API — single action snippet
 // Drop into an existing <Resource>Controller.
 // Add the matching `using` for the Application.Features.<Module>.<UseCase>
 // namespace at the top of the file.

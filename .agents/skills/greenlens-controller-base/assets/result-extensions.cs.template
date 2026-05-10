@@ -1,9 +1,9 @@
 // =============================================================================
-// EcoReport API — Result<T> → IActionResult mapping
+// Greenlens API — Result<T> → IActionResult mapping
 // Project: SU26SE049
 //
 // CREATE THIS FILE ONCE per project, at:
-//   src/EcoReport.Api/Common/ResultExtensions.cs
+//   src/Greenlens.Api/Common/ResultExtensions.cs
 //
 // All controllers depend on this. Do NOT add error-mapping logic in individual
 // actions — the mapping must stay uniform so OpenAPI docs and FE clients can
@@ -12,9 +12,9 @@
 
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using EcoReport.Domain.Common;
+using Greenlens.Domain.Common;
 
-namespace EcoReport.Api.Common;
+namespace Greenlens.Api.Common;
 
 public static class ResultExtensions
 {

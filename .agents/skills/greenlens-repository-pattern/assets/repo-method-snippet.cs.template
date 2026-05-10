@@ -1,5 +1,6 @@
 // =============================================================================
-// EcoReport — add a method to an EXISTING repository
+// Greenlens — add a method to an EXISTING repository
+// Project: SU26SE049 — Crowdsourced Application for Reporting Environmental Pollution
 //
 // PRECONDITION: I__ENTITY__Repository và __ENTITY__Repository đã tồn tại.
 // Skill này chỉ snippet để thêm 1 method mới.

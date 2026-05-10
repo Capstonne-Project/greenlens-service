@@ -1,21 +1,21 @@
 // =============================================================================
-// EcoReport — ApplicationDbContext + IApplicationDbContext
+// Greenlens — ApplicationDbContext + IApplicationDbContext
 // Project: SU26SE049
 //
 // Drop into:
-//   src/EcoReport.Application/Common/Interfaces/IApplicationDbContext.cs
-//   src/EcoReport.Infrastructure/Persistence/ApplicationDbContext.cs
+//   src/Greenlens.Application/Common/Interfaces/IApplicationDbContext.cs
+//   src/Greenlens.Infrastructure/Persistence/ApplicationDbContext.cs
 //
 // One DbContext for the whole app. Don't shard by feature — that defeats the
 // transactional boundary EF is designed around.
 // =============================================================================
 
 
-// === FILE: src/EcoReport.Application/Common/Interfaces/IApplicationDbContext.cs ===
+// === FILE: src/Greenlens.Application/Common/Interfaces/IApplicationDbContext.cs ===
 using Microsoft.EntityFrameworkCore;
-using EcoReport.Domain.Entities;
+using Greenlens.Domain.Entities;
 
-namespace EcoReport.Application.Common.Interfaces;
+namespace Greenlens.Application.Common.Interfaces;
 
 /// <summary>
 /// The Application-layer view of the database. Handlers depend on this, not on
@@ -43,15 +43,15 @@ public interface IApplicationDbContext
 }
 
 
-// === FILE: src/EcoReport.Infrastructure/Persistence/ApplicationDbContext.cs ===
+// === FILE: src/Greenlens.Infrastructure/Persistence/ApplicationDbContext.cs ===
 using Microsoft.EntityFrameworkCore;
-using EcoReport.Application.Common.Interfaces;
-using EcoReport.Domain.Common;
-using EcoReport.Domain.Entities;
-using EcoReport.Infrastructure.Persistence.Interceptors;
+using Greenlens.Application.Common.Interfaces;
+using Greenlens.Domain.Common;
+using Greenlens.Domain.Entities;
+using Greenlens.Infrastructure.Persistence.Interceptors;
 using System.Linq.Expressions;
 
-namespace EcoReport.Infrastructure.Persistence;
+namespace Greenlens.Infrastructure.Persistence;
 
 public sealed class ApplicationDbContext(
     DbContextOptions<ApplicationDbContext> options)
@@ -103,7 +103,7 @@ public sealed class ApplicationDbContext(
 }
 
 
-// === SNIPPET: register in src/EcoReport.Infrastructure/DependencyInjection.cs ===
+// === SNIPPET: register in src/Greenlens.Infrastructure/DependencyInjection.cs ===
 //
 // public static IServiceCollection AddInfrastructure(
 //     this IServiceCollection services,
@@ -118,7 +118,7 @@ public sealed class ApplicationDbContext(
 //                 configuration.GetConnectionString("Postgres"),
 //                 npg => npg
 //                     .UseNetTopologySuite()
-//                     .MigrationsHistoryTable("__ef_migrations_history", "ecoreport"))
+//                     .MigrationsHistoryTable("__ef_migrations_history", "greenlens"))
 //             .UseSnakeCaseNamingConvention()
 //             .AddInterceptors(
 //                 sp.GetRequiredService<AuditingSaveChangesInterceptor>(),
