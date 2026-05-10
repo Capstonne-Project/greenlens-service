@@ -59,7 +59,7 @@ internal static partial class LocationSeeder
     {
         if (await db.Set<AdministrativeRegion>().AnyAsync(ct))
         {
-            logger.LogInformation("Administrative regions already seeded, skipping");
+            logger.LogDebug("Administrative regions already seeded, skipping");
             return;
         }
 
@@ -83,7 +83,7 @@ internal static partial class LocationSeeder
     {
         if (await db.Set<AdministrativeUnit>().AnyAsync(ct))
         {
-            logger.LogInformation("Administrative units already seeded, skipping");
+            logger.LogDebug("Administrative units already seeded, skipping");
             return;
         }
 
@@ -107,7 +107,7 @@ internal static partial class LocationSeeder
     {
         if (await db.Set<Province>().AnyAsync(ct))
         {
-            logger.LogInformation("Provinces already seeded, skipping");
+            logger.LogDebug("Provinces already seeded, skipping");
             return;
         }
 
@@ -131,7 +131,7 @@ internal static partial class LocationSeeder
     {
         if (await db.Set<Ward>().AnyAsync(ct))
         {
-            logger.LogInformation("Wards already seeded, skipping");
+            logger.LogDebug("Wards already seeded, skipping");
             return;
         }
 
@@ -172,7 +172,7 @@ internal static partial class LocationSeeder
 
         if (existingCodes.Count == 0)
         {
-            logger.LogInformation("All provinces already have BoundaryUrl, skipping");
+            logger.LogDebug("All provinces already have BoundaryUrl, skipping");
             return;
         }
 
