@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Greenlens.Api.Middlewares;
 using Greenlens.Infrastructure;
+using Greenlens.Infrastructure.Seeders.Administrator;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);

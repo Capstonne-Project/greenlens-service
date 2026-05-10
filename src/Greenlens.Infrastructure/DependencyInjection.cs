@@ -8,8 +8,7 @@ using Greenlens.Infrastructure.Identity;
 using Greenlens.Infrastructure.Persistence;
 using Greenlens.Infrastructure.Persistence.Repositories;
 using Greenlens.Infrastructure.Persistence.Repositories.Location;
-using Greenlens.Infrastructure.Persistence.Seeders.Location;
-using Greenlens.Infrastructure.Seeders.Administrator;
+
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -114,22 +113,5 @@ public static class DependencyInjection
         services.AddAuthorization();
 
         return services;
-    }
-
-    /// <summary>
-    /// Apply pending EF Core migrations and seed initial data. Use in Development only.
-    /// </summary>
-    public static async Task MigrateDatabaseAsync(this IServiceProvider services)
-    {
-        using var scope = services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var logger = scope.ServiceProvider.GetRequiredService<Microsoft.Extensions.Logging.ILoggerFactory>()
-            .CreateLogger("AdminSeeder");
-
-        await db.Database.MigrateAsync().ConfigureAwait(false);
-        await AdminSeeder.SeedAsync(db, logger).ConfigureAwait(false);
-
-        // Administrative catalog (~regions/units/provinces/wards): DbContext is scoped — use same scope.
-        await scope.ServiceProvider.SeedLocationAsync().ConfigureAwait(false);
     }
 }
