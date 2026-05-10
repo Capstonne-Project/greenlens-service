@@ -1,11 +1,11 @@
 ---
-name: ecoreport-repository-pattern
-description: Scaffold an aggregate-specific repository (extending IRepository<T>) and/or wire it into a handler with IUnitOfWork in the EcoReport .NET 9 backend (project SU26SE049). Use this skill whenever the user asks for a "repository", "repo", "data access layer", "DAL", "IXxxRepository", "UnitOfWork", "UoW", or talks about adding query/persistence methods for an aggregate — including casual phrasings like "add a repo for reports", "I need IUserRepository", "add GetForVerificationAsync to ReportRepository", "wire UoW into this handler". Trigger this even when the user only mentions UoW or only mentions a repo — they go together in this project. Pushes back if the request is for a generic repository (project chose hybrid: specific repo + UoW per CLAUDE.md §4.12). Produces the interface in Application/Common/Interfaces/Persistence/, the EF implementation extending EfRepository<T> in Infrastructure/Persistence/Repositories/, plus DI registration.
+name: greenlens-repository-pattern
+description: Scaffold an aggregate-specific repository (extending IRepository<T>) and/or wire it into a handler with IUnitOfWork in the GreenLens .NET 9 backend (project SU26SE049). Use this skill whenever the user asks for a "repository", "repo", "data access layer", "DAL", "IXxxRepository", "UnitOfWork", "UoW", or talks about adding query/persistence methods for an aggregate — including casual phrasings like "add a repo for reports", "I need IUserRepository", "add GetForVerificationAsync to ReportRepository", "wire UoW into this handler". Trigger this even when the user only mentions UoW or only mentions a repo — they go together in this project. Pushes back if the request is for a generic repository (project chose hybrid: specific repo + UoW per OVERVIEW.md §4.12). Produces the interface in Application/Common/Interfaces/Persistence/, the EF implementation extending EfRepository<T> in Infrastructure/Persistence/Repositories/, plus DI registration.
 ---
 
-# EcoReport Repository + Unit of Work (Hybrid Pattern)
+# GreenLens Repository + Unit of Work (Hybrid Pattern)
 
-The EcoReport backend uses a **hybrid pattern** per `CLAUDE.md` §4.12:
+The GreenLens backend uses a **hybrid pattern** per `OVERVIEW.md` §4.12:
 
 - `IRepository<T>` — base contract, mỏng, mỗi aggregate root đều có
 - `IUnitOfWork` — commit boundary, handler không trực tiếp gọi `DbContext.SaveChangesAsync`
@@ -32,7 +32,7 @@ If the user says any of:
 
 Stop and explain:
 
-> "Project chose hybrid pattern (CLAUDE.md §4.12): `IRepository<T>` base contract + aggregate-specific repos (`IReportRepository`). Generic repo registration was explicitly rejected — handler should depend on `IReportRepository`, not `IRepository<Report>`. The base interface exists for inheritance + test consistency, not for direct DI use."
+> "Project chose hybrid pattern (OVERVIEW.md §4.12): `IRepository<T>` base contract + aggregate-specific repos (`IReportRepository`). Generic repo registration was explicitly rejected — handler should depend on `IReportRepository`, not `IRepository<Report>`. The base interface exists for inheritance + test consistency, not for direct DI use."
 
 Then ask: "Want me to scaffold `IReportRepository` instead?"
 

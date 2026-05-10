@@ -1,17 +1,17 @@
-# EcoReport Backend Skills (Workspace-specific)
+# GreenLens Backend Skills (Workspace-specific)
 
 Bộ skill workspace-specific cho dự án **SU26SE049 — Crowdsourced Application for Reporting Environmental Pollution**, viết theo chuẩn Antigravity Skills.
 
-Đi kèm `CLAUDE.md` và `BusinessRules` của dự án. Bộ skill này hướng dẫn Claude scaffold mã backend .NET 9 Clean Architecture đúng convention mà không cần lặp lại hướng dẫn trong từng prompt.
+Đi kèm `OVERVIEW.md` và `BusinessRules` của dự án. Bộ skill này hướng dẫn Claude scaffold mã backend .NET 9 Clean Architecture đúng convention mà không cần lặp lại hướng dẫn trong từng prompt.
 
 ## Có gì trong này
 
 | Skill | Trigger khi user yêu cầu… |
 |---|---|
-| **`ecoreport-feature-slice`** | thêm command/query/use case/feature/handler/validator vào `Application/Features/` |
-| **`ecoreport-repository-pattern`** | thêm repository — và **đầu tiên** kiểm tra xem có thực sự cần repo hay không |
-| **`ecoreport-controller-base`** | thêm endpoint/controller/route/action HTTP (kiểu `ControllerBase`) |
-| **`ecoreport-efcore-best-practices`** | bất cứ thay đổi nào liên quan EF Core — entity, migration, query, indexing, geo (PostGIS), perf, audit, soft delete |
+| **`greenlens-feature-slice`** | thêm command/query/use case/feature/handler/validator vào `Application/Features/` |
+| **`greenlens-repository-pattern`** | thêm repository — và **đầu tiên** kiểm tra xem có thực sự cần repo hay không |
+| **`greenlens-controller-base`** | thêm endpoint/controller/route/action HTTP (kiểu `ControllerBase`) |
+| **`greenlens-efcore-best-practices`** | bất cứ thay đổi nào liên quan EF Core — entity, migration, query, indexing, geo (PostGIS), perf, audit, soft delete |
 
 Mỗi skill là một thư mục độc lập với `SKILL.md` + `assets/` (template `.cs.template`) + (tuỳ skill) `references/` (doc chi tiết, load on-demand để giữ context nhỏ — đúng nguyên tắc *progressive disclosure*).
 
@@ -19,26 +19,26 @@ Mỗi skill là một thư mục độc lập với `SKILL.md` + `assets/` (temp
 
 ```
 skills/
-├── ecoreport-feature-slice/
+├── greenlens-feature-slice/
 │   ├── SKILL.md
 │   └── assets/
 │       ├── command-slice.cs.template
 │       └── query-slice.cs.template
 │
-├── ecoreport-repository-pattern/
+├── greenlens-repository-pattern/
 │   ├── SKILL.md
 │   └── assets/
 │       ├── repository.cs.template
 │       └── specification.cs.template
 │
-├── ecoreport-controller-base/
+├── greenlens-controller-base/
 │   ├── SKILL.md
 │   └── assets/
 │       ├── controller.cs.template
 │       ├── action-snippet.cs.template
 │       └── result-extensions.cs.template
 │
-└── ecoreport-efcore-best-practices/
+└── greenlens-efcore-best-practices/
     ├── SKILL.md
     ├── references/
     │   ├── configuration.md
@@ -60,7 +60,7 @@ skills/
 2. Copy 4 thư mục skill vào đó:
 
    ```bash
-   cp -r skills/ecoreport-* .agents/skills/
+   cp -r skills/greenlens-* .agents/skills/
    ```
 
 3. Reload workspace. Claude sẽ tự discover skill qua `SKILL.md` frontmatter và sử dụng đúng lúc.
@@ -72,7 +72,7 @@ skills/
 1. **Skill nhỏ, trigger rõ.** Một skill cho một concern. Description nêu rõ các phrasing user thường dùng (kể cả casual: "fix the N+1", "add an endpoint") — chống *under-triggering*.
 2. **Progressive disclosure.** SKILL.md ngắn (< 500 dòng); chi tiết nặng được tách sang `references/` và chỉ load on-demand. Skill EF Core áp dụng pattern này.
 3. **Templates với placeholder rõ ràng.** Mọi placeholder dùng `__DOUBLE_UNDERSCORE__` để find-replace toàn cục an toàn. Khi Claude đọc template, chỉ cần map placeholder → giá trị thật của use case hiện tại.
-4. **Skill là *gatekeeper*, không chỉ là *generator*.** Skill `repository-pattern` không tạo ngay — nó **gate** trước, từ chối khi user yêu cầu nhưng không có lý do thật. Đó là thứ giúp codebase không bị over-engineer.
+4. **Skill là *gatekeeper*, không chỉ là *generator*.** Skill `greenlens-repository-pattern` không tạo ngay — nó **gate** trước, từ chối khi user yêu cầu nhưng không có lý do thật. Đó là thứ giúp codebase không bị over-engineer.
 5. **Mọi BR ID đều bắt nguồn từ tài liệu chuẩn.** Skill yêu cầu Claude *hỏi* khi không chắc BR ID — không bịa. Mỗi handler scaffold ra đều có XML comment `Implements: BR-...` để team grep được coverage.
 6. **Convention là một sản phẩm, không phải sở thích.** Skill enforce convention từ `OVERVIEW.md`: dependency rule, vertical slice, Result pattern, AsNoTracking + projection, audit interceptor, soft delete query filter, GIST index cho geo. Mỗi quy tắc đều có lý do — skill nêu lý do, không chỉ ra lệnh.
 

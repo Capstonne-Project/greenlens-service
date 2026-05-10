@@ -1,13 +1,11 @@
 ---
-name: ecoreport-controller-base
-description: Scaffold an ASP.NET Core API controller (deriving from ControllerBase) for the EcoReport .NET 9 backend (project SU26SE049). Use this skill whenever the user asks to add an HTTP endpoint, controller, route, action, or REST API surface — including casual phrasings like "add an endpoint to submit a report", "create the ReportsController", "I need a route for verifying", "expose this command over HTTP", "add a GET for nearby reports". Trigger this even if the user only says "add the route" or "wire up the API" because the controller, the action signature, the [Authorize] policy, the route convention, and the Result→IActionResult mapping must all be done together. Produces a controller class under EcoReport.Api/Controllers/ with versioned routes, attribute-based authorization, MediatR dispatch, ProducesResponseType for OpenAPI, and the shared ToActionResult() extension that maps Result<T> to the right HTTP status.
+name: greenlens-controller-base
+description: Scaffold an ASP.NET Core API controller (deriving from ControllerBase) for the GreenLens .NET 9 backend (project SU26SE049). Use this skill whenever the user asks to add an HTTP endpoint, controller, route, action, or REST API surface — including casual phrasings like "add an endpoint to submit a report", "create the ReportsController", "I need a route for verifying", "expose this command over HTTP", "add a GET for nearby reports". Trigger this even if the user only says "add the route" or "wire up the API" because the controller, the action signature, the [Authorize] policy, the route convention, and the Result→IActionResult mapping must all be done together. Produces a controller class under GreenLens.Api/Controllers/ with versioned routes, attribute-based authorization, MediatR dispatch, ProducesResponseType for OpenAPI, and the shared ToActionResult() extension that maps Result<T> to the right HTTP status.
 ---
 
-# EcoReport Controller (ControllerBase)
+# GreenLens Controller (ControllerBase)
 
-This skill scaffolds **controller-based** API endpoints for the EcoReport backend. The project's default per the workspace `CLAUDE.md` was Minimal API — but the user has chosen Controllers, so this skill enforces the Controller convention end-to-end.
-
-> **Note for Claude:** if you also see a `ecoreport-minimal-api` skill in this workspace, the user has migrated. Ask which is current before scaffolding. Don't mix styles in the same project.
+This skill scaffolds **controller-based** API endpoints for the GreenLens backend (project **SU26SE049 — Crowdsourced Application for Reporting Environmental Pollution**). It enforces the conventions in the workspace `OVERVIEW.md` so every controller looks the same.
 
 ## When to use
 
@@ -20,10 +18,10 @@ Trigger when the user mentions any of:
 
 ## Workflow
 
-1. **Check for existing controller.** Before creating a new file, ask: "Does `EcoReport.Api/Controllers/<Module>Controller.cs` already exist?" If yes, **add the action to the existing controller** — one controller per resource (`ReportsController`, `AuthController`, `MapController`, `OfficerController`…), not one per use case.
+1. **Check for existing controller.** Before creating a new file, ask: "Does `GreenLens.Api/Controllers/<Module>Controller.cs` already exist?" If yes, **add the action to the existing controller** — one controller per resource (`ReportsController`, `AuthController`, `MapController`, `OfficerController`…), not one per use case.
 2. **Confirm with the user:**
    - Resource name (becomes controller + route, e.g. `Reports` → `/api/v1/reports`)
-   - The MediatR Command/Query the action dispatches (must already exist — if not, hand off to `ecoreport-feature-slice` first)
+   - The MediatR Command/Query the action dispatches (must already exist — if not, hand off to `greenlens-feature-slice` first)
    - HTTP verb + sub-route (e.g. `POST /` or `POST /{id}/verify` or `GET /nearby`)
    - Authorization policy (anonymous, Citizen, Officer, CleanupTeam, Admin, or a named policy)
    - Success status (`200 OK` for queries, `201 Created` for creates, `204 NoContent` for void mutations)
@@ -31,11 +29,11 @@ Trigger when the user mentions any of:
    - `assets/controller.cs.template` for a brand-new controller
    - `assets/action-snippet.cs.template` for adding an action to an existing controller
 4. **Substitute placeholders** (same `__DOUBLE_UNDERSCORE__` convention as other skills).
-5. **Make sure `ToActionResult()` exists.** It's the extension that maps `Result<T>` → `IActionResult`. Check `src/EcoReport.Api/Common/ResultExtensions.cs`. If missing, materialize it from `assets/result-extensions.cs.template` — once per project.
+5. **Make sure `ToActionResult()` exists.** It's the extension that maps `Result<T>` → `IActionResult`. Check `src/GreenLens.Api/Common/ResultExtensions.cs`. If missing, materialize it from `assets/result-extensions.cs.template` — once per project.
 
 ## Controller conventions
 
-These match `CLAUDE.md` and ASP.NET Core 9 defaults:
+These match `OVERVIEW.md` and ASP.NET Core 9 defaults:
 
 - Class name: `<Resource>Controller` (plural noun: `ReportsController`, not `ReportController`).
 - Inherits **`ControllerBase`** — not `Controller` (we don't render views).
@@ -46,7 +44,7 @@ These match `CLAUDE.md` and ASP.NET Core 9 defaults:
   - Decorates with `[HttpPost]` / `[HttpGet("{id:guid}")]` etc.
   - Has `[ProducesResponseType(StatusCodes.Status200OK, Type = typeof(...))]` for the success shape **and** for `Status400BadRequest`, `Status404NotFound`, `Status401Unauthorized`, `Status403Forbidden`, `Status422UnprocessableEntity` as appropriate. OpenAPI / Swagger reads these.
   - Decorates authorization: `[Authorize(Roles = "Officer,Admin")]` or `[Authorize(Policy = Policies.CanVerifyReport)]`. **Never use bare `[Authorize]`** — be explicit so reviewers can audit who can hit each endpoint against the BR role matrix (BR doc §2).
-  - **Never** receives `IFormFile` for media uploads — those go through pre-signed S3 URLs (CLAUDE.md §4.10). The action only accepts the metadata + media IDs.
+  - **Never** receives `IFormFile` for media uploads — those go through pre-signed S3 URLs (OVERVIEW.md §4.10). The action only accepts the metadata + media IDs.
   - Body parameter is the Command/Query record from `Application.Features.<Module>.<UseCase>`. Bind it from `[FromBody]` for POST/PUT, `[FromQuery]` for GET/DELETE. Don't create a separate "Request" DTO unless the wire shape really differs from the Command shape.
 - Routes are kebab-case at the URL level (`/api/v1/cleanup-teams`), but C# names stay PascalCase. Use `[Route("api/v{version:apiVersion}/cleanup-teams")]` to override the conventional `[controller]` token when needed.
 
@@ -78,7 +76,7 @@ return result.ToActionResult(value => CreatedAtAction(nameof(GetById), new { id 
 - [ ] Each action has explicit authorization (role list or policy) — no bare `[Authorize]`
 - [ ] Each action has `[ProducesResponseType]` for at least success + 400 + 401/403 + (404 if it loads by id)
 - [ ] No business logic in the action body — only `mediator.Send(...)` + `ToActionResult()`
-- [ ] No `try/catch` in the action — exceptions flow to `ExceptionHandlingMiddleware` (CLAUDE.md §9)
+- [ ] No `try/catch` in the action — exceptions flow to `ExceptionHandlingMiddleware` (OVERVIEW.md §9)
 - [ ] No `IFormFile` for report/comment media — pre-signed URL flow
 - [ ] `CancellationToken` parameter is on every action
 

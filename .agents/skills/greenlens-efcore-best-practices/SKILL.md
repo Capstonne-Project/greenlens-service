@@ -1,20 +1,20 @@
 ---
-name: ecoreport-efcore-best-practices
-description: Apply EF Core 9 best practices for the EcoReport .NET 9 backend (PostgreSQL + PostGIS, project SU26SE049). Use this skill whenever the user touches anything that interacts with EF Core — entity configuration, DbContext, migrations, queries, includes, projections, indexes, geo (PostGIS / NetTopologySuite), soft delete, audit fields, transactions, performance tuning, N+1 problems, AsNoTracking, ProjectToType, raw SQL, or anything in src/EcoReport.Infrastructure/Persistence/. Trigger this even on casual prompts like "this query is slow", "add a column to Reports", "why is my migration generating that", "should I use Include here", "fix the N+1", or any request to add/edit a class under Infrastructure/Persistence/. Loads the right reference doc on demand (configuration, queries, migrations, geo, performance) so context stays small.
+name: greenlens-efcore-best-practices
+description: Apply EF Core 9 best practices for the GreenLens .NET 9 backend (PostgreSQL + PostGIS, project SU26SE049). Use this skill whenever the user touches anything that interacts with EF Core — entity configuration, DbContext, migrations, queries, includes, projections, indexes, geo (PostGIS / NetTopologySuite), soft delete, audit fields, transactions, performance tuning, N+1 problems, AsNoTracking, ProjectToType, raw SQL, or anything in src/GreenLens.Infrastructure/Persistence/. Trigger this even on casual prompts like "this query is slow", "add a column to Reports", "why is my migration generating that", "should I use Include here", "fix the N+1", or any request to add/edit a class under Infrastructure/Persistence/. Loads the right reference doc on demand (configuration, queries, migrations, geo, performance) so context stays small.
 ---
 
-# EcoReport EF Core 9 Best Practices
+# GreenLens EF Core 9 Best Practices
 
-The EcoReport backend uses **EF Core 9** on **PostgreSQL 16 + PostGIS**, configured with:
+The GreenLens backend uses **EF Core 9** on **PostgreSQL 16 + PostGIS**, configured with:
 - `Npgsql.EntityFrameworkCore.PostgreSQL`
 - `Npgsql.EntityFrameworkCore.PostgreSQL.NetTopologySuite` (for `Point`, `Polygon`, `ST_DWithin`)
 - `EFCore.NamingConventions` (snake_case mapping)
 
-This skill is the **gatekeeper** for everything under `src/EcoReport.Infrastructure/Persistence/`. Default to the patterns below; only deviate with a written reason.
+This skill is the **gatekeeper** for everything under `src/GreenLens.Infrastructure/Persistence/`. Default to the patterns below; only deviate with a written reason.
 
 ## Core principles (always apply)
 
-1. **`IApplicationDbContext` is the boundary.** Application handlers depend on the interface in `EcoReport.Application/Common/Interfaces/`. Never reference concrete `ApplicationDbContext` from Application or Domain.
+1. **`IApplicationDbContext` is the boundary.** Application handlers depend on the interface in `GreenLens.Application/Common/Interfaces/`. Never reference concrete `ApplicationDbContext` from Application or Domain.
 2. **Reads default to `AsNoTracking()` + projection.** Tracking exists for mutations; reads should never pay for it.
 3. **Writes go through the entity, not the `DbSet`.** Domain methods enforce invariants; setting properties from a handler bypasses business rules. `Add` is fine for new aggregates.
 4. **One `SaveChangesAsync` per request.** Use the `TransactionBehavior` MediatR pipeline; don't sprinkle saves through a handler.
