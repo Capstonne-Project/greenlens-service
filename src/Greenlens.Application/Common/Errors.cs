@@ -104,4 +104,17 @@ public static class Errors
             "Không thể tải file lên máy chủ lưu trữ. Vui lòng thử lại sau.",
             ErrorType.Unexpected);
     }
+
+    public static class Media
+    {
+        public static Error InvalidImageType => new(
+            "INVALID_IMAGE_TYPE",
+            "Loại ảnh không hợp lệ. Chỉ chấp nhận jpg, png, webp, heic.",
+            ErrorType.Validation);
+
+        public static Error ImageTooLarge => new(
+            "IMAGE_TOO_LARGE",
+            "Ảnh quá lớn. Kích thước tối đa là 10MB.",
+            ErrorType.Validation);
+    }
 }
