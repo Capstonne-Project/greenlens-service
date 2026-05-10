@@ -1,14 +1,15 @@
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
+using Greenlens.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
-namespace Greenlens.Infrastructure.Persistence;
+namespace Greenlens.Infrastructure.Seeders.Administrator;
 
 /// <summary>
 /// Seeds initial data for development. Runs after migrations.
 /// </summary>
-internal static class DatabaseSeeder
+internal static class AdminSeeder
 {
     private const string AdminEmail = "admin@greenlens.com.vn";
     private const string AdminPassword = "Admin@123456";

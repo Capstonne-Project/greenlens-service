@@ -9,6 +9,7 @@ using Greenlens.Infrastructure.Persistence;
 using Greenlens.Infrastructure.Persistence.Repositories;
 using Greenlens.Infrastructure.Persistence.Repositories.Location;
 using Greenlens.Infrastructure.Persistence.Seeders.Location;
+using Greenlens.Infrastructure.Seeders.Administrator;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -123,10 +124,10 @@ public static class DependencyInjection
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var logger = scope.ServiceProvider.GetRequiredService<Microsoft.Extensions.Logging.ILoggerFactory>()
-            .CreateLogger("DatabaseSeeder");
+            .CreateLogger("AdminSeeder");
 
         await db.Database.MigrateAsync().ConfigureAwait(false);
-        await DatabaseSeeder.SeedAsync(db, logger).ConfigureAwait(false);
+        await AdminSeeder.SeedAsync(db, logger).ConfigureAwait(false);
 
         // Administrative catalog (~regions/units/provinces/wards): DbContext is scoped — use same scope.
         await scope.ServiceProvider.SeedLocationAsync().ConfigureAwait(false);
