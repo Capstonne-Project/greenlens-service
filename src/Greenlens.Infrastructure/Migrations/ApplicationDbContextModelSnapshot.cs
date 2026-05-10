@@ -22,6 +22,135 @@ namespace Greenlens.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Greenlens.Domain.Entities.Location.AdministrativeRegion", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.HasKey("Id")
+                        .HasName("pk_administrative_regions");
+
+                    b.ToTable("administrative_regions", (string)null);
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.Location.AdministrativeUnit", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Abbreviation")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("abbreviation");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.HasKey("Id")
+                        .HasName("pk_administrative_units");
+
+                    b.ToTable("administrative_units", (string)null);
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.Location.Province", b =>
+                {
+                    b.Property<string>("Code")
+                        .HasMaxLength(2)
+                        .HasColumnType("character(2)")
+                        .HasColumnName("code")
+                        .IsFixedLength();
+
+                    b.Property<int>("AdministrativeRegionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("administrative_region_id");
+
+                    b.Property<int>("AdministrativeUnitId")
+                        .HasColumnType("integer")
+                        .HasColumnName("administrative_unit_id");
+
+                    b.Property<string>("BoundaryUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("boundary_url");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.HasKey("Code")
+                        .HasName("pk_provinces");
+
+                    b.HasIndex("AdministrativeRegionId")
+                        .HasDatabaseName("ix_provinces_administrative_region_id");
+
+                    b.HasIndex("AdministrativeUnitId")
+                        .HasDatabaseName("ix_provinces_administrative_unit_id");
+
+                    b.HasIndex("Name")
+                        .HasDatabaseName("ix_provinces_name");
+
+                    b.ToTable("provinces", (string)null);
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.Location.Ward", b =>
+                {
+                    b.Property<string>("Code")
+                        .HasMaxLength(5)
+                        .HasColumnType("character(5)")
+                        .HasColumnName("code")
+                        .IsFixedLength();
+
+                    b.Property<int>("AdministrativeUnitId")
+                        .HasColumnType("integer")
+                        .HasColumnName("administrative_unit_id");
+
+                    b.Property<string>("BoundaryUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("boundary_url");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("ProvinceCode")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .HasColumnType("character(2)")
+                        .HasColumnName("province_code")
+                        .IsFixedLength();
+
+                    b.HasKey("Code")
+                        .HasName("pk_wards");
+
+                    b.HasIndex("AdministrativeUnitId")
+                        .HasDatabaseName("ix_wards_administrative_unit_id");
+
+                    b.HasIndex("Name")
+                        .HasDatabaseName("ix_wards_name");
+
+                    b.HasIndex("ProvinceCode")
+                        .HasDatabaseName("ix_wards_province_code");
+
+                    b.ToTable("wards", (string)null);
+                });
+
             modelBuilder.Entity("Greenlens.Domain.Entities.OtpCode", b =>
                 {
                     b.Property<Guid>("Id")
@@ -223,6 +352,65 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasFilter("phone_number IS NOT NULL");
 
                     b.ToTable("users", (string)null);
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.Location.Province", b =>
+                {
+                    b.HasOne("Greenlens.Domain.Entities.Location.AdministrativeRegion", "AdministrativeRegion")
+                        .WithMany("Provinces")
+                        .HasForeignKey("AdministrativeRegionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_provinces_administrative_regions_administrative_region_id");
+
+                    b.HasOne("Greenlens.Domain.Entities.Location.AdministrativeUnit", "AdministrativeUnit")
+                        .WithMany("Provinces")
+                        .HasForeignKey("AdministrativeUnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_provinces_administrative_units_administrative_unit_id");
+
+                    b.Navigation("AdministrativeRegion");
+
+                    b.Navigation("AdministrativeUnit");
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.Location.Ward", b =>
+                {
+                    b.HasOne("Greenlens.Domain.Entities.Location.AdministrativeUnit", "AdministrativeUnit")
+                        .WithMany("Wards")
+                        .HasForeignKey("AdministrativeUnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_wards_administrative_units_administrative_unit_id");
+
+                    b.HasOne("Greenlens.Domain.Entities.Location.Province", "Province")
+                        .WithMany("Wards")
+                        .HasForeignKey("ProvinceCode")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_wards_provinces_province_code");
+
+                    b.Navigation("AdministrativeUnit");
+
+                    b.Navigation("Province");
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.Location.AdministrativeRegion", b =>
+                {
+                    b.Navigation("Provinces");
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.Location.AdministrativeUnit", b =>
+                {
+                    b.Navigation("Provinces");
+
+                    b.Navigation("Wards");
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.Location.Province", b =>
+                {
+                    b.Navigation("Wards");
                 });
 #pragma warning restore 612, 618
         }
