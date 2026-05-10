@@ -46,6 +46,9 @@ public static class DependencyInjection
         // ── Email ────────────────────────────────────────
         services.AddScoped<IEmailSender, SmtpEmailSender>();
 
+        // ── File Storage (R2 Cloudflare) ────────────────
+        services.AddSingleton<IFileStorageService, Storage.R2FileStorageService>();
+
         // ── MediatR ──────────────────────────────────────
         services.AddMediatR(cfg =>
         {
@@ -75,6 +78,10 @@ public static class DependencyInjection
         services.AddScoped<IAdministrativeUnitRepository, AdministrativeUnitRepository>();
         services.AddScoped<IProvinceRepository, ProvinceRepository>();
         services.AddScoped<IWardRepository, WardRepository>();
+        services.AddOptions<Storage.R2Options>()
+            .Bind(configuration.GetSection("R2"))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
 
         // ── JWT Authentication ───────────────────────────
         var jwtSection = configuration.GetSection("Jwt");

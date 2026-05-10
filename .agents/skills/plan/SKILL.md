@@ -22,7 +22,7 @@ description: >
 
 ### 1. Gather Context
 
-1. **Identify Business Rules** — Look up related `BR-<MODULE>-<NNN>` IDs from `CLAUDE.md §5` and the BR docx. List every rule that the change touches.
+1. **Identify Business Rules** — Look up related `BR-<MODULE>-<NNN>` IDs from `OVERVIEW.md §5` and the BR docx. List every rule that the change touches.
 2. **Identify Actors** — Which of the 6 actors (Citizen, Environmental Officer, Cleanup Team, System Administrator, AI Service, Community Organization) are involved?
 3. **Map to Vertical Slice** — Determine which `Application/Features/<Module>/` folder(s) this change belongs to. If new, define the slice name now.
 4. **Check Dependency Rule** — Confirm the change respects:

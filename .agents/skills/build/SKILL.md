@@ -4,7 +4,7 @@ description: >
   Guides code changes and produces implementation notes for the GreenLens backend.
   Use this skill when writing or modifying C# code in the .NET 9 / ASP.NET Core / EF Core 9
   Clean Architecture solution. Covers Domain entities, Application CQRS handlers, Infrastructure
-  adapters, and API controllers. Enforces project conventions from CLAUDE.md and 00_API_CONVENTIONS.md.
+  adapters, and API controllers. Enforces project conventions from OVERVIEW.md and 00_API_CONVENTIONS.md.
   Triggers: user asks to "implement", "code", "build", "create endpoint", "add feature", or "fix".
 ---
 
