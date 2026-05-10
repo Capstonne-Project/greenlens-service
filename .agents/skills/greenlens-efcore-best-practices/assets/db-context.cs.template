@@ -1,0 +1,133 @@
+// =============================================================================
+// Greenlens — ApplicationDbContext + IApplicationDbContext
+// Project: SU26SE049
+//
+// Drop into:
+//   src/Greenlens.Application/Common/Interfaces/IApplicationDbContext.cs
+//   src/Greenlens.Infrastructure/Persistence/ApplicationDbContext.cs
+//
+// One DbContext for the whole app. Don't shard by feature — that defeats the
+// transactional boundary EF is designed around.
+// =============================================================================
+
+
+// === FILE: src/Greenlens.Application/Common/Interfaces/IApplicationDbContext.cs ===
+using Microsoft.EntityFrameworkCore;
+using Greenlens.Domain.Entities;
+
+namespace Greenlens.Application.Common.Interfaces;
+
+/// <summary>
+/// The Application-layer view of the database. Handlers depend on this, not on
+/// the concrete DbContext, so they stay framework-agnostic.
+///
+/// Add a DbSet here ONLY when handlers should query it directly. Junction tables,
+/// history snapshots, and audit logs deliberately stay off this surface — they
+/// belong to specific services in Infrastructure.
+/// </summary>
+public interface IApplicationDbContext
+{
+    DbSet<User>            Users           { get; }
+    DbSet<Report>          Reports         { get; }
+    DbSet<ReportMedia>     ReportMedia     { get; }
+    DbSet<Comment>         Comments        { get; }
+    DbSet<Notification>    Notifications   { get; }
+    DbSet<Badge>           Badges          { get; }
+    DbSet<UserBadge>       UserBadges      { get; }
+    DbSet<PollutionCategory> PollutionCategories { get; }
+    DbSet<District>        Districts       { get; }
+    DbSet<CleanupTeam>     CleanupTeams    { get; }
+    DbSet<TaskAssignment>  TaskAssignments { get; }
+
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken);
+}
+
+
+// === FILE: src/Greenlens.Infrastructure/Persistence/ApplicationDbContext.cs ===
+using Microsoft.EntityFrameworkCore;
+using Greenlens.Application.Common.Interfaces;
+using Greenlens.Domain.Common;
+using Greenlens.Domain.Entities;
+using Greenlens.Infrastructure.Persistence.Interceptors;
+using System.Linq.Expressions;
+
+namespace Greenlens.Infrastructure.Persistence;
+
+public sealed class ApplicationDbContext(
+    DbContextOptions<ApplicationDbContext> options)
+    : DbContext(options), IApplicationDbContext
+{
+    public DbSet<User>                Users               => Set<User>();
+    public DbSet<Report>              Reports             => Set<Report>();
+    public DbSet<ReportMedia>         ReportMedia         => Set<ReportMedia>();
+    public DbSet<Comment>             Comments            => Set<Comment>();
+    public DbSet<Notification>        Notifications       => Set<Notification>();
+    public DbSet<Badge>               Badges              => Set<Badge>();
+    public DbSet<UserBadge>           UserBadges          => Set<UserBadge>();
+    public DbSet<PollutionCategory>   PollutionCategories => Set<PollutionCategory>();
+    public DbSet<District>            Districts           => Set<District>();
+    public DbSet<CleanupTeam>         CleanupTeams        => Set<CleanupTeam>();
+    public DbSet<TaskAssignment>      TaskAssignments     => Set<TaskAssignment>();
+
+    // Internal-only sets (not exposed via IApplicationDbContext)
+    internal DbSet<AuditLog>          AuditLogs           => Set<AuditLog>();
+    internal DbSet<OutboxMessage>     OutboxMessages      => Set<OutboxMessage>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        // Apply IEntityTypeConfiguration<T> classes from this assembly.
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
+
+        // Global query filter: hide soft-deleted rows by default.
+        // Handlers that need to see them call .IgnoreQueryFilters().
+        ApplySoftDeleteFilter(modelBuilder);
+
+        base.OnModelCreating(modelBuilder);
+    }
+
+    private static void ApplySoftDeleteFilter(ModelBuilder modelBuilder)
+    {
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            if (!typeof(SoftDeletableEntity).IsAssignableFrom(entityType.ClrType)) continue;
+
+            var parameter = Expression.Parameter(entityType.ClrType, "e");
+            var prop      = Expression.Property(parameter, nameof(SoftDeletableEntity.DeletedAt));
+            var nullConst = Expression.Constant(null, typeof(DateTimeOffset?));
+            var body      = Expression.Equal(prop, nullConst);
+            var lambda    = Expression.Lambda(body, parameter);
+
+            modelBuilder.Entity(entityType.ClrType).HasQueryFilter(lambda);
+        }
+    }
+}
+
+
+// === SNIPPET: register in src/Greenlens.Infrastructure/DependencyInjection.cs ===
+//
+// public static IServiceCollection AddInfrastructure(
+//     this IServiceCollection services,
+//     IConfiguration configuration)
+// {
+//     services.AddSingleton<AuditingSaveChangesInterceptor>();
+//     services.AddSingleton<SoftDeleteInterceptor>();
+//
+//     services.AddDbContext<ApplicationDbContext>((sp, opt) =>
+//     {
+//         opt.UseNpgsql(
+//                 configuration.GetConnectionString("Postgres"),
+//                 npg => npg
+//                     .UseNetTopologySuite()
+//                     .MigrationsHistoryTable("__ef_migrations_history", "greenlens"))
+//             .UseSnakeCaseNamingConvention()
+//             .AddInterceptors(
+//                 sp.GetRequiredService<AuditingSaveChangesInterceptor>(),
+//                 sp.GetRequiredService<SoftDeleteInterceptor>())
+//             .ConfigureWarnings(w => w.Throw(
+//                 Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.MultipleCollectionIncludeWarning));
+//     });
+//
+//     services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<ApplicationDbContext>());
+//
+//     return services;
+// }

@@ -44,6 +44,9 @@ public static class DependencyInjection
         // ── Email ────────────────────────────────────────
         services.AddScoped<IEmailSender, SmtpEmailSender>();
 
+        // ── File Storage (R2 Cloudflare) ────────────────
+        services.AddSingleton<IFileStorageService, Storage.R2FileStorageService>();
+
         // ── MediatR ──────────────────────────────────────
         services.AddMediatR(cfg =>
         {
@@ -65,6 +68,11 @@ public static class DependencyInjection
 
         services.AddOptions<SmtpOptions>()
             .Bind(configuration.GetSection("Smtp"))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        services.AddOptions<Storage.R2Options>()
+            .Bind(configuration.GetSection("R2"))
             .ValidateDataAnnotations()
             .ValidateOnStart();
 

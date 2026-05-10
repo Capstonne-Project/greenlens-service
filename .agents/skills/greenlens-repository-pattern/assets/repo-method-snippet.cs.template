@@ -1,0 +1,62 @@
+// =============================================================================
+// Greenlens — add a method to an EXISTING repository
+// Project: SU26SE049 — Crowdsourced Application for Reporting Environmental Pollution
+//
+// PRECONDITION: I__ENTITY__Repository và __ENTITY__Repository đã tồn tại.
+// Skill này chỉ snippet để thêm 1 method mới.
+//
+// PLACEHOLDERS:
+//   __ENTITY__       e.g. Report
+//   __METHOD__       e.g. GetWithMediaAsync
+//   __RETURN__       e.g. __ENTITY__?  |  IReadOnlyList<__ENTITY__>
+//   __JUSTIFICATION__  Một câu giải thích vì sao method này thuộc về repo
+//                      (vd. "Bundle Include cho 3 handler: A, B, C")
+//                      (vd. "PostGIS ST_DWithin — không expressible qua LINQ thuần")
+//
+// CHECKLIST trước khi thêm:
+//   [ ] Method này KHÔNG đã có ở IRepository<T> base?
+//   [ ] Có ≥ 3 handler dùng, HOẶC cần feature DB không expose qua LINQ thuần,
+//       HOẶC encode invariant load?
+//   Nếu KHÔNG đáp ứng → KHÔNG thêm. Viết LINQ trong handler qua repo.Query()
+//   hoặc repo.QueryAsNoTracking().
+// =============================================================================
+
+
+// ---- Add to: I__ENTITY__Repository.cs (interface) ----
+
+/// <summary>
+/// __JUSTIFICATION__
+/// </summary>
+Task<__RETURN__> __METHOD__(
+    /* TODO: parameters */
+    CancellationToken cancellationToken = default);
+
+
+// ---- Add to: __ENTITY__Repository.cs (implementation) ----
+
+public Task<__RETURN__> __METHOD__(
+    /* TODO: parameters */
+    CancellationToken cancellationToken = default)
+{
+    // TODO: implement.
+    //
+    // Examples:
+    //
+    // // Single result with includes:
+    // return Set
+    //     .Include(x => x.RelatedThing)
+    //     .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+    //
+    // // List with PostGIS:
+    // return Set
+    //     .AsNoTracking()
+    //     .Where(x => x.Location.IsWithinDistance(origin, 50))   // ST_DWithin
+    //     .ToListAsync(cancellationToken);
+    //
+    // // Bulk update via EF 9 ExecuteUpdateAsync (no loading):
+    // return Set
+    //     .Where(x => x.Status == ReportStatus.Resolved && x.ResolvedAt < cutoff)
+    //     .ExecuteUpdateAsync(s => s
+    //         .SetProperty(x => x.Status, ReportStatus.Closed)
+    //         .SetProperty(x => x.ClosedAt, DateTimeOffset.UtcNow), cancellationToken);
+}
