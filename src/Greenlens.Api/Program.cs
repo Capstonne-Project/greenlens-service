@@ -86,3 +86,7 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+// chạy ở terminal trong thư mục gốc
+// dotnet ef migrations add <TenMigration> --project src/Greenlens.Infrastructure --startup-project src/Greenlens.Api
+// dotnet ef database update --project src/Greenlens.Infrastructure --startup-project src/Greenlens.Api
