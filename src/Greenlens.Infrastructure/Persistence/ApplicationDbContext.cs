@@ -10,6 +10,15 @@ internal sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<OtpCode> OtpCodes => Set<OtpCode>();
 
+    // ── Report module ──
+    public DbSet<PollutionCategory> PollutionCategories => Set<PollutionCategory>();
+    public DbSet<Report> Reports => Set<Report>();
+    public DbSet<ReportMedia> ReportMedia => Set<ReportMedia>();
+    public DbSet<ReportStatusHistory> ReportStatusHistory => Set<ReportStatusHistory>();
+    public DbSet<ReportFlag> ReportFlags => Set<ReportFlag>();
+    public DbSet<ReportSatisfaction> ReportSatisfactions => Set<ReportSatisfaction>();
+    public DbSet<ReportDraft> ReportDrafts => Set<ReportDraft>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
