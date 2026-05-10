@@ -78,8 +78,7 @@ docker-compose.override.yml
 .env.*
 !.env.example
 
-## EF Core
-**/Migrations/*.Designer.cs
+## EF Core — Designer.cs files are REQUIRED, do NOT ignore them
 
 ## Misc
 *.tmp
