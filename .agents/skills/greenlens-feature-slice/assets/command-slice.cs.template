@@ -1,0 +1,164 @@
+// =============================================================================
+// EcoReport Vertical Slice — COMMAND template
+// Project: SU26SE049 — Crowdsourced Application for Reporting Environmental Pollution
+//
+// HOW TO USE
+//   1. Replace placeholders globally:
+//        __MODULE__        e.g. Reports
+//        __USECASE__       e.g. SubmitReport            (PascalCase)
+//        __USECASE_LOWER__ e.g. submitReport            (camelCase, doc-only)
+//        __RESULT_TYPE__   e.g. Guid  |  SubmitReportResponse  |  Unit
+//        __BR_IDS__        e.g. BR-REP-001, BR-REP-003, BR-REP-013
+//        __BR_SUMMARY__    e.g. Submit a new pollution report with photos and GPS.
+//   2. Split this file at the `// === FILE: ... ===` markers. Each chunk goes
+//      to the path shown.
+//   3. Drop the placeholder fields you don't need; keep the structure intact.
+//   4. If __RESULT_TYPE__ is a primitive or an existing DTO, delete the
+//      `__USECASE__Response.cs` chunk entirely.
+// =============================================================================
+
+
+// === FILE: src/EcoReport.Application/Features/__MODULE__/__USECASE__/__USECASE__Command.cs ===
+using MediatR;
+using EcoReport.Domain.Common;
+
+namespace EcoReport.Application.Features.__MODULE__.__USECASE__;
+
+/// <summary>
+/// __BR_SUMMARY__
+/// </summary>
+/// <remarks>
+/// Implements: __BR_IDS__.
+/// See <c>SU26SE049_BusinessRules_v1_0.docx</c> for the canonical wording.
+/// </remarks>
+public sealed record __USECASE__Command(
+    // TODO: declare inputs as primary-constructor parameters.
+    // Use value objects (GeoLocation, Email) where the Domain layer defines them.
+    // Examples — DELETE these and add real ones:
+    // Guid ReporterId,
+    // string Description,
+    // double Latitude,
+    // double Longitude,
+    // IReadOnlyList<Guid> MediaIds,
+    // PollutionType Category,
+    // Severity? Severity,
+    // bool IsAnonymous
+) : IRequest<Result<__RESULT_TYPE__>>;
+
+
+// === FILE: src/EcoReport.Application/Features/__MODULE__/__USECASE__/__USECASE__CommandValidator.cs ===
+using FluentValidation;
+
+namespace EcoReport.Application.Features.__MODULE__.__USECASE__;
+
+/// <summary>
+/// Input-shape validation only (lengths, regex, ranges, required-ness).
+/// Database-touching rules (uniqueness, state transitions, authorization)
+/// live in the handler — see CLAUDE.md §4.9.
+/// </summary>
+public sealed class __USECASE__CommandValidator : AbstractValidator<__USECASE__Command>
+{
+    public __USECASE__CommandValidator()
+    {
+        // TODO: add rules. Examples:
+        //
+        // RuleFor(x => x.Description)
+        //     .Length(10, 1000)
+        //     .When(x => !string.IsNullOrWhiteSpace(x.Description))
+        //     .WithMessage("Mô tả phải từ 10–1000 ký tự");          // BR-REP-004
+        //
+        // RuleFor(x => x.Latitude)
+        //     .InclusiveBetween(8.0, 24.0)
+        //     .WithMessage("Vị trí phải nằm trong lãnh thổ Việt Nam"); // BR-REP-003
+        //
+        // RuleFor(x => x.Longitude)
+        //     .InclusiveBetween(102.0, 110.0)
+        //     .WithMessage("Vị trí phải nằm trong lãnh thổ Việt Nam"); // BR-REP-003
+        //
+        // RuleFor(x => x.MediaIds)
+        //     .NotEmpty().WithMessage("Vui lòng thêm ít nhất 1 ảnh")
+        //     .Must(m => m.Count <= 5).WithMessage("Tối đa 5 ảnh");   // BR-REP-001
+    }
+}
+
+
+// === FILE: src/EcoReport.Application/Features/__MODULE__/__USECASE__/__USECASE__CommandHandler.cs ===
+using MediatR;
+using Microsoft.EntityFrameworkCore;
+using EcoReport.Application.Common.Interfaces;
+using EcoReport.Domain.Common;
+using EcoReport.Domain.Errors; // expects Errors.<Module>.<Code> static class
+
+namespace EcoReport.Application.Features.__MODULE__.__USECASE__;
+
+/// <summary>
+/// __BR_SUMMARY__
+/// </summary>
+/// <remarks>
+/// Implements: __BR_IDS__.
+///
+/// Notes:
+/// - Returns Result&lt;__RESULT_TYPE__&gt;. Do NOT throw for business-rule failures;
+///   only throw for infrastructure faults (DB unavailable, etc.).
+/// - State-machine transitions and authorization checks happen here, after
+///   the validator passes input-shape rules.
+/// </remarks>
+public sealed class __USECASE__CommandHandler(
+    // Inject specific repo (I__ENTITY__Repository), KHÔNG IRepository<T> generic.
+    // Inject IUnitOfWork để commit. Nhiều aggregate → nhiều repo + 1 UoW.
+    // Nếu không có repo cho entity (CRUD đơn giản), inject IApplicationDbContext.
+    IUnitOfWork uow,
+    ICurrentUser currentUser,
+    IDateTimeProvider clock
+    // Add infrastructure interfaces (IFileStorage, IAIClassificationService, ...) only as needed.
+) : IRequestHandler<__USECASE__Command, Result<__RESULT_TYPE__>>
+{
+    public async Task<Result<__RESULT_TYPE__>> Handle(
+        __USECASE__Command request,
+        CancellationToken cancellationToken)
+    {
+        // ---- 1. Authorization (CLAUDE.md §4.8 / §13.3) -------------------
+        // Use ICurrentUser; do NOT touch HttpContext directly.
+        // Example:
+        //   if (!currentUser.IsInRole("Officer"))
+        //       return Result<__RESULT_TYPE__>.Failure(Errors.Auth.Forbidden);
+
+        // ---- 2. Load aggregate -------------------------------------------
+        // Use specific repo: GetByIdAsync (default), GetForVerificationAsync (bundled),
+        // FindXxx (custom query).
+        // Example:
+        //   var entity = await repository.GetByIdAsync(request.Id, cancellationToken);
+        //   if (entity is null)
+        //       return Result<__RESULT_TYPE__>.Failure(Errors.__ENTITY__.NotFound);
+
+        // ---- 3. Apply business rule via Domain method --------------------
+        // Domain entities own state transitions (CLAUDE.md §5 state machine).
+        // Example:
+        //   var transition = entity.Verify(currentUser.UserId, clock.UtcNow);
+        //   if (transition.IsFailure)
+        //       return Result<__RESULT_TYPE__>.Failure(transition.Error!);
+
+        // ---- 4. Persist via UoW ------------------------------------------
+        // KHÔNG db.SaveChangesAsync. KHÔNG repo.SaveChangesAsync.
+        // CHỈ uow.SaveChangesAsync — interceptors + domain events chạy ở đây.
+        await uow.SaveChangesAsync(cancellationToken);
+
+        // ---- 5. Return ---------------------------------------------------
+        return Result<__RESULT_TYPE__>.Success(default!);
+    }
+}
+
+
+// === FILE: src/EcoReport.Application/Features/__MODULE__/__USECASE__/__USECASE__Response.cs ===
+// DELETE THIS FILE if __RESULT_TYPE__ is a primitive (Guid, bool, int) or
+// reuses an existing shared DTO.
+
+namespace EcoReport.Application.Features.__MODULE__.__USECASE__;
+
+public sealed record __USECASE__Response(
+    // TODO: shape the response. Keep it flat; do NOT leak Domain entities.
+    // Example:
+    // Guid ReportId,
+    // string Status,
+    // DateTime CreatedAt
+);

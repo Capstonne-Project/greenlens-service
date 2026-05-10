@@ -1,0 +1,64 @@
+// =============================================================================
+// EcoReport — SoftDeleteInterceptor
+// Project: SU26SE049
+//
+// Drop into:
+//   src/EcoReport.Infrastructure/Persistence/Interceptors/SoftDeleteInterceptor.cs
+//
+// Converts every Remove() of a SoftDeletableEntity into:
+//     entity.DeletedAt = now;
+//     entity.DeletedBy = currentUser.UserId;
+//
+// Combined with the global query filter on DeletedAt == null, this gives
+// soft delete with no per-handler ceremony.
+//
+// HARD DELETE: callers that genuinely need to expunge a row use
+//     await db.X.IgnoreQueryFilters().Where(...).ExecuteDeleteAsync(ct);
+// in a maintenance job (e.g. AccountHardDeleteJob, BR-AUTH-022 day-90).
+// =============================================================================
+
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using EcoReport.Application.Common.Interfaces;
+using EcoReport.Domain.Common;
+
+namespace EcoReport.Infrastructure.Persistence.Interceptors;
+
+public sealed class SoftDeleteInterceptor(
+    ICurrentUser currentUser,
+    IDateTimeProvider clock) : SaveChangesInterceptor
+{
+    public override InterceptionResult<int> SavingChanges(
+        DbContextEventData eventData,
+        InterceptionResult<int> result)
+    {
+        ApplySoftDelete(eventData.Context);
+        return base.SavingChanges(eventData, result);
+    }
+
+    public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
+        DbContextEventData eventData,
+        InterceptionResult<int> result,
+        CancellationToken cancellationToken = default)
+    {
+        ApplySoftDelete(eventData.Context);
+        return base.SavingChangesAsync(eventData, result, cancellationToken);
+    }
+
+    private void ApplySoftDelete(DbContext? ctx)
+    {
+        if (ctx is null) return;
+
+        var now    = clock.UtcNow;
+        var userId = currentUser.UserId;
+
+        foreach (var entry in ctx.ChangeTracker.Entries<SoftDeletableEntity>())
+        {
+            if (entry.State != EntityState.Deleted) continue;
+
+            entry.State = EntityState.Modified;
+            entry.Entity.DeletedAt = now;
+            entry.Entity.DeletedBy = userId;
+        }
+    }
+}

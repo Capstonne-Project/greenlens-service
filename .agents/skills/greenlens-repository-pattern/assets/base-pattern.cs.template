@@ -1,0 +1,240 @@
+// =============================================================================
+// EcoReport Repository + UoW — BASE PATTERN (one-time setup per project)
+// Project: SU26SE049
+//
+// Generate this ONCE per project, before any specific repository.
+// Contains: IRepository<T>, IUnitOfWork, IDbTransaction, EfRepository<T>,
+//           EfUnitOfWork, TransactionBehavior, DI registration.
+//
+// Split this file at the `// === FILE: ... ===` markers.
+// =============================================================================
+
+
+// === FILE: src/Greenlens.Application/Common/Interfaces/Persistence/IRepository.cs ===
+namespace Greenlens.Application.Common.Interfaces.Persistence;
+
+/// <summary>
+/// Base repository contract cho mọi aggregate root.
+///
+/// Handler dùng repo qua interface này hoặc qua interface cụ thể của aggregate
+/// (vd. <see cref="IReportRepository"/>) khi cần các method bundle Include /
+/// query phức tạp.
+///
+/// Không có <c>SaveChangesAsync</c> — commit do <see cref="IUnitOfWork"/>
+/// quản lý. Một transaction = 1 lần gọi <c>uow.SaveChangesAsync()</c>, có thể
+/// ảnh hưởng nhiều aggregate.
+/// </summary>
+public interface IRepository<T> where T : class
+{
+    IQueryable<T> Query();
+    IQueryable<T> QueryAsNoTracking();
+    Task<T?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task AddAsync(T entity, CancellationToken cancellationToken = default);
+    void AddRange(IEnumerable<T> entities);
+    void Remove(T entity);
+    Task<bool> ExistsAsync(Guid id, CancellationToken cancellationToken = default);
+}
+
+
+// === FILE: src/Greenlens.Application/Common/Interfaces/Persistence/IUnitOfWork.cs ===
+namespace Greenlens.Application.Common.Interfaces.Persistence;
+
+/// <summary>
+/// Đơn vị công việc — quản lý lifetime của transaction và flush thay đổi
+/// xuống DB. Một <see cref="IUnitOfWork"/> = một <c>DbContext</c> instance,
+/// scope theo HTTP request hoặc background job.
+/// </summary>
+public interface IUnitOfWork
+{
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+    Task<IDbTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default);
+}
+
+public interface IDbTransaction : IAsyncDisposable
+{
+    Task CommitAsync(CancellationToken cancellationToken = default);
+    Task RollbackAsync(CancellationToken cancellationToken = default);
+}
+
+
+// === FILE: src/Greenlens.Infrastructure/Persistence/Repositories/EfRepository.cs ===
+using Microsoft.EntityFrameworkCore;
+using Greenlens.Application.Common.Interfaces.Persistence;
+
+namespace Greenlens.Infrastructure.Persistence.Repositories;
+
+/// <summary>
+/// Base implementation của <see cref="IRepository{T}"/> trên EF Core.
+///
+/// <para><b>Quan trọng:</b> đây là <c>internal abstract</c> để buộc mỗi
+/// aggregate có repo riêng. KHÔNG đăng ký <c>IRepository&lt;T&gt;</c> chung
+/// trong DI container.</para>
+/// </summary>
+internal abstract class EfRepository<T>(ApplicationDbContext db) : IRepository<T> where T : class
+{
+    protected ApplicationDbContext Db { get; } = db;
+    protected DbSet<T> Set { get; } = db.Set<T>();
+
+    public IQueryable<T> Query() => Set;
+    public IQueryable<T> QueryAsNoTracking() => Set.AsNoTracking();
+
+    public async Task<T?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+        => await Set.FindAsync([id], cancellationToken);
+
+    public async Task AddAsync(T entity, CancellationToken cancellationToken = default)
+        => await Set.AddAsync(entity, cancellationToken);
+
+    public void AddRange(IEnumerable<T> entities) => Set.AddRange(entities);
+    public void Remove(T entity) => Set.Remove(entity);
+
+    public Task<bool> ExistsAsync(Guid id, CancellationToken cancellationToken = default)
+        => Set.AnyAsync(e => EF.Property<Guid>(e, "Id") == id, cancellationToken);
+}
+
+
+// === FILE: src/Greenlens.Infrastructure/Persistence/EfUnitOfWork.cs ===
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
+using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Domain.Common;
+
+namespace Greenlens.Infrastructure.Persistence;
+
+internal sealed class EfUnitOfWork(
+    ApplicationDbContext db,
+    IDomainEventDispatcher eventDispatcher) : IUnitOfWork
+{
+    public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        // Gom domain events TRƯỚC Save (entity có thể bị detach sau Save).
+        var entitiesWithEvents = db.ChangeTracker
+            .Entries<Entity>()
+            .Where(e => e.Entity.DomainEvents.Count > 0)
+            .Select(e => e.Entity)
+            .ToList();
+
+        var domainEvents = entitiesWithEvents
+            .SelectMany(e => e.DomainEvents)
+            .ToList();
+
+        // Persist (interceptors chạy ở đây)
+        var rows = await db.SaveChangesAsync(cancellationToken);
+
+        // Clear events trước dispatch — tránh re-fire nếu handler gọi SaveChanges lại
+        foreach (var e in entitiesWithEvents) e.ClearDomainEvents();
+
+        // Dispatch SAU commit
+        foreach (var domainEvent in domainEvents)
+            await eventDispatcher.DispatchAsync(domainEvent, cancellationToken);
+
+        return rows;
+    }
+
+    public async Task<IDbTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
+    {
+        var efTx = await db.Database.BeginTransactionAsync(cancellationToken);
+        return new EfDbTransaction(efTx);
+    }
+
+    private sealed class EfDbTransaction(IDbContextTransaction inner) : IDbTransaction
+    {
+        public Task CommitAsync(CancellationToken cancellationToken = default)
+            => inner.CommitAsync(cancellationToken);
+
+        public Task RollbackAsync(CancellationToken cancellationToken = default)
+            => inner.RollbackAsync(cancellationToken);
+
+        public ValueTask DisposeAsync() => inner.DisposeAsync();
+    }
+}
+
+
+// === FILE: src/Greenlens.Application/Common/Behaviors/TransactionBehavior.cs ===
+using MediatR;
+using Microsoft.Extensions.Logging;
+using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Domain.Common;
+
+namespace Greenlens.Application.Common.Behaviors;
+
+/// <summary>
+/// MediatR pipeline behavior — bao mọi Command vào 1 transaction.
+///
+/// Convention: class kết thúc bằng "Command" → bao transaction.
+/// Query KHÔNG đi qua transaction (read-only).
+///
+/// Đăng ký SAU ValidationBehavior, TRƯỚC LoggingBehavior.
+/// </summary>
+public sealed class TransactionBehavior<TRequest, TResponse>(
+    IUnitOfWork uow,
+    ILogger<TransactionBehavior<TRequest, TResponse>> logger)
+    : IPipelineBehavior<TRequest, TResponse> where TRequest : notnull
+{
+    public async Task<TResponse> Handle(
+        TRequest request,
+        RequestHandlerDelegate<TResponse> next,
+        CancellationToken cancellationToken)
+    {
+        if (!IsCommand(request))
+            return await next();
+
+        var requestName = typeof(TRequest).Name;
+
+        await using var tx = await uow.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            var response = await next();
+
+            // Result pattern — handler trả failure → rollback
+            if (response is IResultBase result && result.IsFailure)
+            {
+                await tx.RollbackAsync(cancellationToken);
+                logger.LogInformation(
+                    "Transaction rolled back for {Request}: {ErrorCode}",
+                    requestName, result.Error?.Code);
+                return response;
+            }
+
+            await tx.CommitAsync(cancellationToken);
+            return response;
+        }
+        catch (Exception ex)
+        {
+            await tx.RollbackAsync(cancellationToken);
+            logger.LogError(ex, "Transaction rolled back due to exception in {Request}", requestName);
+            throw;
+        }
+    }
+
+    private static bool IsCommand(TRequest request)
+        => typeof(TRequest).Name.EndsWith("Command", StringComparison.Ordinal);
+}
+
+public interface IResultBase
+{
+    bool IsSuccess { get; }
+    bool IsFailure { get; }
+    Error? Error { get; }
+}
+
+
+// === SNIPPET: src/Greenlens.Infrastructure/DependencyInjection.cs ===
+//
+// Trong AddPersistence(this IServiceCollection services, IConfiguration cfg):
+//
+//     services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<ApplicationDbContext>());
+//     services.AddScoped<IUnitOfWork, EfUnitOfWork>();
+//
+//     // Specific repos — đăng ký TỪNG cái, KHÔNG generic
+//     services.AddScoped<IReportRepository, ReportRepository>();
+//     // ... thêm khi có repo mới
+//
+// Trong Application/DependencyInjection.cs (AddApplication):
+//
+//     services.AddMediatR(cfg =>
+//     {
+//         cfg.RegisterServicesFromAssembly(typeof(IApplicationDbContext).Assembly);
+//         cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));      // 1
+//         cfg.AddOpenBehavior(typeof(TransactionBehavior<,>));     // 2
+//         cfg.AddOpenBehavior(typeof(LoggingBehavior<,>));         // 3
+//     });

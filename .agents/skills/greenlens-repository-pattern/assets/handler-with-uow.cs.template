@@ -1,0 +1,140 @@
+// =============================================================================
+// EcoReport — Handler patterns with Repository + Unit of Work
+// Project: SU26SE049
+//
+// 3 patterns thường gặp:
+//   A) Single-aggregate mutation (90% case)
+//   B) Multi-aggregate transaction (cùng 1 UoW, nhiều repo)
+//   C) Read-only query (không UoW, không transaction)
+//
+// PLACEHOLDERS giữ giống các template khác:
+//   __MODULE__, __USECASE__, __ENTITY__, __BR_IDS__, __BR_SUMMARY__
+// =============================================================================
+
+
+// ---- PATTERN A: Single-aggregate mutation ----------------------------------
+// File: src/Greenlens.Application/Features/__MODULE__/__USECASE__/__USECASE__CommandHandler.cs
+
+using MediatR;
+using Greenlens.Application.Common.Interfaces;
+using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Domain.Common;
+using Greenlens.Domain.Errors;
+
+namespace Greenlens.Application.Features.__MODULE__.__USECASE__;
+
+/// <summary>
+/// __BR_SUMMARY__
+/// </summary>
+/// <remarks>Implements: __BR_IDS__.</remarks>
+public sealed class __USECASE__CommandHandler(
+    I__ENTITY__Repository repository,        // specific repo, NOT IRepository<T>
+    IUnitOfWork uow,                         // commit boundary
+    ICurrentUser currentUser,
+    IDateTimeProvider clock)
+    : IRequestHandler<__USECASE__Command, Result<Guid>>
+{
+    public async Task<Result<Guid>> Handle(__USECASE__Command cmd, CancellationToken ct)
+    {
+        // 1. Load
+        var entity = await repository.GetByIdAsync(cmd.Id, ct);
+        if (entity is null)
+            return Result<Guid>.Failure(Errors.__ENTITY__.NotFound);
+
+        // 2. Authorize (resource-based, see CLAUDE.md §13.3)
+        if (entity.OwnerId != currentUser.UserId)
+            return Result<Guid>.Failure(Errors.Auth.Forbidden);
+
+        // 3. Mutate via domain method (state machine, BR enforcement)
+        var transition = entity.DoSomething(currentUser.UserId, clock.UtcNow);
+        if (transition.IsFailure)
+            return Result<Guid>.Failure(transition.Error!);
+
+        // 4. Commit — interceptors + domain events run here
+        await uow.SaveChangesAsync(ct);
+
+        return Result<Guid>.Success(entity.Id);
+    }
+}
+
+
+// ---- PATTERN B: Multi-aggregate transaction --------------------------------
+// Vd. Officer verify report → cộng điểm cho citizen (BR-GAM-001).
+// Cả 2 thay đổi phải trong cùng 1 transaction.
+
+public sealed class VerifyReportCommandHandler(
+    IReportRepository reports,
+    IUserRepository users,
+    IUnitOfWork uow,
+    ICurrentUser currentUser,
+    IDateTimeProvider clock)
+    : IRequestHandler<VerifyReportCommand, Result>
+{
+    public async Task<Result> Handle(VerifyReportCommand cmd, CancellationToken ct)
+    {
+        var report = await reports.GetForVerificationAsync(cmd.ReportId, ct);
+        if (report is null) return Result.Failure(Errors.Reports.NotFound);
+
+        // BR-OFF-004: Officer không tự verify báo cáo do mình tạo
+        if (report.ReporterId == currentUser.UserId)
+            return Result.Failure(Errors.Officer.ConflictOfInterest);
+
+        var transition = report.Verify(currentUser.UserId, clock.UtcNow);  // BR-REP-021
+        if (transition.IsFailure) return transition;
+
+        // BR-GAM-001: cộng điểm reporter (nếu không ẩn danh - BR-GAM-002)
+        if (!report.IsAnonymous)
+        {
+            var reporter = await users.GetByIdAsync(report.ReporterId, ct);
+            reporter?.AddPoints(10, reason: $"Report {report.Id} verified");
+        }
+
+        // 1 SaveChanges → 2 entities trong 1 transaction (do TransactionBehavior bao)
+        await uow.SaveChangesAsync(ct);
+        return Result.Success();
+    }
+}
+
+
+// ---- PATTERN C: Read-only query (no UoW) -----------------------------------
+// Query handler KHÔNG cần IUnitOfWork. Trực tiếp dùng repo.QueryAsNoTracking().
+
+using Mapster;
+using Microsoft.EntityFrameworkCore;
+
+public sealed class GetNearbyReportsQueryHandler(
+    IReportRepository reports,
+    ICurrentUser currentUser)
+    : IRequestHandler<GetNearbyReportsQuery, Result<PagedList<ReportListItemDto>>>
+{
+    public async Task<Result<PagedList<ReportListItemDto>>> Handle(
+        GetNearbyReportsQuery query,
+        CancellationToken ct)
+    {
+        // Ad-hoc query qua Query() — projection ngay xuống DTO bằng Mapster
+        var origin = GeometryFactoryEx.CreatePoint(query.Latitude, query.Longitude);
+
+        var dtos = await reports.QueryAsNoTracking()
+            .Where(r => r.Status != ReportStatus.Rejected
+                     && r.Location.IsWithinDistance(origin, query.RadiusKm * 1000))
+            .OrderByDescending(r => r.CreatedAt)
+            .ProjectToType<ReportListItemDto>()      // Mapster, runs in SQL
+            .ToPagedListAsync(query.Page, query.PageSize, ct);
+
+        return Result<PagedList<ReportListItemDto>>.Success(dtos);
+    }
+}
+
+
+// =============================================================================
+// LƯU Ý KHI VIẾT HANDLER:
+//
+// 1. KHÔNG nhận IRepository<T> generic — luôn dùng I__ENTITY__Repository.
+// 2. KHÔNG gọi DbContext.SaveChangesAsync — chỉ uow.SaveChangesAsync().
+// 3. KHÔNG `await uow.BeginTransactionAsync()` thủ công — TransactionBehavior bao.
+//    (Trừ khi cần savepoint — rất hiếm.)
+// 4. Query handler KHÔNG inject IUnitOfWork — không cần.
+// 5. Mọi async method có CancellationToken cuối parameter list.
+// 6. Domain mutation đi qua method trên entity (entity.Verify()), KHÔNG set
+//    property trực tiếp từ handler (vi phạm state machine + BR).
+// =============================================================================

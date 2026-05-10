@@ -1,0 +1,92 @@
+// =============================================================================
+// EcoReport Specific Repository — template
+// Project: SU26SE049
+//
+// PLACEHOLDERS:
+//   __ENTITY__         e.g. Report
+//   __ENTITY_LOWER__   e.g. report
+//   __MODULE__         e.g. Reports     (folder under Application/Features/)
+//
+// PRECONDITION: base pattern (IRepository<T>, EfRepository<T>, IUnitOfWork)
+// đã tồn tại. Nếu chưa, materialize base-pattern.cs.template trước.
+// =============================================================================
+
+
+// === FILE: src/Greenlens.Application/Common/Interfaces/Persistence/I__ENTITY__Repository.cs ===
+using Greenlens.Domain.Entities;
+
+namespace Greenlens.Application.Common.Interfaces.Persistence;
+
+/// <summary>
+/// Repository cho aggregate <see cref="__ENTITY__"/>.
+///
+/// Kế thừa <see cref="IRepository{T}"/> nên handler có sẵn:
+///   Query, QueryAsNoTracking, GetByIdAsync, AddAsync, AddRange, Remove, ExistsAsync.
+///
+/// CHỈ thêm method ở dưới khi:
+///   - Bundle Include() chains được dùng ở 3+ handler, HOẶC
+///   - Cần PostGIS / raw SQL / window function khó viết clean qua LINQ, HOẶC
+///   - Encode invariant nghiệp vụ khi load (luôn phải có child collection X).
+///
+/// KHÔNG thêm method nếu:
+///   - Đã có ở base (GetByIdAsync, ExistsAsync, ...)
+///   - Là LINQ 1 dòng dùng ở 1 handler — viết trong handler luôn.
+/// </summary>
+public interface I__ENTITY__Repository : IRepository<__ENTITY__>
+{
+    // TODO: thêm method nghiệp vụ. Ví dụ:
+    //
+    // /// <summary>
+    // /// Load __ENTITY_LOWER__ kèm Media + StatusHistory (5 entry mới nhất).
+    // /// Dùng bởi Verify, Reject, Reassign handlers (3+ usages — justifies repo method).
+    // /// </summary>
+    // Task<__ENTITY__?> GetForVerificationAsync(Guid id, CancellationToken cancellationToken = default);
+    //
+    // /// <summary>
+    // /// Tìm các __ENTITY_LOWER__ trùng lặp tiềm năng (BR-REP-030):
+    // /// cùng category, ≤ 50m, ≤ 24h. Dùng PostGIS ST_DWithin.
+    // /// </summary>
+    // Task<IReadOnlyList<__ENTITY__>> FindPotentialDuplicatesAsync(
+    //     GeoLocation location,
+    //     PollutionType category,
+    //     DateTimeOffset now,
+    //     Guid? excludeReportId,
+    //     CancellationToken cancellationToken = default);
+}
+
+
+// === FILE: src/Greenlens.Infrastructure/Persistence/Repositories/__ENTITY__Repository.cs ===
+using Microsoft.EntityFrameworkCore;
+using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Domain.Entities;
+
+namespace Greenlens.Infrastructure.Persistence.Repositories;
+
+/// <summary>
+/// EF Core implementation của <see cref="I__ENTITY__Repository"/>.
+/// Lifetime: Scoped (cùng <see cref="ApplicationDbContext"/>).
+/// </summary>
+internal sealed class __ENTITY__Repository(ApplicationDbContext db)
+    : EfRepository<__ENTITY__>(db), I__ENTITY__Repository
+{
+    // Implement các method từ I__ENTITY__Repository ở đây.
+    // KHÔNG override các method có sẵn từ EfRepository<T>.
+    //
+    // public Task<__ENTITY__?> GetForVerificationAsync(Guid id, CancellationToken cancellationToken = default)
+    // {
+    //     return Set
+    //         .Include(x => x.Media)
+    //         .Include(x => x.StatusHistory.OrderByDescending(s => s.At).Take(5))
+    //         .Include(x => x.AssignedTeam)
+    //         .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+    // }
+}
+
+
+// === SNIPPET: append to src/Greenlens.Infrastructure/DependencyInjection.cs ===
+//
+// Trong AddPersistence(...), section "Specific repositories":
+//
+//     services.AddScoped<I__ENTITY__Repository, __ENTITY__Repository>();
+//
+// Alphabetize trong group.

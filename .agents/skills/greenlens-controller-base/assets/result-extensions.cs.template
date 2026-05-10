@@ -1,0 +1,67 @@
+// =============================================================================
+// EcoReport API — Result<T> → IActionResult mapping
+// Project: SU26SE049
+//
+// CREATE THIS FILE ONCE per project, at:
+//   src/EcoReport.Api/Common/ResultExtensions.cs
+//
+// All controllers depend on this. Do NOT add error-mapping logic in individual
+// actions — the mapping must stay uniform so OpenAPI docs and FE clients can
+// rely on consistent shapes.
+// =============================================================================
+
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using EcoReport.Domain.Common;
+
+namespace EcoReport.Api.Common;
+
+public static class ResultExtensions
+{
+    /// <summary>
+    /// Map a <see cref="Result{T}"/> to an <see cref="IActionResult"/>.
+    /// Success → 200 OK with the value.
+    /// Failure → status code derived from <see cref="ErrorType"/>, with RFC 7807 body.
+    /// </summary>
+    public static IActionResult ToActionResult<T>(this Result<T> result)
+        => result.ToActionResult(value => new OkObjectResult(value));
+
+    /// <summary>
+    /// Variant that lets the caller customize the success result
+    /// (e.g. <c>CreatedAtAction</c>, <c>NoContent</c>).
+    /// </summary>
+    public static IActionResult ToActionResult<T>(
+        this Result<T> result,
+        Func<T, IActionResult> onSuccess)
+    {
+        if (result.IsSuccess)
+            return onSuccess(result.Value!);
+
+        var error = result.Error!;
+        return error.Type switch
+        {
+            ErrorType.Validation   => Problem(error, StatusCodes.Status400BadRequest,    "Validation failed"),
+            ErrorType.NotFound     => Problem(error, StatusCodes.Status404NotFound,      "Resource not found"),
+            ErrorType.Conflict     => Problem(error, StatusCodes.Status409Conflict,      "Conflict"),
+            ErrorType.Forbidden    => Problem(error, StatusCodes.Status403Forbidden,     "Forbidden"),
+            ErrorType.BusinessRule => Problem(error, StatusCodes.Status422UnprocessableEntity, "Business rule violated"),
+            _                       => Problem(error, StatusCodes.Status500InternalServerError, "Unexpected error"),
+        };
+    }
+
+    private static ObjectResult Problem(Error error, int status, string title)
+        => new(new ProblemDetails
+        {
+            Status = status,
+            Title  = title,
+            Detail = error.Message,
+            Type   = $"https://ecoreport.example/errors/{error.Code}",
+            Extensions =
+            {
+                ["code"] = error.Code,
+            },
+        })
+        {
+            StatusCode = status,
+        };
+}
