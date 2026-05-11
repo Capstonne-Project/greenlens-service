@@ -115,7 +115,8 @@ public sealed class Report : SoftDeletableEntity
             ProvinceCode = provinceCode,
             Status = ReportStatus.Submitted,
             AiPending = true,
-            SlaVerifyDueAt = DateTime.UtcNow.AddHours(24)
+            SlaVerifyDueAt = DateTime.UtcNow.AddHours(24),
+            CreatedAt = DateTime.UtcNow
         };
 
         return report;

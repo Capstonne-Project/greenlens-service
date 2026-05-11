@@ -15,9 +15,12 @@ namespace Greenlens.Api.Controllers;
 public sealed class MediaController(ISender sender) : ControllerBase
 {
     [HttpPost("reports/images")]
+    [AllowAnonymous]
     [SwaggerOperation(
         Summary = "Upload Report Image",
-        Description = "Upload an image for a pollution report (jpg/png/webp/heic, max 10MB). Stored on R2 Cloudflare under reports/images.")]
+        Description =
+            "Upload an image for a pollution report (jpg/png/webp/heic, max 10MB). Stored on R2 under reports/images. " +
+            "Anonymous allowed so images can be uploaded before POST /v1/pollution-reports (pair with rate limiting BR-REP-010).")]
     [SwaggerResponse(200, "Image uploaded", typeof(ApiResponse<UploadReportImageResponse>))]
     [SwaggerResponse(401, "Unauthorized", typeof(ApiResponse))]
     [SwaggerResponse(422, "Invalid image type or too large", typeof(ApiResponse))]

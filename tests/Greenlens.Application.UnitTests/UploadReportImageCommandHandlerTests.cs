@@ -39,6 +39,8 @@ public sealed class UploadReportImageCommandHandlerTests
         Assert.True(result.IsSuccess);
         Assert.Equal("https://cdn/image.jpg", result.Value.Url);
         Assert.Equal("reports/images/abc_photo.jpg", result.Value.Key);
+        Assert.Equal("image/jpeg", result.Value.MimeType);
+        Assert.Equal(1_000_000, result.Value.SizeBytes);
     }
 
     [Theory]

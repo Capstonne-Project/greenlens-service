@@ -54,6 +54,8 @@ public sealed class UploadReportImageCommandHandler(
         return new UploadReportImageResponse(
             uploadResult.Url,
             uploadResult.Key,
-            "Tải ảnh báo cáo thành công.");
+            "Tải ảnh báo cáo thành công.",
+            request.ContentType,
+            request.FileSize);
     }
 }
