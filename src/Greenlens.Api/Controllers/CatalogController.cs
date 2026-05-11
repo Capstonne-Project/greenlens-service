@@ -1,5 +1,6 @@
 using Greenlens.Api.Extensions;
 using Greenlens.Application.Common.Models;
+using Greenlens.Application.Features.Catalog.GetPollutionCategories;
 using Greenlens.Application.Features.Catalog.GetProvinces;
 using Greenlens.Application.Features.Catalog.GetWardsByProvince;
 using MediatR;
@@ -14,6 +15,16 @@ namespace Greenlens.Api.Controllers;
 [Produces("application/json")]
 public sealed class CatalogController(ISender sender) : ControllerBase
 {
+    /// <summary>Active pollution categories for report submission.</summary>
+    [HttpGet("pollution-categories")]
+    [AllowAnonymous]
+    [SwaggerOperation(
+        Summary = "List pollution categories",
+        Description = "Returns active categories (id, code, names, icon) for create-report dropdowns.")]
+    [SwaggerResponse(200, "Category list", typeof(ApiResponse<GetPollutionCategoriesResponse>))]
+    public async Task<IActionResult> GetPollutionCategoriesAsync(CancellationToken ct)
+        => (await sender.Send(new GetPollutionCategoriesQuery(), ct)).ToHttp();
+
     /// <summary>All provinces / centrally governed cities (address level 1).</summary>
     [HttpGet("provinces")]
     [AllowAnonymous]
