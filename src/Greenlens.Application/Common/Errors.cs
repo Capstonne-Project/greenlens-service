@@ -161,4 +161,22 @@ public static class Errors
             "mode phải là detail hoặc aggregate.",
             ErrorType.Validation);
     }
+
+    public static class Phone
+    {
+        public static Error FirebaseTokenInvalid => new(
+            "FIREBASE_TOKEN_INVALID",
+            "Firebase token không hợp lệ hoặc đã hết hạn.",
+            ErrorType.Validation);
+
+        public static Error FirebasePhoneMissing => new(
+            "FIREBASE_PHONE_MISSING",
+            "Token Firebase không chứa thông tin số điện thoại.",
+            ErrorType.Validation);
+
+        public static Error PhoneAlreadyUsed => new(
+            "PHONE_ALREADY_USED",
+            "Số điện thoại này đã được sử dụng bởi tài khoản khác.",
+            ErrorType.Conflict);
+    }
 }

@@ -4,6 +4,7 @@ using Greenlens.Application.Features.Users;
 using Greenlens.Application.Features.Users.GetProfile;
 using Greenlens.Application.Features.Users.UpdateUserProfile;
 using Greenlens.Application.Features.Users.UploadUserAvatar;
+using Greenlens.Application.Features.Users.VerifyPhoneFirebase;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -30,7 +31,7 @@ public sealed class UsersController(ISender sender) : ControllerBase
     [HttpPut("profile")]
     [SwaggerOperation(
         Summary = "Update My Profile",
-        Description = "Update the authenticated user's own profile (name, phone). Uses JWT token.")]
+        Description = "Update the authenticated user's own profile (name only). Phone changes via Firebase Phone Auth.")]
     [SwaggerResponse(200, "Profile updated", typeof(ApiResponse<UpdateUserProfileResponse>))]
     [SwaggerResponse(401, "Unauthorized", typeof(ApiResponse))]
     [SwaggerResponse(404, "User not found", typeof(ApiResponse))]
@@ -72,4 +73,21 @@ public sealed class UsersController(ISender sender) : ControllerBase
 
         return (await sender.Send(command, ct)).ToHttp();
     }
+
+    // ── Phone Verification (Firebase Phone Auth) ──────
+
+    [HttpPost("phone/verify-firebase")]
+    [SwaggerOperation(
+        Summary = "Verify Phone via Firebase",
+        Description = "Verify phone number using a Firebase Phone Auth ID token. " +
+                      "FE handles OTP via Firebase SDK, then sends the ID token here.")]
+    [SwaggerResponse(200, "Phone verified", typeof(ApiResponse<VerifyPhoneFirebaseResponse>))]
+    [SwaggerResponse(401, "Unauthorized", typeof(ApiResponse))]
+    [SwaggerResponse(409, "Phone already used by another account", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Firebase token invalid or missing phone", typeof(ApiResponse))]
+    public async Task<IActionResult> VerifyPhoneFirebaseAsync(
+        [FromBody] VerifyPhoneFirebaseCommand command,
+        CancellationToken ct)
+        => (await sender.Send(command, ct)).ToHttp();
 }
+

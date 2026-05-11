@@ -117,11 +117,21 @@ public sealed class UserTests
     {
         var user = User.Create("test@test.com", "hash", "Name");
 
-        user.UpdateProfile("New Name", "0901234567", "https://avatar.url");
+        user.UpdateProfile("New Name", "https://avatar.url");
 
         Assert.Equal("New Name", user.FullName);
-        Assert.Equal("0901234567", user.PhoneNumber);
         Assert.Equal("https://avatar.url", user.AvatarUrl);
+    }
+
+    [Fact]
+    public void VerifyPhone_ShouldSetPhoneAndMarkVerified()
+    {
+        var user = User.Create("test@test.com", "hash", "Test");
+
+        user.VerifyPhone("84901234567");
+
+        Assert.Equal("84901234567", user.PhoneNumber);
+        Assert.True(user.IsPhoneVerified);
     }
 
     [Fact]
