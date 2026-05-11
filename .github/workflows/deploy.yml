@@ -122,26 +122,30 @@ jobs:
 
       - name: SSH deploy
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          FULL_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
         with:
           host:     ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key:      ${{ secrets.VPS_SSH_KEY }}
+          envs: FULL_IMAGE
           script_stop: true
           script: |
             set -euo pipefail
             cd /opt/greenlens
 
-            # Login to GHCR
-            echo "${{ secrets.GITHUB_TOKEN }}" \
-              | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            # Login to GHCR (requires a PAT stored in .env.production as GHCR_TOKEN)
+            source .env.production
+            echo "${GHCR_TOKEN}" \
+              | sudo docker login ghcr.io -u "${GHCR_USER}" --password-stdin
 
-            # Pull new image
-            export IMAGE_TAG=sha-${{ github.sha }}
-            export GITHUB_OWNER=${{ github.repository_owner }}
+            # Pull new image using the exact reference built by CI
+            sudo docker pull "${FULL_IMAGE}"
 
-            sudo docker compose --env-file .env.production pull api
+            # Tag it as the "latest" so compose always resolves
+            sudo docker tag "${FULL_IMAGE}" "$(echo ${FULL_IMAGE} | cut -d: -f1):latest"
 
-            # Rolling update API only (postgres/redis untouched)
+            # Bring up API only (postgres/redis untouched)
             sudo docker compose --env-file .env.production up -d --no-deps api
 
             # Wait for healthcheck
@@ -164,4 +168,5 @@ jobs:
             # Cleanup old images (keep last 3 days)
             sudo docker image prune -f --filter "until=72h"
 
-            echo "✅ Deploy ${{ github.sha }} succeeded"
+            echo "✅ Deploy succeeded"
+
