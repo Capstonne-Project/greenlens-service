@@ -16,7 +16,7 @@
 
 services:
   api:
-    image: ghcr.io/${GITHUB_OWNER}/greenlens-api:${IMAGE_TAG:-latest}
+    image: ghcr.io/capstonne-project/greenlens-api:latest
     container_name: greenlens-api
     restart: unless-stopped
     env_file: .env.production
