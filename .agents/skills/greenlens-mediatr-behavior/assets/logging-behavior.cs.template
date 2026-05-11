@@ -1,0 +1,105 @@
+// =============================================================================
+// Greenlens — LoggingBehavior
+// File: src/Greenlens.Application/Common/Behaviors/LoggingBehavior.cs
+//
+// Structured Serilog scope + entry/exit/duration log per request.
+// CAREFUL: do NOT log the request DTO at Information — request often contains
+// PII (email, phone, GPS). Log type name + correlation IDs only.
+// =============================================================================
+
+using MediatR;
+using Microsoft.Extensions.Logging;
+using System.Diagnostics;
+using Greenlens.Application.Common.Interfaces;
+using Greenlens.Domain.Common;
+
+namespace Greenlens.Application.Common.Behaviors;
+
+public sealed class LoggingBehavior<TRequest, TResponse>(
+    ILogger<LoggingBehavior<TRequest, TResponse>> logger,
+    ICurrentUser currentUser)
+    : IPipelineBehavior<TRequest, TResponse> where TRequest : notnull
+{
+    public async Task<TResponse> Handle(
+        TRequest request,
+        RequestHandlerDelegate<TResponse> next,
+        CancellationToken cancellationToken)
+    {
+        var name = typeof(TRequest).Name;
+        var sw   = Stopwatch.StartNew();
+
+        using var scope = logger.BeginScope(new Dictionary<string, object?>
+        {
+            ["RequestType"] = name,
+            ["UserId"]      = currentUser.UserId,
+        });
+
+        logger.LogInformation("Handling {Request}", name);
+
+        try
+        {
+            var response = await next();
+            sw.Stop();
+
+            // If using Result pattern, log success/failure
+            if (response is IResultBase rb && rb.IsFailure)
+            {
+                logger.LogWarning(
+                    "Handled {Request} in {Elapsed}ms — failure: {ErrorCode}",
+                    name, sw.ElapsedMilliseconds, rb.Error?.Code);
+            }
+            else
+            {
+                logger.LogInformation(
+                    "Handled {Request} in {Elapsed}ms",
+                    name, sw.ElapsedMilliseconds);
+            }
+
+            return response;
+        }
+        catch (Exception ex)
+        {
+            sw.Stop();
+            logger.LogError(ex,
+                "Handler {Request} threw after {Elapsed}ms",
+                name, sw.ElapsedMilliseconds);
+            throw;
+        }
+    }
+}
+
+
+// =============================================================================
+// Greenlens — PerformanceBehavior
+// File: src/Greenlens.Application/Common/Behaviors/PerformanceBehavior.cs
+//
+// Warns when a handler exceeds the slow threshold. NFR target is API p95 < 2s
+// (BR-SYS-001), so a single handler at 500ms is already a yellow flag.
+// =============================================================================
+
+public sealed class PerformanceBehavior<TRequest, TResponse>(
+    ILogger<PerformanceBehavior<TRequest, TResponse>> logger,
+    ICurrentUser currentUser)
+    : IPipelineBehavior<TRequest, TResponse> where TRequest : notnull
+{
+    private const int SlowMs = 500;
+
+    public async Task<TResponse> Handle(
+        TRequest request,
+        RequestHandlerDelegate<TResponse> next,
+        CancellationToken cancellationToken)
+    {
+        var sw = Stopwatch.StartNew();
+        var response = await next();
+        sw.Stop();
+
+        if (sw.ElapsedMilliseconds > SlowMs)
+        {
+            logger.LogWarning(
+                "Slow handler: {Request} took {Elapsed}ms (threshold {Threshold}ms) — UserId: {UserId}",
+                typeof(TRequest).Name, sw.ElapsedMilliseconds, SlowMs, currentUser.UserId);
+        }
+
+        return response;
+    }
+}

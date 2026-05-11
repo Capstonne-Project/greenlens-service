@@ -1,0 +1,146 @@
+// =============================================================================
+// Greenlens Domain — Entity base classes (ONE-TIME setup)
+//
+// Generate ONCE per project. Files:
+//   src/Greenlens.Domain/Common/Entity.cs
+//   src/Greenlens.Domain/Common/AuditableEntity.cs
+//   src/Greenlens.Domain/Common/SoftDeletableEntity.cs
+//   src/Greenlens.Domain/Common/IDomainEvent.cs
+//   src/Greenlens.Domain/Common/Result.cs
+//   src/Greenlens.Domain/Common/Error.cs
+//
+// Skip if these already exist.
+// =============================================================================
+
+
+// === FILE: src/Greenlens.Domain/Common/Entity.cs ===
+namespace Greenlens.Domain.Common;
+
+public abstract class Entity
+{
+    public Guid Id { get; protected set; }
+
+    private readonly List<IDomainEvent> _events = [];
+    public IReadOnlyCollection<IDomainEvent> DomainEvents => _events.AsReadOnly();
+    protected void Raise(IDomainEvent e) => _events.Add(e);
+    public void ClearDomainEvents() => _events.Clear();
+
+    // Equality by identity (not by value — entity has identity).
+    public override bool Equals(object? obj)
+        => obj is Entity other && other.GetType() == GetType() && Id == other.Id;
+
+    public override int GetHashCode() => HashCode.Combine(GetType(), Id);
+}
+
+
+// === FILE: src/Greenlens.Domain/Common/AuditableEntity.cs ===
+namespace Greenlens.Domain.Common;
+
+/// <summary>
+/// Entity with creation/modification audit. Populated by AuditingSaveChangesInterceptor
+/// (see greenlens-efcore-best-practices). Handlers MUST NOT touch these fields.
+/// </summary>
+public abstract class AuditableEntity : Entity
+{
+    public DateTimeOffset CreatedAt { get; set; }
+    public Guid? CreatedBy { get; set; }
+    public DateTimeOffset? UpdatedAt { get; set; }
+    public Guid? UpdatedBy { get; set; }
+}
+
+
+// === FILE: src/Greenlens.Domain/Common/SoftDeletableEntity.cs ===
+namespace Greenlens.Domain.Common;
+
+/// <summary>
+/// Entity with soft-delete. SoftDeleteInterceptor turns Remove() into setting
+/// DeletedAt. A global query filter excludes deleted rows by default;
+/// IgnoreQueryFilters() to include them (admin recovery views, hard-delete jobs).
+/// </summary>
+public abstract class SoftDeletableEntity : AuditableEntity
+{
+    public DateTimeOffset? DeletedAt { get; set; }
+    public Guid? DeletedBy { get; set; }
+    public bool IsDeleted => DeletedAt.HasValue;
+}
+
+
+// === FILE: src/Greenlens.Domain/Common/IDomainEvent.cs ===
+namespace Greenlens.Domain.Common;
+
+public interface IDomainEvent
+{
+    DateTimeOffset OccurredAt { get; }
+}
+
+
+// === FILE: src/Greenlens.Domain/Common/Result.cs ===
+namespace Greenlens.Domain.Common;
+
+public class Result : IResultBase
+{
+    public bool IsSuccess { get; }
+    public bool IsFailure => !IsSuccess;
+    public Error? Error { get; }
+
+    protected Result(bool isSuccess, Error? error)
+    {
+        if (isSuccess && error is not null) throw new InvalidOperationException();
+        if (!isSuccess && error is null)    throw new InvalidOperationException();
+        IsSuccess = isSuccess;
+        Error     = error;
+    }
+
+    public static Result Success() => new(true, null);
+    public static Result Failure(Error error) => new(false, error);
+}
+
+public sealed class Result<T> : Result
+{
+    public T? Value { get; }
+
+    private Result(T value) : base(true, null) => Value = value;
+    private Result(Error error) : base(false, error) { }
+
+    public static Result<T> Success(T value) => new(value);
+    public new static Result<T> Failure(Error error) => new(error);
+}
+
+public interface IResultBase
+{
+    bool IsSuccess { get; }
+    bool IsFailure { get; }
+    Error? Error { get; }
+}
+
+
+// === FILE: src/Greenlens.Domain/Common/Error.cs ===
+namespace Greenlens.Domain.Common;
+
+public sealed record Error(string Code, string Message, ErrorType Type);
+
+public enum ErrorType
+{
+    Validation,
+    NotFound,
+    Conflict,
+    Forbidden,
+    BusinessRule,
+    Unexpected,
+}
+
+// Per-aggregate errors live in Domain/Errors/<Entity>Errors.cs as static classes:
+//
+// public static class Errors
+// {
+//     public static class Reports
+//     {
+//         public static readonly Error NotFound       = new("reports.not_found",     "Báo cáo không tồn tại", ErrorType.NotFound);
+//         public static readonly Error PhotoRequired  = new("reports.photo_required","Vui lòng đính kèm ít nhất 1 ảnh", ErrorType.Validation);
+//
+//         public static Error InvalidTransition(ReportStatus from, string action)
+//             => new("reports.invalid_transition",
+//                    $"Không thể {action} khi trạng thái là {from}",
+//                    ErrorType.BusinessRule);
+//     }
+// }
