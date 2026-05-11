@@ -19,6 +19,7 @@ internal sealed class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.FullName).IsRequired().HasMaxLength(200);
         builder.Property(u => u.PhoneNumber).HasMaxLength(20);
         builder.HasIndex(u => u.PhoneNumber).IsUnique().HasFilter("phone_number IS NOT NULL");
+        builder.Property(u => u.IsPhoneVerified).HasDefaultValue(false);
 
         builder.Property(u => u.AvatarUrl).HasMaxLength(1000);
         builder.Property(u => u.GoogleId).HasMaxLength(128);

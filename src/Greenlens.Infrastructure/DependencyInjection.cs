@@ -5,6 +5,7 @@ using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Infrastructure.Email;
 using Greenlens.Infrastructure.Identity;
+using Greenlens.Infrastructure.Options;
 using Greenlens.Infrastructure.Persistence;
 using Greenlens.Infrastructure.Persistence.Repositories;
 using Greenlens.Infrastructure.Persistence.Repositories.Location;
@@ -53,6 +54,9 @@ public static class DependencyInjection
         // ── Email ────────────────────────────────────────
         services.AddScoped<IEmailSender, SmtpEmailSender>();
 
+        // ── SMS (SpeedSMS) ───────────────────────────────
+        services.AddHttpClient<ISmsSender, Services.SpeedSmsSender>();
+
         // ── File Storage (R2 Cloudflare) ────────────────
         services.AddSingleton<IFileStorageService, Storage.R2FileStorageService>();
 
@@ -89,6 +93,9 @@ public static class DependencyInjection
             .Bind(configuration.GetSection("R2"))
             .ValidateDataAnnotations()
             .ValidateOnStart();
+
+        services.AddOptions<SpeedSmsOptions>()
+            .Bind(configuration.GetSection(SpeedSmsOptions.Section));
 
         // ── JWT Authentication ───────────────────────────
         var jwtSection = configuration.GetSection("Jwt");

@@ -25,7 +25,7 @@ public sealed class UpdateUserProfileCommandHandler(
         if (user is null)
             return Errors.Users.UserNotFound;
 
-        user.UpdateProfile(request.FullName, request.PhoneNumber);
+        user.UpdateProfile(request.FullName);
 
         await uow.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
