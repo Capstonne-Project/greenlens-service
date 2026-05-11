@@ -89,11 +89,8 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
 // ── Middleware pipeline ──────────────────────────────
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
-if (app.Environment.IsDevelopment())
-{
-    // Auto migrate database in dev
-    await app.Services.MigrateDatabaseAsync();
-}
+// ── Auto migrate database on startup ──
+await app.Services.MigrateDatabaseAsync();
 
 // Swagger enabled in all environments (FE team needs API docs on VPS)
 app.UseSwagger();
