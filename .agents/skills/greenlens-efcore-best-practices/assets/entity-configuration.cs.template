@@ -1,0 +1,103 @@
+// =============================================================================
+// Greenlens — IEntityTypeConfiguration<T> template
+// Project: SU26SE049
+//
+// Drop into: src/Greenlens.Infrastructure/Persistence/Configurations/__ENTITY__Configuration.cs
+// One file per entity. ApplicationDbContext picks them up automatically via
+// modelBuilder.ApplyConfigurationsFromAssembly(...).
+//
+// PLACEHOLDERS:
+//   __ENTITY__         e.g. Report
+//   __ENTITY_TABLE__   e.g. reports         (snake_case plural — naming convention does this for you,
+//                                            but specify if you want a name that doesn't pluralize cleanly)
+// =============================================================================
+
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Greenlens.Domain.Entities;
+
+namespace Greenlens.Infrastructure.Persistence.Configurations;
+
+public sealed class __ENTITY__Configuration : IEntityTypeConfiguration<__ENTITY__>
+{
+    public void Configure(EntityTypeBuilder<__ENTITY__> b)
+    {
+        // -------------------------------------------------------------------
+        // Table & key
+        // -------------------------------------------------------------------
+        b.ToTable("__ENTITY_TABLE__");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.Id).ValueGeneratedNever();          // app generates Guid v7
+
+        // -------------------------------------------------------------------
+        // Properties
+        // -------------------------------------------------------------------
+        // Strings: always set MaxLength
+        // b.Property(x => x.Title).HasMaxLength(200).IsRequired();
+        // b.Property(x => x.Description).HasMaxLength(1000);
+
+        // Enums as readable strings
+        // b.Property(x => x.Status).HasConversion<string>().HasMaxLength(32);
+
+        // Decimals: always set precision
+        // b.Property(x => x.Amount).HasPrecision(18, 2);
+
+        // Timestamps: DateTimeOffset for SLA-sensitive data
+        // b.Property(x => x.CreatedAt).IsRequired();
+
+        // PostGIS Point (delete if entity has no geo column)
+        // b.Property(x => x.Location)
+        //     .HasColumnType("geography (Point, 4326)")
+        //     .IsRequired();
+
+        // Concurrency token (PostgreSQL system column)
+        // b.UseXminAsConcurrencyToken();
+
+        // -------------------------------------------------------------------
+        // Owned types (value objects co-located with the parent row)
+        // -------------------------------------------------------------------
+        // b.OwnsOne(x => x.Contact, c =>
+        // {
+        //     c.Property(p => p.Email).HasMaxLength(254).HasColumnName("contact_email");
+        //     c.Property(p => p.Phone).HasMaxLength(20).HasColumnName("contact_phone");
+        // });
+
+        // -------------------------------------------------------------------
+        // Relationships
+        // -------------------------------------------------------------------
+        // One-to-many (cascade — children are part of the aggregate)
+        // b.HasMany(x => x.Items)
+        //     .WithOne(i => i.Parent)
+        //     .HasForeignKey(i => i.ParentId)
+        //     .OnDelete(DeleteBehavior.Cascade);
+
+        // Many-to-one (restrict — never cascade-delete a referenced lookup)
+        // b.HasOne(x => x.Owner)
+        //     .WithMany()
+        //     .HasForeignKey(x => x.OwnerId)
+        //     .OnDelete(DeleteBehavior.Restrict);
+
+        // -------------------------------------------------------------------
+        // Indexes
+        // -------------------------------------------------------------------
+        // Foreign keys (PostgreSQL does NOT auto-index FKs)
+        // b.HasIndex(x => x.OwnerId);
+
+        // Unique constraints
+        // b.HasIndex(x => x.Code).IsUnique();
+
+        // Composite for filter+sort
+        // b.HasIndex(x => new { x.Status, x.CreatedAt });
+
+        // Geo (GIST) — must be added in a migration via raw SQL, EF doesn't
+        // generate GIST indexes. See references/migrations.md.
+        //   migrationBuilder.Sql("CREATE INDEX ... USING GIST (location);");
+
+        // -------------------------------------------------------------------
+        // Check constraints (defensive — validators should also enforce these)
+        // -------------------------------------------------------------------
+        // b.ToTable("__ENTITY_TABLE__", t => t.HasCheckConstraint(
+        //     "ck___ENTITY_TABLE___severity_range",
+        //     "severity IN ('Low', 'Medium', 'High', 'Critical')"));
+    }
+}

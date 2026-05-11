@@ -1,0 +1,144 @@
+// =============================================================================
+// Greenlens Vertical Slice — QUERY template
+// Project: SU26SE049 — Crowdsourced Application for Reporting Environmental Pollution
+//
+// HOW TO USE
+//   Same placeholders as command-slice.cs.template:
+//        __MODULE__        e.g. Reports
+//        __USECASE__       e.g. GetNearbyReports        (PascalCase)
+//        __RESULT_TYPE__   e.g. PagedList<ReportListItemDto>  |  ReportDetailDto
+//        __BR_IDS__        e.g. BR-MAP-002, BR-MAP-004
+//        __BR_SUMMARY__    e.g. Return reports within a radius around a point.
+//
+//   Two flavors are shown side-by-side. Pick ONE per slice and delete the other:
+//        FLAVOR A — single-result query  (e.g. GetReportById)
+//        FLAVOR B — paginated list query (e.g. GetNearbyReports)
+// =============================================================================
+
+
+// === FILE: src/Greenlens.Application/Features/__MODULE__/__USECASE__/__USECASE__Query.cs ===
+using MediatR;
+using Greenlens.Domain.Common;
+
+namespace Greenlens.Application.Features.__MODULE__.__USECASE__;
+
+/// <summary>
+/// __BR_SUMMARY__
+/// </summary>
+/// <remarks>Implements: __BR_IDS__.</remarks>
+
+// ---- FLAVOR A: single result -------------------------------------------------
+public sealed record __USECASE__Query(
+    Guid Id
+) : IRequest<Result<__RESULT_TYPE__>>;
+
+// ---- FLAVOR B: paginated list ------------------------------------------------
+// public sealed record __USECASE__Query(
+//     double Latitude,
+//     double Longitude,
+//     double RadiusKm = 5,            // BR-MAP-002 default 5km
+//     PollutionType? Category = null,
+//     ReportStatus? Status = null,
+//     int Page = 1,
+//     int PageSize = 20               // hard cap 100 enforced in validator
+// ) : IRequest<Result<PagedList<__RESULT_TYPE__>>>;
+
+
+// === FILE: src/Greenlens.Application/Features/__MODULE__/__USECASE__/__USECASE__QueryValidator.cs ===
+using FluentValidation;
+
+namespace Greenlens.Application.Features.__MODULE__.__USECASE__;
+
+public sealed class __USECASE__QueryValidator : AbstractValidator<__USECASE__Query>
+{
+    public __USECASE__QueryValidator()
+    {
+        // FLAVOR A:
+        RuleFor(x => x.Id).NotEmpty();
+
+        // FLAVOR B examples:
+        // RuleFor(x => x.Latitude).InclusiveBetween(8.0, 24.0);    // BR-REP-003
+        // RuleFor(x => x.Longitude).InclusiveBetween(102.0, 110.0);
+        // RuleFor(x => x.RadiusKm).InclusiveBetween(0.1, 50);      // BR-MAP-002
+        // RuleFor(x => x.Page).GreaterThanOrEqualTo(1);
+        // RuleFor(x => x.PageSize).InclusiveBetween(1, 100);
+    }
+}
+
+
+// === FILE: src/Greenlens.Application/Features/__MODULE__/__USECASE__/__USECASE__QueryHandler.cs ===
+using MediatR;
+using Microsoft.EntityFrameworkCore;
+using Mapster;
+using MapsterMapper;
+using Greenlens.Application.Common.Interfaces;
+using Greenlens.Application.Common.Models;     // PagedList<T>
+using Greenlens.Domain.Common;
+
+namespace Greenlens.Application.Features.__MODULE__.__USECASE__;
+
+/// <summary>
+/// __BR_SUMMARY__
+/// </summary>
+/// <remarks>
+/// Implements: __BR_IDS__.
+///
+/// Read-only query. Uses AsNoTracking + projection straight to DTO via Mapster.
+/// </remarks>
+public sealed class __USECASE__QueryHandler(
+    // Query handler KHÔNG cần IUnitOfWork — read-only.
+    // Inject specific repo (preferred) hoặc IApplicationDbContext nếu entity
+    // chưa có repo riêng.
+    I__ENTITY__Repository repository,
+    ICurrentUser currentUser
+) : IRequestHandler<__USECASE__Query, Result<__RESULT_TYPE__>>
+{
+    public async Task<Result<__RESULT_TYPE__>> Handle(
+        __USECASE__Query request,
+        CancellationToken cancellationToken)
+    {
+        // ---- FLAVOR A: single result ---------------------------------------
+        var dto = await repository.QueryAsNoTracking()
+            .Where(r => r.Id == request.Id)
+            .ProjectToType<__RESULT_TYPE__>()
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return dto is null
+            ? Result<__RESULT_TYPE__>.Failure(Errors.Reports.NotFound)
+            : Result<__RESULT_TYPE__>.Success(dto);
+
+        // ---- FLAVOR B: paginated list (delete FLAVOR A above and use this) -
+        //
+        // var query = repository.QueryAsNoTracking()
+        //     .Where(r => r.Status != ReportStatus.Rejected);
+        //
+        // // BR-MAP-002 — radius filter via PostGIS (NetTopologySuite)
+        // var origin = GeometryFactoryEx.CreatePoint(request.Latitude, request.Longitude);
+        // query = query.Where(r => r.Location.IsWithinDistance(origin, request.RadiusKm * 1000));
+        //
+        // // BR-MAP-004 — never project user PII into a public list
+        // var page = await query
+        //     .OrderByDescending(r => r.CreatedAt)
+        //     .ProjectToType<__RESULT_TYPE__>()
+        //     .ToPagedListAsync(request.Page, request.PageSize, cancellationToken);
+        //
+        // return Result<PagedList<__RESULT_TYPE__>>.Success(page);
+    }
+}
+
+
+// === FILE: src/Greenlens.Application/Features/__MODULE__/__USECASE__/__USECASE__Response.cs ===
+// Define the DTO returned by this query. Keep it flat. Do NOT leak Domain
+// entities; Mapster will project from entity → DTO at the database level.
+
+namespace Greenlens.Application.Features.__MODULE__.__USECASE__;
+
+public sealed record __USECASE__Response(
+    Guid Id,
+    string Title,
+    string Status,
+    double Latitude,
+    double Longitude,
+    DateTime CreatedAt
+    // Add fields only as the UI actually needs them — narrower DTOs = faster queries.
+);

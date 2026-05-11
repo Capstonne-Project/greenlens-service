@@ -1,0 +1,40 @@
+// =============================================================================
+// Greenlens Domain — DOMAIN EVENT template
+//
+// File: src/Greenlens.Domain/Events/__ENTITY____EVENT__.cs
+//
+// PLACEHOLDERS:
+//   __ENTITY__   e.g. Report
+//   __EVENT__    e.g. Submitted, Verified, Rejected, Resolved, Closed
+//
+// CONVENTIONS:
+//   - record (immutable). Properties are init-only via primary constructor.
+//   - Implements IDomainEvent (marker + OccurredAt).
+//   - Past tense in name: "ReportVerified", "BadgeAwarded" (event happened).
+//   - Carries minimal data — just IDs + timestamp + minimal context.
+//     Handler will re-load entity if needed; events get queued (Outbox), so
+//     keep them small and serializable.
+//   - NO entity references inside — only Ids. Avoid serialization headaches.
+// =============================================================================
+
+using Greenlens.Domain.Common;
+
+namespace Greenlens.Domain.Events;
+
+/// <summary>
+/// Raised when a __ENTITY__ has been __EVENT__.
+/// Subscribers: notification dispatcher, audit logger, gamification points.
+/// </summary>
+public sealed record __ENTITY____EVENT__Event(
+    Guid __ENTITY__Id,
+    Guid ActorId,
+    DateTimeOffset OccurredAt
+) : IDomainEvent;
+
+// Examples:
+//
+// public sealed record ReportSubmittedEvent(Guid ReportId, Guid ReporterId, DateTimeOffset OccurredAt) : IDomainEvent;
+// public sealed record ReportVerifiedEvent(Guid ReportId, Guid OfficerId, DateTimeOffset OccurredAt) : IDomainEvent;
+// public sealed record ReportRejectedEvent(Guid ReportId, Guid OfficerId, string Reason, DateTimeOffset OccurredAt) : IDomainEvent;
+// public sealed record ReportResolvedEvent(Guid ReportId, Guid CleanupTeamId, DateTimeOffset OccurredAt) : IDomainEvent;
+// public sealed record BadgeAwardedEvent(Guid UserId, string BadgeCode, DateTimeOffset OccurredAt) : IDomainEvent;

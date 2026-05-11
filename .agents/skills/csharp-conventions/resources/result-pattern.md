@@ -1,6 +1,6 @@
 # Result Pattern — GreenLens
 
-> **Source:** CLAUDE.md §4.3 — Result Pattern (KHÔNG dùng exception cho luồng business)
+> **Source:** OVERVIEW.md §4.3 — Result Pattern (KHÔNG dùng exception cho luồng business)
 
 ## Core Types
 
@@ -135,7 +135,8 @@ public static class Errors
 ```csharp
 /// <remarks>Implements: BR-REP-001, BR-REP-003, BR-REP-010, BR-REP-013</remarks>
 public sealed class SubmitReportCommandHandler(
-    IApplicationDbContext db,
+    IReportRepository reports,
+    IUnitOfWork uow,
     ICurrentUser currentUser,
     ICacheService cache)
     : IRequestHandler<SubmitReportCommand, Result<Guid>>
@@ -156,8 +157,8 @@ public sealed class SubmitReportCommandHandler(
             request.Category,
             request.Description);
 
-        db.Reports.Add(report);
-        await db.SaveChangesAsync(ct).ConfigureAwait(false);
+        reports.Add(report);
+        await uow.SaveChangesAsync(ct);
 
         return report.Id;  // implicit conversion to Result<Guid>.Success
     }
@@ -226,11 +227,11 @@ catch (ReportNotFoundException) { return NotFound(); }
 // ✅ Exception ONLY for infrastructure failures
 try
 {
-    await s3Client.PutObjectAsync(request, ct);
+    await r2Client.PutObjectAsync(request, ct);
 }
 catch (AmazonS3Exception ex)
 {
-    logger.LogError(ex, "S3 upload failed");
+    logger.LogError(ex, "R2 upload failed");
     throw; // Infrastructure failure — let middleware handle
 }
 ```

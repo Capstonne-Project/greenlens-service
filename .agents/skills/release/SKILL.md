@@ -53,7 +53,7 @@ description: >
 - [ ] Migration has rollback test
 - [ ] Migration is self-contained (no cross-migration dependencies)
 - [ ] Production: uses `dotnet ef migrations bundle` (NOT auto-migrate at startup)
-- [ ] Required indexes present (see CLAUDE.md §4.6)
+- [ ] Required indexes present (see OVERVIEW.md §4.6)
 - [ ] Soft delete filter for User/Report/Comment
 
 ## API Contract
@@ -64,33 +64,58 @@ description: >
 - [ ] Rate limit headers present (X-RateLimit-*)
 - [ ] Pagination follows standard format
 
-## Auth & Security
-- [ ] JWT Bearer configured correctly
+## Auth & Security (§13)
+- [ ] JWT RS256 for production (HS256 dev only)
+- [ ] `ValidAlgorithms` fixed to prevent alg=none attack
 - [ ] Authorization via policies, not role strings
-- [ ] Rate limits: 60 rpm/IP anon, 300 rpm/user (BR-SYS-004)
+- [ ] Resource-based authz for ownership (IDOR tests exist)
+- [ ] bcrypt ≥ 12 rounds (`BcryptPasswordHasher`, NOT Identity default — BR-DAT-001)
+- [ ] Refresh token: rotation + SHA-256 hash stored (no plaintext)
+- [ ] JWT claims minimal: NO PII (email, phone)
+- [ ] Rate limits 2 layers: Cloudflare WAF edge + ASP.NET app (BR-SYS-004)
+- [ ] Turnstile integrated for login 3rd fail + register + forgot password (BR-AUTH-011)
+- [ ] `OwaspHeaders.Core` configured: HSTS, CSP, X-Frame-Options, nosniff (§13.6)
+- [ ] CSP allows `challenges.cloudflare.com` (Turnstile) + `media.greenlens.example` (R2)
+- [ ] CORS strict origin list — NO `AllowAnyOrigin().AllowCredentials()` (§13.7)
+- [ ] ForwardedHeaders reads `CF-Connecting-IP`, NOT `X-Forwarded-For` (§14.5)
 - [ ] No PII in logs at Information level
 - [ ] EXIF stripped from images before AI service (BR-AI-007)
-- [ ] bcrypt ≥ 12 rounds (BR-DAT-001)
+- [ ] No secrets committed (connection strings, JWT keys, R2 keys, Turnstile secret, FCM)
+- [ ] Secrets via Key Vault / Secrets Manager on prod (NOT env vars)
+- [ ] `dotnet list package --vulnerable` — no Critical/High
 
 ## Performance (BR-SYS-001)
 - [ ] API p95 < 2s verified at expected load
 - [ ] Response compression (Brotli) enabled
 - [ ] Pagination on all list endpoints
 - [ ] No N+1 queries — `.Include()` or projection used
-- [ ] Cache configured for read-heavy endpoints (Redis, TTL 1-10')
+- [ ] Cache: Cloudflare edge (media 1yr) + Redis (API 1-10min)
+- [ ] Media served via R2 custom domain + Cloudflare Cache (NOT *.r2.dev)
 - [ ] Background jobs for heavy work (AI, notification, export)
+- [ ] Rate limiter backed by Redis for horizontal scaling
 
 ## Observability
 - [ ] Serilog structured logging configured
 - [ ] OpenTelemetry tracing enabled
 - [ ] Audit log for sensitive actions (BR-ADM-010)
-- [ ] Correlation IDs on error responses
+- [ ] Correlation IDs on error responses (CF-Ray correlated)
+
+## Cloudflare (§14)
+- [ ] DNS orange-cloud (proxied) for public subdomains
+- [ ] SSL/TLS mode: Full (strict)
+- [ ] WAF managed rulesets enabled (OWASP + Cloudflare)
+- [ ] Rate limiting rules at edge configured
+- [ ] R2 bucket scoped API token (NOT account-wide)
+- [ ] Turnstile allowed hostnames configured (block localhost in prod)
+- [ ] Authenticated Origin Pulls / Cloudflare Tunnel active
 
 ## Environment-Specific
 | Item | Dev | Staging | Production |
 |------|-----|---------|------------|
 | Migration | Auto at startup | Bundle | Bundle |
 | Secrets | user-secrets | Env vars | Key Vault |
+| JWT algo | HS256 | RS256 | RS256 |
+| Turnstile | Test keys | Test keys | Prod keys |
 | Logging | Debug | Information | Warning |
 | Feature flags | All on | Selective | Controlled |
 ```
@@ -110,8 +135,8 @@ description: >
 ### Risk Categories
 - **Data:** Migration failures, data loss, corruption
 - **Performance:** Latency regression, resource exhaustion
-- **Security:** Auth bypass, PII exposure, injection
-- **Integration:** External service (AI, S3, FCM) failures
+- **Security:** Auth bypass, PII exposure, injection, secret leak
+- **Integration:** External service (AI, R2, FCM, Cloudflare) failures
 - **Rollback:** Can this change be safely reverted?
 
 ## Rollback Plan
@@ -130,10 +155,11 @@ description: >
 ## Post-Deploy Verification
 
 - [ ] Health check endpoint returns 200
-- [ ] Smoke test critical flows (login, submit report, map query)
+- [ ] Smoke test critical flows (login, submit report, map query, media upload)
 - [ ] Monitor error rates for 30 minutes
 - [ ] Check audit logs for new action types
 - [ ] Verify background jobs are running on schedule
+- [ ] Verify Cloudflare WAF not blocking legitimate traffic
 
 ## Definition of Done (from 00_API_CONVENTIONS.md §12)
 
@@ -155,8 +181,10 @@ description: >
 
 | Source | Path | Description |
 |--------|------|-------------|
-| OVERVIEW.md | `OVERVIEW.md §6-§10` | Coding standards, config, cross-cutting, performance |
+| OVERVIEW.md | `OVERVIEW.md §6-§14` (v1.1) | Coding standards, config, performance, security (§13), Cloudflare (§14) |
 | API Conventions | `00_API_CONVENTIONS.md §12` | Definition of Done checklist |
 | Business Rules | `SU26SE049_BusinessRules_v1_0.docx` | BR-SYS-*, BR-DAT-*, BR-ADM-* for ops |
+| Security Patterns | `../csharp-conventions/resources/security-patterns.md` | Auth, headers, CORS, Turnstile, R2, secrets rotation |
+| Performance Patterns | `../csharp-conventions/resources/performance-patterns.md` | Compression, caching, R2 zero-egress, DB optimization |
 | Best Practices | `../csharp-conventions/resources/best-practices.md` | Security, performance, data access pitfalls |
 

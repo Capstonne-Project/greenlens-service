@@ -1,0 +1,77 @@
+# =============================================================================
+# Cloudflared (Cloudflare Tunnel) — systemd unit
+# Install path: /etc/systemd/system/cloudflared.service
+#
+# NORMALLY auto-created by `cloudflared service install <token>`. This file is
+# a reference / backup template in case you need to recreate it manually or
+# use a config-file based tunnel (not token-based).
+#
+# Two install modes:
+#
+# A) TOKEN MODE (recommended for capstone — easiest)
+#    cloudflared service install eyJhIjoi...        (token from Cloudflare dashboard)
+#    → systemd unit is auto-generated, fetches config from Cloudflare on each start.
+#
+# B) CONFIG-FILE MODE (more control, no internet round-trip on start)
+#    Create /etc/cloudflared/config.yml manually, then use the unit below.
+# =============================================================================
+
+[Unit]
+Description=Cloudflare Tunnel
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=cloudflared
+Group=cloudflared
+
+# --- TOKEN MODE ---
+# Token stored in environment file, not in this unit (so unit can go in git).
+# /etc/cloudflared/tunnel.env contains:  TUNNEL_TOKEN=eyJhIjoi...
+EnvironmentFile=/etc/cloudflared/tunnel.env
+ExecStart=/usr/bin/cloudflared tunnel --no-autoupdate run --token ${TUNNEL_TOKEN}
+
+# --- CONFIG-FILE MODE (alternative — comment out the line above, uncomment below) ---
+# ExecStart=/usr/bin/cloudflared tunnel --config /etc/cloudflared/config.yml run
+
+Restart=on-failure
+RestartSec=5s
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/log/cloudflared
+
+[Install]
+WantedBy=multi-user.target
+
+
+# =============================================================================
+# Reference config.yml for CONFIG-FILE mode (Phase 2 — multiple hostnames)
+# Path: /etc/cloudflared/config.yml
+# =============================================================================
+#
+# tunnel: <TUNNEL_UUID>
+# credentials-file: /etc/cloudflared/<TUNNEL_UUID>.json
+#
+# ingress:
+#   # Phase 1: random subdomain auto-provisioned by Cloudflare
+#   # (no entry needed — Quick Tunnel handles it)
+#
+#   # Phase 2: production domain
+#   - hostname: api.greenlens.example
+#     service: http://localhost:8080
+#     originRequest:
+#       connectTimeout: 30s
+#       noTLSVerify: false
+#
+#   # Optional: Hangfire dashboard (admin only — protect with Cloudflare Access)
+#   - hostname: jobs.greenlens.example
+#     service: http://localhost:8080
+#     path: /hangfire
+#
+#   # Catch-all (required as the LAST entry)
+#   - service: http_status:404

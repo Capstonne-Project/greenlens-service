@@ -1,0 +1,90 @@
+## .NET / C#
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## NuGet
+*.nupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+project.lock.json
+**/packages.lock.json
+
+## IDE — Visual Studio
+.vs/
+*.csproj.user
+*.dbmdl
+*.jfm
+launchSettings.json
+
+## IDE — VS Code
+.vscode/
+*.swp
+*~
+
+## IDE — Rider
+.idea/
+*.sln.iml
+
+## Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+msbuild.log
+msbuild.err
+msbuild.wrn
+
+## Test Results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+TestResult.xml
+coverage*/
+*.coverage
+*.coveragexml
+*.trx
+
+## Publish / Deploy
+publish/
+*.publish.xml
+
+## OS
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+ehthumbs_vista.db
+
+## Secrets — NEVER commit
+**/firebase-adminsdk*.json
+*.pfx
+*.key
+*.pem
+
+## Docker (local overrides)
+docker-compose.override.yml
+.env
+.env.*
+!.env.example
+
+## EF Core — Designer.cs files are REQUIRED, do NOT ignore them
+
+## Misc
+*.tmp
+*.bak
+*.cache
+*.log
+*.orig
+.angular/
+node_modules/

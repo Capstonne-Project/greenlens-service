@@ -1,0 +1,78 @@
+// =============================================================================
+// Greenlens — AuthorizationBehavior
+// File: src/Greenlens.Application/Common/Behaviors/AuthorizationBehavior.cs
+//
+// Reads [RequireRole] / [RequirePolicy] attributes from the request type
+// and short-circuits with Forbidden if the current user doesn't qualify.
+//
+// This is in ADDITION to the controller-level [Authorize] attribute, not
+// a replacement. Defense in depth: the controller blocks unauthenticated
+// requests at the HTTP boundary; this blocks unauthorized commands at the
+// application boundary so background jobs and tests are also covered.
+// =============================================================================
+
+using MediatR;
+using Greenlens.Application.Common.Interfaces;
+using Greenlens.Domain.Common;
+
+namespace Greenlens.Application.Common.Behaviors;
+
+/// <summary>
+/// Stick this on a Command/Query to require specific roles.
+/// Multiple roles = OR (any of them).
+/// </summary>
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
+public sealed class RequireRoleAttribute(params string[] roles) : Attribute
+{
+    public string[] Roles { get; } = roles;
+}
+
+public sealed class AuthorizationBehavior<TRequest, TResponse>(
+    ICurrentUser currentUser)
+    : IPipelineBehavior<TRequest, TResponse> where TRequest : notnull
+{
+    public async Task<TResponse> Handle(
+        TRequest request,
+        RequestHandlerDelegate<TResponse> next,
+        CancellationToken cancellationToken)
+    {
+        var roleAttr = (RequireRoleAttribute?)Attribute.GetCustomAttribute(
+            typeof(TRequest), typeof(RequireRoleAttribute));
+
+        if (roleAttr is null)
+            return await next();   // no requirement
+
+        if (currentUser.UserId is null)
+            return Failure(new Error("auth.unauthenticated", "Yêu cầu đăng nhập", ErrorType.Forbidden));
+
+        if (!roleAttr.Roles.Any(currentUser.IsInRole))
+            return Failure(new Error("auth.forbidden", "Không có quyền thực hiện hành động này", ErrorType.Forbidden));
+
+        return await next();
+    }
+
+    private static TResponse Failure(Error error)
+    {
+        var t = typeof(TResponse);
+        if (t == typeof(Result))
+            return (TResponse)(object)Result.Failure(error);
+
+        if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(Result<>))
+        {
+            var m = t.GetMethod(nameof(Result<int>.Failure), [typeof(Error)])!;
+            return (TResponse)m.Invoke(null, [error])!;
+        }
+
+        throw new InvalidOperationException(
+            $"AuthorizationBehavior expects TResponse to be Result or Result<T>");
+    }
+}
+
+
+// === Usage on a command ===
+//
+// [RequireRole("Officer", "Admin")]
+// public sealed record VerifyReportCommand(Guid ReportId) : IRequest<Result>;
+//
+// At runtime: AuthorizationBehavior reads the attribute, checks ICurrentUser,
+// returns Forbidden if no match — handler never runs.

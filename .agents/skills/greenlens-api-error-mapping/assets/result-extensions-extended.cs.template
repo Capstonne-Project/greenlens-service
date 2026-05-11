@@ -1,0 +1,135 @@
+// =============================================================================
+// Greenlens API — Result→IActionResult mapping (extended)
+// File: src/Greenlens.Api/Common/ResultExtensions.cs
+//
+// Replaces the basic version from greenlens-controller-base. Adds:
+//   - RateLimited (429) with Retry-After
+//   - Locked (423)
+//   - Unauthenticated (401) — explicit
+//   - PreconditionFailed (412)
+//   - traceId in extensions for observability
+//   - Per-field validation errors via extensions.errors
+// =============================================================================
+
+using System.Diagnostics;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Greenlens.Domain.Common;
+
+namespace Greenlens.Api.Common;
+
+public static class ResultExtensions
+{
+    public static IActionResult ToActionResult<T>(this Result<T> result)
+        => result.ToActionResult(value => new OkObjectResult(value));
+
+    public static IActionResult ToActionResult<T>(
+        this Result<T> result,
+        Func<T, IActionResult> onSuccess)
+    {
+        if (result.IsSuccess)
+            return onSuccess(result.Value!);
+
+        return MapFailure(result.Error!);
+    }
+
+    public static IActionResult ToActionResult(this Result result)
+    {
+        if (result.IsSuccess)
+            return new NoContentResult();
+        return MapFailure(result.Error!);
+    }
+
+    /// <summary>
+    /// For rate-limit errors. Sets Retry-After header.
+    /// </summary>
+    public static IActionResult ToActionResult<T>(this Result<T> result, TimeSpan retryAfter)
+    {
+        if (result.IsSuccess)
+            return new OkObjectResult(result.Value!);
+
+        var response = MapFailure(result.Error!);
+        if (response is ObjectResult { StatusCode: StatusCodes.Status429TooManyRequests } or)
+        {
+            // Caller is responsible for ensuring this overload is only used when the error is RateLimited.
+            // Add the header via a wrapper:
+            return new RateLimitedResult(or, retryAfter);
+        }
+        return response;
+    }
+
+    private static IActionResult MapFailure(Error error)
+    {
+        return error.Type switch
+        {
+            ErrorType.Validation         => Problem(error, StatusCodes.Status400BadRequest,           "Validation failed"),
+            ErrorType.Unauthenticated    => Problem(error, StatusCodes.Status401Unauthorized,         "Authentication required"),
+            ErrorType.Forbidden          => Problem(error, StatusCodes.Status403Forbidden,            "Forbidden"),
+            ErrorType.NotFound           => Problem(error, StatusCodes.Status404NotFound,             "Resource not found"),
+            ErrorType.Conflict           => Problem(error, StatusCodes.Status409Conflict,             "Conflict"),
+            ErrorType.PreconditionFailed => Problem(error, StatusCodes.Status412PreconditionFailed,   "Precondition failed"),
+            ErrorType.BusinessRule       => Problem(error, StatusCodes.Status422UnprocessableEntity,  "Business rule violated"),
+            ErrorType.Locked             => Problem(error, StatusCodes.Status423Locked,               "Resource locked"),
+            ErrorType.RateLimited        => Problem(error, StatusCodes.Status429TooManyRequests,      "Too many requests"),
+            ErrorType.Unexpected         => Problem(error, StatusCodes.Status500InternalServerError,  "Unexpected error"),
+            _                             => Problem(error, StatusCodes.Status500InternalServerError,  "Unexpected error"),
+        };
+    }
+
+    private static ObjectResult Problem(Error error, int status, string title)
+    {
+        var problem = new ProblemDetails
+        {
+            Status = status,
+            Title  = title,
+            Detail = error.Message,
+            Type   = $"https://greenlens.example/errors/{error.Code}",
+            Extensions =
+            {
+                ["code"]    = error.Code,
+                ["traceId"] = Activity.Current?.Id,
+            },
+        };
+
+        // Validation: include per-field errors if Error carries them
+        if (error.Type == ErrorType.Validation && error is FieldValidationError fve)
+            problem.Extensions["errors"] = fve.FieldErrors;
+
+        return new ObjectResult(problem) { StatusCode = status };
+    }
+
+    /// <summary>
+    /// Wraps an ObjectResult to add a Retry-After header.
+    /// </summary>
+    private sealed class RateLimitedResult(ObjectResult inner, TimeSpan retryAfter) : IActionResult
+    {
+        public Task ExecuteResultAsync(ActionContext context)
+        {
+            context.HttpContext.Response.Headers["Retry-After"] =
+                ((int)retryAfter.TotalSeconds).ToString();
+            return inner.ExecuteResultAsync(context);
+        }
+    }
+}
+
+
+// === Extended Error type for validation with field paths ===
+//
+// File: src/Greenlens.Domain/Common/Error.cs (extension)
+//
+// public sealed record FieldValidationError(
+//     string Code,
+//     string Message,
+//     Dictionary<string, string[]> FieldErrors)
+//     : Error(Code, Message, ErrorType.Validation);
+//
+// Usage in handler:
+//   var fields = new Dictionary<string, string[]>
+//   {
+//       ["latitude"] = ["Phải nằm trong khoảng 8.0 – 24.0"],
+//       ["mediaIds"] = ["Cần ít nhất 1 ảnh", "Tối đa 5 ảnh"],
+//   };
+//   return Result<Guid>.Failure(new FieldValidationError(
+//       "reports.validation_failed",
+//       "Một số trường không hợp lệ",
+//       fields));

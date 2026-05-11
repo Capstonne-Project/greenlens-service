@@ -1,0 +1,53 @@
+// =============================================================================
+// Greenlens — MediatR pipeline registration
+// File: src/Greenlens.Application/DependencyInjection.cs
+//
+// CRITICAL: order matters. First registered = outermost layer.
+// Recommended order:
+//   1. Validation         — reject bad input first
+//   2. Authorization      — deny unauthorized next
+//   3. Transaction        — open tx for Commands
+//   4. Performance        — time the inner work
+//   5. Logging            — log entry/exit (innermost wrap before handler)
+//   6. Caching            — only Queries marked ICacheable hit cache
+//
+// Result: a successful Command flows ALL six layers; a failed validation
+// short-circuits at layer 1.
+// =============================================================================
+
+using FluentValidation;
+using MediatR;
+using Microsoft.Extensions.DependencyInjection;
+using Greenlens.Application.Common.Behaviors;
+using Greenlens.Application.Common.Interfaces;
+
+namespace Greenlens.Application;
+
+public static class DependencyInjection
+{
+    public static IServiceCollection AddApplication(this IServiceCollection services)
+    {
+        var assembly = typeof(IApplicationDbContext).Assembly;
+
+        services.AddMediatR(cfg =>
+        {
+            cfg.RegisterServicesFromAssembly(assembly);
+
+            // Order matters — outermost first
+            cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));        // 1
+            cfg.AddOpenBehavior(typeof(AuthorizationBehavior<,>));     // 2
+            cfg.AddOpenBehavior(typeof(TransactionBehavior<,>));       // 3 — Commands only (gated inside)
+            cfg.AddOpenBehavior(typeof(PerformanceBehavior<,>));       // 4
+            cfg.AddOpenBehavior(typeof(LoggingBehavior<,>));           // 5
+            cfg.AddOpenBehavior(typeof(CachingBehavior<,>));           // 6 — Queries marked ICacheable
+        });
+
+        // FluentValidation auto-discovery
+        services.AddValidatorsFromAssembly(assembly);
+
+        // Mapster (one-time)
+        // services.AddMapster();   // see greenlens-feature-slice for config registration
+
+        return services;
+    }
+}

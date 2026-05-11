@@ -1,6 +1,6 @@
 # Data Access Patterns — Entity Framework Core 9
 
-> **Source:** CLAUDE.md §4.2, §4.6, §4.7
+> **Source:** OVERVIEW.md §4.2, §4.6, §4.7, §4.12 (v1.2)
 
 ## Core Rules
 
@@ -10,21 +10,39 @@
 4. **All entities inherit `AuditableEntity`** — auto-set by interceptor.
 5. **Soft delete** for User, Report, Comment — global query filter.
 
-## DbContext Interface (Application Layer)
+## Repository Pattern — Strict (§4.12)
+
+Application layer **NEVER** imports `IApplicationDbContext` or `DbContext`. All data access goes through `IXxxRepository` + `IUnitOfWork`.
 
 ```csharp
-// Application/Common/Interfaces/IApplicationDbContext.cs
-public interface IApplicationDbContext
+// Application/Common/Interfaces/Persistence/IGenericRepository.cs
+public interface IGenericRepository<T> where T : BaseEntity
 {
-    DbSet<Report> Reports { get; }
-    DbSet<User> Users { get; }
-    DbSet<Comment> Comments { get; }
-    DbSet<CleanupTask> CleanupTasks { get; }
-    DbSet<Badge> Badges { get; }
-    DbSet<AuditLog> AuditLogs { get; }
-    DbSet<OutboxMessage> OutboxMessages { get; }
+    IQueryable<T> Query();                        // tracking (for write)
+    IQueryable<T> QueryAsNoTracking();            // no-tracking (for read + projection)
+    Task<T?> GetByIdAsync(Guid id, CancellationToken ct);
+    void Add(T entity);
+    void AddRange(IEnumerable<T> entities);
+    void Remove(T entity);
+    void RemoveRange(IEnumerable<T> entities);
+    Task<bool> ExistsAsync(Expression<Func<T, bool>> predicate, CancellationToken ct);
+}
 
-    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+// Specific repo — body empty (CRUD only)
+public interface ICategoryRepository : IGenericRepository<PollutionCategory>;
+
+// Specific repo — with business methods
+public interface IReportRepository : IGenericRepository<Report>
+{
+    Task<Report?> GetForVerificationAsync(Guid id, CancellationToken ct);
+    Task<List<Report>> FindPotentialDuplicatesAsync(Point location, PollutionType type, CancellationToken ct);
+}
+
+// UnitOfWork — commit only
+public interface IUnitOfWork
+{
+    Task<int> SaveChangesAsync(CancellationToken ct);
+    Task<IDbTransaction> BeginTransactionAsync(CancellationToken ct);
 }
 ```
 
@@ -80,54 +98,59 @@ public sealed class ReportConfiguration : IEntityTypeConfiguration<Report>
 ### ✅ Read Queries — Always AsNoTracking + Projection
 
 ```csharp
-// Query handler — read-only, no tracking overhead
-public async Task<Result<ReportDto>> Handle(
-    GetReportQuery request, CancellationToken ct)
+// Query handler — read-only via repo
+public sealed class GetReportQueryHandler(
+    IReportRepository reports) : ...
 {
-    var report = await db.Reports
-        .AsNoTracking()
-        .Where(r => r.Id == request.Id)
-        .ProjectToType<ReportDto>()  // Mapster projection — SQL-level
-        .FirstOrDefaultAsync(ct)
-        .ConfigureAwait(false);
+    public async Task<Result<ReportDto>> Handle(
+        GetReportQuery request, CancellationToken ct)
+    {
+        var report = await reports.QueryAsNoTracking()
+            .Where(r => r.Id == request.Id)
+            .ProjectToType<ReportDto>()  // Mapster projection — SQL-level
+            .FirstOrDefaultAsync(ct)
+            .ConfigureAwait(false);
 
-    return report is null
-        ? Errors.Report.NotFound(request.Id)
-        : Result.Success(report);
+        return report is null
+            ? Errors.Report.NotFound(request.Id)
+            : Result.Success(report);
+    }
 }
 ```
 
 ### ✅ Paginated Queries
 
 ```csharp
-public async Task<Result<PaginatedList<ReportDto>>> Handle(
-    ListReportsQuery request, CancellationToken ct)
+public sealed class ListReportsQueryHandler(
+    IReportRepository reports) : ...
 {
-    var query = db.Reports
-        .AsNoTracking()
-        .Where(r => request.Status == null || r.Status == request.Status)
-        .OrderByDescending(r => r.CreatedAt);
+    public async Task<Result<PaginatedList<ReportDto>>> Handle(
+        ListReportsQuery request, CancellationToken ct)
+    {
+        var query = reports.QueryAsNoTracking()
+            .Where(r => request.Status == null || r.Status == request.Status)
+            .OrderByDescending(r => r.CreatedAt);
 
-    var totalItems = await query.CountAsync(ct).ConfigureAwait(false);
+        var totalItems = await query.CountAsync(ct).ConfigureAwait(false);
 
-    var items = await query
-        .Skip((request.Page - 1) * request.PageSize)
-        .Take(request.PageSize)
-        .ProjectToType<ReportDto>()
-        .ToListAsync(ct)
-        .ConfigureAwait(false);
+        var items = await query
+            .Skip((request.Page - 1) * request.PageSize)
+            .Take(request.PageSize)
+            .ProjectToType<ReportDto>()
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
 
-    return new PaginatedList<ReportDto>(
-        items, totalItems, request.Page, request.PageSize);
+        return new PaginatedList<ReportDto>(
+            items, totalItems, request.Page, request.PageSize);
+    }
 }
 ```
 
 ### ✅ Geo Queries (PostGIS)
 
 ```csharp
-// BR-MAP-004: Find nearby reports
-var nearbyReports = await db.Reports
-    .AsNoTracking()
+// BR-MAP-004: Find nearby reports (via specific repo method or inline LINQ)
+var nearbyReports = await reports.QueryAsNoTracking()
     .Where(r => r.GeoPoint.IsWithinDistance(
         new Point(lng, lat) { SRID = 4326 },
         radiusMeters))
@@ -138,32 +161,45 @@ var nearbyReports = await db.Reports
     .ToListAsync(ct)
     .ConfigureAwait(false);
 
-// BR-REP-030: Duplicate detection (50m + same category + 24h)
-var duplicates = await db.Reports
-    .Where(r =>
-        r.GeoPoint.IsWithinDistance(report.GeoPoint, 50) &&
-        r.PollutionType == report.PollutionType &&
-        r.CreatedAt >= DateTime.UtcNow.AddHours(-24))
-    .AnyAsync(ct)
-    .ConfigureAwait(false);
+// BR-REP-030: Duplicate detection — in IReportRepository
+public async Task<List<Report>> FindPotentialDuplicatesAsync(
+    Point location, PollutionType type, CancellationToken ct)
+{
+    return await Query()
+        .Where(r =>
+            r.GeoPoint.IsWithinDistance(location, 50) &&
+            r.PollutionType == type &&
+            r.CreatedAt >= DateTime.UtcNow.AddHours(-24))
+        .ToListAsync(ct);
+}
 ```
 
 ### ✅ Command — Load Entity, Mutate, Save
 
 ```csharp
-public async Task<Result> Handle(VerifyReportCommand request, CancellationToken ct)
+public sealed class VerifyReportCommandHandler(
+    IReportRepository reports,
+    IUserRepository users,
+    IAuditLogRepository auditLogs,
+    IUnitOfWork uow,
+    ICurrentUser currentUser) : ...
 {
-    var report = await db.Reports
-        .FirstOrDefaultAsync(r => r.Id == request.ReportId, ct)
-        .ConfigureAwait(false);
+    public async Task<Result> Handle(VerifyReportCommand request, CancellationToken ct)
+    {
+        var report = await reports.GetByIdAsync(request.ReportId, ct);
+        if (report is null)
+            return Errors.Report.NotFound(request.ReportId);
 
-    if (report is null)
-        return Errors.Report.NotFound(request.ReportId);
+        report.Verify(currentUser.UserId);  // Domain method — state machine
 
-    report.Verify(request.OfficerId);  // Domain method — state machine
+        var citizen = await users.GetByIdAsync(report.ReporterId, ct);
+        citizen!.AwardPoints(10);
 
-    await db.SaveChangesAsync(ct).ConfigureAwait(false);
-    return Result.Success();
+        auditLogs.Add(new AuditLog("VerifyReport", report.Id, currentUser.UserId));
+
+        await uow.SaveChangesAsync(ct);  // Single commit — all or nothing
+        return Result.Success();
+    }
 }
 ```
 
@@ -212,31 +248,38 @@ dotnet ef migrations add 202605111000_AddGistIndexOnReportLocation
 
 ```csharp
 // ❌ N+1 Query
-var reports = await db.Reports.ToListAsync(ct);
+var reports = await reportRepo.QueryAsNoTracking().ToListAsync(ct);
 foreach (var r in reports)
 {
-    r.Media = await db.ReportMedia.Where(m => m.ReportId == r.Id).ToListAsync(ct); // N+1!
+    r.Media = await mediaRepo.QueryAsNoTracking()
+        .Where(m => m.ReportId == r.Id).ToListAsync(ct); // N+1!
 }
 
 // ✅ Use Include or Projection
-var reports = await db.Reports
+var reports = await reportRepo.Query()
     .Include(r => r.Media)
     .ToListAsync(ct);
 
 // ❌ Multiple SaveChanges in one request
-db.Reports.Add(report);
-await db.SaveChangesAsync(ct);     // 1st call
-db.AuditLogs.Add(auditLog);
-await db.SaveChangesAsync(ct);     // 2nd call — WRONG
+reports.Add(report);
+await uow.SaveChangesAsync(ct);     // 1st call
+auditLogs.Add(auditLog);
+await uow.SaveChangesAsync(ct);     // 2nd call — WRONG
 
-// ✅ Single SaveChanges via TransactionBehavior
-db.Reports.Add(report);
-db.AuditLogs.Add(auditLog);
-await db.SaveChangesAsync(ct);     // One call, one transaction
+// ✅ Single SaveChanges via UnitOfWork
+reports.Add(report);
+auditLogs.Add(auditLog);
+await uow.SaveChangesAsync(ct);     // One call, one transaction
+
+// ❌ Handler imports DbContext / IApplicationDbContext
+var report = await db.Reports.FindAsync(id, ct);  // VIOLATION — Application sees EF
+
+// ✅ Handler uses repo
+var report = await reports.GetByIdAsync(id, ct);
 
 // ❌ Tracking on read queries
-var reports = await db.Reports.ToListAsync(ct);  // Tracks everything!
+var reports = await reportRepo.Query().ToListAsync(ct);  // Tracks everything!
 
-// ✅ AsNoTracking for reads
-var reports = await db.Reports.AsNoTracking().ToListAsync(ct);
+// ✅ QueryAsNoTracking for reads
+var reports = await reportRepo.QueryAsNoTracking().ToListAsync(ct);
 ```

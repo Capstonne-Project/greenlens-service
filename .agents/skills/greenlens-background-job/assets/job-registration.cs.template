@@ -1,0 +1,118 @@
+// =============================================================================
+// Greenlens — Hangfire registration
+//
+// 2 files:
+//   src/Greenlens.Api/Program.cs               (Hangfire setup)
+//   src/Greenlens.Infrastructure/BackgroundJobs/JobRegistration.cs   (cron entries)
+// =============================================================================
+
+
+// === FILE: src/Greenlens.Api/Program.cs (Hangfire section) ===
+//
+// using Hangfire;
+// using Hangfire.PostgreSql;
+//
+// builder.Services.AddHangfire(cfg => cfg
+//     .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+//     .UseSimpleAssemblyNameTypeSerializer()
+//     .UseRecommendedSerializerSettings()
+//     .UsePostgreSqlStorage(o => o.UseNpgsqlConnection(
+//         builder.Configuration.GetConnectionString("Postgres"))));
+//
+// builder.Services.AddHangfireServer(opt =>
+// {
+//     opt.WorkerCount    = Environment.ProcessorCount * 2;
+//     opt.Queues         = new[] { "default", "critical", "ai" };
+//     opt.ServerTimeout  = TimeSpan.FromMinutes(10);
+// });
+//
+// // After app.Build():
+// app.UseHangfireDashboard("/hangfire", new DashboardOptions
+// {
+//     Authorization = new[] { new HangfireAdminAuthorizationFilter() },   // implement
+// });
+//
+// // Register recurring jobs
+// using (var scope = app.Services.CreateScope())
+// {
+//     var manager = scope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
+//     JobRegistration.RegisterAll(manager);
+// }
+
+
+// === FILE: src/Greenlens.Infrastructure/BackgroundJobs/JobRegistration.cs ===
+
+using Hangfire;
+
+namespace Greenlens.Infrastructure.BackgroundJobs;
+
+/// <summary>
+/// Single source of truth for recurring jobs. Mirrors OVERVIEW.md §4.11.
+///
+/// Time zone: jobs that care about wall-clock time (digests, leaderboard reset)
+/// pass <c>TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time")</c>.
+/// Jobs that just care about cadence (every hour, every 15 min) leave default UTC.
+/// </summary>
+public static class JobRegistration
+{
+    private static readonly TimeZoneInfo VnTime =
+        TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+
+    public static void RegisterAll(IRecurringJobManager mgr)
+    {
+        // BR-REP-016, BR-REP-025
+        mgr.AddOrUpdate<AutoCloseResolvedReportJob>(
+            "auto-close-resolved",
+            j => j.ExecuteAsync(default),
+            Cron.Hourly());
+
+        // BR-OFF-002 — verification SLA breach
+        mgr.AddOrUpdate<SlaBreachVerificationJob>(
+            "sla-breach-verification",
+            j => j.ExecuteAsync(default),
+            "*/15 * * * *");                         // every 15 min
+
+        // BR-OFF-020 — resolution SLA breach
+        mgr.AddOrUpdate<SlaBreachResolutionJob>(
+            "sla-breach-resolution",
+            j => j.ExecuteAsync(default),
+            "*/30 * * * *");                         // every 30 min
+
+        // BR-REP-008, BR-REP-009 — overdue reports
+        mgr.AddOrUpdate<OverdueReportJob>(
+            "overdue-reports",
+            j => j.ExecuteAsync(default),
+            Cron.Hourly());
+
+        // BR-AI-006 — retry pending AI classifications
+        mgr.AddOrUpdate<AiRetryJob>(
+            "ai-retry",
+            j => j.ExecuteAsync(default),
+            "*/5 * * * *");                          // every 5 min
+
+        // BR-REP-019 — clean up draft reports older than 7 days
+        mgr.AddOrUpdate<DraftCleanupJob>(
+            "draft-cleanup",
+            j => j.ExecuteAsync(default),
+            Cron.Daily(2));                          // 2am UTC = 9am Vietnam
+
+        // BR-GAM-005 — leaderboard snapshots
+        mgr.AddOrUpdate<LeaderboardSnapshotJob>(
+            "leaderboard-daily",
+            j => j.ExecuteAsync(LeaderboardScope.Daily, default),
+            Cron.Daily(0),
+            new RecurringJobOptions { TimeZone = VnTime });
+
+        // BR-ADM-010, BR-DAT-002 — audit log retention 12 months
+        mgr.AddOrUpdate<AuditLogRetentionJob>(
+            "audit-retention",
+            j => j.ExecuteAsync(default),
+            Cron.Weekly(DayOfWeek.Sunday, 3));
+
+        // BR-AUTH-022 — hard-delete soft-deleted accounts past 90 days
+        mgr.AddOrUpdate<AccountHardDeleteJob>(
+            "account-hard-delete",
+            j => j.ExecuteAsync(default),
+            Cron.Daily(4));                          // 4am UTC, off-peak
+    }
+}

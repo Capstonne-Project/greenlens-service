@@ -1,0 +1,113 @@
+// =============================================================================
+// Greenlens — Integration test class template
+// File: tests/Greenlens.Application.IntegrationTests/Features/__MODULE__/__USECASE__Tests.cs
+//
+// PLACEHOLDERS:
+//   __MODULE__   e.g. Reports
+//   __USECASE__  e.g. SubmitReport
+// =============================================================================
+
+using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
+using Greenlens.Application.Features.__MODULE__.__USECASE__;
+using Greenlens.Application.IntegrationTests.Fixtures;
+using Greenlens.Domain.Common;
+using Greenlens.Domain.Enums;
+
+namespace Greenlens.Application.IntegrationTests.Features.__MODULE__;
+
+[Collection("Postgres")]
+public sealed class __USECASE__Tests(PostgresContainerFixture fixture)
+    : IntegrationTestBase(fixture)
+{
+    [Fact]
+    public async Task __USECASE___HappyPath_ReturnsSuccess_BR_REP_001()
+    {
+        // Arrange
+        var cmd = new __USECASE__Command(
+            // ... valid inputs
+            Latitude:  10.7769,    // BR-REP-003 valid Vietnam coords
+            Longitude: 106.7009,
+            Category:  PollutionType.Trash,
+            Severity:  Severity.Medium,
+            Description: "Đống rác lớn ven đường Lý Tự Trọng",
+            MediaIds:  [Guid.CreateVersion7()],
+            IsAnonymous: false);
+
+        // Act
+        var result = await Mediator.Send(cmd);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().NotBeEmpty();
+
+        await WithDb(async db =>
+        {
+            var report = await db.Reports.SingleAsync();
+            report.Status.Should().Be(ReportStatus.Submitted);   // BR-REP-013
+            report.Media.Should().HaveCount(1);
+        });
+    }
+
+    [Fact]
+    public async Task __USECASE___NoPhoto_ReturnsValidationError_BR_REP_001()
+    {
+        // Arrange — empty MediaIds list violates BR-REP-001
+        var cmd = new __USECASE__Command(
+            Latitude: 10.7769, Longitude: 106.7009,
+            Category: PollutionType.Trash, Severity: Severity.Medium,
+            Description: null,
+            MediaIds: [],                            // <-- violation
+            IsAnonymous: false);
+
+        // Act
+        var result = await Mediator.Send(cmd);
+
+        // Assert
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Contain("photo");
+    }
+
+    [Fact]
+    public async Task __USECASE___OutOfVietnamBounds_ReturnsValidationError_BR_REP_003()
+    {
+        // Arrange — Tokyo coordinates
+        var cmd = new __USECASE__Command(
+            Latitude: 35.6762, Longitude: 139.6503,
+            Category: PollutionType.Trash, Severity: Severity.Medium,
+            Description: null,
+            MediaIds: [Guid.CreateVersion7()],
+            IsAnonymous: false);
+
+        // Act
+        var result = await Mediator.Send(cmd);
+
+        // Assert
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Type.Should().Be(ErrorType.Validation);
+    }
+
+    [Fact]
+    public async Task __USECASE___ExceedsRateLimit_ReturnsForbidden_BR_REP_010()
+    {
+        // Arrange — submit 5 reports in quick succession
+        var cmd = ValidCommand();
+        for (var i = 0; i < 5; i++)
+            (await Mediator.Send(cmd)).IsSuccess.Should().BeTrue();
+
+        // Act — 6th should be rejected by rate limit (BR-REP-010: 5/h)
+        var result = await Mediator.Send(cmd);
+
+        // Assert
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Contain("rate_limit");
+    }
+
+    private static __USECASE__Command ValidCommand() => new(
+        Latitude: 10.7769, Longitude: 106.7009,
+        Category: PollutionType.Trash, Severity: Severity.Medium,
+        Description: null,
+        MediaIds: [Guid.CreateVersion7()],
+        IsAnonymous: false);
+}

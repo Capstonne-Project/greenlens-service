@@ -1,0 +1,62 @@
+// =============================================================================
+// Greenlens — TransactionBehavior
+// File: src/Greenlens.Application/Common/Behaviors/TransactionBehavior.cs
+//
+// NOTE: this template is also in greenlens-repository-pattern/assets/base-pattern.cs.template
+// (it ships with the IRepository/IUoW base setup). Kept here too because the
+// behavior conceptually belongs to the MediatR pipeline.
+//
+// Wraps every Command (class name ending in "Command") in a UoW transaction.
+// On Result.Failure or thrown exception, rolls back. Queries skipped.
+// =============================================================================
+
+using MediatR;
+using Microsoft.Extensions.Logging;
+using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Domain.Common;
+
+namespace Greenlens.Application.Common.Behaviors;
+
+public sealed class TransactionBehavior<TRequest, TResponse>(
+    IUnitOfWork uow,
+    ILogger<TransactionBehavior<TRequest, TResponse>> logger)
+    : IPipelineBehavior<TRequest, TResponse> where TRequest : notnull
+{
+    public async Task<TResponse> Handle(
+        TRequest request,
+        RequestHandlerDelegate<TResponse> next,
+        CancellationToken cancellationToken)
+    {
+        if (!IsCommand(request))
+            return await next();
+
+        var requestName = typeof(TRequest).Name;
+
+        await using var tx = await uow.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            var response = await next();
+
+            if (response is IResultBase result && result.IsFailure)
+            {
+                await tx.RollbackAsync(cancellationToken);
+                logger.LogInformation(
+                    "Transaction rolled back for {Request}: {ErrorCode}",
+                    requestName, result.Error?.Code);
+                return response;
+            }
+
+            await tx.CommitAsync(cancellationToken);
+            return response;
+        }
+        catch (Exception ex)
+        {
+            await tx.RollbackAsync(cancellationToken);
+            logger.LogError(ex, "Transaction rolled back due to exception in {Request}", requestName);
+            throw;
+        }
+    }
+
+    private static bool IsCommand(TRequest request)
+        => typeof(TRequest).Name.EndsWith("Command", StringComparison.Ordinal);
+}

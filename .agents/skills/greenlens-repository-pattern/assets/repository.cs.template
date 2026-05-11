@@ -1,0 +1,99 @@
+// =============================================================================
+// Greenlens Repository — template
+// Project: SU26SE049
+//
+// Generate this ONLY after the gate in SKILL.md Step 1 has opened.
+// If you reach this template without a justification from the green list,
+// stop and rethink — the default in this codebase is IApplicationDbContext.
+//
+// PLACEHOLDERS:
+//   __ENTITY__         — PascalCase singular, e.g. Report
+//   __ENTITY_LOWER__   — camelCase singular,  e.g. report
+//   __ENTITY_PLURAL__  — DbSet property name,  e.g. Reports
+// =============================================================================
+
+
+// === FILE: src/Greenlens.Application/Common/Interfaces/Persistence/I__ENTITY__Repository.cs ===
+using Greenlens.Domain.Entities;
+
+namespace Greenlens.Application.Common.Interfaces.Persistence;
+
+/// <summary>
+/// Repository for the __ENTITY__ aggregate.
+///
+/// Lives in Application so handlers depend on the abstraction, not on EF Core.
+/// Implementation: <c>Greenlens.Infrastructure.Persistence.Repositories.__ENTITY__Repository</c>.
+///
+/// Design rules (OVERVIEW.md §3 / repository skill):
+///   - Read-shaped methods only. Mutation goes through the entity + UoW
+///     (IApplicationDbContext.SaveChangesAsync) — do NOT add Add/Update/Delete here.
+///   - No IQueryable&lt;T&gt; on the surface — that leaks EF across the boundary.
+///   - Each method exists because a green-list condition justified it. Document
+///     which condition in the XML doc, so the next person knows why.
+/// </summary>
+public interface I__ENTITY__Repository
+{
+    /// <summary>
+    /// Load a __ENTITY_LOWER__ with all relationships needed for verification.
+    /// Reused by Verify / Reject / Reassign handlers (condition 2: aggregate boundary).
+    /// </summary>
+    Task<__ENTITY__?> GetForVerificationAsync(Guid id, CancellationToken cancellationToken);
+
+    // Add other methods only when justified. Examples that DO belong here:
+    //
+    //   Task<IReadOnlyList<__ENTITY__>> GetDuplicatesAsync(
+    //       GeoLocation point,
+    //       PollutionType category,
+    //       DateTimeOffset since,
+    //       CancellationToken cancellationToken);                 // BR-REP-030, condition 1+4 (PostGIS)
+    //
+    //   Task<__ENTITY__Stats> GetHotspotStatsAsync(
+    //       BoundingBox area,
+    //       CancellationToken cancellationToken);                 // BR-MAP-010, condition 4 (window funcs)
+    //
+    // Examples that DO NOT belong here — leave in the handler:
+    //
+    //   GetByIdAsync   — db.__ENTITY_PLURAL__.FindAsync(id) is fine
+    //   ExistsAsync    — db.__ENTITY_PLURAL__.AnyAsync(...) is fine
+    //   AddAsync       — UoW pattern: handler does db.__ENTITY_PLURAL__.Add(entity); SaveChangesAsync
+}
+
+
+// === FILE: src/Greenlens.Infrastructure/Persistence/Repositories/__ENTITY__Repository.cs ===
+using Microsoft.EntityFrameworkCore;
+using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Domain.Entities;
+
+namespace Greenlens.Infrastructure.Persistence.Repositories;
+
+/// <summary>
+/// EF Core implementation of <see cref="I__ENTITY__Repository"/>.
+/// Scoped lifetime, same as <see cref="ApplicationDbContext"/>.
+/// </summary>
+public sealed class __ENTITY__Repository(ApplicationDbContext db) : I__ENTITY__Repository
+{
+    public Task<__ENTITY__?> GetForVerificationAsync(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        // Bundle the includes that Verify/Reject/Reassign all need.
+        // Putting them here means a handler can never forget one.
+        return db.__ENTITY_PLURAL__
+            .Include(x => x.Media)
+            .Include(x => x.StatusHistory.OrderByDescending(s => s.At).Take(5))
+            .Include(x => x.AssignedTeam)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+    }
+
+    // Implement other interface methods here. For PostGIS/raw SQL queries,
+    // prefer NetTopologySuite via EF over FromSqlRaw — keeps it composable.
+}
+
+
+// === SNIPPET: append to src/Greenlens.Infrastructure/DependencyInjection.cs ===
+//
+// Inside AddInfrastructure(this IServiceCollection services, IConfiguration cfg):
+//
+//     services.AddScoped<I__ENTITY__Repository, __ENTITY__Repository>();
+//
+// Group repo registrations together; alphabetize.
