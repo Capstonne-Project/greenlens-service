@@ -31,7 +31,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository_owner }}/greenlens-api
+  IMAGE_NAME: capstonne-project/greenlens-api
 
 jobs:
   test:
