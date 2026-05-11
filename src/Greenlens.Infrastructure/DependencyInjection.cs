@@ -36,6 +36,10 @@ public static class DependencyInjection
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IOtpRepository, OtpRepository>();
+        services.AddScoped<IPollutionCategoryRepository, PollutionCategoryRepository>();
+        services.AddScoped<IReportRepository, ReportRepository>();
+        services.AddScoped<IReportMediaRepository, ReportMediaRepository>();
+        services.AddScoped<IReportStatusHistoryRepository, ReportStatusHistoryRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         // ── Identity & Auth ──────────────────────────────

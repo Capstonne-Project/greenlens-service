@@ -38,4 +38,22 @@ public static class ResultExtensions
         })
         { StatusCode = statusCode };
     }
+
+    /// <summary>Returns 201 Created with standard envelope for successful POST create.</summary>
+    public static IActionResult ToHttpCreated<T>(this Result<T> result)
+    {
+        if (result.IsSuccess)
+        {
+            return new ObjectResult(new ApiResponse<T>
+            {
+                Code = "SUCCESS",
+                Message = "Created",
+                Status = 201,
+                Data = result.Value
+            })
+            { StatusCode = 201 };
+        }
+
+        return result.ToHttp();
+    }
 }

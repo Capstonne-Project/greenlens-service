@@ -117,4 +117,30 @@ public static class Errors
             "Ảnh quá lớn. Kích thước tối đa là 10MB.",
             ErrorType.Validation);
     }
+
+    public static class Catalog
+    {
+        public static Error ProvinceNotFound => new(
+            "PROVINCE_NOT_FOUND",
+            "Mã tỉnh/thành không hợp lệ hoặc không tồn tại.",
+            ErrorType.NotFound);
+    }
+
+    public static class Reports
+    {
+        public static Error CategoryNotFound => new(
+            "CATEGORY_NOT_FOUND",
+            "Danh mục ô nhiễm không tồn tại hoặc đã ngưng hoạt động.",
+            ErrorType.NotFound);
+
+        public static Error AuthenticationRequired => new(
+            "AUTHENTICATION_REQUIRED",
+            "Báo cáo không ẩn danh yêu cầu đăng nhập.",
+            ErrorType.Validation);
+
+        public static Error InvalidWardProvincePair => new(
+            "INVALID_WARD_PROVINCE",
+            "Mã phường/xã không khớp với tỉnh/thành hoặc không tồn tại trong danh mục.",
+            ErrorType.Validation);
+    }
 }
