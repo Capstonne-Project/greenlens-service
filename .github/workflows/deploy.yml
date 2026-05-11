@@ -58,9 +58,8 @@ jobs:
       - name: Build
         run: dotnet build --no-restore --configuration Release
 
-      # Unit tests (uncomment when test projects exist)
-      # - name: Unit tests
-      #   run: dotnet test tests/Greenlens.Domain.UnitTests --no-build --configuration Release --verbosity normal
+      - name: Unit tests
+        run: dotnet test --no-build --configuration Release --verbosity normal
 
   build-and-push:
     name: Build & push image
