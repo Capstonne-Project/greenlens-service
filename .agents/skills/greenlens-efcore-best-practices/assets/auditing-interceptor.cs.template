@@ -1,0 +1,71 @@
+// =============================================================================
+// Greenlens — AuditingSaveChangesInterceptor
+// Project: SU26SE049
+//
+// Drop into:
+//   src/Greenlens.Infrastructure/Persistence/Interceptors/AuditingSaveChangesInterceptor.cs
+//
+// Populates Created/UpdatedAt/By on every AuditableEntity. Handlers MUST NOT
+// touch these fields directly — the interceptor owns them.
+//
+// REGISTRATION ORDER MATTERS:
+//   .AddInterceptors(auditing, softDelete)
+// Auditing runs first so an "edit then soft-delete" still records UpdatedBy.
+// =============================================================================
+
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using Greenlens.Application.Common.Interfaces;
+using Greenlens.Domain.Common;
+
+namespace Greenlens.Infrastructure.Persistence.Interceptors;
+
+public sealed class AuditingSaveChangesInterceptor(
+    ICurrentUser currentUser,
+    IDateTimeProvider clock) : SaveChangesInterceptor
+{
+    public override InterceptionResult<int> SavingChanges(
+        DbContextEventData eventData,
+        InterceptionResult<int> result)
+    {
+        UpdateAuditFields(eventData.Context);
+        return base.SavingChanges(eventData, result);
+    }
+
+    public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
+        DbContextEventData eventData,
+        InterceptionResult<int> result,
+        CancellationToken cancellationToken = default)
+    {
+        UpdateAuditFields(eventData.Context);
+        return base.SavingChangesAsync(eventData, result, cancellationToken);
+    }
+
+    private void UpdateAuditFields(DbContext? ctx)
+    {
+        if (ctx is null) return;
+
+        var now    = clock.UtcNow;
+        var userId = currentUser.UserId;          // null is fine — system jobs
+
+        foreach (var entry in ctx.ChangeTracker.Entries<AuditableEntity>())
+        {
+            switch (entry.State)
+            {
+                case EntityState.Added:
+                    entry.Entity.CreatedAt = now;
+                    entry.Entity.CreatedBy = userId;
+                    break;
+
+                case EntityState.Modified:
+                    entry.Entity.UpdatedAt = now;
+                    entry.Entity.UpdatedBy = userId;
+
+                    // Defensive: forbid tampering with creation metadata on update.
+                    entry.Property(e => e.CreatedAt).IsModified = false;
+                    entry.Property(e => e.CreatedBy).IsModified = false;
+                    break;
+            }
+        }
+    }
+}

@@ -108,4 +108,14 @@ public sealed class User : SoftDeletableEntity
         if (phoneNumber is not null) PhoneNumber = phoneNumber;
         if (avatarUrl is not null) AvatarUrl = avatarUrl;
     }
+
+    /// <summary>BR-ADM: Admin can update user details including role and verification status.</summary>
+    public void AdminUpdate(string? fullName = null, string? phoneNumber = null, UserRole? role = null, bool? isEmailVerified = null)
+    {
+        if (fullName is not null) FullName = fullName;
+        if (phoneNumber is not null) PhoneNumber = phoneNumber;
+        if (role is not null) Role = role.Value;
+        if (isEmailVerified == true && !IsEmailVerified) IsEmailVerified = true;
+        if (isEmailVerified == false) IsEmailVerified = false;
+    }
 }

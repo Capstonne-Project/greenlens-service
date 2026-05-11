@@ -22,6 +22,135 @@ namespace Greenlens.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Greenlens.Domain.Entities.Location.AdministrativeRegion", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.HasKey("Id")
+                        .HasName("pk_administrative_regions");
+
+                    b.ToTable("administrative_regions", (string)null);
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.Location.AdministrativeUnit", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Abbreviation")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("abbreviation");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.HasKey("Id")
+                        .HasName("pk_administrative_units");
+
+                    b.ToTable("administrative_units", (string)null);
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.Location.Province", b =>
+                {
+                    b.Property<string>("Code")
+                        .HasMaxLength(2)
+                        .HasColumnType("character(2)")
+                        .HasColumnName("code")
+                        .IsFixedLength();
+
+                    b.Property<int>("AdministrativeRegionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("administrative_region_id");
+
+                    b.Property<int>("AdministrativeUnitId")
+                        .HasColumnType("integer")
+                        .HasColumnName("administrative_unit_id");
+
+                    b.Property<string>("BoundaryUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("boundary_url");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.HasKey("Code")
+                        .HasName("pk_provinces");
+
+                    b.HasIndex("AdministrativeRegionId")
+                        .HasDatabaseName("ix_provinces_administrative_region_id");
+
+                    b.HasIndex("AdministrativeUnitId")
+                        .HasDatabaseName("ix_provinces_administrative_unit_id");
+
+                    b.HasIndex("Name")
+                        .HasDatabaseName("ix_provinces_name");
+
+                    b.ToTable("provinces", (string)null);
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.Location.Ward", b =>
+                {
+                    b.Property<string>("Code")
+                        .HasMaxLength(5)
+                        .HasColumnType("character(5)")
+                        .HasColumnName("code")
+                        .IsFixedLength();
+
+                    b.Property<int>("AdministrativeUnitId")
+                        .HasColumnType("integer")
+                        .HasColumnName("administrative_unit_id");
+
+                    b.Property<string>("BoundaryUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("boundary_url");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("ProvinceCode")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .HasColumnType("character(2)")
+                        .HasColumnName("province_code")
+                        .IsFixedLength();
+
+                    b.HasKey("Code")
+                        .HasName("pk_wards");
+
+                    b.HasIndex("AdministrativeUnitId")
+                        .HasDatabaseName("ix_wards_administrative_unit_id");
+
+                    b.HasIndex("Name")
+                        .HasDatabaseName("ix_wards_name");
+
+                    b.HasIndex("ProvinceCode")
+                        .HasDatabaseName("ix_wards_province_code");
+
+                    b.ToTable("wards", (string)null);
+                });
+
             modelBuilder.Entity("Greenlens.Domain.Entities.OtpCode", b =>
                 {
                     b.Property<Guid>("Id")
@@ -70,6 +199,54 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasDatabaseName("ix_otp_codes_email_purpose_expires_at");
 
                     b.ToTable("otp_codes", (string)null);
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.PollutionCategory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("IconUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("icon_url");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("NameEn")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name_en");
+
+                    b.Property<string>("NameVi")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name_vi");
+
+                    b.HasKey("Id")
+                        .HasName("pk_pollution_categories");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("ix_pollution_categories_code");
+
+                    b.ToTable("pollution_categories", (string)null);
                 });
 
             modelBuilder.Entity("Greenlens.Domain.Entities.RefreshToken", b =>
@@ -121,6 +298,483 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasDatabaseName("ix_refresh_tokens_user_id");
 
                     b.ToTable("refresh_tokens", (string)null);
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.Report", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("address");
+
+                    b.Property<string>("AiClassifiedType")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("ai_classified_type");
+
+                    b.Property<decimal?>("AiConfidence")
+                        .HasPrecision(3, 2)
+                        .HasColumnType("numeric(3,2)")
+                        .HasColumnName("ai_confidence");
+
+                    b.Property<string>("AiEstimatedSeverity")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("ai_estimated_severity");
+
+                    b.Property<bool>("AiPending")
+                        .HasColumnType("boolean")
+                        .HasColumnName("ai_pending");
+
+                    b.Property<Guid?>("AssignedOfficerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("assigned_officer_id");
+
+                    b.Property<Guid?>("AssignedTeamId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("assigned_team_id");
+
+                    b.Property<Guid>("CategoryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("category_id");
+
+                    b.Property<DateTime?>("ClosedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("closed_at");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("description");
+
+                    b.Property<bool>("IsAnonymous")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_anonymous");
+
+                    b.Property<bool>("IsSuspicious")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_suspicious");
+
+                    b.Property<decimal>("Latitude")
+                        .HasPrecision(10, 7)
+                        .HasColumnType("numeric(10,7)")
+                        .HasColumnName("latitude");
+
+                    b.Property<decimal>("Longitude")
+                        .HasPrecision(10, 7)
+                        .HasColumnType("numeric(10,7)")
+                        .HasColumnName("longitude");
+
+                    b.Property<Guid?>("ParentReportId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("parent_report_id");
+
+                    b.Property<decimal>("PriorityScore")
+                        .HasPrecision(8, 2)
+                        .HasColumnType("numeric(8,2)")
+                        .HasColumnName("priority_score");
+
+                    b.Property<string>("ProvinceCode")
+                        .HasMaxLength(2)
+                        .HasColumnType("character varying(2)")
+                        .HasColumnName("province_code");
+
+                    b.Property<string>("RejectedReason")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("rejected_reason");
+
+                    b.Property<int>("ReopenedCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("reopened_count");
+
+                    b.Property<int>("ReporterCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("reporter_count");
+
+                    b.Property<Guid?>("ReporterId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reporter_id");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("resolved_at");
+
+                    b.Property<string>("Severity")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("severity");
+
+                    b.Property<string>("SeveritySetBy")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("severity_set_by");
+
+                    b.Property<DateTime?>("SlaResolveDueAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("sla_resolve_due_at");
+
+                    b.Property<DateTime?>("SlaVerifyDueAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("sla_verify_due_at");
+
+                    b.Property<DateTime?>("StartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("started_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("SuspiciousReasons")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("suspicious_reasons");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("updated_by");
+
+                    b.Property<DateTime?>("VerifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("verified_at");
+
+                    b.Property<Guid?>("VerifiedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("verified_by");
+
+                    b.Property<string>("WardCode")
+                        .HasMaxLength(5)
+                        .HasColumnType("character varying(5)")
+                        .HasColumnName("ward_code");
+
+                    b.HasKey("Id")
+                        .HasName("pk_reports");
+
+                    b.HasIndex("AssignedOfficerId")
+                        .HasDatabaseName("ix_reports_assigned_officer_id");
+
+                    b.HasIndex("AssignedTeamId")
+                        .HasDatabaseName("ix_reports_assigned_team_id");
+
+                    b.HasIndex("CategoryId")
+                        .HasDatabaseName("ix_reports_category_id");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("ix_reports_code");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_reports_created_at");
+
+                    b.HasIndex("ParentReportId")
+                        .HasDatabaseName("ix_reports_parent_report_id");
+
+                    b.HasIndex("ProvinceCode")
+                        .HasDatabaseName("ix_reports_province_code");
+
+                    b.HasIndex("ReporterId")
+                        .HasDatabaseName("ix_reports_reporter_id");
+
+                    b.HasIndex("Severity")
+                        .HasDatabaseName("ix_reports_severity");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_reports_status");
+
+                    b.HasIndex("VerifiedBy")
+                        .HasDatabaseName("ix_reports_verified_by");
+
+                    b.HasIndex("WardCode")
+                        .HasDatabaseName("ix_reports_ward_code");
+
+                    b.ToTable("reports", (string)null);
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.ReportDraft", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("payload");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_report_drafts");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_report_drafts_user_id");
+
+                    b.ToTable("report_drafts", (string)null);
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.ReportFlag", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("FlagType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("flag_type");
+
+                    b.Property<Guid>("FlaggerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("flagger_id");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("reason");
+
+                    b.Property<Guid>("ReportId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("report_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_report_flags");
+
+                    b.HasIndex("FlaggerId")
+                        .HasDatabaseName("ix_report_flags_flagger_id");
+
+                    b.HasIndex("ReportId", "FlaggerId", "FlagType")
+                        .IsUnique()
+                        .HasDatabaseName("ix_report_flags_report_id_flagger_id_flag_type");
+
+                    b.ToTable("report_flags", (string)null);
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.ReportMedia", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ExifData")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("exif_data");
+
+                    b.Property<int?>("Height")
+                        .HasColumnType("integer")
+                        .HasColumnName("height");
+
+                    b.Property<string>("MimeType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("mime_type");
+
+                    b.Property<string>("PHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("p_hash");
+
+                    b.Property<Guid>("ReportId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("report_id");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("size_bytes");
+
+                    b.Property<string>("ThumbnailUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("thumbnail_url");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("type");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("uploaded_at");
+
+                    b.Property<Guid?>("UploadedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("uploaded_by");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("url");
+
+                    b.Property<int?>("Width")
+                        .HasColumnType("integer")
+                        .HasColumnName("width");
+
+                    b.HasKey("Id")
+                        .HasName("pk_report_media");
+
+                    b.HasIndex("PHash")
+                        .HasDatabaseName("ix_report_media_p_hash");
+
+                    b.HasIndex("ReportId")
+                        .HasDatabaseName("ix_report_media_report_id");
+
+                    b.HasIndex("UploadedBy")
+                        .HasDatabaseName("ix_report_media_uploaded_by");
+
+                    b.ToTable("report_media", (string)null);
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.ReportSatisfaction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Comment")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("comment");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("IsSatisfied")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_satisfied");
+
+                    b.Property<int?>("Rating")
+                        .HasColumnType("integer")
+                        .HasColumnName("rating");
+
+                    b.Property<Guid>("ReportId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("report_id");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_report_satisfactions");
+
+                    b.HasIndex("ReportId")
+                        .HasDatabaseName("ix_report_satisfactions_report_id");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_report_satisfactions_user_id");
+
+                    b.ToTable("report_satisfactions", (string)null);
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.ReportStatusHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("ChangedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("changed_by");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("FromStatus")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("from_status");
+
+                    b.Property<string>("Metadata")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("metadata");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("reason");
+
+                    b.Property<Guid>("ReportId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("report_id");
+
+                    b.Property<string>("ToStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("to_status");
+
+                    b.HasKey("Id")
+                        .HasName("pk_report_status_history");
+
+                    b.HasIndex("ChangedBy")
+                        .HasDatabaseName("ix_report_status_history_changed_by");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_report_status_history_created_at");
+
+                    b.HasIndex("ReportId")
+                        .HasDatabaseName("ix_report_status_history_report_id");
+
+                    b.ToTable("report_status_history", (string)null);
                 });
 
             modelBuilder.Entity("Greenlens.Domain.Entities.User", b =>
@@ -223,6 +877,211 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasFilter("phone_number IS NOT NULL");
 
                     b.ToTable("users", (string)null);
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.Location.Province", b =>
+                {
+                    b.HasOne("Greenlens.Domain.Entities.Location.AdministrativeRegion", "AdministrativeRegion")
+                        .WithMany("Provinces")
+                        .HasForeignKey("AdministrativeRegionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_provinces_administrative_regions_administrative_region_id");
+
+                    b.HasOne("Greenlens.Domain.Entities.Location.AdministrativeUnit", "AdministrativeUnit")
+                        .WithMany("Provinces")
+                        .HasForeignKey("AdministrativeUnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_provinces_administrative_units_administrative_unit_id");
+
+                    b.Navigation("AdministrativeRegion");
+
+                    b.Navigation("AdministrativeUnit");
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.Location.Ward", b =>
+                {
+                    b.HasOne("Greenlens.Domain.Entities.Location.AdministrativeUnit", "AdministrativeUnit")
+                        .WithMany("Wards")
+                        .HasForeignKey("AdministrativeUnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_wards_administrative_units_administrative_unit_id");
+
+                    b.HasOne("Greenlens.Domain.Entities.Location.Province", "Province")
+                        .WithMany("Wards")
+                        .HasForeignKey("ProvinceCode")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_wards_provinces_province_code");
+
+                    b.Navigation("AdministrativeUnit");
+
+                    b.Navigation("Province");
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.Report", b =>
+                {
+                    b.HasOne("Greenlens.Domain.Entities.PollutionCategory", "Category")
+                        .WithMany("Reports")
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_reports_pollution_categories_category_id");
+
+                    b.HasOne("Greenlens.Domain.Entities.Report", "ParentReport")
+                        .WithMany("DuplicateReports")
+                        .HasForeignKey("ParentReportId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_reports_reports_parent_report_id");
+
+                    b.HasOne("Greenlens.Domain.Entities.User", "Reporter")
+                        .WithMany()
+                        .HasForeignKey("ReporterId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_reports_users_reporter_id");
+
+                    b.HasOne("Greenlens.Domain.Entities.User", "VerifiedByUser")
+                        .WithMany()
+                        .HasForeignKey("VerifiedBy")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_reports_users_verified_by");
+
+                    b.Navigation("Category");
+
+                    b.Navigation("ParentReport");
+
+                    b.Navigation("Reporter");
+
+                    b.Navigation("VerifiedByUser");
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.ReportDraft", b =>
+                {
+                    b.HasOne("Greenlens.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_report_drafts_users_user_id");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.ReportFlag", b =>
+                {
+                    b.HasOne("Greenlens.Domain.Entities.User", "Flagger")
+                        .WithMany()
+                        .HasForeignKey("FlaggerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_report_flags_users_flagger_id");
+
+                    b.HasOne("Greenlens.Domain.Entities.Report", "Report")
+                        .WithMany("Flags")
+                        .HasForeignKey("ReportId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_report_flags_reports_report_id");
+
+                    b.Navigation("Flagger");
+
+                    b.Navigation("Report");
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.ReportMedia", b =>
+                {
+                    b.HasOne("Greenlens.Domain.Entities.Report", "Report")
+                        .WithMany("Media")
+                        .HasForeignKey("ReportId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_report_media_reports_report_id");
+
+                    b.HasOne("Greenlens.Domain.Entities.User", "Uploader")
+                        .WithMany()
+                        .HasForeignKey("UploadedBy")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_report_media_users_uploaded_by");
+
+                    b.Navigation("Report");
+
+                    b.Navigation("Uploader");
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.ReportSatisfaction", b =>
+                {
+                    b.HasOne("Greenlens.Domain.Entities.Report", "Report")
+                        .WithMany()
+                        .HasForeignKey("ReportId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_report_satisfactions_reports_report_id");
+
+                    b.HasOne("Greenlens.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_report_satisfactions_users_user_id");
+
+                    b.Navigation("Report");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.ReportStatusHistory", b =>
+                {
+                    b.HasOne("Greenlens.Domain.Entities.User", "ChangedByUser")
+                        .WithMany()
+                        .HasForeignKey("ChangedBy")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_report_status_history_users_changed_by");
+
+                    b.HasOne("Greenlens.Domain.Entities.Report", "Report")
+                        .WithMany("StatusHistory")
+                        .HasForeignKey("ReportId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_report_status_history_reports_report_id");
+
+                    b.Navigation("ChangedByUser");
+
+                    b.Navigation("Report");
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.Location.AdministrativeRegion", b =>
+                {
+                    b.Navigation("Provinces");
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.Location.AdministrativeUnit", b =>
+                {
+                    b.Navigation("Provinces");
+
+                    b.Navigation("Wards");
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.Location.Province", b =>
+                {
+                    b.Navigation("Wards");
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.PollutionCategory", b =>
+                {
+                    b.Navigation("Reports");
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.Report", b =>
+                {
+                    b.Navigation("DuplicateReports");
+
+                    b.Navigation("Flags");
+
+                    b.Navigation("Media");
+
+                    b.Navigation("StatusHistory");
                 });
 #pragma warning restore 612, 618
         }

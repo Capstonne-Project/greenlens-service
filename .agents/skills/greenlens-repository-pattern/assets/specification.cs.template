@@ -1,0 +1,95 @@
+// =============================================================================
+// Greenlens Specification — alternative to a fat repository
+//
+// USE WHEN: you have many query variants of the same entity (e.g. "reports
+// pending verification in district X", "reports overdue SLA", "reports by
+// reporter in last 30 days") and you don't want a repository with 15 methods.
+//
+// HOW IT WORKS: a Specification carries the filter + includes + ordering
+// for one query shape. The handler composes specs with IApplicationDbContext
+// via an extension method.
+//
+// PLACEHOLDERS:
+//   __ENTITY__   — PascalCase singular, e.g. Report
+//   __SPEC__     — PascalCase descriptive name, e.g. PendingVerificationInDistrict
+// =============================================================================
+
+
+// === FILE: src/Greenlens.Application/Common/Specifications/Specification.cs ===
+// (One-time scaffolding — only create if it doesn't already exist.)
+using System.Linq.Expressions;
+using Microsoft.EntityFrameworkCore.Query;
+
+namespace Greenlens.Application.Common.Specifications;
+
+public abstract class Specification<T>
+{
+    public Expression<Func<T, bool>>? Criteria { get; protected set; }
+    public List<Expression<Func<T, object>>> Includes { get; } = [];
+    public Func<IQueryable<T>, IIncludableQueryable<T, object>>? IncludeChain { get; protected set; }
+    public Expression<Func<T, object>>? OrderBy { get; protected set; }
+    public Expression<Func<T, object>>? OrderByDescending { get; protected set; }
+    public int? Take { get; protected set; }
+    public int? Skip { get; protected set; }
+    public bool AsNoTracking { get; protected set; } = true;
+}
+
+
+// === FILE: src/Greenlens.Infrastructure/Persistence/SpecificationEvaluator.cs ===
+// (One-time scaffolding.)
+using Microsoft.EntityFrameworkCore;
+using Greenlens.Application.Common.Specifications;
+
+namespace Greenlens.Infrastructure.Persistence;
+
+internal static class SpecificationEvaluator
+{
+    public static IQueryable<T> Apply<T>(IQueryable<T> input, Specification<T> spec) where T : class
+    {
+        var q = input;
+        if (spec.AsNoTracking) q = q.AsNoTracking();
+        if (spec.Criteria is not null) q = q.Where(spec.Criteria);
+        foreach (var inc in spec.Includes) q = q.Include(inc);
+        if (spec.IncludeChain is not null) q = spec.IncludeChain(q);
+        if (spec.OrderBy is not null) q = q.OrderBy(spec.OrderBy);
+        else if (spec.OrderByDescending is not null) q = q.OrderByDescending(spec.OrderByDescending);
+        if (spec.Skip is int s) q = q.Skip(s);
+        if (spec.Take is int t) q = q.Take(t);
+        return q;
+    }
+}
+
+
+// === FILE: src/Greenlens.Application/Common/Specifications/__ENTITY___Specs/__SPEC__Spec.cs ===
+using Greenlens.Domain.Entities;
+using Greenlens.Domain.Enums;
+
+namespace Greenlens.Application.Common.Specifications.__ENTITY___Specs;
+
+/// <summary>
+/// Reports waiting for officer verification, scoped to a district.
+/// BR-OFF-001 (auto-assignment by district), BR-OFF-002 (24h SLA priority).
+/// </summary>
+public sealed class __SPEC__Spec : Specification<__ENTITY__>
+{
+    public __SPEC__Spec(string districtCode, int page, int pageSize)
+    {
+        Criteria = r => r.Status == ReportStatus.Submitted
+                     && r.DistrictCode == districtCode;
+
+        Includes.Add(r => r.Media);
+        OrderBy = r => r.CreatedAt;
+        Skip = (page - 1) * pageSize;
+        Take = pageSize;
+    }
+}
+
+
+// === USAGE in a handler ===
+//
+// var spec = new PendingVerificationInDistrictSpec(district, page, size);
+// var items = await SpecificationEvaluator.Apply(db.Reports, spec)
+//                                          .ToListAsync(cancellationToken);
+//
+// No repository needed — the spec is the boundary, and the handler keeps
+// using IApplicationDbContext directly.

@@ -1,0 +1,65 @@
+// =============================================================================
+// Greenlens — Test data builder template
+// File: tests/Greenlens.Application.IntegrationTests/Builders/__ENTITY__Builder.cs
+//
+// Fluent builder for creating valid entities in tests with minimal boilerplate.
+// Each method returns `this` for chaining; Build() materializes via the entity's
+// Create() factory.
+//
+// PLACEHOLDERS:
+//   __ENTITY__   e.g. Report
+// =============================================================================
+
+using Greenlens.Domain.Entities;
+using Greenlens.Domain.Enums;
+using Greenlens.Domain.ValueObjects;
+
+namespace Greenlens.Application.IntegrationTests.Builders;
+
+public sealed class __ENTITY__Builder
+{
+    private Guid          _reporterId  = Guid.CreateVersion7();
+    private double        _latitude    = 10.7769;            // Saigon, valid Vietnam
+    private double        _longitude   = 106.7009;
+    private PollutionType _category    = PollutionType.Trash;
+    private Severity      _severity    = Severity.Medium;
+    private string?       _description = null;
+    private List<Guid>    _mediaIds    = [Guid.CreateVersion7()];
+    private bool          _isAnonymous = false;
+    private DateTimeOffset _now        = new(2026, 5, 9, 10, 0, 0, TimeSpan.Zero);
+
+    public __ENTITY__Builder WithReporter(Guid id)        { _reporterId  = id;     return this; }
+    public __ENTITY__Builder At(double lat, double lng)   { _latitude    = lat; _longitude = lng; return this; }
+    public __ENTITY__Builder OfCategory(PollutionType c)  { _category    = c;      return this; }
+    public __ENTITY__Builder OfSeverity(Severity s)       { _severity    = s;      return this; }
+    public __ENTITY__Builder WithDescription(string? d)   { _description = d;      return this; }
+    public __ENTITY__Builder WithMedia(params Guid[] ids) { _mediaIds    = [..ids]; return this; }
+    public __ENTITY__Builder Anonymous()                  { _isAnonymous = true;   return this; }
+    public __ENTITY__Builder At(DateTimeOffset t)         { _now         = t;      return this; }
+
+    public __ENTITY__ Build()
+    {
+        var location = GeoLocation.Create(_latitude, _longitude).Value!;
+        var result = __ENTITY__.Create(
+            _reporterId, location, _category, _severity,
+            _description, _mediaIds, _isAnonymous, _now);
+
+        if (result.IsFailure)
+            throw new InvalidOperationException(
+                $"Builder produced invalid {nameof(__ENTITY__)}: {result.Error!.Code} — {result.Error.Message}");
+
+        return result.Value!;
+    }
+}
+
+
+// === USAGE in tests ===
+//
+// var report = new ReportBuilder()
+//     .At(10.7769, 106.7009)
+//     .OfCategory(PollutionType.IndustrialWaste)
+//     .OfSeverity(Severity.High)
+//     .WithDescription("Nhà máy xả thải đêm")
+//     .Build();
+//
+// await WithDb(async db => { db.Reports.Add(report); await db.SaveChangesAsync(); });

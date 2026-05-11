@@ -1,0 +1,76 @@
+// =============================================================================
+// Greenlens API — single action snippet
+// Drop into an existing <Resource>Controller.
+// Add the matching `using` for the Application.Features.<Module>.<UseCase>
+// namespace at the top of the file.
+//
+// PLACEHOLDERS:
+//   __ROUTE__       e.g. {id:guid}/verify
+//   __HTTP_VERB__   one of: HttpGet | HttpPost | HttpPut | HttpPatch | HttpDelete
+//   __ACTION__      e.g. Verify         (PascalCase verb, no "Async" suffix)
+//   __CMD_TYPE__    e.g. VerifyReportCommand
+//   __ROLES__       e.g. "Officer,Admin"     (or use [Authorize(Policy = ...)])
+//   __SUCCESS__     one of: NoContent | Ok | Created  (template covers all 3 below)
+//   __DTO__         used only if __SUCCESS__ = Ok
+// =============================================================================
+
+
+// ---- Variant: returns 204 NoContent (most state transitions: verify, reject, assign) ----
+[__HTTP_VERB__("__ROUTE__")]
+[Authorize(Roles = __ROLES__)]
+[ProducesResponseType(StatusCodes.Status204NoContent)]
+[ProducesResponseType(StatusCodes.Status400BadRequest)]
+[ProducesResponseType(StatusCodes.Status401Unauthorized)]
+[ProducesResponseType(StatusCodes.Status403Forbidden)]
+[ProducesResponseType(StatusCodes.Status404NotFound)]
+[ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+public async Task<IActionResult> __ACTION__(
+    [FromRoute] Guid id,
+    [FromBody] __CMD_TYPE__ command,
+    CancellationToken cancellationToken)
+{
+    // If the route carries the id but the command also has it, ensure they match.
+    if (command.Id != Guid.Empty && command.Id != id)
+        return BadRequest(new { error = "Route id does not match body id." });
+
+    var bound = command with { Id = id };                     // assumes record has init Id { get; init; }
+    var result = await mediator.Send(bound, cancellationToken);
+    return result.ToActionResult(_ => NoContent());
+}
+
+
+// ---- Variant: returns 200 OK with a DTO body ------------------------------------------
+// [__HTTP_VERB__("__ROUTE__")]
+// [Authorize(Roles = __ROLES__)]
+// [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(__DTO__))]
+// [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+// [ProducesResponseType(StatusCodes.Status403Forbidden)]
+// [ProducesResponseType(StatusCodes.Status404NotFound)]
+// public async Task<IActionResult> __ACTION__(
+//     [FromRoute] Guid id,
+//     CancellationToken cancellationToken)
+// {
+//     var result = await mediator.Send(new __CMD_TYPE__(id), cancellationToken);
+//     return result.ToActionResult();
+// }
+
+
+// ---- Variant: returns 201 Created (resource creation under a parent) ------------------
+// [__HTTP_VERB__("__ROUTE__")]
+// [Authorize(Roles = __ROLES__)]
+// [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(Guid))]
+// [ProducesResponseType(StatusCodes.Status400BadRequest)]
+// [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+// [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+// public async Task<IActionResult> __ACTION__(
+//     [FromRoute] Guid id,
+//     [FromBody] __CMD_TYPE__ command,
+//     CancellationToken cancellationToken)
+// {
+//     var bound = command with { ParentId = id };
+//     var result = await mediator.Send(bound, cancellationToken);
+//     return result.ToActionResult(newId => CreatedAtAction(
+//         nameof(GetById),
+//         new { id = newId, version = "1.0" },
+//         newId));
+// }

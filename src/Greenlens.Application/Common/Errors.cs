@@ -71,4 +71,94 @@ public static class Errors
             "Mật khẩu hiện tại không đúng.",
             ErrorType.Validation);
     }
+
+    public static class Users
+    {
+        public static Error UserNotFound => new(
+            "USER_NOT_FOUND",
+            "Không tìm thấy người dùng.",
+            ErrorType.NotFound);
+
+        public static Error CannotDeleteSelf => new(
+            "CANNOT_DELETE_SELF",
+            "Không thể xóa chính tài khoản của bạn.",
+            ErrorType.BusinessRule);
+
+        public static Error UserAlreadyDeleted => new(
+            "USER_ALREADY_DELETED",
+            "Người dùng đã bị xóa trước đó.",
+            ErrorType.Conflict);
+
+        public static Error InvalidFileType => new(
+            "INVALID_FILE_TYPE",
+            "Loại file không hợp lệ. Chỉ chấp nhận jpg, png, webp.",
+            ErrorType.Validation);
+
+        public static Error FileTooLarge => new(
+            "FILE_TOO_LARGE",
+            "File quá lớn. Kích thước tối đa là 5MB.",
+            ErrorType.Validation);
+
+        public static Error StorageUploadFailed => new(
+            "STORAGE_UPLOAD_FAILED",
+            "Không thể tải file lên máy chủ lưu trữ. Vui lòng thử lại sau.",
+            ErrorType.Unexpected);
+    }
+
+    public static class Media
+    {
+        public static Error InvalidImageType => new(
+            "INVALID_IMAGE_TYPE",
+            "Loại ảnh không hợp lệ. Chỉ chấp nhận jpg, png, webp, heic.",
+            ErrorType.Validation);
+
+        public static Error ImageTooLarge => new(
+            "IMAGE_TOO_LARGE",
+            "Ảnh quá lớn. Kích thước tối đa là 10MB.",
+            ErrorType.Validation);
+    }
+
+    public static class Catalog
+    {
+        public static Error ProvinceNotFound => new(
+            "PROVINCE_NOT_FOUND",
+            "Mã tỉnh/thành không hợp lệ hoặc không tồn tại.",
+            ErrorType.NotFound);
+    }
+
+    public static class Reports
+    {
+        public static Error CategoryNotFound => new(
+            "CATEGORY_NOT_FOUND",
+            "Danh mục ô nhiễm không tồn tại hoặc đã ngưng hoạt động.",
+            ErrorType.NotFound);
+
+        public static Error AuthenticationRequired => new(
+            "AUTHENTICATION_REQUIRED",
+            "Báo cáo không ẩn danh yêu cầu đăng nhập.",
+            ErrorType.Validation);
+
+        public static Error InvalidWardProvincePair => new(
+            "INVALID_WARD_PROVINCE",
+            "Mã phường/xã không khớp với tỉnh/thành hoặc không tồn tại trong danh mục.",
+            ErrorType.Validation);
+    }
+
+    public static class Map
+    {
+        public static Error InvalidBoundingBox => new(
+            "INVALID_BOUNDING_BOX",
+            "Khung nhìn map không hợp lệ (min/max hoặc nằm ngoài phạm vi Việt Nam).",
+            ErrorType.Validation);
+
+        public static Error BoundingBoxTooLarge => new(
+            "BOUNDING_BOX_TOO_LARGE",
+            "Khung nhìn quá rộng. Vui lòng zoom gần hơn.",
+            ErrorType.Validation);
+
+        public static Error InvalidMapMode => new(
+            "INVALID_MAP_MODE",
+            "mode phải là detail hoặc aggregate.",
+            ErrorType.Validation);
+    }
 }

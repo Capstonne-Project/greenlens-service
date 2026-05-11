@@ -1,0 +1,96 @@
+// =============================================================================
+// Greenlens API Controller — template
+// Project: SU26SE049
+//
+// PLACEHOLDERS:
+//   __RESOURCE__         e.g. Reports                  (PascalCase plural)
+//   __RESOURCE_KEBAB__   e.g. reports                   (lower-kebab plural)
+//   __MODULE__           e.g. Reports                   (Application feature folder)
+//   __CMD_TYPE__         e.g. SubmitReportCommand
+//   __CMD_USECASE__      e.g. SubmitReport              (folder under Features/__MODULE__/)
+//   __QUERY_TYPE__       e.g. GetReportByIdQuery
+//   __QUERY_USECASE__    e.g. GetReportById
+//   __LIST_QUERY_TYPE__  e.g. GetNearbyReportsQuery
+//   __LIST_USECASE__     e.g. GetNearbyReports
+//   __DTO__              e.g. ReportDetailDto
+//   __LIST_ITEM_DTO__    e.g. ReportListItemDto
+// =============================================================================
+
+
+// === FILE: src/Greenlens.Api/Controllers/V1/__RESOURCE__Controller.cs ===
+using Asp.Versioning;
+using MediatR;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Greenlens.Api.Common;                                  // ToActionResult()
+using Greenlens.Application.Common.Models;                    // PagedList<T>
+using Greenlens.Application.Features.__MODULE__.__CMD_USECASE__;
+using Greenlens.Application.Features.__MODULE__.__QUERY_USECASE__;
+using Greenlens.Application.Features.__MODULE__.__LIST_USECASE__;
+
+namespace Greenlens.Api.Controllers.V1;
+
+/// <summary>
+/// HTTP surface for the __RESOURCE__ resource.
+/// Routes: /api/v1/__RESOURCE_KEBAB__
+/// </summary>
+[ApiController]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/__RESOURCE_KEBAB__")]
+[Produces("application/json")]
+public sealed class __RESOURCE__Controller(ISender mediator) : ControllerBase
+{
+    // -------------------------------------------------------------------------
+    // POST /api/v1/__RESOURCE_KEBAB__
+    // Create a __RESOURCE__. Maps to __CMD_TYPE__.
+    // -------------------------------------------------------------------------
+    [HttpPost]
+    [Authorize(Roles = "Citizen,Admin")]                      // BR-AUTH-008 default role; adjust per BR role matrix
+    [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(Guid))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> Create(
+        [FromBody] __CMD_TYPE__ command,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(command, cancellationToken);
+        return result.ToActionResult(id => CreatedAtAction(
+            nameof(GetById),
+            new { id, version = "1.0" },
+            id));
+    }
+
+    // -------------------------------------------------------------------------
+    // GET /api/v1/__RESOURCE_KEBAB__/{id}
+    // -------------------------------------------------------------------------
+    [HttpGet("{id:guid}")]
+    [Authorize]                                               // any authenticated user; tighten if BR demands
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(__DTO__))]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetById(
+        [FromRoute] Guid id,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new __QUERY_TYPE__(id), cancellationToken);
+        return result.ToActionResult();
+    }
+
+    // -------------------------------------------------------------------------
+    // GET /api/v1/__RESOURCE_KEBAB__
+    // List/search. Query params bind to the Query record.
+    // -------------------------------------------------------------------------
+    [HttpGet]
+    [AllowAnonymous]                                          // public map data; honor BR-MAP-004 (round GPS, hide PII)
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedList<__LIST_ITEM_DTO__>))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> List(
+        [FromQuery] __LIST_QUERY_TYPE__ query,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(query, cancellationToken);
+        return result.ToActionResult();
+    }
+}

@@ -1,0 +1,106 @@
+// =============================================================================
+// Greenlens Domain — VALUE OBJECT template
+//
+// File: src/Greenlens.Domain/ValueObjects/__VALUEOBJECT__.cs
+//
+// PLACEHOLDERS:
+//   __VALUEOBJECT__   e.g. GeoLocation, Email, PhoneNumber, Money
+//
+// CHỌN GIỮA record / record struct / class:
+//   - record struct: nhỏ (≤ 16 byte), giá trị thường (GeoLocation, Money) — tránh allocation.
+//   - record (class): có collection inside, hoặc tham chiếu đến entity khác.
+//   - sealed class with manual equality: chỉ dùng nếu cần custom equality logic.
+//
+// VALUE OBJECT RULES:
+//   - Immutable. KHÔNG có setter — chỉ init-only properties.
+//   - Equality by value (record + record struct làm sẵn).
+//   - Validation trong factory `Create()`, KHÔNG trong constructor.
+//   - Throws ONLY for "developer bug" (vd. null bắt buộc) — business validation
+//     trả về Result&lt;__VALUEOBJECT__&gt;.
+// =============================================================================
+
+using Greenlens.Domain.Common;
+using Greenlens.Domain.Errors;
+
+namespace Greenlens.Domain.ValueObjects;
+
+
+// ---- VARIANT A: record struct (small, copyable) ----------------------------
+// Use for: GeoLocation, Money, Coordinates, DateRange, Range<T>
+
+public readonly record struct GeoLocation
+{
+    public double Latitude  { get; init; }
+    public double Longitude { get; init; }
+
+    /// <summary>
+    /// Create a new GeoLocation. Validates Vietnam bounds (BR-REP-003).
+    /// </summary>
+    public static Result<GeoLocation> Create(double latitude, double longitude)
+    {
+        // BR-REP-003: Vietnam bounds
+        if (latitude is < 8.0 or > 24.0)
+            return Result<GeoLocation>.Failure(Errors.GeoLocation.OutOfVietnamBounds);
+
+        if (longitude is < 102.0 or > 110.0)
+            return Result<GeoLocation>.Failure(Errors.GeoLocation.OutOfVietnamBounds);
+
+        return Result<GeoLocation>.Success(new GeoLocation
+        {
+            Latitude  = latitude,
+            Longitude = longitude,
+        });
+    }
+}
+
+
+// ---- VARIANT B: record class (when the value object is more complex) ------
+
+public sealed record Email
+{
+    public string Value { get; init; }
+
+    private Email(string value) => Value = value;
+
+    public static Result<Email> Create(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return Result<Email>.Failure(Errors.Email.Empty);
+
+        if (raw.Length > 254)                              // RFC 5321
+            return Result<Email>.Failure(Errors.Email.TooLong);
+
+        // Lightweight check; full validation server-side via SMTP confirmation.
+        if (!raw.Contains('@') || raw.IndexOf('@') == 0 || raw.IndexOf('@') == raw.Length - 1)
+            return Result<Email>.Failure(Errors.Email.InvalidFormat);
+
+        return Result<Email>.Success(new Email(raw.Trim().ToLowerInvariant()));
+    }
+
+    public override string ToString() => Value;
+    public static implicit operator string(Email e) => e.Value;
+}
+
+
+// ---- VARIANT C: complex object with multiple parts -------------------------
+
+public sealed record Money(decimal Amount, string Currency)
+{
+    public static Result<Money> Create(decimal amount, string currency)
+    {
+        if (amount < 0)
+            return Result<Money>.Failure(Errors.Money.Negative);
+
+        if (string.IsNullOrWhiteSpace(currency) || currency.Length != 3)
+            return Result<Money>.Failure(Errors.Money.InvalidCurrency);
+
+        return Result<Money>.Success(new Money(amount, currency.ToUpperInvariant()));
+    }
+
+    public Money Add(Money other)
+    {
+        if (Currency != other.Currency)
+            throw new InvalidOperationException("Cannot add different currencies");
+        return this with { Amount = Amount + other.Amount };
+    }
+}

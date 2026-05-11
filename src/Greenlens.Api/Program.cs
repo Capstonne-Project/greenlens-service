@@ -2,6 +2,8 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Greenlens.Api.Middlewares;
 using Greenlens.Infrastructure;
+using Greenlens.Infrastructure.Seeders.Administrator;
+using Microsoft.AspNetCore.HttpOverrides;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -12,6 +14,20 @@ builder.Host.UseSerilog((context, config) =>
 
 // ── Infrastructure (DB, Auth, MediatR, etc.) ─────────
 builder.Services.AddInfrastructure(builder.Configuration);
+
+// ── Health checks (Docker healthcheck + Tunnel smoke test) ──
+builder.Services.AddHealthChecks();
+
+// ── CORS ─────────────────────────────────────────────
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
 
 // ── Controllers ──────────────────────────────────────
 builder.Services.AddControllers()
@@ -64,6 +80,12 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
+// ── Forwarded headers (Cloudflare Tunnel / reverse proxy) ──
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
+
 // ── Middleware pipeline ──────────────────────────────
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
@@ -71,18 +93,24 @@ if (app.Environment.IsDevelopment())
 {
     // Auto migrate database in dev
     await app.Services.MigrateDatabaseAsync();
-
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "GreenLens API v1");
-        c.RoutePrefix = "swagger";
-    });
 }
 
-app.UseHttpsRedirection();
+// Swagger enabled in all environments (FE team needs API docs on VPS)
+app.UseSwagger();
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "GreenLens API v1");
+    c.RoutePrefix = "swagger";
+});
+
+app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHealthChecks("/health");
 
 app.Run();
+
+// chạy ở terminal trong thư mục gốc
+// dotnet ef migrations add <TenMigration> --project src/Greenlens.Infrastructure --startup-project src/Greenlens.Api
+// dotnet ef database update --project src/Greenlens.Infrastructure --startup-project src/Greenlens.Api

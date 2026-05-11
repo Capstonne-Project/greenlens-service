@@ -1,0 +1,181 @@
+// =============================================================================
+// Greenlens Domain — AGGREGATE ROOT template
+// Project: SU26SE049
+//
+// File: src/Greenlens.Domain/Entities/__ENTITY__.cs
+//
+// PLACEHOLDERS:
+//   __ENTITY__         e.g. Report
+//   __STATE_ENUM__     e.g. ReportStatus
+//   __INITIAL_STATE__  e.g. Submitted
+//   __BR_IDS__         e.g. BR-REP-013, BR-REP-020, BR-REP-021
+//
+// CONVENTIONS (OVERVIEW.md §3 / §4):
+//   - Zero framework imports. Pure C#.
+//   - Class, not record (has identity + behavior).
+//   - Private setters everywhere.
+//   - Constructor private or protected; Create() factory is the only public path.
+//   - State machine encoded as transition methods returning Result.
+//   - Each transition raises a domain event.
+//   - Child collections exposed as IReadOnlyList<T>.
+// =============================================================================
+
+using Greenlens.Domain.Common;
+using Greenlens.Domain.Enums;
+using Greenlens.Domain.Errors;
+using Greenlens.Domain.Events;
+using Greenlens.Domain.ValueObjects;
+
+namespace Greenlens.Domain.Entities;
+
+/// <summary>
+/// __ENTITY__ aggregate root.
+/// </summary>
+/// <remarks>
+/// Implements: __BR_IDS__.
+/// State machine — see OVERVIEW.md §5 (the diagram).
+/// </remarks>
+public sealed class __ENTITY__ : SoftDeletableEntity     // or AuditableEntity if no soft-delete
+{
+    // ---- Backing fields for child collections --------------------------------
+    private readonly List<__ENTITY__Media> _media = [];
+    private readonly List<StatusHistoryEntry> _statusHistory = [];
+
+    // ---- Properties (all private setters) ------------------------------------
+    public Guid ReporterId { get; private set; }
+    public GeoLocation Location { get; private set; } = default!;
+    public PollutionType Category { get; private set; }
+    public Severity Severity { get; private set; }
+    public string? Description { get; private set; }
+    public bool IsAnonymous { get; private set; }
+
+    // State + transition timestamps
+    public __STATE_ENUM__ Status { get; private set; }
+    public DateTimeOffset? VerifiedAt { get; private set; }
+    public Guid? VerifiedBy { get; private set; }
+    public DateTimeOffset? ResolvedAt { get; private set; }
+    public DateTimeOffset? ClosedAt { get; private set; }
+
+    public IReadOnlyList<__ENTITY__Media> Media => _media.AsReadOnly();
+    public IReadOnlyList<StatusHistoryEntry> StatusHistory => _statusHistory.AsReadOnly();
+
+    // ---- Re-hydration constructor (EF Core) ----------------------------------
+    // EF needs a parameterless or matching ctor. Make it private so app code
+    // cannot bypass Create().
+    private __ENTITY__() { }
+
+    // ---- Factory ---------------------------------------------------------------
+    /// <summary>
+    /// Create a new __ENTITY__. Enforces creation invariants.
+    /// </summary>
+    /// <remarks>Implements: __BR_IDS__ (initial state).</remarks>
+    public static Result<__ENTITY__> Create(
+        Guid reporterId,
+        GeoLocation location,
+        PollutionType category,
+        Severity severity,
+        string? description,
+        IEnumerable<Guid> mediaIds,
+        bool isAnonymous,
+        DateTimeOffset now)
+    {
+        if (reporterId == Guid.Empty)
+            return Result<__ENTITY__>.Failure(Errors.__ENTITY__.InvalidReporter);
+
+        var mediaList = mediaIds?.ToList() ?? [];
+        if (mediaList.Count == 0)
+            return Result<__ENTITY__>.Failure(Errors.__ENTITY__.PhotoRequired);          // BR-REP-001
+
+        if (mediaList.Count > 5)
+            return Result<__ENTITY__>.Failure(Errors.__ENTITY__.TooManyMedia);            // BR-REP-002
+
+        if (description is { Length: > 1000 })
+            return Result<__ENTITY__>.Failure(Errors.__ENTITY__.DescriptionTooLong);     // BR-REP-004
+
+        var entity = new __ENTITY__
+        {
+            Id          = Guid.CreateVersion7(),
+            ReporterId  = reporterId,
+            Location    = location,
+            Category    = category,
+            Severity    = severity,
+            Description = description,
+            IsAnonymous = isAnonymous,
+            Status      = __STATE_ENUM__.__INITIAL_STATE__,                              // BR-REP-013
+        };
+
+        foreach (var mid in mediaList)
+            entity._media.Add(__ENTITY__Media.Attach(entity.Id, mid));
+
+        entity._statusHistory.Add(StatusHistoryEntry.Create(reporterId, __STATE_ENUM__.__INITIAL_STATE__, now));
+        entity.Raise(new __ENTITY__SubmittedEvent(entity.Id, reporterId, now));
+
+        return Result<__ENTITY__>.Success(entity);
+    }
+
+    // ---- Transition methods --------------------------------------------------
+    // Each method:
+    //   1. Guards current state
+    //   2. Validates BR-specific rules
+    //   3. Mutates state via private setters
+    //   4. Records history
+    //   5. Raises a domain event
+
+    /// <summary>Officer xác minh báo cáo hợp lệ.</summary>
+    /// <remarks>Implements: BR-REP-020, BR-REP-021, BR-OFF-004.</remarks>
+    public Result Verify(Guid officerId, DateTimeOffset now)
+    {
+        if (Status != __STATE_ENUM__.Submitted)
+            return Result.Failure(Errors.__ENTITY__.InvalidTransition(Status, nameof(Verify)));
+
+        if (officerId == ReporterId)
+            return Result.Failure(Errors.Officer.ConflictOfInterest);                    // BR-OFF-004
+
+        Status     = __STATE_ENUM__.Verified;
+        VerifiedAt = now;
+        VerifiedBy = officerId;
+        _statusHistory.Add(StatusHistoryEntry.Create(officerId, __STATE_ENUM__.Verified, now));
+        Raise(new __ENTITY__VerifiedEvent(Id, officerId, now));
+        return Result.Success();
+    }
+
+    /// <summary>Officer từ chối báo cáo (rác giả, sai vị trí…).</summary>
+    /// <remarks>Implements: BR-REP-020, BR-REP-022 (reason ≥ 20 chars).</remarks>
+    public Result Reject(Guid officerId, string reason, DateTimeOffset now)
+    {
+        if (Status != __STATE_ENUM__.Submitted)
+            return Result.Failure(Errors.__ENTITY__.InvalidTransition(Status, nameof(Reject)));
+
+        if (string.IsNullOrWhiteSpace(reason) || reason.Length < 20)
+            return Result.Failure(Errors.__ENTITY__.RejectReasonTooShort);                // BR-REP-022
+
+        Status = __STATE_ENUM__.Rejected;
+        _statusHistory.Add(StatusHistoryEntry.Create(officerId, __STATE_ENUM__.Rejected, now, reason));
+        Raise(new __ENTITY__RejectedEvent(Id, officerId, reason, now));
+        return Result.Success();
+    }
+
+    /// <summary>Đóng báo cáo (citizen confirm hoặc auto sau 7 ngày).</summary>
+    /// <remarks>Implements: BR-REP-016, BR-REP-025.</remarks>
+    public Result Close(Guid? actorId, DateTimeOffset now)
+    {
+        if (Status != __STATE_ENUM__.Resolved)
+            return Result.Failure(Errors.__ENTITY__.InvalidTransition(Status, nameof(Close)));
+
+        Status   = __STATE_ENUM__.Closed;
+        ClosedAt = now;
+        _statusHistory.Add(StatusHistoryEntry.Create(actorId ?? Guid.Empty, __STATE_ENUM__.Closed, now));
+        Raise(new __ENTITY__ClosedEvent(Id, actorId, now));
+        return Result.Success();
+    }
+
+    // ---- Collection mutators (NOT public collection access) -------------------
+    public Result AddMedia(Guid mediaId)
+    {
+        if (_media.Count >= 5)
+            return Result.Failure(Errors.__ENTITY__.TooManyMedia);
+
+        _media.Add(__ENTITY__Media.Attach(Id, mediaId));
+        return Result.Success();
+    }
+}

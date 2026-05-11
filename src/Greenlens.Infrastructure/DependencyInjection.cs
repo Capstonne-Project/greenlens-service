@@ -7,6 +7,8 @@ using Greenlens.Infrastructure.Email;
 using Greenlens.Infrastructure.Identity;
 using Greenlens.Infrastructure.Persistence;
 using Greenlens.Infrastructure.Persistence.Repositories;
+using Greenlens.Infrastructure.Persistence.Repositories.Location;
+
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -27,11 +29,17 @@ public static class DependencyInjection
             options.UseNpgsql(
                 configuration.GetConnectionString("DefaultConnection"),
                 o => o.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName))
-            .UseSnakeCaseNamingConvention());
+            .UseSnakeCaseNamingConvention()
+            .ConfigureWarnings(w => w.Ignore(
+                Microsoft.EntityFrameworkCore.Diagnostics.CoreEventId.PossibleIncorrectRequiredNavigationWithQueryFilterInteractionWarning)));
 
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IOtpRepository, OtpRepository>();
+        services.AddScoped<IPollutionCategoryRepository, PollutionCategoryRepository>();
+        services.AddScoped<IReportRepository, ReportRepository>();
+        services.AddScoped<IReportMediaRepository, ReportMediaRepository>();
+        services.AddScoped<IReportStatusHistoryRepository, ReportStatusHistoryRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         // ── Identity & Auth ──────────────────────────────
@@ -43,6 +51,9 @@ public static class DependencyInjection
 
         // ── Email ────────────────────────────────────────
         services.AddScoped<IEmailSender, SmtpEmailSender>();
+
+        // ── File Storage (R2 Cloudflare) ────────────────
+        services.AddSingleton<IFileStorageService, Storage.R2FileStorageService>();
 
         // ── MediatR ──────────────────────────────────────
         services.AddMediatR(cfg =>
@@ -68,9 +79,22 @@ public static class DependencyInjection
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
+        // ── Map Migrations ────────────────────────────────
+        services.AddScoped<IAdministrativeRegionRepository, AdministrativeRegionRepository>();
+        services.AddScoped<IAdministrativeUnitRepository, AdministrativeUnitRepository>();
+        services.AddScoped<IProvinceRepository, ProvinceRepository>();
+        services.AddScoped<IWardRepository, WardRepository>();
+        services.AddOptions<Storage.R2Options>()
+            .Bind(configuration.GetSection("R2"))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
         // ── JWT Authentication ───────────────────────────
         var jwtSection = configuration.GetSection("Jwt");
         var secret = jwtSection["Secret"]!;
+
+
+        
 
         services.AddAuthentication(options =>
         {
@@ -95,19 +119,5 @@ public static class DependencyInjection
         services.AddAuthorization();
 
         return services;
-    }
-
-    /// <summary>
-    /// Apply pending EF Core migrations and seed initial data. Use in Development only.
-    /// </summary>
-    public static async Task MigrateDatabaseAsync(this IServiceProvider services)
-    {
-        using var scope = services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var logger = scope.ServiceProvider.GetRequiredService<Microsoft.Extensions.Logging.ILoggerFactory>()
-            .CreateLogger("DatabaseSeeder");
-
-        await db.Database.MigrateAsync().ConfigureAwait(false);
-        await DatabaseSeeder.SeedAsync(db, logger).ConfigureAwait(false);
     }
 }
