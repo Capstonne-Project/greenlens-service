@@ -25,6 +25,7 @@ public sealed class User : SoftDeletableEntity
     public string? AvatarUrl { get; private set; }
     public UserRole Role { get; private set; }
     public bool IsEmailVerified { get; private set; }
+    public bool IsPhoneVerified { get; private set; }
     public int FailedLoginAttempts { get; private set; }
     public DateTime? LockoutEnd { get; private set; }
     public string? GoogleId { get; private set; }
@@ -38,6 +39,22 @@ public sealed class User : SoftDeletableEntity
             FullName = fullName,
             Role = role,
             IsEmailVerified = false,
+            FailedLoginAttempts = 0
+        };
+
+        return user;
+    }
+
+    /// <summary>BR-ADM: Admin creates an account with email pre-verified.</summary>
+    public static User CreateByAdmin(string email, string passwordHash, string fullName, UserRole role)
+    {
+        var user = new User
+        {
+            Email = email.ToLowerInvariant(),
+            PasswordHash = passwordHash,
+            FullName = fullName,
+            Role = role,
+            IsEmailVerified = true, // admin-created → skip email verification
             FailedLoginAttempts = 0
         };
 
@@ -102,10 +119,16 @@ public sealed class User : SoftDeletableEntity
         GoogleId = googleId;
     }
 
-    public void UpdateProfile(string? fullName = null, string? phoneNumber = null, string? avatarUrl = null)
+    /// <summary>Verify phone number via OTP — updates phone and marks as verified.</summary>
+    public void VerifyPhone(string phoneNumber)
+    {
+        PhoneNumber = phoneNumber;
+        IsPhoneVerified = true;
+    }
+
+    public void UpdateProfile(string? fullName = null, string? avatarUrl = null)
     {
         if (fullName is not null) FullName = fullName;
-        if (phoneNumber is not null) PhoneNumber = phoneNumber;
         if (avatarUrl is not null) AvatarUrl = avatarUrl;
     }
 

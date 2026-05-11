@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using Greenlens.Api.Middlewares;
 using Greenlens.Infrastructure;
 using Greenlens.Infrastructure.Seeders.Administrator;
+using Microsoft.AspNetCore.HttpOverrides;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -14,8 +15,50 @@ builder.Host.UseSerilog((context, config) =>
 // ── Infrastructure (DB, Auth, MediatR, etc.) ─────────
 builder.Services.AddInfrastructure(builder.Configuration);
 
+// ── Health checks (Docker healthcheck + Tunnel smoke test) ──
+builder.Services.AddHealthChecks();
+
+// ── CORS ─────────────────────────────────────────────
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
 // ── Controllers ──────────────────────────────────────
-builder.Services.AddControllers()
+builder.Services.AddControllers(options =>
+    {
+        // Override default [ApiController] model binding error response
+        // to return ApiResponse instead of ValidationProblemDetails
+    })
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var errors = context.ModelState
+                .Where(e => e.Value?.Errors.Count > 0)
+                .Select(e => new
+                {
+                    field = e.Key,
+                    message = e.Value!.Errors.First().ErrorMessage
+                })
+                .ToList();
+
+            var response = new Greenlens.Application.Common.Models.ApiResponse
+            {
+                Code = "VALIDATION_ERROR",
+                Message = "Dữ liệu đầu vào không hợp lệ.",
+                Status = 400,
+                Data = new { errors }
+            };
+
+            return new Microsoft.AspNetCore.Mvc.BadRequestObjectResult(response);
+        };
+    })
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
@@ -65,26 +108,31 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
+// ── Forwarded headers (Cloudflare Tunnel / reverse proxy) ──
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
+
 // ── Middleware pipeline ──────────────────────────────
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
-if (app.Environment.IsDevelopment())
+// ── Auto migrate database on startup ──
+await app.Services.MigrateDatabaseAsync();
+
+// Swagger enabled in all environments (FE team needs API docs on VPS)
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    // Auto migrate database in dev
-    await app.Services.MigrateDatabaseAsync();
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "GreenLens API v1");
+    c.RoutePrefix = "swagger";
+});
 
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "GreenLens API v1");
-        c.RoutePrefix = "swagger";
-    });
-}
-
-app.UseHttpsRedirection();
+app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHealthChecks("/health");
 
 app.Run();
 

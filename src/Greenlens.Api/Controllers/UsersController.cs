@@ -2,8 +2,10 @@ using Greenlens.Api.Extensions;
 using Greenlens.Application.Common.Models;
 using Greenlens.Application.Features.Users;
 using Greenlens.Application.Features.Users.GetProfile;
+using Greenlens.Application.Features.Users.RequestPhoneOtp;
 using Greenlens.Application.Features.Users.UpdateUserProfile;
 using Greenlens.Application.Features.Users.UploadUserAvatar;
+using Greenlens.Application.Features.Users.VerifyPhoneOtp;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -23,15 +25,17 @@ public sealed class UsersController(ISender sender) : ControllerBase
         Description = "Get the authenticated user's own profile. Uses JWT token — no userId needed.")]
     [SwaggerResponse(200, "User profile", typeof(ApiResponse<UserDetailDto>))]
     [SwaggerResponse(401, "Unauthorized", typeof(ApiResponse))]
+    [SwaggerResponse(404, "User not found", typeof(ApiResponse))]
     public async Task<IActionResult> GetProfileAsync(CancellationToken ct)
         => (await sender.Send(new GetProfileQuery(), ct)).ToHttp();
 
     [HttpPut("profile")]
     [SwaggerOperation(
         Summary = "Update My Profile",
-        Description = "Update the authenticated user's own profile (name, phone). Uses JWT token.")]
+        Description = "Update the authenticated user's own profile (name only). Phone changes via OTP verification.")]
     [SwaggerResponse(200, "Profile updated", typeof(ApiResponse<UpdateUserProfileResponse>))]
     [SwaggerResponse(401, "Unauthorized", typeof(ApiResponse))]
+    [SwaggerResponse(404, "User not found", typeof(ApiResponse))]
     [SwaggerResponse(422, "Validation error", typeof(ApiResponse))]
     public async Task<IActionResult> UpdateProfileAsync(
         [FromBody] UpdateUserProfileCommand command,
@@ -44,7 +48,9 @@ public sealed class UsersController(ISender sender) : ControllerBase
         Description = "Upload a new avatar image (jpg/png/webp, max 5MB). Uses JWT token. Stores on R2 Cloudflare.")]
     [SwaggerResponse(200, "Avatar uploaded", typeof(ApiResponse<UploadUserAvatarResponse>))]
     [SwaggerResponse(401, "Unauthorized", typeof(ApiResponse))]
+    [SwaggerResponse(404, "User not found", typeof(ApiResponse))]
     [SwaggerResponse(422, "Invalid file type or too large", typeof(ApiResponse))]
+    [SwaggerResponse(500, "Storage upload failed", typeof(ApiResponse))]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> UploadAvatarAsync(
         IFormFile file,
@@ -68,4 +74,32 @@ public sealed class UsersController(ISender sender) : ControllerBase
 
         return (await sender.Send(command, ct)).ToHttp();
     }
+
+    // ── Phone Verification ────────────────────────────
+
+    [HttpPost("phone/request-otp")]
+    [SwaggerOperation(
+        Summary = "Request Phone OTP",
+        Description = "Send an OTP via SMS to verify a new phone number. Rate limited to 5/day.")]
+    [SwaggerResponse(200, "OTP sent", typeof(ApiResponse<RequestPhoneOtpResponse>))]
+    [SwaggerResponse(401, "Unauthorized", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Invalid phone format or rate limited", typeof(ApiResponse))]
+    [SwaggerResponse(500, "SMS send failed", typeof(ApiResponse))]
+    public async Task<IActionResult> RequestPhoneOtpAsync(
+        [FromBody] RequestPhoneOtpCommand command,
+        CancellationToken ct)
+        => (await sender.Send(command, ct)).ToHttp();
+
+    [HttpPost("phone/verify")]
+    [SwaggerOperation(
+        Summary = "Verify Phone OTP",
+        Description = "Verify the OTP sent via SMS and update the user's phone number.")]
+    [SwaggerResponse(200, "Phone verified", typeof(ApiResponse<VerifyPhoneOtpResponse>))]
+    [SwaggerResponse(401, "Unauthorized", typeof(ApiResponse))]
+    [SwaggerResponse(409, "Phone already used by another account", typeof(ApiResponse))]
+    [SwaggerResponse(422, "OTP invalid, expired, or max attempts", typeof(ApiResponse))]
+    public async Task<IActionResult> VerifyPhoneOtpAsync(
+        [FromBody] VerifyPhoneOtpCommand command,
+        CancellationToken ct)
+        => (await sender.Send(command, ct)).ToHttp();
 }

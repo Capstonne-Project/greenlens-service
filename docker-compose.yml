@@ -1,0 +1,84 @@
+# =============================================================================
+# Greenlens — docker-compose.yml (production on VPS)
+# Project: SU26SE049
+#
+# Path on VPS: /opt/greenlens/docker-compose.yml
+# Sibling files: .env.production, logs/
+#
+# Networking:
+#   - api binds 127.0.0.1:8080 only (Cloudflare Tunnel routes to this)
+#   - postgres, redis: NO host ports — only reachable from api via internal network
+#
+# Run:
+#   cd /opt/greenlens
+#   docker compose --env-file .env.production up -d
+# =============================================================================
+
+services:
+  api:
+    image: ghcr.io/capstonne-project/greenlens-api:latest
+    container_name: greenlens-api
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      # Connection strings override appsettings.json
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};Include Error Detail=false
+      ASPNETCORE_ENVIRONMENT:      Production
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+    ports:
+      - "127.0.0.1:8080:8080"                                # localhost only — Tunnel routes here
+    volumes:
+      - ./logs:/app/logs                                      # Serilog file sink writes here
+    networks: [internal]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis:    { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+  postgres:
+    image: postgis/postgis:16-3.5
+    container_name: greenlens-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       ${POSTGRES_DB}
+      POSTGRES_USER:     ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups                                    # for pg_dump scheduled job
+    # NO ports section — only reachable from api via internal network
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: greenlens-redis
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - redis_data:/data
+    # NO ports section
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:

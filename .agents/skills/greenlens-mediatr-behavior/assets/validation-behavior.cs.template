@@ -1,0 +1,72 @@
+// =============================================================================
+// Greenlens — ValidationBehavior
+// File: src/Greenlens.Application/Common/Behaviors/ValidationBehavior.cs
+//
+// Runs all FluentValidation IValidator<TRequest> for the request. Aggregates
+// errors and short-circuits with a failed Result instead of letting the
+// handler run.
+//
+// Position in pipeline: 1 (outermost) — bad input never reaches downstream.
+// =============================================================================
+
+using FluentValidation;
+using MediatR;
+using Greenlens.Domain.Common;
+
+namespace Greenlens.Application.Common.Behaviors;
+
+public sealed class ValidationBehavior<TRequest, TResponse>(
+    IEnumerable<IValidator<TRequest>> validators)
+    : IPipelineBehavior<TRequest, TResponse> where TRequest : notnull
+{
+    public async Task<TResponse> Handle(
+        TRequest request,
+        RequestHandlerDelegate<TResponse> next,
+        CancellationToken cancellationToken)
+    {
+        if (!validators.Any())
+            return await next();
+
+        var context = new ValidationContext<TRequest>(request);
+        var failures = await Task.WhenAll(
+            validators.Select(v => v.ValidateAsync(context, cancellationToken)));
+
+        var errors = failures
+            .SelectMany(f => f.Errors)
+            .Where(e => e is not null)
+            .ToList();
+
+        if (errors.Count == 0)
+            return await next();
+
+        // Build a single Validation error with all messages
+        var combined = string.Join("; ", errors.Select(e => $"{e.PropertyName}: {e.ErrorMessage}"));
+        var error    = new Error("validation.failed", combined, ErrorType.Validation);
+
+        return CreateFailedResponse(error);
+    }
+
+    /// <summary>
+    /// Build a failed TResponse via reflection.
+    /// TResponse is expected to be Result or Result&lt;T&gt;.
+    /// </summary>
+    private static TResponse CreateFailedResponse(Error error)
+    {
+        var responseType = typeof(TResponse);
+
+        // Result (non-generic)
+        if (responseType == typeof(Result))
+            return (TResponse)(object)Result.Failure(error);
+
+        // Result<T>
+        if (responseType.IsGenericType && responseType.GetGenericTypeDefinition() == typeof(Result<>))
+        {
+            var failureMethod = responseType.GetMethod(nameof(Result<int>.Failure), [typeof(Error)])!;
+            return (TResponse)failureMethod.Invoke(null, [error])!;
+        }
+
+        // Fallback: handler doesn't return Result — throw so dev fixes the contract
+        throw new InvalidOperationException(
+            $"ValidationBehavior expects TResponse to be Result or Result<T>, got {responseType.Name}");
+    }
+}

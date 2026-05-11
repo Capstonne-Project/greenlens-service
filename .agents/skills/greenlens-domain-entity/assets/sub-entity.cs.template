@@ -1,0 +1,40 @@
+// =============================================================================
+// Greenlens Domain — SUB-ENTITY template (lives inside an aggregate)
+//
+// File: src/Greenlens.Domain/Entities/__ENTITY__.cs
+//
+// SUB-ENTITY characteristics:
+//   - Has identity (Id) so it persists separately, but its lifecycle is owned
+//     by an aggregate root.
+//   - Created via factory methods on the aggregate, NOT by external code.
+//   - Does NOT raise domain events directly — the aggregate root does.
+//   - Has its own static factory but no Result wrapper (creation invariants
+//     are simple — the aggregate enforces composite rules).
+//
+// Examples in Greenlens: ReportMedia, StatusHistoryEntry, UserBadge.
+// =============================================================================
+
+using Greenlens.Domain.Common;
+using Greenlens.Domain.Enums;
+
+namespace Greenlens.Domain.Entities;
+
+public sealed class __ENTITY__ : Entity
+{
+    public Guid ParentId { get; private set; }
+    public DateTimeOffset At { get; private set; }
+    // ... other properties
+
+    private __ENTITY__() { }     // EF re-hydration
+
+    /// <summary>Factory — chỉ aggregate root (parent) gọi.</summary>
+    internal static __ENTITY__ Create(Guid parentId, DateTimeOffset at /*, ...*/)
+    {
+        return new __ENTITY__
+        {
+            Id       = Guid.CreateVersion7(),
+            ParentId = parentId,
+            At       = at,
+        };
+    }
+}

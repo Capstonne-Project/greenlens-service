@@ -186,6 +186,11 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_used");
 
+                    b.Property<string>("PhoneNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("phone_number");
+
                     b.Property<string>("Purpose")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -197,6 +202,9 @@ namespace Greenlens.Infrastructure.Migrations
 
                     b.HasIndex("Email", "Purpose", "ExpiresAt")
                         .HasDatabaseName("ix_otp_codes_email_purpose_expires_at");
+
+                    b.HasIndex("PhoneNumber", "Purpose", "ExpiresAt")
+                        .HasDatabaseName("ix_otp_codes_phone_number_purpose_expires_at");
 
                     b.ToTable("otp_codes", (string)null);
                 });
@@ -829,6 +837,12 @@ namespace Greenlens.Infrastructure.Migrations
                     b.Property<bool>("IsEmailVerified")
                         .HasColumnType("boolean")
                         .HasColumnName("is_email_verified");
+
+                    b.Property<bool>("IsPhoneVerified")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_phone_verified");
 
                     b.Property<DateTime?>("LockoutEnd")
                         .HasColumnType("timestamp with time zone")

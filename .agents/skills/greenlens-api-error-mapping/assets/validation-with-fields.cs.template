@@ -1,0 +1,96 @@
+// =============================================================================
+// Greenlens — Per-field validation errors in API response
+//
+// Goal: when validation fails on multiple fields, the response includes a
+// machine-readable map so the FE can highlight the right inputs.
+//
+// Wire shape (ASP.NET Core convention):
+//
+//   {
+//     "type": "https://greenlens.example/errors/reports.validation_failed",
+//     "title": "Validation failed",
+//     "status": 400,
+//     "detail": "Một số trường không hợp lệ",
+//     "code": "reports.validation_failed",
+//     "errors": {
+//       "latitude":  ["Phải nằm trong khoảng 8.0 – 24.0"],
+//       "mediaIds":  ["Cần ít nhất 1 ảnh", "Tối đa 5 ảnh"]
+//     },
+//     "traceId": "00-abcdef..."
+//   }
+// =============================================================================
+
+
+// === FILE: src/Greenlens.Domain/Common/Error.cs (extension) ===
+
+namespace Greenlens.Domain.Common;
+
+/// <summary>
+/// Validation error carrying per-field details. Maps to ProblemDetails.errors.
+/// </summary>
+public sealed record FieldValidationError(
+    string Code,
+    string Message,
+    Dictionary<string, string[]> FieldErrors)
+    : Error(Code, Message, ErrorType.Validation);
+
+
+// === FILE: src/Greenlens.Application/Common/Behaviors/ValidationBehavior.cs (replace error construction) ===
+
+// Replace the line:
+//   var error = new Error("validation.failed", combined, ErrorType.Validation);
+// with:
+
+var fieldErrors = errors
+    .GroupBy(e => ToCamelCase(e.PropertyName))
+    .ToDictionary(
+        g => g.Key,
+        g => g.Select(e => e.ErrorMessage).ToArray());
+
+var error = new FieldValidationError(
+    "validation.failed",
+    "Một số trường không hợp lệ",
+    fieldErrors);
+
+return CreateFailedResponse(error);
+
+// Helper:
+static string ToCamelCase(string s) =>
+    string.IsNullOrEmpty(s) ? s :
+    char.ToLowerInvariant(s[0]) + s[1..];
+
+
+// === FILE: src/Greenlens.Api/Common/ResultExtensions.cs (Problem method) ===
+
+// Already shown in result-extensions-extended.cs.template — relevant snippet:
+//
+//   if (error.Type == ErrorType.Validation && error is FieldValidationError fve)
+//       problem.Extensions["errors"] = fve.FieldErrors;
+//
+// Make sure this branch fires for FieldValidationError.
+
+
+// === Test that the wire shape stays stable ===
+//
+// In greenlens-integration-test, add a functional test:
+//
+// [Fact]
+// public async Task Post_MultipleFieldErrors_ResponseIncludesFieldMap()
+// {
+//     var response = await client.PostAsJsonAsync("/api/v1/reports", new
+//     {
+//         latitude = 99.0,                    // out of range
+//         longitude = 200.0,                  // out of range
+//         mediaIds = new Guid[0],             // empty
+//     });
+//
+//     response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+//
+//     var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+//     json.GetProperty("code").GetString().Should().Be("validation.failed");
+//
+//     var errors = json.GetProperty("errors");
+//     errors.GetProperty("latitude").GetArrayLength().Should().BeGreaterThan(0);
+//     errors.GetProperty("longitude").GetArrayLength().Should().BeGreaterThan(0);
+//     errors.GetProperty("mediaIds").GetArrayLength().Should().BeGreaterThan(0);
+// }

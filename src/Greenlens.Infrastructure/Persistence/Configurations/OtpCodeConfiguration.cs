@@ -13,9 +13,11 @@ internal sealed class OtpCodeConfiguration : IEntityTypeConfiguration<OtpCode>
         builder.HasKey(o => o.Id);
 
         builder.Property(o => o.Email).IsRequired().HasMaxLength(256);
+        builder.Property(o => o.PhoneNumber).HasMaxLength(20);
         builder.Property(o => o.CodeHash).IsRequired().HasMaxLength(512);
         builder.Property(o => o.Purpose).HasConversion<string>().HasMaxLength(50);
 
         builder.HasIndex(o => new { o.Email, o.Purpose, o.ExpiresAt });
+        builder.HasIndex(o => new { o.PhoneNumber, o.Purpose, o.ExpiresAt });
     }
 }

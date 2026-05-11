@@ -31,6 +31,9 @@ public sealed class LoginCommandHandler(
         if (user.IsLockedOut())
             return Errors.Auth.AccountLocked;
 
+        if (!user.IsEmailVerified)
+            return Errors.Auth.EmailNotVerified;
+
         if (!passwordHasher.Verify(request.Password, user.PasswordHash))
         {
             user.RecordFailedLogin();

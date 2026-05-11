@@ -28,6 +28,12 @@ public sealed class ResetPasswordCommandHandler(
 
         otp.IncrementAttempt();
 
+        if (otp.HasExceededMaxAttempts)
+        {
+            await uow.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            return Errors.Auth.OtpMaxAttempts;
+        }
+
         if (!passwordHasher.Verify(request.OtpCode, otp.CodeHash))
         {
             await uow.SaveChangesAsync(cancellationToken).ConfigureAwait(false);

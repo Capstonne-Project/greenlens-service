@@ -24,6 +24,7 @@ public sealed class MediaController(ISender sender) : ControllerBase
     [SwaggerResponse(200, "Image uploaded", typeof(ApiResponse<UploadReportImageResponse>))]
     [SwaggerResponse(401, "Unauthorized", typeof(ApiResponse))]
     [SwaggerResponse(422, "Invalid image type or too large", typeof(ApiResponse))]
+    [SwaggerResponse(500, "Storage upload failed", typeof(ApiResponse))]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> UploadReportImageAsync(
         IFormFile file,

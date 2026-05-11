@@ -1,0 +1,90 @@
+// =============================================================================
+// Greenlens — One-off Hangfire Job (enqueued with args)
+// File: src/Greenlens.Infrastructure/BackgroundJobs/__JOB__Job.cs
+//
+// USE WHEN:
+//   - Triggered by a domain event after SaveChangesAsync (notifications, AI calls)
+//   - Delayed work (BackgroundJob.Schedule for X minutes from now)
+//   - Per-record processing kicked off by a recurring job that enqueues children
+//
+// IMPORTANT: enqueue ONLY after the originating transaction commits. The right
+// place is a domain event handler that runs after EfUnitOfWork.SaveChangesAsync
+// (see OVERVIEW.md §4.12). Enqueueing inside a handler before SaveChanges risks
+// firing a job for state that gets rolled back.
+// =============================================================================
+
+using Hangfire;
+using Microsoft.Extensions.Logging;
+using Greenlens.Application.Common.Interfaces;
+using Greenlens.Application.Common.Interfaces.Persistence;
+
+namespace Greenlens.Infrastructure.BackgroundJobs;
+
+/// <summary>
+/// Process AI classification for a freshly-submitted report.
+/// </summary>
+/// <remarks>
+/// Implements: BR-AI-001 (image classification), BR-AI-006 (5s timeout, fallback retry).
+/// Idempotency: compare-and-swap on AiStatus column.
+/// </remarks>
+[AutomaticRetry(Attempts = 3, DelaysInSeconds = new[] { 30, 120, 600 })]
+public sealed class ClassifyReportJob(
+    IReportRepository reports,
+    IUnitOfWork uow,
+    IAiClassificationService ai,
+    ILogger<ClassifyReportJob> logger)
+{
+    /// <summary>
+    /// Hangfire entry point. Args appear in the dashboard — keep them small
+    /// (Guid OK; full DTOs bloat the queue table).
+    /// </summary>
+    public async Task ExecuteAsync(Guid reportId, CancellationToken cancellationToken = default)
+    {
+        // CAS idempotency: only one worker proceeds.
+        // (Real impl uses ExecuteUpdateAsync with a row-version column; pseudo here.)
+        var report = await reports.GetByIdAsync(reportId, cancellationToken);
+        if (report is null)
+        {
+            logger.LogWarning("ClassifyReport: report {Id} not found, skipping", reportId);
+            return;
+        }
+
+        if (!report.TryStartAiProcessing())
+        {
+            // Another worker grabbed it, or already processed.
+            logger.LogDebug("ClassifyReport: report {Id} already processed/in-flight", reportId);
+            return;
+        }
+
+        await uow.SaveChangesAsync(cancellationToken);   // commit the lock
+
+        try
+        {
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromSeconds(5));    // BR-AI-006: 5s timeout
+
+            var result = await ai.ClassifyAsync(report.Media[0].Url, cts.Token);
+            report.RecordAiClassification(result.Category, result.Confidence);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            // Timeout, not user-cancellation — mark for retry by another job.
+            report.MarkAiPending("timeout");
+        }
+
+        await uow.SaveChangesAsync(cancellationToken);
+    }
+}
+
+
+// === Enqueueing from a domain event handler ===
+//
+// public sealed class EnqueueAiClassificationOnReportSubmitted(
+//     IBackgroundJobClient jobs) : INotificationHandler<ReportSubmittedEvent>
+// {
+//     public Task Handle(ReportSubmittedEvent e, CancellationToken ct)
+//     {
+//         jobs.Enqueue<ClassifyReportJob>(j => j.ExecuteAsync(e.ReportId, default));
+//         return Task.CompletedTask;
+//     }
+// }

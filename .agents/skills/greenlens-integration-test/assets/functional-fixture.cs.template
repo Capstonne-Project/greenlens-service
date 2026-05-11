@@ -1,0 +1,115 @@
+// =============================================================================
+// Greenlens — Functional test fixture (WebApplicationFactory) — ONE-TIME
+// Project: tests/Greenlens.Api.FunctionalTests
+//
+// File: tests/Greenlens.Api.FunctionalTests/Fixtures/GreenlensWebApplicationFactory.cs
+//
+// IMPORTANT: requires `public partial class Program { }` at the bottom of
+// src/Greenlens.Api/Program.cs so WebApplicationFactory<Program> can find it.
+// =============================================================================
+
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using NSubstitute;
+using Testcontainers.PostgreSql;
+using Greenlens.Application.Common.Interfaces;
+using Greenlens.Infrastructure.Persistence;
+
+namespace Greenlens.Api.FunctionalTests.Fixtures;
+
+public sealed class GreenlensWebApplicationFactory : WebApplicationFactory<Program>, IAsyncLifetime
+{
+    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder()
+        .WithImage("postgis/postgis:16-3.4")
+        .WithDatabase("greenlens_func")
+        .WithUsername("test")
+        .WithPassword("test")
+        .Build();
+
+    public async Task InitializeAsync()
+    {
+        await _container.StartAsync();
+
+        // Migrate
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseNpgsql(_container.GetConnectionString(), o => o.UseNetTopologySuite())
+            .UseSnakeCaseNamingConvention()
+            .Options;
+
+        await using var ctx = new ApplicationDbContext(options);
+        await ctx.Database.MigrateAsync();
+    }
+
+    public new Task DisposeAsync() => _container.DisposeAsync().AsTask();
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        builder.UseEnvironment("Testing");
+
+        builder.ConfigureAppConfiguration((ctx, cfg) =>
+        {
+            cfg.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:Postgres"] = _container.GetConnectionString(),
+                // Cloudflare Turnstile test keys (always-pass)
+                ["Cloudflare:Turnstile:SiteKey"]   = "1x00000000000000000000AA",
+                ["Cloudflare:Turnstile:SecretKey"] = "1x0000000000000000000000000000000AA",
+            });
+        });
+
+        builder.ConfigureTestServices(services =>
+        {
+            // Replace external boundaries with mocks
+            services.RemoveAll<IFileStorage>();
+            services.AddSingleton(Substitute.For<IFileStorage>());
+
+            services.RemoveAll<IAiClassificationService>();
+            services.AddSingleton(Substitute.For<IAiClassificationService>());
+
+            services.RemoveAll<IEmailSender>();
+            services.AddSingleton(Substitute.For<IEmailSender>());
+
+            // Disable Hangfire scheduler in tests; jobs invoked directly when needed
+            services.RemoveAll<Hangfire.IBackgroundJobClient>();
+            services.AddSingleton(Substitute.For<Hangfire.IBackgroundJobClient>());
+        });
+    }
+}
+
+
+// === FILE: tests/Greenlens.Api.FunctionalTests/Fixtures/FunctionalCollection.cs ===
+[CollectionDefinition("Functional")]
+public sealed class FunctionalCollection : ICollectionFixture<GreenlensWebApplicationFactory> { }
+
+
+// === FILE: tests/Greenlens.Api.FunctionalTests/Fixtures/TestAuthHelper.cs ===
+//
+// Helper to mint test JWTs that pass the real auth middleware.
+//
+// using System.IdentityModel.Tokens.Jwt;
+// using System.Security.Claims;
+// using Microsoft.IdentityModel.Tokens;
+//
+// public static class TestAuthHelper
+// {
+//     public static string MintToken(Guid userId, params string[] roles)
+//     {
+//         var key = "<<same key as appsettings.Testing.json>>";
+//         var creds = new SigningCredentials(
+//             new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(key)),
+//             SecurityAlgorithms.HmacSha256);
+//
+//         var claims = new List<Claim> { new(ClaimTypes.NameIdentifier, userId.ToString()) };
+//         claims.AddRange(roles.Select(r => new Claim(ClaimTypes.Role, r)));
+//
+//         var jwt = new JwtSecurityToken(
+//             issuer: "greenlens-test", audience: "greenlens-test",
+//             claims: claims, expires: DateTime.UtcNow.AddHours(1),
+//             signingCredentials: creds);
+//
+//         return new JwtSecurityTokenHandler().WriteToken(jwt);
+//     }
+// }

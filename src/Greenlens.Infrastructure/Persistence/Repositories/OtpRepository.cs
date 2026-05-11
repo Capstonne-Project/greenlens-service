@@ -32,4 +32,42 @@ internal sealed class OtpRepository(ApplicationDbContext context)
         foreach (var otp in otps)
             otp.MarkUsed();
     }
+
+    // ── Phone-based OTP methods ──
+
+    public async Task<OtpCode?> GetLatestValidByPhoneAsync(
+        string phoneNumber, CancellationToken ct = default) =>
+        await DbSet
+            .Where(o => o.PhoneNumber == phoneNumber
+                     && o.Purpose == OtpPurpose.PhoneVerification
+                     && !o.IsUsed
+                     && o.ExpiresAt > DateTime.UtcNow)
+            .OrderByDescending(o => o.CreatedAt)
+            .FirstOrDefaultAsync(ct)
+            .ConfigureAwait(false);
+
+    public async Task InvalidateAllByPhoneAsync(
+        string phoneNumber, CancellationToken ct = default)
+    {
+        var otps = await DbSet
+            .Where(o => o.PhoneNumber == phoneNumber
+                     && o.Purpose == OtpPurpose.PhoneVerification
+                     && !o.IsUsed)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        foreach (var otp in otps)
+            otp.MarkUsed();
+    }
+
+    public async Task<int> CountTodayByPhoneAsync(
+        string phoneNumber, CancellationToken ct = default)
+    {
+        var todayUtc = DateTime.UtcNow.Date;
+        return await DbSet
+            .CountAsync(o => o.PhoneNumber == phoneNumber
+                          && o.Purpose == OtpPurpose.PhoneVerification
+                          && o.CreatedAt >= todayUtc, ct)
+            .ConfigureAwait(false);
+    }
 }

@@ -22,7 +22,14 @@ public sealed class LoginCommandHandlerTests
         _sut = new LoginCommandHandler(_users, _refreshTokens, _uow, _jwt, _hasher);
     }
 
-    private static User CreateUser(string email = "test@test.com") =>
+    private static User CreateUser(string email = "test@test.com")
+    {
+        var user = User.Create(email, "hash", "Test User");
+        user.VerifyEmail(); // Login requires verified email
+        return user;
+    }
+
+    private static User CreateUnverifiedUser(string email = "test@test.com") =>
         User.Create(email, "hash", "Test User");
 
     [Fact]
@@ -129,5 +136,17 @@ public sealed class LoginCommandHandlerTests
         await _sut.Handle(new LoginCommand("TEST@TEST.COM", "pass"), CancellationToken.None);
 
         await _users.Received(1).GetByEmailAsync("test@test.com", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_EmailNotVerified_ShouldReturnEmailNotVerified()
+    {
+        var user = CreateUnverifiedUser();
+        _users.GetByEmailAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(user);
+
+        var result = await _sut.Handle(new LoginCommand("test@test.com", "pass"), CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("EMAIL_NOT_VERIFIED", result.Error!.Code);
     }
 }

@@ -1,0 +1,55 @@
+// =============================================================================
+// Greenlens — Recurring Hangfire Job
+// File: src/Greenlens.Infrastructure/BackgroundJobs/__JOB__Job.cs
+//
+// PLACEHOLDERS:
+//   __JOB__       e.g. AutoCloseResolvedReport      (NO "Job" suffix in placeholder)
+//   __BR_IDS__    e.g. BR-REP-016, BR-REP-025
+//   __SUMMARY__   e.g. Auto-close reports that have been Resolved for ≥ 7 days.
+// =============================================================================
+
+using Hangfire;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Greenlens.Application.Common.Interfaces;
+using Greenlens.Domain.Enums;
+
+namespace Greenlens.Infrastructure.BackgroundJobs;
+
+/// <summary>
+/// __SUMMARY__
+/// </summary>
+/// <remarks>
+/// Implements: __BR_IDS__.
+/// Schedule: registered in <see cref="JobRegistration"/> (Program.cs).
+/// Idempotency: filter-based — only matches rows still needing work.
+/// </remarks>
+[AutomaticRetry(Attempts = 3, DelaysInSeconds = new[] { 60, 300, 900 })]
+[DisableConcurrentExecution(timeoutInSeconds: 600)]   // prevent overlapping runs
+public sealed class __JOB__Job(
+    IApplicationDbContext db,
+    IDateTimeProvider clock,
+    ILogger<__JOB__Job> logger)
+{
+    public async Task ExecuteAsync(CancellationToken cancellationToken = default)
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        logger.LogInformation("Starting {Job}", nameof(__JOB__Job));
+
+        // Filter-based idempotency: only rows that still need processing match.
+        // Re-running this job is safe — second run finds zero rows.
+        var cutoff = clock.UtcNow.AddDays(-7);            // BR-REP-016 (7-day grace)
+
+        var affected = await db.Reports
+            .Where(r => r.Status == ReportStatus.Resolved
+                     && r.ResolvedAt < cutoff)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(r => r.Status, ReportStatus.Closed)
+                .SetProperty(r => r.ClosedAt, clock.UtcNow), cancellationToken);
+
+        sw.Stop();
+        logger.LogInformation(
+            "Finished {Job} — {Count} reports closed in {Elapsed}ms",
+            nameof(__JOB__Job), affected, sw.ElapsedMilliseconds);
+    }
+}

@@ -1,0 +1,60 @@
+// =============================================================================
+// Greenlens — Adding new ErrorType values
+// File: src/Greenlens.Domain/Common/Error.cs
+//
+// EVERY new ErrorType MUST get a switch arm in ResultExtensions.MapFailure.
+// If you add a value here without updating the switch, the default arm fires
+// and the API returns 500 — silent bug.
+// =============================================================================
+
+namespace Greenlens.Domain.Common;
+
+public enum ErrorType
+{
+    // Existing — DO NOT renumber
+    Validation        = 0,
+    NotFound          = 1,
+    Conflict          = 2,
+    Forbidden         = 3,
+    BusinessRule      = 4,
+    Unexpected        = 5,
+
+    // Added (v1.x)
+    Unauthenticated    = 10,   // 401 — auth required
+    PreconditionFailed = 11,   // 412 — If-Match mismatch (optimistic concurrency exposed via API)
+    Locked             = 12,   // 423 — account locked (BR-AUTH-011 lockout)
+    RateLimited        = 13,   // 429 — rate-limit exceeded
+
+    // KHÔNG re-use số cũ. Enum số này có thể xuất hiện trong log/audit; tái dùng sẽ phá truy vết.
+}
+
+
+// === Convention for adding a new type ===
+//
+// 1. Add the enum value here, with a NEW number (don't reuse).
+// 2. Update ResultExtensions.MapFailure to add a switch arm.
+// 3. Document the convention in a one-liner comment (status + title).
+// 4. Add a test in greenlens-integration-test that proves the mapping.
+// 5. Update the API docs in /docs/errors.md (if maintained).
+//
+// === Per-aggregate Errors static class ===
+//
+// File: src/Greenlens.Domain/Errors/AuthErrors.cs
+//
+// public static partial class Errors
+// {
+//     public static class Auth
+//     {
+//         public static readonly Error Forbidden        = new("auth.forbidden",        "Không có quyền",                   ErrorType.Forbidden);
+//         public static readonly Error Unauthenticated  = new("auth.unauthenticated",  "Yêu cầu đăng nhập",                ErrorType.Unauthenticated);
+//         public static readonly Error AccountLocked    = new("auth.account_locked",   "Tài khoản đã bị tạm khóa 30 phút", ErrorType.Locked);          // BR-AUTH-011
+//         public static readonly Error InvalidCreds     = new("auth.invalid_credentials","Email hoặc mật khẩu không đúng", ErrorType.Forbidden);        // BR-AUTH (account enum)
+//         public static readonly Error TurnstileFailed  = new("auth.turnstile_failed", "Xác minh bot không thành công",    ErrorType.Forbidden);        // BR-AUTH-011
+//
+//         // Method-form when message is dynamic
+//         public static Error RateLimited(TimeSpan retryAfter)
+//             => new("auth.rate_limited",
+//                    $"Quá nhiều yêu cầu. Vui lòng thử lại sau {retryAfter.TotalSeconds:F0} giây",
+//                    ErrorType.RateLimited);
+//     }
+// }

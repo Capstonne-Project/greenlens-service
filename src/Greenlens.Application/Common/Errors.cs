@@ -161,4 +161,22 @@ public static class Errors
             "mode phải là detail hoặc aggregate.",
             ErrorType.Validation);
     }
+
+    public static class Phone
+    {
+        public static Error SmsSendFailed => new(
+            "SMS_SEND_FAILED",
+            "Không thể gửi tin nhắn SMS. Vui lòng thử lại sau.",
+            ErrorType.Unexpected);
+
+        public static Error PhoneAlreadyUsed => new(
+            "PHONE_ALREADY_USED",
+            "Số điện thoại này đã được sử dụng bởi tài khoản khác.",
+            ErrorType.Conflict);
+
+        public static Error OtpRateLimited => new(
+            "OTP_RATE_LIMITED",
+            "Bạn đã yêu cầu quá nhiều mã OTP hôm nay. Vui lòng thử lại sau.",
+            ErrorType.BusinessRule);
+    }
 }
