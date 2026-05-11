@@ -44,6 +44,22 @@ public sealed class User : SoftDeletableEntity
         return user;
     }
 
+    /// <summary>BR-ADM: Admin creates an account with email pre-verified.</summary>
+    public static User CreateByAdmin(string email, string passwordHash, string fullName, UserRole role)
+    {
+        var user = new User
+        {
+            Email = email.ToLowerInvariant(),
+            PasswordHash = passwordHash,
+            FullName = fullName,
+            Role = role,
+            IsEmailVerified = true, // admin-created → skip email verification
+            FailedLoginAttempts = 0
+        };
+
+        return user;
+    }
+
     public static User CreateFromGoogle(string email, string fullName, string googleId, string? avatarUrl = null)
     {
         var user = new User

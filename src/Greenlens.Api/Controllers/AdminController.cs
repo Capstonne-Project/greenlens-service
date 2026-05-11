@@ -1,6 +1,7 @@
 using Greenlens.Api.Extensions;
 using Greenlens.Application.Common.Models;
 using Greenlens.Application.Features.Users;
+using Greenlens.Application.Features.Users.CreateAccount;
 using Greenlens.Application.Features.Users.DeleteUser;
 using Greenlens.Application.Features.Users.GetAllUsers;
 using Greenlens.Application.Features.Users.GetAllUsersWithPaged;
@@ -20,6 +21,20 @@ namespace Greenlens.Api.Controllers;
 [Produces("application/json")]
 public sealed class AdminController(ISender sender) : ControllerBase
 {
+    [HttpPost]
+    [SwaggerOperation(
+        Summary = "Create Account",
+        Description = "Admin creates a new user account (Officer, CleanupTeam, Citizen). Email is auto-verified.")]
+    [SwaggerResponse(201, "Account created", typeof(ApiResponse<CreateAccountResponse>))]
+    [SwaggerResponse(401, "Unauthorized", typeof(ApiResponse))]
+    [SwaggerResponse(403, "Forbidden — Admin only", typeof(ApiResponse))]
+    [SwaggerResponse(409, "Email already taken", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Validation error", typeof(ApiResponse))]
+    public async Task<IActionResult> CreateAccountAsync(
+        [FromBody] CreateAccountCommand command,
+        CancellationToken ct)
+        => (await sender.Send(command, ct)).ToHttpCreated();
+
     [HttpGet("all")]
     [SwaggerOperation(
         Summary = "Get All Users",
