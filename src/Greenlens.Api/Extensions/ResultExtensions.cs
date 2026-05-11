@@ -6,6 +6,7 @@ namespace Greenlens.Api.Extensions;
 
 public static class ResultExtensions
 {
+    /// <summary>Returns 200 OK with standard ApiResponse envelope.</summary>
     public static IActionResult ToHttp<T>(this Result<T> result)
     {
         if (result.IsSuccess)
@@ -19,24 +20,7 @@ public static class ResultExtensions
             });
         }
 
-        var (statusCode, code) = result.Error!.Type switch
-        {
-            ErrorType.Validation => (422, result.Error.Code),
-            ErrorType.NotFound => (404, result.Error.Code),
-            ErrorType.Conflict => (409, result.Error.Code),
-            ErrorType.Forbidden => (403, result.Error.Code),
-            ErrorType.BusinessRule => (422, result.Error.Code),
-            _ => (500, "INTERNAL_ERROR"),
-        };
-
-        return new ObjectResult(new ApiResponse
-        {
-            Code = code,
-            Message = result.Error.Message,
-            Status = statusCode,
-            Data = null
-        })
-        { StatusCode = statusCode };
+        return ToErrorResult(result.Error!);
     }
 
     /// <summary>Returns 201 Created with standard envelope for successful POST create.</summary>
@@ -54,6 +38,44 @@ public static class ResultExtensions
             { StatusCode = 201 };
         }
 
-        return result.ToHttp();
+        return ToErrorResult(result.Error!);
+    }
+
+    /// <summary>Returns 204 No Content for successful void mutations.</summary>
+    public static IActionResult ToHttpNoContent(this Result result)
+    {
+        if (result.IsSuccess)
+        {
+            return new NoContentResult();
+        }
+
+        return ToErrorResult(result.Error!);
+    }
+
+    /// <summary>
+    /// Central error → HTTP mapping. Every ErrorType maps to exactly one HTTP status code.
+    /// Keep in sync with ErrorType enum — add a switch arm for every new value.
+    /// </summary>
+    private static IActionResult ToErrorResult(Error error)
+    {
+        var (statusCode, code) = error.Type switch
+        {
+            ErrorType.Validation   => (400, error.Code),
+            ErrorType.NotFound     => (404, error.Code),
+            ErrorType.Conflict     => (409, error.Code),
+            ErrorType.Forbidden    => (403, error.Code),
+            ErrorType.BusinessRule => (422, error.Code),
+            ErrorType.Unexpected   => (500, error.Code),
+            _ => (500, "INTERNAL_ERROR"),
+        };
+
+        return new ObjectResult(new ApiResponse
+        {
+            Code = code,
+            Message = error.Message,
+            Status = statusCode,
+            Data = null
+        })
+        { StatusCode = statusCode };
     }
 }

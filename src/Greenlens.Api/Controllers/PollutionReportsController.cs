@@ -24,6 +24,8 @@ public sealed class PollutionReportsController(ISender sender) : ControllerBase
             "Creates a report in Submitted status. Use isAnonymous=true without login; " +
             "otherwise send Bearer token and set isAnonymous=false to attach reporter.")]
     [SwaggerResponse(201, "Report created", typeof(ApiResponse<SubmitPollutionReportResponse>))]
+    [SwaggerResponse(400, "Authentication required for non-anonymous reports", typeof(ApiResponse))]
+    [SwaggerResponse(400, "Invalid ward-province pair", typeof(ApiResponse))]
     [SwaggerResponse(404, "Category not found", typeof(ApiResponse))]
     [SwaggerResponse(422, "Validation", typeof(ApiResponse))]
     public async Task<IActionResult> SubmitAsync(

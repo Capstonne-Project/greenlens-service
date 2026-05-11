@@ -11,6 +11,7 @@ using Greenlens.Infrastructure.Persistence.Repositories.Location;
 
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -59,14 +60,14 @@ public static class DependencyInjection
         services.AddMediatR(cfg =>
         {
             cfg.RegisterServicesFromAssembly(
-                typeof(Greenlens.Application.Common.Errors).Assembly);
+                typeof(Application.Common.Errors).Assembly);
             cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
             cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
         });
 
         // ── FluentValidation ─────────────────────────────
         services.AddValidatorsFromAssembly(
-            typeof(Greenlens.Application.Common.Errors).Assembly);
+            typeof(Application.Common.Errors).Assembly);
 
         // ── Options ──────────────────────────────────────
         services.AddOptions<JwtOptions>()
@@ -113,6 +114,39 @@ public static class DependencyInjection
                 ValidAudience = jwtSection["Audience"],
                 IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret)),
                 ClockSkew = TimeSpan.Zero
+            };
+
+            options.Events = new JwtBearerEvents
+            {
+                // 401 Unauthorized — no token or invalid token
+                OnChallenge = async context =>
+                {
+                    context.HandleResponse(); // suppress default behavior
+                    context.Response.StatusCode = 401;
+                    context.Response.ContentType = "application/json";
+                    var json = System.Text.Json.JsonSerializer.Serialize(new
+                    {
+                        code = "UNAUTHORIZED",
+                        message = "Bạn chưa đăng nhập hoặc token không hợp lệ.",
+                        status = 401,
+                        data = (object?)null
+                    });
+                    await context.Response.WriteAsync(json);
+                },
+                // 403 Forbidden — authenticated but wrong role
+                OnForbidden = async context =>
+                {
+                    context.Response.StatusCode = 403;
+                    context.Response.ContentType = "application/json";
+                    var json = System.Text.Json.JsonSerializer.Serialize(new
+                    {
+                        code = "FORBIDDEN",
+                        message = "Bạn không có quyền truy cập tài nguyên này.",
+                        status = 403,
+                        data = (object?)null
+                    });
+                    await context.Response.WriteAsync(json);
+                }
             };
         });
 

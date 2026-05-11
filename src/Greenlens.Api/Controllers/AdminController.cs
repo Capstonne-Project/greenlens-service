@@ -100,6 +100,7 @@ public sealed class AdminController(ISender sender) : ControllerBase
     [SwaggerResponse(401, "Unauthorized", typeof(ApiResponse))]
     [SwaggerResponse(403, "Forbidden — Admin only", typeof(ApiResponse))]
     [SwaggerResponse(404, "User not found", typeof(ApiResponse))]
+    [SwaggerResponse(409, "User already deleted", typeof(ApiResponse))]
     [SwaggerResponse(422, "Cannot delete self", typeof(ApiResponse))]
     public async Task<IActionResult> DeleteUserAsync(
         [FromRoute] Guid id,

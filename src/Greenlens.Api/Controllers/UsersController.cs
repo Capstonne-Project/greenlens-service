@@ -23,6 +23,7 @@ public sealed class UsersController(ISender sender) : ControllerBase
         Description = "Get the authenticated user's own profile. Uses JWT token — no userId needed.")]
     [SwaggerResponse(200, "User profile", typeof(ApiResponse<UserDetailDto>))]
     [SwaggerResponse(401, "Unauthorized", typeof(ApiResponse))]
+    [SwaggerResponse(404, "User not found", typeof(ApiResponse))]
     public async Task<IActionResult> GetProfileAsync(CancellationToken ct)
         => (await sender.Send(new GetProfileQuery(), ct)).ToHttp();
 
@@ -32,6 +33,7 @@ public sealed class UsersController(ISender sender) : ControllerBase
         Description = "Update the authenticated user's own profile (name, phone). Uses JWT token.")]
     [SwaggerResponse(200, "Profile updated", typeof(ApiResponse<UpdateUserProfileResponse>))]
     [SwaggerResponse(401, "Unauthorized", typeof(ApiResponse))]
+    [SwaggerResponse(404, "User not found", typeof(ApiResponse))]
     [SwaggerResponse(422, "Validation error", typeof(ApiResponse))]
     public async Task<IActionResult> UpdateProfileAsync(
         [FromBody] UpdateUserProfileCommand command,
@@ -44,7 +46,9 @@ public sealed class UsersController(ISender sender) : ControllerBase
         Description = "Upload a new avatar image (jpg/png/webp, max 5MB). Uses JWT token. Stores on R2 Cloudflare.")]
     [SwaggerResponse(200, "Avatar uploaded", typeof(ApiResponse<UploadUserAvatarResponse>))]
     [SwaggerResponse(401, "Unauthorized", typeof(ApiResponse))]
+    [SwaggerResponse(404, "User not found", typeof(ApiResponse))]
     [SwaggerResponse(422, "Invalid file type or too large", typeof(ApiResponse))]
+    [SwaggerResponse(500, "Storage upload failed", typeof(ApiResponse))]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> UploadAvatarAsync(
         IFormFile file,
