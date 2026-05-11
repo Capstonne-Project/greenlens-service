@@ -30,7 +30,35 @@ builder.Services.AddCors(options =>
 });
 
 // ── Controllers ──────────────────────────────────────
-builder.Services.AddControllers()
+builder.Services.AddControllers(options =>
+    {
+        // Override default [ApiController] model binding error response
+        // to return ApiResponse instead of ValidationProblemDetails
+    })
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var errors = context.ModelState
+                .Where(e => e.Value?.Errors.Count > 0)
+                .Select(e => new
+                {
+                    field = e.Key,
+                    message = e.Value!.Errors.First().ErrorMessage
+                })
+                .ToList();
+
+            var response = new Greenlens.Application.Common.Models.ApiResponse
+            {
+                Code = "VALIDATION_ERROR",
+                Message = "Dữ liệu đầu vào không hợp lệ.",
+                Status = 400,
+                Data = new { errors }
+            };
+
+            return new Microsoft.AspNetCore.Mvc.BadRequestObjectResult(response);
+        };
+    })
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;

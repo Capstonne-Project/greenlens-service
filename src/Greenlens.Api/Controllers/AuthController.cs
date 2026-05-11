@@ -41,6 +41,7 @@ public sealed class AuthController(ISender sender) : ControllerBase
         Description = "Login with email and password. Returns accessToken and refreshToken in response data.")]
     [SwaggerResponse(200, "Login successful", typeof(ApiResponse<LoginResponse>))]
     [SwaggerResponse(422, "Invalid credentials", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Email not verified", typeof(ApiResponse))]
     [SwaggerResponse(422, "Account locked due to too many failed attempts", typeof(ApiResponse))]
     public async Task<IActionResult> LoginAsync(
         [FromBody] LoginCommand command,
@@ -89,6 +90,7 @@ public sealed class AuthController(ISender sender) : ControllerBase
         Description = "Reset password using OTP code received via email. Revokes all existing refresh tokens.")]
     [SwaggerResponse(200, "Password reset successful", typeof(ApiResponse<ResetPasswordResponse>))]
     [SwaggerResponse(422, "OTP invalid or expired", typeof(ApiResponse))]
+    [SwaggerResponse(422, "OTP max attempts exceeded", typeof(ApiResponse))]
     [SwaggerResponse(404, "User not found", typeof(ApiResponse))]
     public async Task<IActionResult> ResetPasswordAsync(
         [FromBody] ResetPasswordCommand command,
@@ -102,6 +104,7 @@ public sealed class AuthController(ISender sender) : ControllerBase
         Description = "Change password for the authenticated user. Requires current password verification.")]
     [SwaggerResponse(200, "Password changed successfully", typeof(ApiResponse<ChangePasswordResponse>))]
     [SwaggerResponse(401, "Unauthorized", typeof(ApiResponse))]
+    [SwaggerResponse(404, "User not found", typeof(ApiResponse))]
     [SwaggerResponse(422, "Current password incorrect", typeof(ApiResponse))]
     public async Task<IActionResult> ChangePasswordAsync(
         [FromBody] ChangePasswordCommand command,
@@ -114,6 +117,7 @@ public sealed class AuthController(ISender sender) : ControllerBase
         Summary = "Refresh Token",
         Description = "Exchange a valid refresh token for a new access token and refresh token pair (rotation).")]
     [SwaggerResponse(200, "Token refreshed successfully", typeof(ApiResponse<LoginResponse>))]
+    [SwaggerResponse(404, "User not found", typeof(ApiResponse))]
     [SwaggerResponse(422, "Invalid or expired refresh token", typeof(ApiResponse))]
     public async Task<IActionResult> RefreshTokenAsync(
         [FromBody] RefreshTokenCommand command,

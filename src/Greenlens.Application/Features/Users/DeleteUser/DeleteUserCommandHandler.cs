@@ -31,6 +31,9 @@ public sealed class DeleteUserCommandHandler(
         if (user is null)
             return Errors.Users.UserNotFound;
 
+        if (user.IsDeleted)
+            return Errors.Users.UserAlreadyDeleted;
+
         user.SoftDelete(currentUser.Email);
 
         await uow.SaveChangesAsync(cancellationToken).ConfigureAwait(false);

@@ -54,42 +54,89 @@ Same for ad-hoc `BadRequest("...")` calls in actions — those bypass ProblemDet
 
 ## The current mapping (for reference)
 
-| `ErrorType`     | HTTP | Title                       | When |
-|-----------------|------|-----------------------------|------|
-| `Validation`    | 400  | "Validation failed"         | input shape (lengths, regex, ranges) |
-| `NotFound`      | 404  | "Resource not found"        | entity by id missing |
-| `Conflict`      | 409  | "Conflict"                  | unique key clash, optimistic concurrency |
-| `Forbidden`     | 403  | "Forbidden"                 | authorization failure (auth ✓, perm ✗) |
-| `BusinessRule`  | 422  | "Business rule violated"    | state machine, invariant violation |
-| `Unexpected`    | 500  | "Unexpected error"          | catch-all |
+### Layer 1: `ResultExtensions.ToHttp()` — `Api/Extensions/ResultExtensions.cs`
+
+Maps `Result<T>` from handlers to HTTP responses with `ApiResponse` envelope:
+
+| `ErrorType`     | HTTP | Code in response             | When |
+|-----------------|------|------------------------------|------|
+| `Validation`    | 400  | handler-specific code        | input shape (lengths, regex, ranges) |
+| `NotFound`      | 404  | handler-specific code        | entity by id missing |
+| `Conflict`      | 409  | handler-specific code        | unique key clash, optimistic concurrency |
+| `Forbidden`     | 403  | handler-specific code        | authorization failure (auth ✓, perm ✗) |
+| `BusinessRule`  | 422  | handler-specific code        | state machine, invariant violation |
+| `Unexpected`    | 500  | handler-specific code        | catch-all |
+
+Three overloads:
+- `ToHttp()` → 200 OK on success
+- `ToHttpCreated()` → 201 Created on success
+- `ToHttpNoContent()` → 204 No Content for void mutations
+
+### Layer 2: JWT Events — `Infrastructure/DependencyInjection.cs`
+
+Intercepts ASP.NET Core auth middleware responses before they leave bare:
+
+| Scenario | HTTP | Code | Message |
+|----------|------|------|---------|
+| No token / invalid token | 401 | `UNAUTHORIZED` | Bạn chưa đăng nhập hoặc token không hợp lệ. |
+| Valid token, wrong role | 403 | `FORBIDDEN` | Bạn không có quyền truy cập tài nguyên này. |
+
+### Layer 3: Model Binding — `Api/Program.cs` (`InvalidModelStateResponseFactory`)
+
+When `[ApiController]` rejects malformed JSON, missing required fields, or type mismatches:
+
+| Scenario | HTTP | Code | Data shape |
+|----------|------|------|------------|
+| Model binding failure | 400 | `VALIDATION_ERROR` | `{ errors: [{ field, message }] }` |
+
+### Layer 4: `ExceptionHandlingMiddleware` — `Api/Middlewares/`
+
+Catches anything that slips through + unknown routes:
+
+| Scenario | HTTP | Code |
+|----------|------|------|
+| FluentValidation failures (`ValidationBehavior`) | 422 | `VALIDATION_ERROR` |
+| Unhandled exceptions | 500 | `INTERNAL_ERROR` |
+| Unknown route (no controller matched) | 404 | `NOT_FOUND` |
+| Wrong HTTP method | 405 | `METHOD_NOT_ALLOWED` |
+| Unsupported media type | 415 | `UNSUPPORTED_MEDIA_TYPE` |
+
+### Standard response envelope
+
+```json
+{
+  "code": "SUCCESS | ERROR_CODE",
+  "message": "human-readable string (vi-VN default)",
+  "status": 200,
+  "data": { ... } | null
+}
+```
 
 When extending, follow these patterns:
 - `RateLimited` → 429, include `Retry-After` header.
 - `Locked` → 423 (account locked, BR-AUTH-011 lockout).
 - `PreconditionFailed` → 412 (If-Match mismatch on PUT).
-- `Unauthenticated` → 401 (separate from `Forbidden` which is 403). Most projects fold this into `Forbidden` because authn is checked at middleware — but if it slips through, having a separate type helps.
 
 ## Conventions
 
-- `Error.Code` is `snake_case_with_dots`: `reports.not_found`, `auth.account_locked`. Used as the stable contract for FE.
-- `Error.Message` is human-readable Vietnamese (default culture vi-VN per BR-SYS-006). English fallback via `IStringLocalizer` if user has `Accept-Language: en`.
-- `ProblemDetails.Type` is a URL pointing to docs page describing the code: `https://greenlens.example/errors/{code}`. The docs page may not exist yet, but the convention reserves the slot.
-- `extensions.code` carries the `Error.Code` for FE switch logic. **Don't put the code only in `Title`** — title is for display.
-- For validation, `extensions.errors` is a `Dictionary<string, string[]>` (ASP.NET Core's standard) — field path → list of messages.
+- `Error.Code` is `SCREAMING_SNAKE_CASE`: `EMAIL_TAKEN`, `USER_NOT_FOUND`, `ACCOUNT_LOCKED`. Used as the stable contract for FE.
+- `Error.Message` is human-readable Vietnamese (default culture vi-VN per BR-SYS-006).
+- For validation, `data.errors` is an array of `{ field, code?, message }` objects — consistent between model binding (Layer 3) and FluentValidation (Layer 4).
+- **Never** use `BadRequest("text")`, `NotFound()`, `Forbid()`, or raw `StatusCode(xxx)` in controllers — always go through `Result<T>` + `ToHttp()`.
 
 ## Self-check
 
 - [ ] `ErrorType` enum and `ResultExtensions` switch are in lockstep — every type has a switch arm
 - [ ] HTTP status follows convention table above
-- [ ] `extensions.code` is set on every error response
-- [ ] `Error.Code` follows `snake_case_with_dots` format
+- [ ] `Code` is set on every error response (`SCREAMING_SNAKE_CASE`)
 - [ ] No `try/catch` added to controllers (still funneling through Result)
-- [ ] If breaking change: user is informed, FE version bumped if needed
-- [ ] If localization touched: tests cover both vi-VN and en-US
+- [ ] JWT `OnChallenge` and `OnForbidden` events return `ApiResponse` JSON
+- [ ] `InvalidModelStateResponseFactory` is configured in `Program.cs`
+- [ ] `ExceptionHandlingMiddleware` catches bare 404/405 for unknown routes
 
 ## Templates
 
-- `assets/result-extensions-extended.cs.template` — full updated extension with all 7-9 status arms
+- `assets/result-extensions-extended.cs.template` — full updated extension with all status arms
 - `assets/error-type-additions.cs.template` — adding new types
 - `assets/validation-with-fields.cs.template` — per-field validation projection
 
@@ -97,8 +144,9 @@ When extending, follow these patterns:
 
 | Pitfall | Why bad | Fix |
 |---|---|---|
-| Adding `ErrorType.Validation2` for a "different kind" of validation | Multiplies types; FE needs to switch on both | Use the existing type + different code (`reports.geo.out_of_bounds` vs `reports.media.too_many`) |
+| Adding `ErrorType.Validation2` for a "different kind" of validation | Multiplies types; FE needs to switch on both | Use the existing type + different code (`INVALID_IMAGE_TYPE` vs `FILE_TOO_LARGE`) |
 | Returning 500 for any unmatched ErrorType | Hides bugs | The `_` switch arm should log a warning — every new type should have an explicit arm |
-| Putting localized message in `Error.Code` | Code is the contract | Code stays English snake_case; message goes through IStringLocalizer |
+| Putting localized message in `Error.Code` | Code is the contract | Code stays SCREAMING_SNAKE_CASE; message is Vietnamese |
 | Wrapping known exceptions to map to status codes | Re-introduces try/catch in the path | Map at the source: handler returns Result.Failure with the right type |
-| Forgetting `Retry-After` on 429 | Clients can't back off correctly | New `ToActionResult` overload taking `TimeSpan retryAfter` for rate-limit cases |
+| Using bare `BadRequest()` / `NotFound()` in controllers | Bypasses ApiResponse envelope | Always use `Result<T>` + `ToHttp()` |
+
