@@ -164,19 +164,19 @@ public static class Errors
 
     public static class Phone
     {
-        public static Error SmsSendFailed => new(
-            "SMS_SEND_FAILED",
-            "Không thể gửi tin nhắn SMS. Vui lòng thử lại sau.",
-            ErrorType.Unexpected);
+        public static Error FirebaseTokenInvalid => new(
+            "FIREBASE_TOKEN_INVALID",
+            "Firebase token không hợp lệ hoặc đã hết hạn.",
+            ErrorType.Validation);
+
+        public static Error FirebasePhoneMissing => new(
+            "FIREBASE_PHONE_MISSING",
+            "Token Firebase không chứa thông tin số điện thoại.",
+            ErrorType.Validation);
 
         public static Error PhoneAlreadyUsed => new(
             "PHONE_ALREADY_USED",
             "Số điện thoại này đã được sử dụng bởi tài khoản khác.",
             ErrorType.Conflict);
-
-        public static Error OtpRateLimited => new(
-            "OTP_RATE_LIMITED",
-            "Bạn đã yêu cầu quá nhiều mã OTP hôm nay. Vui lòng thử lại sau.",
-            ErrorType.BusinessRule);
     }
 }

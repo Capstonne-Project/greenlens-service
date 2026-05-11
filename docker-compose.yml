@@ -25,10 +25,12 @@ services:
       ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};Include Error Detail=false
       ASPNETCORE_ENVIRONMENT:      Production
       ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+      Firebase__ServiceAccountKeyPath: /app/firebase-adminsdk.json
     ports:
       - "127.0.0.1:8080:8080"                                # localhost only — Tunnel routes here
     volumes:
       - ./logs:/app/logs                                      # Serilog file sink writes here
+      - ./firebase-adminsdk.json:/app/firebase-adminsdk.json:ro  # Firebase service account (read-only)
     networks: [internal]
     depends_on:
       postgres: { condition: service_healthy }
