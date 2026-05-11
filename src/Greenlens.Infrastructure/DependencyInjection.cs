@@ -1,11 +1,12 @@
 using System.Text;
+using FirebaseAdmin;
 using FluentValidation;
+using Google.Apis.Auth.OAuth2;
 using Greenlens.Application.Common.Behaviors;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Infrastructure.Email;
 using Greenlens.Infrastructure.Identity;
-using Greenlens.Infrastructure.Options;
 using Greenlens.Infrastructure.Persistence;
 using Greenlens.Infrastructure.Persistence.Repositories;
 using Greenlens.Infrastructure.Persistence.Repositories.Location;
@@ -54,8 +55,8 @@ public static class DependencyInjection
         // ── Email ────────────────────────────────────────
         services.AddScoped<IEmailSender, SmtpEmailSender>();
 
-        // ── SMS (SpeedSMS) ───────────────────────────────
-        services.AddHttpClient<ISmsSender, Services.SpeedSmsSender>();
+        // ── Firebase Phone Auth ──────────────────────────
+        services.AddScoped<IFirebasePhoneAuthService, FirebasePhoneAuthService>();
 
         // ── File Storage (R2 Cloudflare) ────────────────
         services.AddSingleton<IFileStorageService, Storage.R2FileStorageService>();
@@ -94,8 +95,23 @@ public static class DependencyInjection
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
-        services.AddOptions<SpeedSmsOptions>()
-            .Bind(configuration.GetSection(SpeedSmsOptions.Section));
+        // ── Firebase Admin SDK ──────────────────────────
+        var firebaseKeyPath = configuration["Firebase:ServiceAccountKeyPath"];
+        if (!string.IsNullOrEmpty(firebaseKeyPath) && File.Exists(firebaseKeyPath) && FirebaseApp.DefaultInstance is null)
+        {
+            using var stream = File.OpenRead(firebaseKeyPath);
+#pragma warning disable CS0618 // GoogleCredential.FromStream is deprecated but Firebase Admin SDK requires it
+            FirebaseApp.Create(new AppOptions
+            {
+                Credential = GoogleCredential.FromStream(stream),
+            });
+#pragma warning restore CS0618
+        }
+        else if (FirebaseApp.DefaultInstance is null)
+        {
+            // Fallback: use GOOGLE_APPLICATION_CREDENTIALS env var
+            FirebaseApp.Create();
+        }
 
         // ── JWT Authentication ───────────────────────────
         var jwtSection = configuration.GetSection("Jwt");
