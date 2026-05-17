@@ -7,6 +7,10 @@ using Microsoft.EntityFrameworkCore;
 internal sealed class ProvinceRepository(ApplicationDbContext db)
     : CatalogRepository<Province>(db), IProvinceRepository
 {
+    public Task<Province?> GetByCodeAsync(string code, CancellationToken ct)
+        => QueryAsNoTracking()
+            .FirstOrDefaultAsync(p => p.Code == code, ct);
+
     public Task<Province?> GetByCodeWithCatalogAsync(string code, CancellationToken ct)
         => QueryAsNoTracking()
             .Include(p => p.AdministrativeRegion)

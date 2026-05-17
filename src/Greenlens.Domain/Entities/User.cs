@@ -30,6 +30,14 @@ public sealed class User : SoftDeletableEntity
     public DateTime? LockoutEnd { get; private set; }
     public string? GoogleId { get; private set; }
 
+    // ── Organization assignment (v1.1) ──
+    public Guid? DepartmentId { get; private set; }
+    public Guid? LocalOfficeId { get; private set; }
+
+    // ── Navigation ──
+    public Department? Department { get; private set; }
+    public LocalOffice? LocalOffice { get; private set; }
+
     public static User Create(string email, string passwordHash, string fullName, UserRole role = UserRole.Citizen)
     {
         var user = new User
@@ -140,5 +148,19 @@ public sealed class User : SoftDeletableEntity
         if (role is not null) Role = role.Value;
         if (isEmailVerified == true && !IsEmailVerified) IsEmailVerified = true;
         if (isEmailVerified == false) IsEmailVerified = false;
+    }
+
+    /// <summary>BR-ORG-001: Assign user (DEO) to a Department.</summary>
+    public void AssignToDepartment(Guid departmentId)
+    {
+        DepartmentId = departmentId;
+        LocalOfficeId = null;
+    }
+
+    /// <summary>BR-ORG-002: Assign user (LEO) to a Local Office.</summary>
+    public void AssignToLocalOffice(Guid localOfficeId)
+    {
+        LocalOfficeId = localOfficeId;
+        DepartmentId = null;
     }
 }

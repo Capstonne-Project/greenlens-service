@@ -7,6 +7,10 @@ using Microsoft.EntityFrameworkCore;
 internal sealed class WardRepository(ApplicationDbContext db)
     : CatalogRepository<Ward>(db), IWardRepository
 {
+    public Task<Ward?> GetByCodeAsync(string code, CancellationToken ct)
+        => QueryAsNoTracking()
+            .FirstOrDefaultAsync(w => w.Code == code, ct);
+
     public async Task<IReadOnlyList<Ward>> GetByProvinceAsync(string provinceCode, CancellationToken ct)
         => await QueryAsNoTracking()
             .Where(w => w.ProvinceCode == provinceCode)
