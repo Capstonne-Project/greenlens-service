@@ -78,9 +78,6 @@ docker-compose.override.yml
 .env.*
 !.env.example
 
-# Firebase service account key - local development only
-greenlens-polution-app-firebase-adminsdk-fbsvc-54fffc6fb5.json
-
 ## EF Core — Designer.cs files are REQUIRED, do NOT ignore them
 
 ## Misc
