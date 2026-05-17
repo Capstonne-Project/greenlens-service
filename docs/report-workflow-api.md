@@ -1,554 +1,317 @@
-# GreenLens — API Quản lý Tổ chức & Luồng Xử lý Báo cáo Ô nhiễm
+# GreenLens — API Documentation v1.1
 
-> **Version**: 1.1 | **Base URL**: `/v1` | **Auth**: Bearer JWT  
+> **Base URL**: `/v1` | **Auth**: Bearer JWT  
 > **Response format**: `ApiResponse<T>` — `{ code, message, status, data }`
 
 ---
 
 ## Mục lục
 
-1. [Tổng quan kiến trúc tổ chức](#1-tổng-quan-kiến-trúc-tổ-chức)
-2. [API Quản lý Tổ chức (Admin)](#2-api-quản-lý-tổ-chức-admin)
-3. [API Luồng Báo cáo (Report Workflow)](#3-api-luồng-báo-cáo-report-workflow)
-4. [State Machine & Luồng hoàn chỉnh](#4-state-machine--luồng-hoàn-chỉnh)
-5. [Roles & Quyền hạn](#5-roles--quyền-hạn)
-6. [Error Codes](#6-error-codes)
+1. [DepartmentsController — `/v1/departments`](#1-departmentscontroller)
+2. [LocalOfficesController — `/v1/offices`](#2-localofficescontroller)
+3. [TeamsController — `/v1/teams`](#3-teamscontroller)
+4. [ReportsController — `/v1/reports`](#4-reportscontroller)
+5. [State Machine & Luồng hoàn chỉnh](#5-state-machine--luồng-hoàn-chỉnh)
+6. [Roles & Quyền hạn](#6-roles--quyền-hạn)
+7. [Error Codes](#7-error-codes)
 
 ---
 
-## 1. Tổng quan kiến trúc tổ chức
+## 1. DepartmentsController
 
-```
-Department (cấp Tỉnh/TP)        ← DEO quản lý
- └── LocalOffice (cấp Xã/Phường) ← LEO phụ trách
-      ├── Cleanup Team (1..N)     ← Xử lý: Rác, Nước thải, Hóa chất
-      └── Inspection Team (1..N)  ← Xử phạt: Tiếng ồn, Không khí
-```
+> Route: `/v1/departments` — Quản lý Sở TNMT cấp Tỉnh/TP
 
-**Routing tự động khi submit**: FE gửi `wardCode` + `provinceCode` → BE tự gán report cho LocalOffice (nếu ward đã onboard) hoặc Department Queue (nếu chưa).
+| # | Method | Route | Summary | Role |
+|---|--------|-------|---------|------|
+| 1 | `GET` | `/` | Danh sách departments | Admin, DEO |
+| 2 | `GET` | `/{id}` | Chi tiết department (kèm offices) | Admin, DEO |
+| 3 | `POST` | `/` | Tạo department | Admin |
+| 4 | `PUT` | `/{id}` | Cập nhật department | Admin |
+| 5 | `DELETE` | `/{id}` | Vô hiệu hóa (soft-delete) | Admin |
 
----
+### GET `/v1/departments`
+**Query Params**: `page`, `pageSize`, `isActive` (optional)
 
-## 2. API Quản lý Tổ chức (Admin)
+### GET `/v1/departments/{id}`
+**Response** gồm: thông tin department + danh sách offices trực thuộc (tên, wardCode, officer, số team).
 
-> **Controller**: `OrganizationController` — Route: `/v1/organization`  
-> **Auth**: `Admin` only
-
-### 2.1 Tạo Department
-
-```
-POST /v1/organization/departments
-```
-
-Tạo Sở Tài nguyên & Môi trường cấp Tỉnh/TP. Mỗi tỉnh chỉ có 1 Department.
-
-**Request Body:**
+### POST `/v1/departments`
 ```json
-{
-  "name": "Sở TNMT TP.HCM",
-  "provinceCode": "79"
-}
+{ "name": "Sở TNMT TP.HCM", "provinceCode": "79" }
 ```
 
-**Response** `201`:
+### PUT `/v1/departments/{id}`
 ```json
-{
-  "code": "SUCCESS",
-  "status": 201,
-  "data": { "id": "guid", "name": "...", "provinceCode": "79" }
-}
+{ "name": "Sở TNMT TP.HCM (Updated)" }
 ```
-
-| Error | Mô tả |
-|-------|--------|
-| `409` | Tỉnh đã có Department |
-| `404` | Province code không tồn tại |
 
 ---
 
-### 2.2 Tạo Local Office
+## 2. LocalOfficesController
 
-```
-POST /v1/organization/offices
-```
+> Route: `/v1/offices` — Quản lý Văn phòng MT cấp Xã/Phường
 
-Onboard 1 văn phòng cấp xã/phường. Sau khi tạo, báo cáo trong ward đó sẽ tự động route đến office này.
+| # | Method | Route | Summary | Role |
+|---|--------|-------|---------|------|
+| 1 | `GET` | `/` | Danh sách offices | Admin, DEO, LEO |
+| 2 | `GET` | `/{id}` | Chi tiết office (kèm teams, officer) | Admin, DEO, LEO |
+| 3 | `POST` | `/` | Tạo office | Admin |
+| 4 | `PUT` | `/{id}` | Cập nhật office | Admin |
+| 5 | `PUT` | `/{id}/officer` | Gán LEO cho office | Admin |
 
-**Request Body:**
+### GET `/v1/offices`
+**Query Params**: `page`, `pageSize`, `departmentId`, `isOnboarded` (optional)
+
+### GET `/v1/offices/{id}`
+**Response** gồm: thông tin office + danh sách teams (tên, loại, active, số thành viên).
+
+### POST `/v1/offices`
 ```json
-{
-  "departmentId": "guid",
-  "name": "VP MT Phường Bến Nghé",
-  "wardCode": "26740"
-}
+{ "departmentId": "guid", "name": "VP MT Phường Bến Nghé", "wardCode": "26740" }
 ```
 
-**Response** `201`: trả về `{ id, name, wardCode, departmentId }`
-
-| Error | Mô tả |
-|-------|--------|
-| `409` | Ward đã có office |
-| `404` | Department không tồn tại |
-
----
-
-### 2.3 Gán LEO cho Office
-
-```
-PUT /v1/organization/offices/{officeId}/officer
-```
-
-Gán 1 user có role `LEO` làm người phụ trách office.
-
-**Request Body:**
+### PUT `/v1/offices/{id}/officer`
 ```json
 { "userId": "guid" }
 ```
 
-**Response** `204 No Content`
+---
 
-| Error | Mô tả |
-|-------|--------|
-| `404` | Office hoặc User không tồn tại |
-| `422` | User không có role LEO |
+## 3. TeamsController
+
+> Route: `/v1/teams` — Quản lý Đội MT (Cleanup / Inspection)
+
+| # | Method | Route | Summary | Role |
+|---|--------|-------|---------|------|
+| 1 | `GET` | `/` | Danh sách teams | Admin, LEO, DEO |
+| 2 | `GET` | `/{id}` | Chi tiết team (kèm members) | Admin, LEO, DEO |
+| 3 | `POST` | `/` | Tạo team | Admin |
+| 4 | `PUT` | `/{id}` | Cập nhật team | Admin |
+| 5 | `POST` | `/{id}/members` | Thêm thành viên | Admin |
+| 6 | `DELETE` | `/{id}/members/{userId}` | Xóa thành viên | Admin |
+
+### GET `/v1/teams`
+**Query Params**: `page`, `pageSize`, `localOfficeId`, `teamType` (`Cleanup`/`Inspection`), `isActive`
+
+### GET `/v1/teams/{id}`
+**Response** gồm: thông tin team + danh sách members (tên, email, isLeader, ngày tham gia).
+
+### POST `/v1/teams`
+```json
+{ "localOfficeId": "guid", "name": "Đội dọn dẹp 01", "teamType": "Cleanup" }
+```
+
+### POST `/v1/teams/{id}/members`
+```json
+{ "userId": "guid", "isLeader": false }
+```
 
 ---
 
-### 2.4 Tạo Team
+## 4. ReportsController
 
-```
-POST /v1/organization/teams
-```
+> Route: `/v1/reports` — CRUD + Workflow lifecycle + Queries
 
-Tạo team Cleanup hoặc Inspection dưới 1 LocalOffice.
+### 4.1 CRUD & Queries
 
-**Request Body:**
+| # | Method | Route | Summary | Role |
+|---|--------|-------|---------|------|
+| 1 | `POST` | `/` | Tạo báo cáo ô nhiễm | Citizen / Anonymous |
+| 2 | `GET` | `/` | Danh sách báo cáo | Auth |
+| 3 | `GET` | `/{id}` | Chi tiết báo cáo (media, assignments) | Auth |
+| 4 | `GET` | `/my` | Báo cáo của tôi | Citizen |
+| 5 | `GET` | `/{id}/history` | Lịch sử status | Auth |
+| 6 | `GET` | `/queue` | Hàng đợi officer | LEO, DEO |
+
+### POST `/v1/reports`
 ```json
 {
-  "localOfficeId": "guid",
-  "name": "Đội dọn dẹp Phường BN - 01",
-  "teamType": "Cleanup"
-}
-```
-`teamType`: `"Cleanup"` | `"Inspection"`
-
-**Response** `201`: trả về `{ id, name, teamType, localOfficeId }`
-
----
-
-### 2.5 Thêm Team Member
-
-```
-POST /v1/organization/teams/{teamId}/members
-```
-
-**Request Body:**
-```json
-{
-  "userId": "guid",
-  "isLeader": false
-}
-```
-
-**Validation**: User có role `Cleanup` chỉ vào team Cleanup, role `Inspector` chỉ vào team Inspection.
-
-**Response** `201`: trả về `{ id, teamId, userId, isLeader }`
-
----
-
-## 3. API Luồng Báo cáo (Report Workflow)
-
-> **Controllers**: `PollutionReportsController` + `ReportWorkflowController`
-
-### 3.1 Citizen: Submit báo cáo
-
-```
-POST /v1/pollution-reports
-```
-**Auth**: Không bắt buộc (hỗ trợ anonymous)
-
-Tạo báo cáo mới. Hệ thống tự động:
-- Gán status = `Submitted`
-- Set SLA verify = 24h
-- **Auto-route** theo `wardCode`:
-  - Ward đã onboard → gán `AssignedOfficeId`
-  - Ward chưa onboard → gán `AssignedDepartmentId` (common queue)
-
-**Request Body:**
-```json
-{
-  "categoryId": "guid",
-  "severity": "Medium",
-  "description": "Rác thải tràn ngập trên đường...",
-  "latitude": 10.7626,
-  "longitude": 106.6602,
-  "address": "123 Đường ABC, Q1",
-  "wardCode": "26740",
-  "provinceCode": "79",
+  "categoryId": "guid", "severity": "Medium",
+  "description": "Rác thải tràn ngập...",
+  "latitude": 10.7626, "longitude": 106.6602,
+  "address": "123 Đường ABC", "wardCode": "26740", "provinceCode": "79",
   "isAnonymous": false,
-  "images": [
-    { "url": "https://...", "mimeType": "image/jpeg", "sizeBytes": 204800 }
-  ]
+  "images": [{ "url": "https://...", "mimeType": "image/jpeg", "sizeBytes": 204800 }]
 }
 ```
 
-**Response** `201`: Trả về full report info + code (VD: `RPT-260517-A3F2B1`)
+### GET `/v1/reports`
+**Query Params**: `page`, `pageSize`, `status`, `categoryId`, `wardCode`, `severity`
+
+### GET `/v1/reports/{id}`
+**Response** gồm: full report info + media list + assignments list (teamId, teamName, status, timestamps).
+
+### GET `/v1/reports/my`
+**Query Params**: `page`, `pageSize`, `status`
+
+### GET `/v1/reports/{id}/history`
+**Response**: timeline status changes (fromStatus → toStatus, changedBy, reason, timestamp).
+
+### GET `/v1/reports/queue`
+**Query Params**: `page`, `pageSize`, `status`
 
 ---
 
-### 3.2 Officer: Xác minh báo cáo (Verify)
+### 4.2 Officer Workflow
 
-```
-PUT /v1/reports/{id}/verify
-```
-**Auth**: `LEO`, `DEO`, `Admin`
+| # | Method | Route | Summary | Role |
+|---|--------|-------|---------|------|
+| 7 | `PUT` | `/{id}/verify` | Xác minh báo cáo | LEO, DEO |
+| 8 | `PUT` | `/{id}/reject` | Từ chối báo cáo | LEO, DEO |
+| 9 | `POST` | `/{id}/assign` | Phân công team(s) | LEO, DEO |
+| 10 | `PUT` | `/{id}/reassign` | Chuyển giao team | LEO, DEO |
 
-LEO kiểm tra thông tin báo cáo, có thể điều chỉnh loại ô nhiễm và mức độ. Chuyển status: `Submitted → Verified`.
-
-**Business Rules:**
-- BR-OFF-004: Không được verify báo cáo do chính mình tạo (conflict of interest)
-- BR-OFF-003: Có thể override severity và category
-
-**Request Body:**
+### PUT `/v1/reports/{id}/verify`
 ```json
-{
-  "overrideSeverity": "High",
-  "overrideCategoryId": "guid"
-}
+{ "overrideSeverity": "High", "overrideCategoryId": "guid" }
 ```
-> Cả 2 field đều optional. Nếu không gửi → giữ nguyên giá trị gốc.
+> Cả 2 field optional. Chuyển Submitted → Verified.
 
-**Response** `204 No Content`
-
----
-
-### 3.3 Officer: Từ chối báo cáo (Reject)
-
-```
-PUT /v1/reports/{id}/reject
-```
-**Auth**: `LEO`, `DEO`, `Admin`
-
-Từ chối báo cáo không hợp lệ. Chuyển status: `Submitted → Rejected`.
-
-**Request Body:**
+### PUT `/v1/reports/{id}/reject`
 ```json
-{ "reason": "Ảnh không phản ánh ô nhiễm thực tế, không đủ bằng chứng" }
+{ "reason": "Ảnh không phản ánh ô nhiễm thực tế..." }
 ```
-> `reason` phải ≥ 20 ký tự (BR-REP-022)
+> `reason` ≥ 20 ký tự. Chuyển Submitted → Rejected.
 
-**Response** `204 No Content`
-
----
-
-### 3.4 Officer: Phân công Team (Assign)
-
-```
-POST /v1/reports/{id}/assign
-```
-**Auth**: `LEO`, `DEO`, `Admin`
-
-Phân công 1 hoặc **nhiều team** cùng xử lý 1 báo cáo. Tất cả team ngang hàng (không phân biệt chính/phụ). Chuyển status: `Verified → InProgress`.
-
-**Business Rules:**
-- BR-ORG-013: Team type phải khớp loại ô nhiễm (Cleanup cho Rác/Nước/Hóa chất, Inspection cho Tiếng ồn/Không khí)
-- BR-OFF-013: Mỗi team tối đa 10 báo cáo In-Progress cùng lúc
-- Mỗi assignment có status riêng: `Assigned → InProgress → Completed`
-- Report chỉ chuyển sang Resolved/PenaltyIssued khi **TẤT CẢ** team đều Completed
-
-**Request Body:**
+### POST `/v1/reports/{id}/assign`
 ```json
 {
   "teams": [
-    { "teamId": "guid-team-a", "note": "Khu vực phía Bắc" },
-    { "teamId": "guid-team-b", "note": "Khu vực phía Nam" }
+    { "teamId": "guid-a", "note": "Khu vực phía Bắc" },
+    { "teamId": "guid-b", "note": "Khu vực phía Nam" }
   ]
 }
 ```
+> Tất cả team ngang hàng. Chuyển Verified → InProgress.
 
-**Response** `204 No Content`
-
----
-
-### 3.5 Officer: Chuyển giao Team (Reassign)
-
-```
-PUT /v1/reports/{id}/reassign
-```
-**Auth**: `LEO`, `DEO`, `Admin`
-
-Chuyển 1 assignment từ team cũ sang team mới. Chỉ chuyển giữa team **cùng loại** (Cleanup↔Cleanup, Inspection↔Inspection).
-
-**Request Body:**
+### PUT `/v1/reports/{id}/reassign`
 ```json
-{
-  "oldTeamId": "guid",
-  "newTeamId": "guid",
-  "reason": "Team A đang quá tải, chuyển cho team B xử lý"
-}
+{ "oldTeamId": "guid", "newTeamId": "guid", "reason": "Team A quá tải..." }
 ```
-> `reason` ≥ 20 ký tự (BR-OFF-012)
-
-**Response** `204 No Content`
+> `reason` ≥ 20 ký tự. Chỉ chuyển giữa team cùng loại.
 
 ---
 
-### 3.6 Cleanup Team: Hoàn thành (Resolve)
+### 4.3 Team Workflow
 
-```
-PUT /v1/reports/{id}/resolve
-```
-**Auth**: `Cleanup`, `Admin`
+| # | Method | Route | Summary | Role |
+|---|--------|-------|---------|------|
+| 11 | `PUT` | `/{id}/resolve` | Hoàn thành phần việc | Cleanup |
+| 12 | `PUT` | `/{id}/penalty` | Xử phạt vi phạm | Inspector |
+| 13 | `PUT` | `/{id}/close-no-violation` | Đóng — không vi phạm | Inspector |
+| 14 | `PUT` | `/{id}/decline` | Từ chối task | Cleanup, Inspector |
 
-Team Cleanup đánh dấu **phần việc của team mình** là hoàn thành. Khi tất cả team đều completed → report chuyển `InProgress → Resolved`.
-
-**Request Body:**
+### PUT `/v1/reports/{id}/resolve`
 ```json
-{
-  "teamId": "guid",
-  "afterImageUrls": [
-    "https://storage.../after-1.jpg",
-    "https://storage.../after-2.jpg"
-  ]
-}
+{ "teamId": "guid", "afterImageUrls": ["url1", "url2"] }
 ```
-> Phải có ≥ 2 ảnh after từ các góc khác nhau (BR-CLN-005)
+> ≥ 2 ảnh. Mark team completed → khi ALL team completed → InProgress → Resolved.
 
-**Response** `204 No Content`
-
-**Logic multi-team:**
-```
-3 team được gán → Team A resolve → vẫn InProgress
-                → Team B resolve → vẫn InProgress
-                → Team C resolve → ALL done → Resolved ✅
-```
-
----
-
-### 3.7 Inspection Team: Xử phạt (Issue Penalty)
-
-```
-PUT /v1/reports/{id}/penalty
-```
-**Auth**: `Inspector`, `Admin`
-
-Inspection Team Leader ban hành quyết định xử phạt. Logic tương tự Resolve — chỉ chuyển `InProgress → PenaltyIssued` khi tất cả team completed.
-
-**Request Body:**
+### PUT `/v1/reports/{id}/penalty`
 ```json
 { "teamId": "guid" }
 ```
+> Khi ALL team completed → InProgress → PenaltyIssued.
 
-**Response** `204 No Content`
-
----
-
-### 3.8 Inspection Team: Đóng — Không vi phạm
-
-```
-PUT /v1/reports/{id}/close-no-violation
-```
-**Auth**: `Inspector`, `Admin`
-
-Sau khảo sát không đủ căn cứ vi phạm. Chuyển `InProgress → ClosedNoViolation`.
-
-**Request Body:**
+### PUT `/v1/reports/{id}/close-no-violation`
 ```json
-{ "reason": "Sau khi khảo sát hiện trường, không phát hiện nguồn gây ô nhiễm không khí. Chỉ số AQI đo được trong ngưỡng cho phép." }
+{ "reason": "Sau khi khảo sát hiện trường, không phát hiện vi phạm..." }
 ```
-> `reason` ≥ 50 ký tự (BR-INS-013)
+> `reason` ≥ 50 ký tự. InProgress → ClosedNoViolation.
 
-**Response** `204 No Content`
-
----
-
-### 3.9 Citizen/Auto: Đóng báo cáo (Close)
-
-```
-PUT /v1/reports/{id}/close
-```
-**Auth**: Bất kỳ user đã đăng nhập
-
-Citizen xác nhận hài lòng hoặc hệ thống auto-close sau 7 ngày. Chuyển `Resolved → Closed` hoặc `PenaltyIssued → Closed`.
-
-**Response** `204 No Content`
-
----
-
-### 3.10 Citizen: Mở lại báo cáo (Reopen)
-
-```
-PUT /v1/reports/{id}/reopen
-```
-**Auth**: Bất kỳ user đã đăng nhập
-
-Citizen không hài lòng → mở lại. Tối đa **2 lần** reopen (BR-REP-015). Chuyển `Resolved → InProgress`.
-
-**Response** `204 No Content`
-
-| Error | Mô tả |
-|-------|--------|
-| `422 REOPEN_LIMIT_REACHED` | Đã hết 2 lần reopen |
-
----
-
-### 3.11 Team: Từ chối Task (Decline)
-
-```
-PUT /v1/reports/{id}/decline
-```
-**Auth**: `Cleanup`, `Inspector`, `Admin`
-
-Team từ chối task **trong vòng 2 giờ** sau khi được gán (BR-CLN-007, BR-INS-003).
-
-**Request Body:**
+### PUT `/v1/reports/{id}/decline`
 ```json
-{
-  "teamId": "guid",
-  "reason": "Khu vực ngoài phạm vi hoạt động của đội"
-}
+{ "teamId": "guid", "reason": "Khu vực ngoài phạm vi..." }
 ```
-> `reason` ≥ 20 ký tự. Quá 2h → lỗi `DECLINE_WINDOW_EXPIRED`.
-
-**Response** `204 No Content`
+> `reason` ≥ 20 ký tự. Chỉ trong 2h đầu sau khi được gán.
 
 ---
 
-### 3.12 Officer: Xem hàng đợi (Queue)
+### 4.4 Citizen Workflow
 
-```
-GET /v1/reports/queue?page=1&pageSize=20&status=Submitted
-```
-**Auth**: `LEO`, `DEO`, `Admin`
+| # | Method | Route | Summary | Role |
+|---|--------|-------|---------|------|
+| 15 | `PUT` | `/{id}/close` | Đóng báo cáo | Citizen / Auto |
+| 16 | `PUT` | `/{id}/reopen` | Mở lại báo cáo | Citizen |
 
-Trả về danh sách báo cáo trong phạm vi quản lý, sắp theo điểm ưu tiên giảm dần.
+### PUT `/v1/reports/{id}/close`
+> Chuyển Resolved/PenaltyIssued → Closed. Không cần body.
 
-- **LEO**: chỉ thấy báo cáo trong xã/phường mình phụ trách
-- **DEO**: thấy tất cả báo cáo trong tỉnh + department queue
-
-**Query Params:**
-
-| Param | Type | Default | Mô tả |
-|-------|------|---------|--------|
-| `page` | int | 1 | Trang |
-| `pageSize` | int | 20 | Số item/trang |
-| `status` | string? | null | Filter theo status (optional) |
-
-**Response** `200`:
-```json
-{
-  "code": "SUCCESS",
-  "data": {
-    "items": [
-      {
-        "id": "guid",
-        "code": "RPT-260517-A3F2B1",
-        "categoryCode": "TRASH",
-        "categoryName": "Rác thải",
-        "severity": "High",
-        "status": "Submitted",
-        "latitude": 10.7626,
-        "longitude": 106.6602,
-        "address": "123 ABC",
-        "wardCode": "26740",
-        "priorityScore": 15.5,
-        "createdAt": "2026-05-17T08:00:00Z",
-        "slaVerifyDueAt": "2026-05-18T08:00:00Z",
-        "slaResolveDueAt": null
-      }
-    ],
-    "totalCount": 42,
-    "page": 1,
-    "pageSize": 20
-  }
-}
-```
+### PUT `/v1/reports/{id}/reopen`
+> Tối đa 2 lần. Chuyển Resolved → InProgress. Không cần body.
 
 ---
 
-## 4. State Machine & Luồng hoàn chỉnh
-
-### State Machine
+## 5. State Machine & Luồng hoàn chỉnh
 
 ```
                          ┌─── Rejected
                          │
 Submitted ──► Verified ──┼──► InProgress ──┬──► Resolved ──┬──► Closed
-    │              │     │                 │               │
-    │              │     │                 ├──► PenaltyIssued ──► Closed
-    │              │     │                 │
-    └── Duplicate  │     │                 └──► ClosedNoViolation
-                   │     │
-                   │     └ (Resolved → InProgress: reopen, max 2 lần)
+    │                    │                 │               │
+    │                    │                 ├──► PenaltyIssued ──► Closed
+    │                    │                 │
+    └── Duplicate        │                 └──► ClosedNoViolation
+                         │
+                         └ (Resolved → InProgress: reopen, max 2 lần)
 ```
 
-### Luồng Cleanup (Rác / Nước thải / Hóa chất)
-
+### Luồng Cleanup
 ```
-1. Citizen:  POST /v1/pollution-reports           → Submitted (auto-route)
-2. LEO:      PUT  /v1/reports/{id}/verify         → Verified
-3. LEO:      POST /v1/reports/{id}/assign         → InProgress (gán N team)
-4. Team:     PUT  /v1/reports/{id}/resolve        → mỗi team mark completed
-                                                   → khi ALL done → Resolved
-5. Citizen:  PUT  /v1/reports/{id}/close          → Closed
-   (hoặc)    PUT  /v1/reports/{id}/reopen         → InProgress (max 2 lần)
+1. Citizen:  POST /v1/reports              → Submitted
+2. LEO:      PUT  /{id}/verify             → Verified
+3. LEO:      POST /{id}/assign             → InProgress (N team ngang hàng)
+4. Team(s):  PUT  /{id}/resolve            → mỗi team mark completed
+                                            → ALL done → Resolved
+5. Citizen:  PUT  /{id}/close              → Closed
 ```
 
-### Luồng Inspection (Tiếng ồn / Không khí)
-
+### Luồng Inspection
 ```
-1. Citizen:  POST /v1/pollution-reports           → Submitted (auto-route)
-2. LEO:      PUT  /v1/reports/{id}/verify         → Verified
-3. LEO:      POST /v1/reports/{id}/assign         → InProgress (gán N team)
-4a. Team:    PUT  /v1/reports/{id}/penalty         → khi ALL done → PenaltyIssued
-4b. Team:    PUT  /v1/reports/{id}/close-no-violation → ClosedNoViolation
-5. Citizen:  PUT  /v1/reports/{id}/close          → Closed
-```
-
-### Luồng từ chối / chuyển giao
-
-```
-- LEO reject:      PUT /v1/reports/{id}/reject      → Rejected
-- Team decline:    PUT /v1/reports/{id}/decline      → assignment Declined (2h window)
-- LEO reassign:    PUT /v1/reports/{id}/reassign     → team cũ Declined, team mới Assigned
+1. Citizen:  POST /v1/reports              → Submitted
+2. LEO:      PUT  /{id}/verify             → Verified
+3. LEO:      POST /{id}/assign             → InProgress
+4a. Team(s): PUT  /{id}/penalty            → ALL done → PenaltyIssued
+4b. Team:    PUT  /{id}/close-no-violation → ClosedNoViolation
+5. Citizen:  PUT  /{id}/close              → Closed
 ```
 
 ---
 
-## 5. Roles & Quyền hạn
+## 6. Roles & Quyền hạn
 
-| Role | Mô tả | Quyền trên Report |
-|------|--------|-------------------|
-| `Citizen` | Người dân | Submit, Close, Reopen |
-| `LEO` | Officer cấp Xã/Phường | Verify, Reject, Assign, Reassign, Queue |
-| `DEO` | Officer cấp Tỉnh/TP | Verify, Reject, Assign, Reassign, Queue (toàn tỉnh) |
-| `Cleanup` | Thành viên đội dọn dẹp | Resolve, Decline |
-| `Inspector` | Thành viên đội thanh tra | Penalty, CloseNoViolation, Decline |
-| `Admin` | Quản trị hệ thống | Tất cả + Organization APIs |
+| Role | Mô tả | Endpoints |
+|------|--------|-----------|
+| `Citizen` | Người dân | Submit, GET my, Close, Reopen |
+| `LEO` | Officer cấp Xã | Verify, Reject, Assign, Reassign, Queue, GET offices/teams |
+| `DEO` | Officer cấp Tỉnh | Như LEO + GET departments |
+| `Cleanup` | Đội dọn dẹp | Resolve, Decline |
+| `Inspector` | Đội thanh tra | Penalty, CloseNoViolation, Decline |
+| `Admin` | Quản trị | Tất cả APIs |
 
 ---
 
-## 6. Error Codes
+## 7. Error Codes
 
 | Code | HTTP | Mô tả |
 |------|------|--------|
 | `REPORT_NOT_FOUND` | 404 | Không tìm thấy báo cáo |
 | `INVALID_STATUS_TRANSITION` | 422 | Không thể chuyển trạng thái |
-| `CONFLICT_OF_INTEREST` | 422 | Không thể xử lý báo cáo do mình tạo |
+| `CONFLICT_OF_INTEREST` | 422 | Không xử lý báo cáo do mình tạo |
 | `TEAM_TYPE_MISMATCH` | 422 | Loại team không khớp loại ô nhiễm |
 | `TEAM_WORKLOAD_EXCEEDED` | 422 | Team đạt giới hạn 10 In-Progress |
 | `AT_LEAST_ONE_TEAM` | 400 | Phải phân công ít nhất 1 team |
 | `REASON_TOO_SHORT` | 400 | Lý do phải ≥ 20 ký tự |
-| `REASON_TOO_SHORT_50` | 400 | Lý do phải ≥ 50 ký tự |
 | `REOPEN_LIMIT_REACHED` | 422 | Đã hết 2 lần mở lại |
-| `DECLINE_WINDOW_EXPIRED` | 422 | Quá 2h để từ chối task |
-| `ASSIGNMENT_NOT_FOUND` | 404 | Không tìm thấy assignment cho team |
-| `NOT_TEAM_MEMBER` | 422 | Không phải thành viên team |
-| `REASSIGN_SAME_TEAM_TYPE` | 422 | Chỉ chuyển giữa team cùng loại |
+| `DECLINE_WINDOW_EXPIRED` | 422 | Quá 2h để từ chối |
+| `ASSIGNMENT_NOT_FOUND` | 404 | Không tìm thấy assignment |
+| `DEPARTMENT_NOT_FOUND` | 404 | Không tìm thấy department |
+| `DEPARTMENT_ALREADY_EXISTS` | 409 | Tỉnh đã có department |
+| `OFFICE_NOT_FOUND` | 404 | Không tìm thấy office |
+| `LOCAL_OFFICE_ALREADY_EXISTS` | 409 | Ward đã có office |
+| `TEAM_NOT_FOUND` | 404 | Không tìm thấy team |
+| `MEMBER_NOT_FOUND` | 404 | Không tìm thấy thành viên |
+| `MEMBER_ALREADY_IN_TEAM` | 409 | User đã trong team |
+| `INVALID_ROLE_FOR_OFFICER` | 422 | Phải có role LEO |
+| `INVALID_ROLE_FOR_TEAM_MEMBER` | 422 | Phải có role Cleanup/Inspector |
 | `INSUFFICIENT_AFTER_IMAGES` | 400 | Cần ≥ 2 ảnh after |
-| `CATEGORY_NOT_FOUND` | 404 | Danh mục ô nhiễm không tồn tại |
-| `INVALID_WARD_PROVINCE` | 400 | Ward/Province code không khớp |
-
----
-
-> **Ghi chú**: Tài liệu này dựa trên Business Rules v1.1. Các luồng Penalty Decision chi tiết (biên bản, khung phạt, theo dõi nộp phạt) sẽ triển khai ở phase sau.

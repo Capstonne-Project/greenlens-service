@@ -267,6 +267,15 @@ public static class Errors
             "Tỉnh/thành phố này đã có đơn vị quản lý.",
             ErrorType.Conflict);
 
+        public static Error OfficeNotFound => new(
+            "OFFICE_NOT_FOUND",
+            "Không tìm thấy văn phòng môi trường.",
+            ErrorType.NotFound);
+
+        public static Error MemberNotFound => new(
+            "MEMBER_NOT_FOUND",
+            "Không tìm thấy thành viên trong đội.",
+            ErrorType.NotFound);
         public static Error LocalOfficeNotFound => new(
             "LOCAL_OFFICE_NOT_FOUND",
             "Không tìm thấy văn phòng cấp xã/phường.",
