@@ -26,7 +26,7 @@ public sealed class AssignTeamCommandHandler(
     // Categories that route to Cleanup Team (BR-ORG-013)
     private static readonly HashSet<string> CleanupCategories = ["TRASH", "WASTEWATER", "CHEMICAL"];
     // Categories that route to Inspection Team (BR-ORG-013)
-    private static readonly HashSet<string> InspectionCategories = ["NOISE", "AIR"];
+    private static readonly HashSet<string> InspectionCategories = ["NOISE", "AIR", "SMOKE"];
 
     public async Task<Result> Handle(AssignTeamCommand request, CancellationToken ct)
     {

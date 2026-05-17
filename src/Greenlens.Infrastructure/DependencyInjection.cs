@@ -5,6 +5,7 @@ using Google.Apis.Auth.OAuth2;
 using Greenlens.Application.Common.Behaviors;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Infrastructure.Ai;
 using Greenlens.Infrastructure.Email;
 using Greenlens.Infrastructure.Identity;
 using Greenlens.Infrastructure.Persistence;
@@ -68,6 +69,21 @@ public static class DependencyInjection
 
         // ── File Storage (R2 Cloudflare) ────────────────
         services.AddSingleton<IFileStorageService, Storage.R2FileStorageService>();
+
+        // ── AI Classification ─────────────────────────
+        services.AddOptions<AiOptions>()
+            .Bind(configuration.GetSection("Ai"))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        services.AddHttpClient("AiService", (sp, client) =>
+        {
+            var opts = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<AiOptions>>().Value;
+            client.BaseAddress = new Uri(opts.BaseUrl);
+        });
+
+        services.AddScoped<IAiClassificationService, AiClassificationService>();
+        services.AddSingleton<ITempImageStore, TempImageStore>();
 
         // ── MediatR ──────────────────────────────────────
         services.AddMediatR(cfg =>
