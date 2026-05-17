@@ -293,4 +293,11 @@ public sealed class Report : SoftDeletableEntity
         Severity.Low => DateTime.UtcNow.AddDays(10),
         _ => DateTime.UtcNow.AddDays(7)
     };
+
+    /// <summary>Admin-only: force status without state machine validation.</summary>
+    public void ForceStatus(ReportStatus newStatus)
+    {
+        Status = newStatus;
+        UpdatedAt = DateTime.UtcNow;
+    }
 }

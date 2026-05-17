@@ -11,9 +11,10 @@
 2. [LocalOfficesController — `/v1/offices`](#2-localofficescontroller)
 3. [TeamsController — `/v1/teams`](#3-teamscontroller)
 4. [ReportsController — `/v1/reports`](#4-reportscontroller)
-5. [State Machine & Luồng hoàn chỉnh](#5-state-machine--luồng-hoàn-chỉnh)
-6. [Roles & Quyền hạn](#6-roles--quyền-hạn)
-7. [Error Codes](#7-error-codes)
+5. [AdminController — `/v1/admin`](#5-admincontroller)
+6. [State Machine & Luồng hoàn chỉnh](#6-state-machine--luồng-hoàn-chỉnh)
+7. [Roles & Quyền hạn](#7-roles--quyền-hạn)
+8. [Error Codes](#8-error-codes)
 
 ---
 
@@ -240,9 +241,75 @@
 ### PUT `/v1/reports/{id}/reopen`
 > Tối đa 2 lần. Chuyển Resolved → InProgress. Không cần body.
 
+## 5. AdminController
+
+> Route: `/v1/admin` — Admin Dashboard APIs (Require `Admin` role)
+
+### 5.1 Users — `/v1/admin/users`
+
+| # | Method | Route | Summary |
+|---|--------|-------|---------|
+| 1 | `POST` | `/users` | Tạo tài khoản |
+| 2 | `GET` | `/users/all` | Toàn bộ users (không phân trang) |
+| 3 | `GET` | `/users` | Danh sách users (phân trang) |
+| 4 | `GET` | `/users/{id}` | Chi tiết user |
+| 5 | `PUT` | `/users/{id}` | Cập nhật user |
+| 6 | `DELETE` | `/users/{id}` | Xóa user (soft-delete) |
+| 7 | `PUT` | `/users/{id}/role` | Đổi role user |
+
+### PUT `/v1/admin/users/{id}/role`
+```json
+{ "newRole": "LEO" }
+```
+
+### 5.2 Reports — `/v1/admin/reports`
+
+| # | Method | Route | Summary |
+|---|--------|-------|---------|
+| 8 | `GET` | `/reports` | Danh sách báo cáo (admin view, full metadata) |
+| 9 | `GET` | `/reports/{id}` | Chi tiết báo cáo |
+| 10 | `PUT` | `/reports/{id}/status` | Force cập nhật status (bypass state machine) |
+
+### GET `/v1/admin/reports`
+**Query Params**: `page`, `pageSize`, `status`, `categoryId`, `wardCode`, `provinceCode`, `search`
+
+### PUT `/v1/admin/reports/{id}/status`
+```json
+{ "newStatus": "Resolved", "reason": "Admin override — data correction" }
+```
+> Bypass state machine. Chỉ dùng cho trường hợp đặc biệt. Ghi audit trail.
+
+### 5.3 Pollution Categories — `/v1/admin/pollution-categories`
+
+| # | Method | Route | Summary |
+|---|--------|-------|---------|
+| 11 | `POST` | `/pollution-categories` | Tạo danh mục ô nhiễm |
+| 12 | `PUT` | `/pollution-categories/{id}` | Cập nhật danh mục |
+| 13 | `DELETE` | `/pollution-categories/{id}` | Xóa danh mục (deactivate) |
+| 14 | `PUT` | `/pollution-categories/{id}/archive` | Archive/Unarchive |
+
+### POST `/v1/admin/pollution-categories`
+```json
+{ "code": "NOISE", "nameVi": "Ô nhiễm tiếng ồn", "nameEn": "Noise Pollution", "iconUrl": "..." }
+```
+
+### PUT `/v1/admin/pollution-categories/{id}/archive`
+```json
+{ "archive": true }
+```
+
+### 5.4 Roles & Permissions
+
+| # | Method | Route | Summary |
+|---|--------|-------|---------|
+| 15 | `GET` | `/roles` | Danh sách roles hệ thống |
+| 16 | `GET` | `/permissions` | Ma trận phân quyền theo role |
+
+> Roles là enum cố định (`Citizen`, `DEO`, `LEO`, `Cleanup`, `Inspector`, `Admin`).
+
 ---
 
-## 5. State Machine & Luồng hoàn chỉnh
+## 6. State Machine & Luồng hoàn chỉnh
 
 ```
                          ┌─── Rejected
@@ -278,7 +345,7 @@ Submitted ──► Verified ──┼──► InProgress ──┬──► Re
 
 ---
 
-## 6. Roles & Quyền hạn
+## 7. Roles & Quyền hạn
 
 | Role | Mô tả | Endpoints |
 |------|--------|-----------|
@@ -291,7 +358,7 @@ Submitted ──► Verified ──┼──► InProgress ──┬──► Re
 
 ---
 
-## 7. Error Codes
+## 8. Error Codes
 
 | Code | HTTP | Mô tả |
 |------|------|--------|

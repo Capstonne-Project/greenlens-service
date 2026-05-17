@@ -163,4 +163,10 @@ public sealed class User : SoftDeletableEntity
         LocalOfficeId = localOfficeId;
         DepartmentId = null;
     }
+
+    /// <summary>Admin: explicit role change.</summary>
+    public void ChangeRole(UserRole newRole)
+    {
+        Role = newRole;
+    }
 }
