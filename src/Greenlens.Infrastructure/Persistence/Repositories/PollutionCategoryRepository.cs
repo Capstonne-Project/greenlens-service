@@ -9,4 +9,12 @@ internal sealed class PollutionCategoryRepository(ApplicationDbContext context)
 {
     public Task<bool> ExistsActiveAsync(Guid id, CancellationToken ct = default) =>
         DbSet.AnyAsync(c => c.Id == id && c.IsActive, ct);
+
+    public Task<PollutionCategory?> GetActiveByCodeAsync(string code, CancellationToken ct = default)
+    {
+        var normalized = code.Trim().ToUpperInvariant();
+        return DbSet.FirstOrDefaultAsync(
+            c => c.Code == normalized && c.IsActive,
+            ct);
+    }
 }

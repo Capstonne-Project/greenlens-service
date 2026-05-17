@@ -1,5 +1,6 @@
 using Greenlens.Api.Extensions;
 using Greenlens.Application.Common.Models;
+using Greenlens.Application.Features.Reports.AnalyzeReportImage;
 using Greenlens.Application.Features.Reports.AssignTeam;
 using Greenlens.Application.Features.Reports.CloseNoViolation;
 using Greenlens.Application.Features.Reports.CloseReport;
@@ -30,6 +31,52 @@ namespace Greenlens.Api.Controllers;
 [Produces("application/json")]
 public sealed class ReportsController(ISender sender) : ControllerBase
 {
+    // ═══════════════════════════════════════════
+    // ██  AI ANALYZE (Step 1)
+    // ═══════════════════════════════════════════
+
+    [HttpPost("analyze")]
+    [AllowAnonymous]
+    [Consumes("multipart/form-data")]
+    [SwaggerOperation(
+        Summary = "[Citizen/Anonymous] Phân tích ảnh trước khi tạo báo cáo (Step 1)",
+        Description = "Upload ảnh để AI phân tích. Trả về temp_image_id (TTL 15 phút), kết quả AI, và " +
+            "suggestedCategory (id, code, nameVi, nameEn) để FE auto-fill loại ô nhiễm. " +
+            "Nếu decision = IRRELEVANT_OR_SUSPECTED_ABUSIVE → FE hiển thị warning, disable nút Submit. " +
+            "AI Service down → 503. Ảnh chưa được lưu vĩnh viễn.")]
+    [SwaggerResponse(200, "Kết quả phân tích", typeof(ApiResponse<AnalyzeReportImageResponse>))]
+    [SwaggerResponse(400, "File rỗng hoặc sai định dạng")]
+    [SwaggerResponse(413, "File > 20MB")]
+    [SwaggerResponse(503, "AI Service tạm thời không khả dụng")]
+    public async Task<IActionResult> AnalyzeAsync(IFormFile image, CancellationToken ct)
+    {
+        if (image is null || image.Length == 0)
+            return BadRequest(new ApiResponse
+            {
+                Code = "FILE_REQUIRED",
+                Message = "Vui lòng chọn file ảnh.",
+                Status = 400
+            });
+
+        if (image.Length > 20 * 1024 * 1024)
+            return StatusCode(413, new ApiResponse
+            {
+                Code = "FILE_TOO_LARGE",
+                Message = "File ảnh vượt quá 20MB.",
+                Status = 413
+            });
+
+        byte[] bytes;
+        await using (var ms = new MemoryStream())
+        {
+            await image.CopyToAsync(ms, ct);
+            bytes = ms.ToArray();
+        }
+
+        var command = new AnalyzeReportImageCommand(bytes, image.FileName, image.ContentType, image.Length);
+        return (await sender.Send(command, ct)).ToHttp();
+    }
+
     // ═══════════════════════════════════════════
     // ██  CRUD
     // ═══════════════════════════════════════════

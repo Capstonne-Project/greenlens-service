@@ -1,6 +1,7 @@
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using Greenlens.Infrastructure.Persistence;
+using Greenlens.Infrastructure.Seeders;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -18,6 +19,7 @@ internal static class AdminSeeder
     public static async Task SeedAsync(ApplicationDbContext db, ILogger logger)
     {
         await SeedAdminAsync(db, logger).ConfigureAwait(false);
+        await PollutionCategorySeeder.SeedAsync(db, logger).ConfigureAwait(false);
     }
 
     private static async Task SeedAdminAsync(ApplicationDbContext db, ILogger logger)

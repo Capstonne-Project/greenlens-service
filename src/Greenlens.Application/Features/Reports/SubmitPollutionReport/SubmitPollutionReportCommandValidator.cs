@@ -9,29 +9,23 @@ public sealed class SubmitPollutionReportCommandValidator : AbstractValidator<Su
 
     private static readonly HashSet<string> AllowedMimeTypes = new(StringComparer.OrdinalIgnoreCase)
     {
-        "image/jpeg",
-        "image/png",
-        "image/webp",
-        "image/heic"
+        "image/jpeg", "image/png", "image/webp", "image/heic"
     };
 
     public SubmitPollutionReportCommandValidator()
     {
         RuleFor(x => x.CategoryId).NotEmpty();
-
         RuleFor(x => x.Severity).IsInEnum();
 
         RuleFor(x => x.Description)
             .MaximumLength(1000).WithMessage("Description must not exceed 1000 characters.");
 
-        // BR-REP-003: Vietnam GPS bounds (approximate)
+        // BR-REP-003: Vietnam GPS bounds
         RuleFor(x => x.Latitude)
-            .InclusiveBetween(8m, 24m)
-            .WithMessage("Latitude must be between 8 and 24.");
+            .InclusiveBetween(8m, 24m).WithMessage("Latitude must be between 8 and 24.");
 
         RuleFor(x => x.Longitude)
-            .InclusiveBetween(102m, 110m)
-            .WithMessage("Longitude must be between 102 and 110.");
+            .InclusiveBetween(102m, 110m).WithMessage("Longitude must be between 102 and 110.");
 
         RuleFor(x => x.Address).MaximumLength(500);
 
@@ -49,32 +43,52 @@ public sealed class SubmitPollutionReportCommandValidator : AbstractValidator<Su
             .Must(HavePairedOrEmptyAdministrativeCodes)
             .WithMessage("ProvinceCode and WardCode must both be set together or both omitted.");
 
-        // BR-REP-001: at least one photo; BR-REP-002: max 5 images per report
-        RuleFor(x => x.Images)
-            .NotNull()
-            .WithMessage("Images are required. Upload via POST /v1/media/reports/images first.")
-            .Must(i => i.Count >= 1)
-            .WithMessage("At least one image is required after upload.")
-            .Must(i => i.Count <= MaxImagesPerReport)
-            .WithMessage($"At most {MaxImagesPerReport} images per report.");
+        // ── Image source: exactly one of TempImageId OR Images must be provided ──
+        RuleFor(x => x)
+            .Must(x => HasExactlyOneImageSource(x))
+            .WithMessage("Phải cung cấp đúng một trong hai: TempImageId (luồng AI) hoặc Images (luồng thủ công).")
+            .OverridePropertyName("ImageSource");
 
-        RuleForEach(x => x.Images).ChildRules(img =>
+        // ── AI flow: validate TempImageId format ──
+        When(x => !string.IsNullOrEmpty(x.TempImageId), () =>
         {
-            img.RuleFor(i => i.Url)
-                .NotEmpty()
-                .MaximumLength(500)
-                .Must(BeHttpsAbsoluteUri)
-                .WithMessage("Each image url must be a valid absolute https URL.");
-
-            img.RuleFor(i => i.MimeType)
-                .NotEmpty()
-                .Must(t => AllowedMimeTypes.Contains(t))
-                .WithMessage("Mime type must be image/jpeg, image/png, image/webp, or image/heic.");
-
-            img.RuleFor(i => i.SizeBytes)
-                .InclusiveBetween(1, MaxImageSizeBytes)
-                .WithMessage($"Image size must be between 1 and {MaxImageSizeBytes} bytes.");
+            RuleFor(x => x.TempImageId!)
+                .Length(32).WithMessage("TempImageId không hợp lệ.");
         });
+
+        // ── Manual flow: validate Images list ──
+        When(x => x.Images is not null, () =>
+        {
+            // BR-REP-001: at least one photo; BR-REP-002: max 5 images
+            RuleFor(x => x.Images!)
+                .Must(i => i.Count >= 1).WithMessage("Cần ít nhất 1 ảnh.")
+                .Must(i => i.Count <= MaxImagesPerReport)
+                .WithMessage($"Tối đa {MaxImagesPerReport} ảnh mỗi báo cáo.");
+
+            RuleForEach(x => x.Images).ChildRules(img =>
+            {
+                img.RuleFor(i => i.Url)
+                    .NotEmpty().MaximumLength(500)
+                    .Must(BeHttpsAbsoluteUri)
+                    .WithMessage("URL ảnh phải là https tuyệt đối hợp lệ.");
+
+                img.RuleFor(i => i.MimeType)
+                    .NotEmpty()
+                    .Must(t => AllowedMimeTypes.Contains(t))
+                    .WithMessage("MimeType phải là image/jpeg, image/png, image/webp, hoặc image/heic.");
+
+                img.RuleFor(i => i.SizeBytes)
+                    .InclusiveBetween(1, MaxImageSizeBytes)
+                    .WithMessage($"Kích thước ảnh phải từ 1 đến {MaxImageSizeBytes} bytes.");
+            });
+        });
+    }
+
+    private static bool HasExactlyOneImageSource(SubmitPollutionReportCommand x)
+    {
+        var hasTempId = !string.IsNullOrWhiteSpace(x.TempImageId);
+        var hasImages = x.Images is { Count: > 0 };
+        return hasTempId ^ hasImages; // XOR: exactly one
     }
 
     private static bool HavePairedOrEmptyAdministrativeCodes(SubmitPollutionReportCommand x)
@@ -92,8 +106,7 @@ public sealed class SubmitPollutionReportCommandValidator : AbstractValidator<Su
 
     private static bool BeHttpsAbsoluteUri(string url)
     {
-        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
-            return false;
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return false;
         return uri.Scheme == Uri.UriSchemeHttps;
     }
 }
