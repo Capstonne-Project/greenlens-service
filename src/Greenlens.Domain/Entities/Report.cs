@@ -42,6 +42,8 @@ public sealed class Report : SoftDeletableEntity
     public ReportStatus Status { get; private set; } = ReportStatus.Submitted;
     public Guid? AssignedTeamId { get; private set; }
     public Guid? AssignedOfficerId { get; private set; }
+    public Guid? AssignedOfficeId { get; private set; }
+    public Guid? AssignedDepartmentId { get; private set; }
 
     // ── Duplicate tracking ──
     public Guid? ParentReportId { get; private set; }
@@ -76,11 +78,15 @@ public sealed class Report : SoftDeletableEntity
     public PollutionCategory Category { get; private set; } = default!;
     public Report? ParentReport { get; private set; }
     public User? VerifiedByUser { get; private set; }
+    public EnvironmentalTeam? AssignedTeam { get; private set; }
+    public LocalOffice? AssignedOffice { get; private set; }
+    public Department? AssignedDepartment { get; private set; }
 
     public ICollection<ReportMedia> Media { get; private set; } = [];
     public ICollection<ReportStatusHistory> StatusHistory { get; private set; } = [];
     public ICollection<ReportFlag> Flags { get; private set; } = [];
     public ICollection<Report> DuplicateReports { get; private set; } = [];
+    public ICollection<ReportAssignment> Assignments { get; private set; } = [];
 
     // ────────────────────────────────────────────────────
     // Factory
@@ -156,13 +162,12 @@ public sealed class Report : SoftDeletableEntity
         RejectedReason = reason;
     }
 
-    /// <summary>Assign cleanup team. VERIFIED → IN_PROGRESS. BR-OFF-011.</summary>
-    public void Assign(Guid teamId, Guid officerId)
+    /// <summary>Assign team(s) and start processing. VERIFIED → IN_PROGRESS. BR-OFF-011.</summary>
+    public void Assign(Guid officerId)
     {
         EnsureStatus(ReportStatus.Verified);
 
         Status = ReportStatus.InProgress;
-        AssignedTeamId = teamId;
         AssignedOfficerId = officerId;
         StartedAt = DateTime.UtcNow;
     }
@@ -171,6 +176,19 @@ public sealed class Report : SoftDeletableEntity
     public void Reassign(Guid newTeamId)
     {
         AssignedTeamId = newTeamId;
+    }
+
+    /// <summary>BR-ORG-010: Route report to the office covering the GPS location.</summary>
+    public void RouteToOffice(Guid officeId)
+    {
+        AssignedOfficeId = officeId;
+    }
+
+    /// <summary>BR-ORG-011: Route to department common queue when ward is not onboarded.</summary>
+    public void RouteToDepartmentQueue(Guid departmentId)
+    {
+        AssignedDepartmentId = departmentId;
+        AssignedOfficeId = null;
     }
 
     /// <summary>Cleanup team resolves the report. BR-REP-014, 023.</summary>
@@ -185,9 +203,29 @@ public sealed class Report : SoftDeletableEntity
     /// <summary>Auto-close or citizen confirms satisfaction. BR-REP-016.</summary>
     public void Close()
     {
-        EnsureStatus(ReportStatus.Resolved);
+        if (Status is not (ReportStatus.Resolved or ReportStatus.PenaltyIssued))
+            throw new InvalidOperationException(
+                $"Cannot close from status {Status}. Must be Resolved or PenaltyIssued.");
 
         Status = ReportStatus.Closed;
+        ClosedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>Inspection Team issues penalty decision. IN_PROGRESS → PENALTY_ISSUED. BR-INS-012.</summary>
+    public void IssuePenalty()
+    {
+        EnsureStatus(ReportStatus.InProgress);
+
+        Status = ReportStatus.PenaltyIssued;
+        ResolvedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>No violation found. IN_PROGRESS → CLOSED_NO_VIOLATION. BR-INS-013.</summary>
+    public void CloseNoViolation()
+    {
+        EnsureStatus(ReportStatus.InProgress);
+
+        Status = ReportStatus.ClosedNoViolation;
         ClosedAt = DateTime.UtcNow;
     }
 

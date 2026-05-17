@@ -43,6 +43,14 @@ public static class DependencyInjection
         services.AddScoped<IReportRepository, ReportRepository>();
         services.AddScoped<IReportMediaRepository, ReportMediaRepository>();
         services.AddScoped<IReportStatusHistoryRepository, ReportStatusHistoryRepository>();
+
+        // ── Organization module (v1.1) ──
+        services.AddScoped<IDepartmentRepository, DepartmentRepository>();
+        services.AddScoped<ILocalOfficeRepository, LocalOfficeRepository>();
+        services.AddScoped<IEnvironmentalTeamRepository, EnvironmentalTeamRepository>();
+        services.AddScoped<ITeamMemberRepository, TeamMemberRepository>();
+        services.AddScoped<IReportAssignmentRepository, ReportAssignmentRepository>();
+
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         // ── Identity & Auth ──────────────────────────────

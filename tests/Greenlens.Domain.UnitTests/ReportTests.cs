@@ -149,13 +149,11 @@ public sealed class ReportTests
     {
         var report = CreateTestReport();
         report.Verify(Guid.NewGuid());
-        var teamId = Guid.NewGuid();
         var officerId = Guid.NewGuid();
 
-        report.Assign(teamId, officerId);
+        report.Assign(officerId);
 
         Assert.Equal(ReportStatus.InProgress, report.Status);
-        Assert.Equal(teamId, report.AssignedTeamId);
         Assert.Equal(officerId, report.AssignedOfficerId);
         Assert.NotNull(report.StartedAt);
     }
@@ -165,7 +163,7 @@ public sealed class ReportTests
     {
         var report = CreateTestReport();
 
-        Assert.Throws<InvalidOperationException>(() => report.Assign(Guid.NewGuid(), Guid.NewGuid()));
+        Assert.Throws<InvalidOperationException>(() => report.Assign(Guid.NewGuid()));
     }
 
     // ── Resolve ──
@@ -175,7 +173,7 @@ public sealed class ReportTests
     {
         var report = CreateTestReport();
         report.Verify(Guid.NewGuid());
-        report.Assign(Guid.NewGuid(), Guid.NewGuid());
+        report.Assign(Guid.NewGuid());
 
         report.Resolve();
 
@@ -199,7 +197,7 @@ public sealed class ReportTests
     {
         var report = CreateTestReport();
         report.Verify(Guid.NewGuid());
-        report.Assign(Guid.NewGuid(), Guid.NewGuid());
+        report.Assign(Guid.NewGuid());
         report.Resolve();
 
         report.Close();
@@ -215,7 +213,7 @@ public sealed class ReportTests
     {
         var report = CreateTestReport();
         report.Verify(Guid.NewGuid());
-        report.Assign(Guid.NewGuid(), Guid.NewGuid());
+        report.Assign(Guid.NewGuid());
         report.Resolve();
 
         var result = report.TryReopen();
@@ -231,7 +229,7 @@ public sealed class ReportTests
     {
         var report = CreateTestReport();
         report.Verify(Guid.NewGuid());
-        report.Assign(Guid.NewGuid(), Guid.NewGuid());
+        report.Assign(Guid.NewGuid());
 
         // Reopen 1
         report.Resolve();
@@ -269,7 +267,7 @@ public sealed class ReportTests
     {
         var report = CreateTestReport();
         report.Verify(Guid.NewGuid());
-        report.Assign(Guid.NewGuid(), Guid.NewGuid());
+        report.Assign(Guid.NewGuid());
 
         Assert.Throws<InvalidOperationException>(() => report.MarkDuplicate(Guid.NewGuid()));
     }
@@ -317,7 +315,7 @@ public sealed class ReportTests
     {
         var report = CreateTestReport();
         report.Verify(Guid.NewGuid());
-        report.Assign(Guid.NewGuid(), Guid.NewGuid());
+        report.Assign(Guid.NewGuid());
         var newTeamId = Guid.NewGuid();
 
         report.Reassign(newTeamId);
@@ -350,7 +348,7 @@ public sealed class ReportTests
         Assert.Equal(ReportStatus.Verified, report.Status);
 
         // Verify → In Progress
-        report.Assign(Guid.NewGuid(), Guid.NewGuid());
+        report.Assign(Guid.NewGuid());
         Assert.Equal(ReportStatus.InProgress, report.Status);
 
         // In Progress → Resolved

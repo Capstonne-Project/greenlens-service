@@ -26,6 +26,8 @@ public sealed class SubmitPollutionReportCommandHandler(
     IReportMediaRepository reportMedia,
     IReportStatusHistoryRepository statusHistory,
     IWardRepository wards,
+    ILocalOfficeRepository localOffices,
+    IDepartmentRepository departments,
     IUnitOfWork unitOfWork,
     ICurrentUser currentUser) : IRequestHandler<SubmitPollutionReportCommand, Result<SubmitPollutionReportResponse>>
 {
@@ -73,6 +75,42 @@ public sealed class SubmitPollutionReportCommandHandler(
             provinceCode);
 
         reports.Add(report);
+
+        // ── Auto-routing: BR-ORG-010, BR-ORG-011 ──
+        if (!string.IsNullOrEmpty(wardCode))
+        {
+            var officeExists = await localOffices.ExistsByWardCodeAsync(wardCode, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (officeExists)
+            {
+                // Ward is onboarded → route to LocalOffice
+                var officeQuery = localOffices.QueryAsNoTracking();
+                var office = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
+                    .FirstOrDefaultAsync(officeQuery, o => o.WardCode == wardCode, cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (office is not null)
+                    report.RouteToOffice(office.Id);
+            }
+            else if (!string.IsNullOrEmpty(provinceCode))
+            {
+                // Ward not onboarded → route to Department common queue
+                var deptExists = await departments.ExistsByProvinceCodeAsync(provinceCode, cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (deptExists)
+                {
+                    var deptQuery = departments.QueryAsNoTracking();
+                    var dept = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
+                        .FirstOrDefaultAsync(deptQuery, d => d.ProvinceCode == provinceCode, cancellationToken)
+                        .ConfigureAwait(false);
+
+                    if (dept is not null)
+                        report.RouteToDepartmentQueue(dept.Id);
+                }
+            }
+        }
 
         var persistedImages = new List<ReportMedia>(request.Images.Count);
         foreach (var image in request.Images)

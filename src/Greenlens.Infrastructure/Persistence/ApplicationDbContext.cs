@@ -18,6 +18,13 @@ internal sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext
     public DbSet<ReportFlag> ReportFlags => Set<ReportFlag>();
     public DbSet<ReportSatisfaction> ReportSatisfactions => Set<ReportSatisfaction>();
     public DbSet<ReportDraft> ReportDrafts => Set<ReportDraft>();
+    public DbSet<ReportAssignment> ReportAssignments => Set<ReportAssignment>();
+
+    // ── Organization module (v1.1) ──
+    public DbSet<Department> Departments => Set<Department>();
+    public DbSet<LocalOffice> LocalOffices => Set<LocalOffice>();
+    public DbSet<EnvironmentalTeam> EnvironmentalTeams => Set<EnvironmentalTeam>();
+    public DbSet<TeamMember> TeamMembers => Set<TeamMember>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
