@@ -22,8 +22,8 @@ public sealed class OrganizationController(ISender sender) : ControllerBase
 
     [HttpPost("departments")]
     [SwaggerOperation(
-        Summary = "Create Department",
-        Description = "Admin creates a Department of Environmental Management for a province (BR-ORG-001).")]
+        Summary = "[Admin] Tạo Department",
+        Description = "Tạo Sở Tài nguyên & Môi trường cấp Tỉnh/TP. Mỗi tỉnh chỉ có 1 Department.")]
     [SwaggerResponse(201, "Department created", typeof(ApiResponse<CreateDepartmentResponse>))]
     [SwaggerResponse(401, "Unauthorized", typeof(ApiResponse))]
     [SwaggerResponse(403, "Forbidden — Admin only", typeof(ApiResponse))]
@@ -38,8 +38,8 @@ public sealed class OrganizationController(ISender sender) : ControllerBase
 
     [HttpPost("offices")]
     [SwaggerOperation(
-        Summary = "Create Local Office",
-        Description = "Admin onboards a new ward/commune Local Environmental Office (BR-ORG-002, BR-ADM-011).")]
+        Summary = "[Admin] Tạo Local Office",
+        Description = "Onboard văn phòng môi trường cấp xã/phường. Sau khi tạo, báo cáo trong ward đó sẽ tự động route đến office này.")]
     [SwaggerResponse(201, "Office created", typeof(ApiResponse<CreateLocalOfficeResponse>))]
     [SwaggerResponse(401, "Unauthorized", typeof(ApiResponse))]
     [SwaggerResponse(403, "Forbidden — Admin only", typeof(ApiResponse))]
@@ -53,8 +53,8 @@ public sealed class OrganizationController(ISender sender) : ControllerBase
 
     [HttpPut("offices/{officeId:guid}/officer")]
     [SwaggerOperation(
-        Summary = "Assign LEO to Office",
-        Description = "Admin assigns a LEO user to a Local Environmental Office (BR-ORG-002).")]
+        Summary = "[Admin] Gán LEO cho Office",
+        Description = "Gán 1 user có role LEO làm người phụ trách văn phòng môi trường cấp xã/phường.")]
     [SwaggerResponse(204, "LEO assigned")]
     [SwaggerResponse(401, "Unauthorized", typeof(ApiResponse))]
     [SwaggerResponse(403, "Forbidden — Admin only", typeof(ApiResponse))]
@@ -70,8 +70,8 @@ public sealed class OrganizationController(ISender sender) : ControllerBase
 
     [HttpPost("teams")]
     [SwaggerOperation(
-        Summary = "Create Team",
-        Description = "Admin creates an Environmental Team (Cleanup or Inspection) under a LocalOffice (BR-ORG-003).")]
+        Summary = "[Admin] Tạo Team",
+        Description = "Tạo đội Cleanup (dọn dẹp) hoặc Inspection (thanh tra) thuộc 1 LocalOffice.")]
     [SwaggerResponse(201, "Team created", typeof(ApiResponse<CreateTeamResponse>))]
     [SwaggerResponse(401, "Unauthorized", typeof(ApiResponse))]
     [SwaggerResponse(403, "Forbidden — Admin only", typeof(ApiResponse))]
@@ -84,8 +84,8 @@ public sealed class OrganizationController(ISender sender) : ControllerBase
 
     [HttpPost("teams/{teamId:guid}/members")]
     [SwaggerOperation(
-        Summary = "Add Team Member",
-        Description = "Admin adds a user to an Environmental Team (BR-ORG-003).")]
+        Summary = "[Admin] Thêm thành viên vào Team",
+        Description = "Thêm user vào đội môi trường. Role Cleanup chỉ vào team Cleanup, role Inspector chỉ vào team Inspection.")]
     [SwaggerResponse(201, "Member added", typeof(ApiResponse<AddTeamMemberResponse>))]
     [SwaggerResponse(401, "Unauthorized", typeof(ApiResponse))]
     [SwaggerResponse(403, "Forbidden — Admin only", typeof(ApiResponse))]

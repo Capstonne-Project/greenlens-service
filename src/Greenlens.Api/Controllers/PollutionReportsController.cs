@@ -17,12 +17,12 @@ public sealed class PollutionReportsController(ISender sender) : ControllerBase
     [HttpPost]
     [AllowAnonymous]
     [SwaggerOperation(
-        Summary = "Submit pollution report",
+        Summary = "[Citizen/Anonymous] Tạo báo cáo ô nhiễm",
         Description =
-            "Flow: (1) POST /v1/media/reports/images for each photo (authorized); " +
-            "(2) POST here with `images[]` filled from upload response `url` plus client `mimeType` and `sizeBytes`. " +
-            "Creates a report in Submitted status. Use isAnonymous=true without login; " +
-            "otherwise send Bearer token and set isAnonymous=false to attach reporter.")]
+            "Tạo báo cáo mới. Hỗ trợ anonymous (không cần login). " +
+            "Flow: (1) POST /v1/media/reports/images cho mỗi ảnh; " +
+            "(2) POST endpoint này với images[] từ kết quả upload. " +
+            "Hệ thống tự động gán SLA 24h và route báo cáo theo wardCode đến LocalOffice hoặc Department queue.")]
     [SwaggerResponse(201, "Report created", typeof(ApiResponse<SubmitPollutionReportResponse>))]
     [SwaggerResponse(400, "Authentication required for non-anonymous reports", typeof(ApiResponse))]
     [SwaggerResponse(400, "Invalid ward-province pair", typeof(ApiResponse))]

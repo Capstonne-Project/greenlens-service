@@ -32,7 +32,7 @@ public sealed class ReportWorkflowController(ISender sender) : ControllerBase
 
     [HttpPut("{id:guid}/verify")]
     [Authorize(Roles = "LEO,DEO,Admin")]
-    [SwaggerOperation(Summary = "Verify report", Description = "LEO/DEO verifies a submitted report (BR-OFF-001, BR-REP-020).")]
+    [SwaggerOperation(Summary = "[LEO/DEO] Xác minh báo cáo", Description = "Officer kiểm tra thông tin và xác minh báo cáo. Có thể override severity và category nếu cần. Chuyển status Submitted → Verified.")]
     [SwaggerResponse(204, "Report verified")]
     [SwaggerResponse(404, "Report not found", typeof(ApiResponse))]
     [SwaggerResponse(422, "Invalid status transition or conflict of interest", typeof(ApiResponse))]
@@ -45,7 +45,7 @@ public sealed class ReportWorkflowController(ISender sender) : ControllerBase
 
     [HttpPut("{id:guid}/reject")]
     [Authorize(Roles = "LEO,DEO,Admin")]
-    [SwaggerOperation(Summary = "Reject report", Description = "LEO/DEO rejects a submitted report (BR-REP-022). Reason ≥ 20 chars.")]
+    [SwaggerOperation(Summary = "[LEO/DEO] Từ chối báo cáo", Description = "Officer từ chối báo cáo không hợp lệ. Yêu cầu lý do ≥ 20 ký tự. Chuyển status Submitted → Rejected.")]
     [SwaggerResponse(204, "Report rejected")]
     [SwaggerResponse(404, "Report not found", typeof(ApiResponse))]
     [SwaggerResponse(422, "Reason too short or invalid status", typeof(ApiResponse))]
@@ -60,7 +60,7 @@ public sealed class ReportWorkflowController(ISender sender) : ControllerBase
 
     [HttpPost("{id:guid}/assign")]
     [Authorize(Roles = "LEO,DEO,Admin")]
-    [SwaggerOperation(Summary = "Assign team(s)", Description = "LEO assigns one or more teams to a verified report (BR-OFF-011, BR-ORG-013).")]
+    [SwaggerOperation(Summary = "[LEO/DEO] Phân công team xử lý", Description = "Phân công 1 hoặc nhiều team cùng xử lý báo cáo đã xác minh. Tất cả team ngang hàng, mỗi team có status riêng. Team type phải khớp loại ô nhiễm, mỗi team tối đa 10 task In-Progress. Chuyển status Verified → InProgress.")]
     [SwaggerResponse(204, "Teams assigned")]
     [SwaggerResponse(404, "Report or team not found", typeof(ApiResponse))]
     [SwaggerResponse(422, "Team type mismatch or workload exceeded", typeof(ApiResponse))]
@@ -77,7 +77,7 @@ public sealed class ReportWorkflowController(ISender sender) : ControllerBase
 
     [HttpPut("{id:guid}/reassign")]
     [Authorize(Roles = "LEO,DEO,Admin")]
-    [SwaggerOperation(Summary = "Reassign team", Description = "LEO reassigns to a different team of the same type (BR-OFF-012).")]
+    [SwaggerOperation(Summary = "[LEO/DEO] Chuyển giao team", Description = "Chuyển assignment từ team cũ sang team mới cùng loại (Cleanup↔Cleanup, Inspection↔Inspection). Yêu cầu lý do ≥ 20 ký tự.")]
     [SwaggerResponse(204, "Reassigned")]
     [SwaggerResponse(422, "Different team types or workload exceeded", typeof(ApiResponse))]
     public async Task<IActionResult> ReassignAsync(
@@ -91,7 +91,7 @@ public sealed class ReportWorkflowController(ISender sender) : ControllerBase
 
     [HttpPut("{id:guid}/resolve")]
     [Authorize(Roles = "Cleanup,Admin")]
-    [SwaggerOperation(Summary = "Resolve report", Description = "Cleanup Team marks as resolved with ≥ 2 after images (BR-CLN-005).")]
+    [SwaggerOperation(Summary = "[Cleanup] Hoàn thành phần việc của team", Description = "Cleanup Team đánh dấu phần việc đã hoàn thành. Yêu cầu ≥ 2 ảnh after. Khi tất cả team đều completed → report chuyển InProgress → Resolved.")]
     [SwaggerResponse(204, "Resolved")]
     [SwaggerResponse(422, "Insufficient images or invalid status", typeof(ApiResponse))]
     public async Task<IActionResult> ResolveAsync(
@@ -105,7 +105,7 @@ public sealed class ReportWorkflowController(ISender sender) : ControllerBase
 
     [HttpPut("{id:guid}/penalty")]
     [Authorize(Roles = "Inspector,Admin")]
-    [SwaggerOperation(Summary = "Issue penalty", Description = "Inspection Team Leader issues penalty decision (BR-INS-012).")]
+    [SwaggerOperation(Summary = "[Inspector] Xử phạt vi phạm", Description = "Inspection Team Leader ban hành quyết định xử phạt. Khi tất cả team đều completed → report chuyển InProgress → PenaltyIssued.")]
     [SwaggerResponse(204, "Penalty issued")]
     [SwaggerResponse(422, "Invalid status", typeof(ApiResponse))]
     public async Task<IActionResult> IssuePenaltyAsync(
@@ -116,7 +116,7 @@ public sealed class ReportWorkflowController(ISender sender) : ControllerBase
 
     [HttpPut("{id:guid}/close-no-violation")]
     [Authorize(Roles = "Inspector,Admin")]
-    [SwaggerOperation(Summary = "Close - no violation", Description = "Inspection Team closes with no violation found (BR-INS-013). Reason ≥ 50 chars.")]
+    [SwaggerOperation(Summary = "[Inspector] Đóng — không vi phạm", Description = "Inspection Team đóng báo cáo khi khảo sát không phát hiện vi phạm. Yêu cầu lý do ≥ 50 ký tự. Chuyển status InProgress → ClosedNoViolation.")]
     [SwaggerResponse(204, "Closed")]
     [SwaggerResponse(422, "Reason too short or invalid status", typeof(ApiResponse))]
     public async Task<IActionResult> CloseNoViolationAsync(
@@ -129,7 +129,7 @@ public sealed class ReportWorkflowController(ISender sender) : ControllerBase
     // ── Citizen / Auto: Close / Reopen ──
 
     [HttpPut("{id:guid}/close")]
-    [SwaggerOperation(Summary = "Close report", Description = "Citizen confirms or auto-close (BR-REP-016).")]
+    [SwaggerOperation(Summary = "[Citizen/Auto] Đóng báo cáo", Description = "Citizen xác nhận hài lòng hoặc hệ thống tự động đóng sau 7 ngày. Chuyển status Resolved/PenaltyIssued → Closed.")]
     [SwaggerResponse(204, "Closed")]
     [SwaggerResponse(422, "Invalid status", typeof(ApiResponse))]
     public async Task<IActionResult> CloseAsync(
@@ -138,7 +138,7 @@ public sealed class ReportWorkflowController(ISender sender) : ControllerBase
         => (await sender.Send(new CloseReportCommand(id), ct)).ToHttpNoContent();
 
     [HttpPut("{id:guid}/reopen")]
-    [SwaggerOperation(Summary = "Reopen report", Description = "Citizen reopens if not satisfied (BR-REP-015). Max 2 times.")]
+    [SwaggerOperation(Summary = "[Citizen] Mở lại báo cáo", Description = "Citizen mở lại báo cáo nếu chưa hài lòng với kết quả. Tối đa 2 lần reopen. Chuyển status Resolved → InProgress.")]
     [SwaggerResponse(204, "Reopened")]
     [SwaggerResponse(422, "Reopen limit reached or invalid status", typeof(ApiResponse))]
     public async Task<IActionResult> ReopenAsync(
@@ -150,7 +150,7 @@ public sealed class ReportWorkflowController(ISender sender) : ControllerBase
 
     [HttpPut("{id:guid}/decline")]
     [Authorize(Roles = "Cleanup,Inspector,Admin")]
-    [SwaggerOperation(Summary = "Decline assignment", Description = "Team declines task within 2h window (BR-CLN-007, BR-INS-003).")]
+    [SwaggerOperation(Summary = "[Cleanup/Inspector] Từ chối task", Description = "Team từ chối task trong vòng 2 giờ sau khi được phân công. Yêu cầu lý do ≥ 20 ký tự. Quá 2h không thể từ chối.")]
     [SwaggerResponse(204, "Declined")]
     [SwaggerResponse(422, "Decline window expired or reason too short", typeof(ApiResponse))]
     public async Task<IActionResult> DeclineAsync(
@@ -164,7 +164,7 @@ public sealed class ReportWorkflowController(ISender sender) : ControllerBase
 
     [HttpGet("queue")]
     [Authorize(Roles = "LEO,DEO,Admin")]
-    [SwaggerOperation(Summary = "Get officer queue", Description = "Returns paginated queue sorted by priority (BR-OFF-010).")]
+    [SwaggerOperation(Summary = "[LEO/DEO] Xem hàng đợi báo cáo", Description = "Trả về danh sách báo cáo trong phạm vi quản lý, sắp theo điểm ưu tiên giảm dần. LEO thấy báo cáo trong xã/phường, DEO thấy toàn tỉnh.")]
     [SwaggerResponse(200, "Queue returned", typeof(ApiResponse<GetOfficerQueueResponse>))]
     public async Task<IActionResult> GetQueueAsync(
         [FromQuery] int page = 1,
