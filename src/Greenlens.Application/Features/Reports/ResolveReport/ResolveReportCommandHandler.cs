@@ -29,7 +29,7 @@ public sealed class ResolveReportCommandHandler(
         if (report is null)
             return Errors.Reports.ReportNotFound;
 
-        if (report.Status != ReportStatus.InProgress)
+        if (report.Status is not (ReportStatus.InProgress or ReportStatus.Assigned))
             return Errors.Reports.InvalidStatusTransition;
 
         // Find this team's assignment

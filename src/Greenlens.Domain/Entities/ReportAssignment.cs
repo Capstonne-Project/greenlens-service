@@ -22,6 +22,11 @@ public sealed class ReportAssignment : BaseEntity
     public DateTime? StartedAt { get; private set; }
     public DateTime? CompletedAt { get; private set; }
 
+    // ── Progress tracking (updated by team leader mid-task) ──
+    public int ProgressPercent { get; private set; }
+    public string? ProgressNote { get; private set; }
+    public DateTime? ProgressUpdatedAt { get; private set; }
+
     // ── Navigation ──
     public Report? Report { get; private set; }
     public EnvironmentalTeam? Team { get; private set; }
@@ -76,5 +81,20 @@ public sealed class ReportAssignment : BaseEntity
 
         Status = AssignmentStatus.Declined;
         DeclineReason = reason;
+    }
+
+    /// <summary>Team leader updates progress mid-task. Status must be InProgress.</summary>
+    public void UpdateProgress(int percent, string? note)
+    {
+        if (Status != AssignmentStatus.InProgress)
+            throw new InvalidOperationException(
+                $"Cannot update progress from status {Status}. Must be InProgress.");
+
+        if (percent < 0 || percent > 100)
+            throw new ArgumentOutOfRangeException(nameof(percent), "Percent must be 0–100.");
+
+        ProgressPercent = percent;
+        ProgressNote = note;
+        ProgressUpdatedAt = DateTime.UtcNow;
     }
 }

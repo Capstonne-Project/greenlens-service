@@ -1,10 +1,12 @@
 using Greenlens.Api.Extensions;
 using Greenlens.Application.Common.Models;
+using Greenlens.Application.Features.Reports.AcceptAssignment;
 using Greenlens.Application.Features.Reports.AnalyzeReportImage;
 using Greenlens.Application.Features.Reports.AssignTeam;
 using Greenlens.Application.Features.Reports.CloseNoViolation;
 using Greenlens.Application.Features.Reports.CloseReport;
 using Greenlens.Application.Features.Reports.DeclineAssignment;
+using Greenlens.Application.Features.Reports.GetMyAssignments;
 using Greenlens.Application.Features.Reports.GetMyReports;
 using Greenlens.Application.Features.Reports.GetOfficerQueue;
 using Greenlens.Application.Features.Reports.GetReportById;
@@ -16,6 +18,8 @@ using Greenlens.Application.Features.Reports.RejectReport;
 using Greenlens.Application.Features.Reports.ReopenReport;
 using Greenlens.Application.Features.Reports.ResolveReport;
 using Greenlens.Application.Features.Reports.SubmitPollutionReport;
+using Greenlens.Application.Features.Reports.UpdateProgress;
+using Greenlens.Application.Features.Reports.UploadProgressImage;
 using Greenlens.Application.Features.Reports.VerifyReport;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -188,6 +192,20 @@ public sealed class ReportsController(ISender sender) : ControllerBase
     // ██  TEAM WORKFLOW
     // ═══════════════════════════════════════════
 
+    [HttpGet("my-assignments")]
+    [Authorize(Roles = "Cleanup,Inspector,Admin")]
+    [SwaggerOperation(
+        Summary = "[Cleanup/Inspector] Danh sách task được giao cho team tôi",
+        Description = "Trả về các report được assign cho team của user đang login. " +
+            "Lọc theo assignmentStatus: Assigned, InProgress, Completed, Declined.")]
+    [SwaggerResponse(200, "Danh sách task", typeof(ApiResponse<GetMyAssignmentsResponse>))]
+    public async Task<IActionResult> GetMyAssignmentsAsync(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] AssignmentStatus? assignmentStatus = null,
+        CancellationToken ct = default)
+        => (await sender.Send(new GetMyAssignmentsQuery(page, pageSize, assignmentStatus), ct)).ToHttp();
+
     [HttpPut("{id:guid}/resolve")]
     [Authorize(Roles = "Cleanup,Admin")]
     [SwaggerOperation(Summary = "[Cleanup] Hoàn thành phần việc của team", Description = "Cleanup Team đánh dấu phần việc đã hoàn thành. Yêu cầu ≥ 2 ảnh after. Khi tất cả team đều completed → report chuyển InProgress → Resolved.")]
@@ -216,9 +234,57 @@ public sealed class ReportsController(ISender sender) : ControllerBase
         [FromRoute] Guid id, [FromBody] CloseNoViolationRequest request, CancellationToken ct)
         => (await sender.Send(new CloseNoViolationCommand(id, request.Reason), ct)).ToHttpNoContent();
 
+    [HttpPut("{id:guid}/accept")]
+    [Authorize(Roles = "Cleanup,Inspector,Admin")]
+    [SwaggerOperation(Summary = "[Cleanup/Inspector] Chấp nhận task", Description = "Team chấp nhận task được phân công. Chuyển assignment Assigned → InProgress và report Assigned → InProgress.")]
+    [SwaggerResponse(204, "Đã chấp nhận")]
+    [SwaggerResponse(422, "Report không ở trạng thái Assigned hoặc không tìm thấy assignment", typeof(ApiResponse))]
+    public async Task<IActionResult> AcceptAsync(
+        [FromRoute] Guid id, [FromBody] AcceptAssignmentRequest request, CancellationToken ct)
+        => (await sender.Send(new AcceptAssignmentCommand(id, request.TeamId), ct)).ToHttpNoContent();
+
+    [HttpPut("{id:guid}/progress")]
+    [Authorize(Roles = "Cleanup,Inspector,Admin")]
+    [SwaggerOperation(Summary = "[Cleanup/Inspector] Cập nhật tiến độ", Description = "Team leader cập nhật % tiến độ và ghi chú. Không thay đổi status. Assignment phải đang InProgress.")]
+    [SwaggerResponse(204, "Đã cập nhật")]
+    [SwaggerResponse(422, "Assignment không InProgress hoặc percent ngoài khoảng 0–100", typeof(ApiResponse))]
+    public async Task<IActionResult> UpdateProgressAsync(
+        [FromRoute] Guid id, [FromBody] UpdateProgressRequest request, CancellationToken ct)
+        => (await sender.Send(new UpdateProgressCommand(id, request.TeamId, request.ProgressPercent, request.ProgressNote), ct))
+            .ToHttpNoContent();
+
+    [HttpPost("{id:guid}/progress/images")]
+    [Authorize(Roles = "Cleanup,Inspector,Admin")]
+    [Consumes("multipart/form-data")]
+    [SwaggerOperation(Summary = "[Cleanup/Inspector] Upload ảnh tiến độ", Description = "Upload ảnh giữa chừng (before/during). Lưu lên S3 và trả về URL dùng cho UpdateProgress. Assignment phải InProgress.")]
+    [SwaggerResponse(200, "URL ảnh đã upload", typeof(ApiResponse<UploadProgressImageResponse>))]
+    [SwaggerResponse(413, "File > 20MB")]
+    [SwaggerResponse(422, "Assignment không InProgress", typeof(ApiResponse))]
+    public async Task<IActionResult> UploadProgressImageAsync(
+        [FromRoute] Guid id,
+        [FromForm] UploadProgressImageRequest request,
+        CancellationToken ct)
+    {
+        if (request.Image is null || request.Image.Length == 0)
+            return BadRequest(new ApiResponse { Code = "FILE_REQUIRED", Message = "Vui lòng chọn file ảnh.", Status = 400 });
+
+        if (request.Image.Length > 20 * 1024 * 1024)
+            return StatusCode(413, new ApiResponse { Code = "FILE_TOO_LARGE", Message = "File ảnh vượt quá 20MB.", Status = 413 });
+
+        byte[] bytes;
+        await using (var ms = new MemoryStream())
+        {
+            await request.Image.CopyToAsync(ms, ct);
+            bytes = ms.ToArray();
+        }
+
+        var command = new UploadProgressImageCommand(id, request.TeamId, bytes, request.Image.FileName, request.Image.ContentType);
+        return (await sender.Send(command, ct)).ToHttp();
+    }
+
     [HttpPut("{id:guid}/decline")]
     [Authorize(Roles = "Cleanup,Inspector,Admin")]
-    [SwaggerOperation(Summary = "[Cleanup/Inspector] Từ chối task", Description = "Team từ chối task trong vòng 2 giờ sau khi được phân công. Yêu cầu lý do ≥ 20 ký tự.")]
+    [SwaggerOperation(Summary = "[Cleanup/Inspector] Từ chối task", Description = "Team từ chối task trong vòng 2 giờ sau khi được phân công. Yêu cầu lý do ≥ 20 ký tự. Nếu tất cả team từ chối → report quay về Verified.")]
     [SwaggerResponse(204, "Đã từ chối")]
     [SwaggerResponse(422, "Quá 2h hoặc lý do quá ngắn", typeof(ApiResponse))]
     public async Task<IActionResult> DeclineAsync(
@@ -256,4 +322,7 @@ public sealed record ReassignTeamRequest(Guid OldTeamId, Guid NewTeamId, string 
 public sealed record ResolveReportRequest(Guid TeamId, List<string> AfterImageUrls);
 public sealed record IssuePenaltyRequest(Guid TeamId);
 public sealed record CloseNoViolationRequest(string Reason);
+public sealed record AcceptAssignmentRequest(Guid TeamId);
+public sealed record UpdateProgressRequest(Guid TeamId, int ProgressPercent, string? ProgressNote);
+public sealed record UploadProgressImageRequest(Guid TeamId, IFormFile Image);
 public sealed record DeclineAssignmentRequest(Guid TeamId, string Reason);

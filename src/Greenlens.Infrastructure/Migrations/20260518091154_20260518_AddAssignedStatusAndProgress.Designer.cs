@@ -3,6 +3,7 @@ using System;
 using Greenlens.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Greenlens.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260518091154_20260518_AddAssignedStatusAndProgress")]
+    partial class _20260518_AddAssignedStatusAndProgress
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -742,20 +745,6 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
                         .HasColumnName("note");
-
-                    b.Property<int>("ProgressPercent")
-                        .HasColumnType("integer")
-                        .HasDefaultValue(0)
-                        .HasColumnName("progress_percent");
-
-                    b.Property<string>("ProgressNote")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)")
-                        .HasColumnName("progress_note");
-
-                    b.Property<DateTime?>("ProgressUpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("progress_updated_at");
 
                     b.Property<Guid>("ReportId")
                         .HasColumnType("uuid")

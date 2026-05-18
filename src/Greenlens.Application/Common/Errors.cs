@@ -217,6 +217,21 @@ public static class Errors
             "INSUFFICIENT_AFTER_IMAGES",
             "Cần upload ít nhất 2 ảnh after từ các góc khác nhau.",
             ErrorType.Validation);
+
+        public static Error AssignmentNotInProgress => new(
+            "ASSIGNMENT_NOT_IN_PROGRESS",
+            "Chỉ có thể cập nhật tiến độ khi task đang InProgress.",
+            ErrorType.BusinessRule);
+
+        public static Error InvalidProgressPercent => new(
+            "INVALID_PROGRESS_PERCENT",
+            "Phần trăm tiến độ phải trong khoảng 0–100.",
+            ErrorType.Validation);
+
+        public static Error ReportNotAssigned => new(
+            "REPORT_NOT_ASSIGNED",
+            "Báo cáo chưa được phân công cho team nào.",
+            ErrorType.BusinessRule);
     }
 
     public static class Map

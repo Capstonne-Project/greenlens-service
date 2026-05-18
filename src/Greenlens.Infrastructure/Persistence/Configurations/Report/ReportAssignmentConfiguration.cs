@@ -15,6 +15,8 @@ internal sealed class ReportAssignmentConfiguration : IEntityTypeConfiguration<R
         builder.Property(a => a.Status).HasConversion<string>().HasMaxLength(20);
         builder.Property(a => a.Note).HasMaxLength(500);
         builder.Property(a => a.DeclineReason).HasMaxLength(500);
+        builder.Property(a => a.ProgressNote).HasMaxLength(1000);
+        builder.Property(a => a.ProgressPercent).HasDefaultValue(0);
 
         // A team may appear multiple times (e.g. declined then re-assigned)
         builder.HasIndex(a => new { a.ReportId, a.TeamId });
