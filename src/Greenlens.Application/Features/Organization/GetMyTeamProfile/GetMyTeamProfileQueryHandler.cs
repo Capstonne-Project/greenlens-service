@@ -1,22 +1,26 @@
 using Greenlens.Application.Common;
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Organization.GetTeamById;
 using Greenlens.Domain.Common;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
-namespace Greenlens.Application.Features.Organization.GetTeamById;
+namespace Greenlens.Application.Features.Organization.GetMyTeamProfile;
 
-public sealed class GetTeamByIdQueryHandler(
-    IEnvironmentalTeamRepository teams)
-    : IRequestHandler<GetTeamByIdQuery, Result<TeamDetailResponse>>
+public sealed class GetMyTeamProfileQueryHandler(
+    IEnvironmentalTeamRepository teams,
+    ICurrentUser currentUser)
+    : IRequestHandler<GetMyTeamProfileQuery, Result<TeamDetailResponse>>
 {
     public async Task<Result<TeamDetailResponse>> Handle(
-        GetTeamByIdQuery request, CancellationToken ct)
+        GetMyTeamProfileQuery request, CancellationToken ct)
     {
         var team = await teams.QueryAsNoTracking()
             .Include(t => t.LocalOffice)
             .Include(t => t.Members).ThenInclude(m => m.User)
-            .FirstOrDefaultAsync(t => t.Id == request.Id, ct)
+            .FirstOrDefaultAsync(
+                t => t.Members.Any(m => m.UserId == currentUser.UserId), ct)
             .ConfigureAwait(false);
 
         if (team is null)

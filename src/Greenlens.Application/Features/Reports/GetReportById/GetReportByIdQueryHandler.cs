@@ -39,7 +39,7 @@ public sealed class GetReportByIdQueryHandler(
             r.WardCode, r.ProvinceCode,
             r.PriorityScore, r.ReporterCount, r.ReopenedCount,
             r.AiClassifiedType, r.AiConfidence,
-            r.AssignedOfficerId, r.AssignedOfficeId,
+            r.AssignedOfficerId, r.AssignedByOfficerId, r.AssignedOfficeId,
             media, assignments,
             r.CreatedAt, r.VerifiedAt, r.StartedAt,
             r.ResolvedAt, r.ClosedAt,

@@ -59,12 +59,7 @@ internal sealed class ReportConfiguration : IEntityTypeConfiguration<Report>
             .HasForeignKey(r => r.VerifiedBy)
             .OnDelete(DeleteBehavior.SetNull);
 
-        // ── Organization assignment (v1.1) ──
-        builder.HasOne(r => r.AssignedTeam)
-            .WithMany()
-            .HasForeignKey(r => r.AssignedTeamId)
-            .OnDelete(DeleteBehavior.SetNull);
-
+        // ── Organization assignment ──
         builder.HasOne(r => r.AssignedOffice)
             .WithMany()
             .HasForeignKey(r => r.AssignedOfficeId)
@@ -79,8 +74,8 @@ internal sealed class ReportConfiguration : IEntityTypeConfiguration<Report>
         builder.HasIndex(r => r.Status);
         builder.HasIndex(r => r.CategoryId);
         builder.HasIndex(r => r.Severity);
-        builder.HasIndex(r => r.AssignedTeamId);
         builder.HasIndex(r => r.AssignedOfficerId);
+        builder.HasIndex(r => r.AssignedByOfficerId);
         builder.HasIndex(r => r.AssignedOfficeId);
         builder.HasIndex(r => r.AssignedDepartmentId);
         builder.HasIndex(r => r.WardCode);

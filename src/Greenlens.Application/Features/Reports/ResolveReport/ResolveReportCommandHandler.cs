@@ -29,7 +29,7 @@ public sealed class ResolveReportCommandHandler(
         if (report is null)
             return Errors.Reports.ReportNotFound;
 
-        if (report.Status is not (ReportStatus.InProgress or ReportStatus.Assigned))
+        if (report.Status != ReportStatus.InProgress)
             return Errors.Reports.InvalidStatusTransition;
 
         // Find this team's assignment
@@ -38,12 +38,8 @@ public sealed class ResolveReportCommandHandler(
         if (assignment is null)
             return Errors.Reports.AssignmentNotFound;
 
-        if (assignment.Status == AssignmentStatus.Completed)
+        if (assignment.Status != AssignmentStatus.InProgress)
             return Errors.Reports.InvalidStatusTransition;
-
-        // If not yet started, auto-start then complete
-        if (assignment.Status == AssignmentStatus.Assigned)
-            assignment.Start();
 
         assignment.Complete();
 

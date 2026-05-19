@@ -35,12 +35,8 @@ public sealed class IssuePenaltyCommandHandler(
         if (assignment is null)
             return Errors.Reports.AssignmentNotFound;
 
-        if (assignment.Status == AssignmentStatus.Completed)
+        if (assignment.Status != AssignmentStatus.InProgress)
             return Errors.Reports.InvalidStatusTransition;
-
-        // Auto-start if still Assigned
-        if (assignment.Status == AssignmentStatus.Assigned)
-            assignment.Start();
 
         assignment.Complete();
 

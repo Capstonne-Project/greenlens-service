@@ -38,5 +38,7 @@ internal sealed class ReportAssignmentConfiguration : IEntityTypeConfiguration<R
             .WithMany()
             .HasForeignKey(a => a.AssignedById)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Property(a => a.ProgressUpdatedByUserId).IsRequired(false);
     }
 }

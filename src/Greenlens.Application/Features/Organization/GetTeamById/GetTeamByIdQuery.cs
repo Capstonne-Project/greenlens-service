@@ -13,4 +13,5 @@ public sealed record TeamDetailResponse(
     DateTime CreatedAt, DateTime? UpdatedAt);
 
 public sealed record MemberInTeam(
-    Guid UserId, string? FullName, string? Email, bool IsLeader, DateTime JoinedAt);
+    Guid UserId, string? FullName, string? Email, string? PhoneNumber,
+    string? AvatarUrl, bool IsLeader, DateTime JoinedAt);

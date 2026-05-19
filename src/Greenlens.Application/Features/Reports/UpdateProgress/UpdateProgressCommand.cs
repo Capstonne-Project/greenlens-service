@@ -3,9 +3,15 @@ using MediatR;
 
 namespace Greenlens.Application.Features.Reports.UpdateProgress;
 
-/// <summary>Team leader updates progress mid-task (%, note). Status stays InProgress.</summary>
+public sealed record ProgressImageFile(byte[] Bytes, string FileName, string ContentType);
+
+/// <summary>
+/// Team leader updates progress (%, note, optional images). TeamId resolved from token.
+/// </summary>
 public sealed record UpdateProgressCommand(
     Guid ReportId,
-    Guid TeamId,
     int ProgressPercent,
-    string? ProgressNote) : IRequest<Result>;
+    string? ProgressNote,
+    IReadOnlyList<ProgressImageFile> Images) : IRequest<Result<UpdateProgressResponse>>;
+
+public sealed record UpdateProgressResponse(IReadOnlyList<string> UploadedImageUrls);

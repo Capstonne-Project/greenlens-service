@@ -132,7 +132,7 @@ public sealed class SubmitPollutionReportCommandHandler(
                         o => o.WardCode == wardCode, cancellationToken)
                     .ConfigureAwait(false);
 
-                if (office is not null) report.RouteToOffice(office.Id);
+                if (office is not null) report.RouteToOffice(office.Id, office.OfficerId);
             }
             else if (!string.IsNullOrEmpty(provinceCode))
             {

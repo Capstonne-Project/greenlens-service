@@ -308,21 +308,6 @@ public sealed class ReportTests
         Assert.Equal("[\"EDITED_PHOTO\"]", report.SuspiciousReasons);
     }
 
-    // ── Reassign ──
-
-    [Fact]
-    public void Reassign_ShouldChangeTeam()
-    {
-        var report = CreateTestReport();
-        report.Verify(Guid.NewGuid());
-        report.Assign(Guid.NewGuid());
-        var newTeamId = Guid.NewGuid();
-
-        report.Reassign(newTeamId);
-
-        Assert.Equal(newTeamId, report.AssignedTeamId);
-    }
-
     // ── Soft Delete ──
 
     [Fact]

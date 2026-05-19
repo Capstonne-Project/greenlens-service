@@ -28,7 +28,7 @@ public sealed class DeclineAssignmentCommandHandler(
         if (report is null)
             return Errors.Reports.ReportNotFound;
 
-        if (report.Status != ReportStatus.Assigned)
+        if (report.Status != ReportStatus.InProgress)
             return Errors.Reports.InvalidStatusTransition;
 
         var reportAssignments = await assignments.GetByReportIdAsync(request.ReportId, ct).ConfigureAwait(false);
@@ -37,6 +37,7 @@ public sealed class DeclineAssignmentCommandHandler(
         if (assignment is null)
             return Errors.Reports.AssignmentNotFound;
 
+        // DC1: must be Assigned (not yet accepted) to decline
         if (assignment.Status != AssignmentStatus.Assigned)
             return Errors.Reports.InvalidStatusTransition;
 
@@ -46,11 +47,11 @@ public sealed class DeclineAssignmentCommandHandler(
 
         assignment.Decline(request.Reason);
 
-        // If ALL assignments are now declined → revert report to Verified
+        // DC2: revert if ALL assignments are Assigned or Declined (none accepted yet)
         var allDeclined = reportAssignments
             .All(a => a.TeamId == request.TeamId
                 ? true  // current one just declined
-                : a.Status == AssignmentStatus.Declined);
+                : a.Status is AssignmentStatus.Assigned or AssignmentStatus.Declined);
 
         if (allDeclined)
         {
@@ -58,7 +59,7 @@ public sealed class DeclineAssignmentCommandHandler(
 
             var history = ReportStatusHistory.Create(
                 report.Id,
-                ReportStatus.Assigned,
+                ReportStatus.InProgress,
                 ReportStatus.Verified,
                 currentUser.UserId);
 

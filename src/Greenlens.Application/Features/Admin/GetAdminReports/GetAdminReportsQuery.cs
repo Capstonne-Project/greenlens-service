@@ -21,6 +21,6 @@ public sealed record AdminReportItem(
     decimal Latitude, decimal Longitude, string? Address,
     string? WardCode, string? ProvinceCode,
     Guid? ReporterId, bool IsAnonymous,
-    Guid? AssignedOfficerId, int AssignmentCount,
+    Guid? AssignedOfficerId, Guid? AssignedByOfficerId, int AssignmentCount,
     decimal PriorityScore, int ReporterCount, int ReopenedCount,
     DateTime CreatedAt, DateTime? VerifiedAt, DateTime? ResolvedAt, DateTime? ClosedAt);

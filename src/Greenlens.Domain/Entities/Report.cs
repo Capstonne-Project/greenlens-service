@@ -41,8 +41,10 @@ public sealed class Report : SoftDeletableEntity
 
     // ── Status & Assignment ──
     public ReportStatus Status { get; private set; } = ReportStatus.Submitted;
-    public Guid? AssignedTeamId { get; private set; }
+    /// <summary>LEO phụ trách khu vực — set lúc submit report theo LocalOffice.OfficerId (BR-ORG-010).</summary>
     public Guid? AssignedOfficerId { get; private set; }
+    /// <summary>Officer đã bấm Assign team — set lúc Officer gọi /assign (BR-OFF-011).</summary>
+    public Guid? AssignedByOfficerId { get; private set; }
     public Guid? AssignedOfficeId { get; private set; }
     public Guid? AssignedDepartmentId { get; private set; }
 
@@ -79,7 +81,6 @@ public sealed class Report : SoftDeletableEntity
     public PollutionCategory Category { get; private set; } = default!;
     public Report? ParentReport { get; private set; }
     public User? VerifiedByUser { get; private set; }
-    public EnvironmentalTeam? AssignedTeam { get; private set; }
     public LocalOffice? AssignedOffice { get; private set; }
     public Department? AssignedDepartment { get; private set; }
 
@@ -163,44 +164,40 @@ public sealed class Report : SoftDeletableEntity
         RejectedReason = reason;
     }
 
-    /// <summary>Officer assigns team(s). VERIFIED → ASSIGNED. BR-OFF-011.</summary>
+    /// <summary>Officer assigns team(s). VERIFIED → INPROGRESS. BR-OFF-011.</summary>
     public void Assign(Guid officerId)
     {
         EnsureStatus(ReportStatus.Verified);
 
-        Status = ReportStatus.Assigned;
-        AssignedOfficerId = officerId;
-    }
-
-    /// <summary>Team accepts the assignment. ASSIGNED → IN_PROGRESS.</summary>
-    public void Accept()
-    {
-        EnsureStatus(ReportStatus.Assigned);
-
         Status = ReportStatus.InProgress;
-        StartedAt = DateTime.UtcNow;
+        AssignedByOfficerId = officerId;
+        // StartedAt is set when the first team accepts (not at assign time)
     }
 
-    /// <summary>All teams declined — revert to Verified so officer can re-assign. BR-CLN-007.</summary>
+    /// <summary>All teams Assigned or Declined — revert to Verified so officer can re-assign. BR-CLN-007.</summary>
     public void RevertToVerified()
     {
-        EnsureStatus(ReportStatus.Assigned);
+        if (Status != ReportStatus.InProgress)
+            throw new InvalidOperationException(
+                $"Cannot revert to Verified from status {Status}.");
 
         Status = ReportStatus.Verified;
-        AssignedOfficerId = null;
+        AssignedByOfficerId = null;
         StartedAt = null;
     }
 
-    /// <summary>Reassign to different team. BR-OFF-012.</summary>
-    public void Reassign(Guid newTeamId)
+    /// <summary>Set StartedAt when first team accepts the assignment.</summary>
+    public void MarkStarted()
     {
-        AssignedTeamId = newTeamId;
+        StartedAt ??= DateTime.UtcNow;
     }
 
     /// <summary>BR-ORG-010: Route report to the office covering the GPS location.</summary>
-    public void RouteToOffice(Guid officeId)
+    public void RouteToOffice(Guid officeId, Guid? officerId = null)
     {
         AssignedOfficeId = officeId;
+        if (officerId.HasValue)
+            AssignedOfficerId = officerId;
     }
 
     /// <summary>BR-ORG-011: Route to department common queue when ward is not onboarded.</summary>
