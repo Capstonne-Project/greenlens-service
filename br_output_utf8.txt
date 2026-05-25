@@ -1,0 +1,1091 @@
+﻿SU26SE049 ΓÇö Business Rules Specification
+BUSINESS RULES SPECIFICATION
+Crowdsourced Application for Reporting Environmental Pollution
+ß╗¿ng dß╗Ñng b├ío c├ío ─æiß╗âm r├íc thß║úi v├á ├┤ nhiß╗àm m├┤i tr╞░ß╗¥ng
+Project Code: SU26SE049
+Document
+Business Rules Specification (BR)
+Version
+1.1
+Status
+Draft
+Last Updated
+17/05/2026
+Supervisor
+Nguyß╗àn Thß╗ï Cß║⌐m H╞░╞íng (huongntc2@fe.edu.vn)
+Duration
+01/01/2026 ΓÇô 30/04/2026
+Change Summary
+Bß╗ò sung m├┤ h├¼nh tß╗ò chß╗⌐c 2 cß║Ñp (Tß╗ënh/Th├ánh phß╗æ ΓÇô X├ú/Ph╞░ß╗¥ng), t├ích Cleanup Team & Inspection Team, bß╗ò sung luß╗ông xß╗¡ phß║ít, bß╗ò sung 5 loß║íi ├┤ nhiß╗àm ch├¡nh thß╗⌐c v├á cß║¡p nhß║¡t Role Matrix.
+1. Tß╗òng quan (Overview)
+T├ái liß╗çu n├áy ─æß║╖c tß║ú to├án bß╗Ö Business Rules (BR) cß╗ºa hß╗ç thß╗æng Crowdsourced Application for Reporting Environmental Pollution. C├íc rule ─æ╞░ß╗úc nh├│m theo chß╗⌐c n─âng nghiß╗çp vß╗Ñ, ├íp dß╗Ñng cho 8 actors: Citizen, Department Environmental Officer (DEO ΓÇô cß║Ñp Tß╗ënh/Th├ánh phß╗æ), Local Environmental Officer (LEO ΓÇô cß║Ñp X├ú/Ph╞░ß╗¥ng), Environmental Cleanup Team, Environmental Inspection Team, System Administrator, AI Service, v├á Community Organization (optional).
+Mß╗ùi rule c├│ ─æß╗ïnh danh duy nhß║Ñt theo c├║ ph├íp BR-<MODULE>-<NNN>, gi├║p truy vß║┐t trong t├ái liß╗çu ph├ón t├¡ch thiß║┐t kß║┐ v├á test case.
+Phi├¬n bß║ún 1.1 bß╗ò sung c├íc nh├│m rule mß╗¢i: BR-ORG-xxx (C╞í cß║Ñu tß╗ò chß╗⌐c 2 cß║Ñp & ─æß╗ïnh tuyß║┐n b├ío c├ío theo ─æß╗ïa giß╗¢i h├ánh ch├¡nh) v├á BR-INS-xxx (Quy tr├¼nh xß╗¡ phß║ít cß╗ºa Environmental Inspection Team). ─Éß╗ông thß╗¥i cß║¡p nhß║¡t BR-AUTH-008/009, BR-REP-005, BR-OFF-001/011, BR-ADM-002 v├á Role Matrix t╞░╞íng ß╗⌐ng.
+1.1 Quy ╞░ß╗¢c ─æß╗ïnh danh (ID Convention)
+BR-AUTH-xxx: X├íc thß╗▒c, t├ái khoß║ún
+BR-REP-xxx: Quß║ún l├╜ b├ío c├ío ├┤ nhiß╗àm
+BR-MAP-xxx: Bß║ún ─æß╗ô & vß╗ï tr├¡
+BR-OFF-xxx: Environmental Officer (DEO & LEO)
+BR-CLN-xxx: Environmental Cleanup Team
+BR-INS-xxx: Environmental Inspection Team (xß╗¡ phß║ít) [NEW v1.1]
+BR-ORG-xxx: C╞í cß║Ñu tß╗ò chß╗⌐c & ─æß╗ïnh tuyß║┐n theo ─æß╗ïa giß╗¢i h├ánh ch├¡nh [NEW v1.1]
+BR-NTF-xxx / BR-CMT-xxx: Th├┤ng b├ío & b├¼nh luß║¡n
+BR-GAM-xxx: Gamification (points, badges)
+BR-AI-xxx: AI Service
+BR-ADM-xxx: Quß║ún trß╗ï hß╗ç thß╗æng
+BR-DAT-xxx: Dß╗» liß╗çu, quyß╗ün ri├¬ng t╞░, tu├ón thß╗º
+BR-SYS-xxx: Phi chß╗⌐c n─âng, hß╗ç thß╗æng
+1.2 Ph├ón loß║íi Rule Type
+Validation: R├áng buß╗Öc dß╗» liß╗çu ─æß║ºu v├áo. Business Logic: C├┤ng thß╗⌐c, thuß║¡t to├ín nghiß╗çp vß╗Ñ. Authorization: Ph├ón quyß╗ün. State Machine: Quy tß║»c chuyß╗ân trß║íng th├íi. Security / Privacy / Compliance: An to├án & tu├ón thß╗º. SLA: Thß╗Åa thuß║¡n mß╗⌐c dß╗ïch vß╗Ñ. Anti-Spam / Anti-Fraud: Chß╗æng gian lß║¡n. Auditability: Ghi log. Performance / Scalability / Availability: Phi chß╗⌐c n─âng.
+1.3 C├íc thay ─æß╗òi ch├¡nh trong v1.1 (Change Log)
+C╞í cß║Ñu tß╗ò chß╗⌐c 2 cß║Ñp: Bß╗ò sung Department of Environmental Management (cß║Ñp Tß╗ënh/Th├ánh phß╗æ) v├á Local Environmental Office (cß║Ñp X├ú/Ph╞░ß╗¥ng). B├ío c├ío cß╗ºa Citizen ─æ╞░ß╗úc ─æß╗ïnh tuyß║┐n theo ─æß╗ïa giß╗¢i h├ánh ch├¡nh X├ú/Ph╞░ß╗¥ng n╞íi ph├ít sinh. C├íc x├ú/ph╞░ß╗¥ng ch╞░a onboard sß║╜ vß╗ü h├áng ─æß╗úi chung cß╗ºa cß║Ñp Tß╗ënh/Th├ánh phß╗æ.
+Ph├ón t├ích Team theo loß║íi ├┤ nhiß╗àm: Environmental Cleanup Team xß╗¡ l├╜ 3 loß║íi R├íc / N╞░ß╗¢c / H├│a chß║Ñt (dß╗ìn dß║╣p). Environmental Inspection Team xß╗¡ l├╜ 2 loß║íi Tiß║┐ng ß╗ôn / Kh├┤ng kh├¡ (xß╗¡ phß║ít).
+Bß╗ò sung luß╗ông xß╗¡ phß║ít: Inspection Team c├│ quy tr├¼nh ri├¬ng (lß║¡p bi├¬n bß║ún ΓåÆ ra quyß║┐t ─æß╗ïnh xß╗¡ phß║ít ΓåÆ ghi nhß║¡n kß║┐t quß║ú nß╗Öp phß║ít) thay cho luß╗ông before/after cß╗ºa Cleanup Team.
+5 loß║íi ├┤ nhiß╗àm ch├¡nh thß╗⌐c: R├íc thß║úi, N╞░ß╗¢c thß║úi, Kh├┤ng kh├¡ (Kh├│i/kh├¡), Tiß║┐ng ß╗ôn, H├│a chß║Ñt. Bß╗Å t├╣y chß╗ìn 'Kh├íc' ─æß╗â chuß║⌐n h├│a ─æß╗ïnh tuyß║┐n.
+Bß╗ò sung Role mß╗¢i: Department Environmental Officer (DEO), Local Environmental Officer (LEO), Inspector.
+2. Actors v├á ma trß║¡n quyß╗ün (Role Matrix)
+Hß╗ç thß╗æng c├│ 9 actors ch├¡nh (bao gß╗ôm 2 cß║Ñp Officer v├á 2 loß║íi Team ─æß╗Öc lß║¡p ─æ├ú bß╗ò sung trong v1.1). Ma trß║¡n d╞░ß╗¢i ─æ├óy t├│m tß║»t quyß╗ün cß╗ºa tß╗½ng actor ─æß╗æi vß╗¢i c├íc chß╗⌐c n─âng cß╗æt l├╡i:
+Chß╗⌐c n─âng
+Citizen
+DEO
+LEO
+Cleanup
+Inspection
+Admin
+AI
+Community
+Gß╗¡i b├ío c├ío ├┤ nhiß╗àm
+Γ£ô
+Γ£ù
+Γ£ù
+Γ£ù
+Γ£ù
+Γ£ù
+ΓÇö
+Γ£ù
+Xem bß║ún ─æß╗ô c├┤ng khai
+Γ£ô
+Γ£ô
+Γ£ô
+Γ£ô
+Γ£ô
+Γ£ô
+ΓÇö
+Γ£ô
+X├íc minh & tiß║┐p nhß║¡n b├ío c├ío
+Γ£ù
+Γ£ô (queue chung)
+Γ£ô (khu vß╗▒c)
+Γ£ù
+Γ£ù
+Γ£ô
+ΓÇö
+Γ£ù
+G├ín Cleanup Team (r├íc/n╞░ß╗¢c/h├│a chß║Ñt)
+Γ£ù
+Γ£ô
+Γ£ô
+Γ£ù
+Γ£ù
+Γ£ô
+ΓÇö
+Γ£ù
+G├ín Inspection Team (tiß║┐ng ß╗ôn/kh├┤ng kh├¡)
+Γ£ù
+Γ£ô
+Γ£ô
+Γ£ù
+Γ£ù
+Γ£ô
+ΓÇö
+Γ£ù
+Thß╗▒c hiß╗çn dß╗ìn dß║╣p & cß║¡p nhß║¡t before/after
+Γ£ù
+Γ£ù
+Γ£ù
+Γ£ô
+Γ£ù
+Γ£ô
+ΓÇö
+Γ£ù
+Lß║¡p bi├¬n bß║ún & ra quyß║┐t ─æß╗ïnh xß╗¡ phß║ít
+Γ£ù
+Γ£ù
+Γ£ù
+Γ£ù
+Γ£ô
+Γ£ô
+ΓÇö
+Γ£ù
+Cß║Ñu h├¼nh hß╗ç thß╗æng
+Γ£ù
+Γ£ù
+Γ£ù
+Γ£ù
+Γ£ù
+Γ£ô
+ΓÇö
+Γ£ù
+Ph├ón loß║íi / AI gß╗úi ├╜
+ΓÇö
+ΓÇö
+ΓÇö
+ΓÇö
+ΓÇö
+ΓÇö
+Γ£ô
+ΓÇö
+Xuß║Ñt open data
+Γ£ù
+To├án tß╗ënh
+Trong x├ú/ph╞░ß╗¥ng
+Γ£ù
+Γ£ù
+Γ£ô
+ΓÇö
+Γ£ô
+Leaderboard / Badge
+Γ£ô
+Γ£ù
+Γ£ù
+Γ£ù
+Γ£ù
+Γ£ô quß║ún l├╜
+ΓÇö
+Γ£ù
+Ghi ch├║:
+DEO = Department Environmental Officer (cß║Ñp Tß╗ënh/Th├ánh phß╗æ).
+LEO = Local Environmental Officer (cß║Ñp X├ú/Ph╞░ß╗¥ng).
+Cleanup Team chß╗ë tiß║┐p nhß║¡n b├ío c├ío loß║íi R├íc thß║úi, N╞░ß╗¢c thß║úi, H├│a chß║Ñt.
+Inspection Team chß╗ë tiß║┐p nhß║¡n b├ío c├ío loß║íi Tiß║┐ng ß╗ôn, Kh├┤ng kh├¡ (xß╗¡ phß║ít).
+3. X├íc thß╗▒c & T├ái khoß║ún (Authentication & Account)
+Nh├│m rule quß║ún l├╜ ─æ─âng k├╜, ─æ─âng nhß║¡p, session v├á quß║ún l├╜ hß╗ô s╞í cho tß║Ñt cß║ú c├íc loß║íi user.
+ID
+Rule Name
+Description
+Type
+Error Message / Behavior
+1.1 ─É─âng k├╜ t├ái khoß║ún (Registration)
+BR-AUTH-001
+─Éß╗ïnh dß║íng Email
+Email phß║úi ─æ├║ng ─æß╗ïnh dß║íng RFC 5322 (c├│ @, domain hß╗úp lß╗ç).
+Format
+Email kh├┤ng ─æ├║ng ─æß╗ïnh dß║íng.
+BR-AUTH-002
+Email duy nhß║Ñt
+Mß╗ùi email chß╗ë ─æ╞░ß╗úc ─æ─âng k├╜ mß╗Öt t├ái khoß║ún duy nhß║Ñt trong hß╗ç thß╗æng.
+Uniqueness
+Email n├áy ─æ├ú ─æ╞░ß╗úc sß╗¡ dß╗Ñng.
+BR-AUTH-003
+─Éß╗ïnh dß║íng S─ÉT
+Chß║Ñp nhß║¡n ─æß╗ïnh dß║íng Viß╗çt Nam: +84 hoß║╖c 0 + 9 chß╗» sß╗æ, bß║»t ─æß║ºu bß║▒ng 3/5/7/8/9.
+Format
+Sß╗æ ─æiß╗çn thoß║íi kh├┤ng hß╗úp lß╗ç
+BR-AUTH-004
+S─ÉT duy nhß║Ñt
+Mß╗ùi sß╗æ ─æiß╗çn thoß║íi chß╗ë ─æ╞░ß╗úc gß║»n vß╗¢i mß╗Öt t├ái khoß║ún duy nhß║Ñt.
+Uniqueness
+Sß╗æ ─æiß╗çn thoß║íi ─æ├ú ─æ╞░ß╗úc sß╗¡ dß╗Ñng
+BR-AUTH-005
+─Éß╗Ö mß║ính mß║¡t khß║⌐u
+Tß╗æi thiß╗âu 8 k├╜ tß╗▒, tß╗æi ─æa 32 k├╜ tß╗▒, bß║»t buß╗Öc c├│ ├¡t nhß║Ñt 1 chß╗» hoa, 1 chß╗» th╞░ß╗¥ng, 1 chß╗» sß╗æ v├á 1 k├╜ tß╗▒ ─æß║╖c biß╗çt (!@#$%^&*).
+Validation
+Mß║¡t khß║⌐u phß║úi c├│ ├¡t nhß║Ñt 8 k├╜ tß╗▒, bao gß╗ôm chß╗» hoa, chß╗» th╞░ß╗¥ng, sß╗æ v├á k├╜ tß╗▒ ─æß║╖c biß╗çt
+BR-AUTH-006
+X├íc nhß║¡n mß║¡t khß║⌐u
+Tr╞░ß╗¥ng 'X├íc nhß║¡n mß║¡t khß║⌐u' phß║úi khß╗¢p ch├¡nh x├íc vß╗¢i tr╞░ß╗¥ng 'Mß║¡t khß║⌐u'.
+Validation
+Mß║¡t khß║⌐u x├íc nhß║¡n kh├┤ng khß╗¢p
+BR-AUTH-007
+Thß╗¥i hß║ín m├ú OTP
+M├ú x├íc thß╗▒c (Email/OTP) c├│ hiß╗çu lß╗▒c trong v├▓ng 10 ph├║t. Qu├í hß║ín m├ú sß║╜ mß║Ñt hiß╗çu lß╗▒c.
+Business Process
+M├ú x├íc thß╗▒c ─æ├ú hß║┐t hß║ín. Vui l├▓ng y├¬u cß║ºu gß╗¡i lß║íi
+BR-AUTH-008
+Vai tr├▓ mß║╖c ─æß╗ïnh
+T├ái khoß║ún tß╗▒ ─æ─âng k├╜ qua app mß║╖c ─æß╗ïnh l├á 'Citizen'.
+Authorization
+N/A (Hß╗ç thß╗æng tß╗▒ g├ín)
+BR-AUTH-009
+Quyß╗ün quß║ún trß╗ï vai tr├▓
+C├íc vai tr├▓ nß╗Öi bß╗Ö chß╗ë ─æ╞░ß╗úc tß║ío/g├ín bß╗ƒi System Administrator, gß╗ôm: DEO (Department Environmental Officer ΓÇô cß║Ñp Tß╗ënh/Th├ánh phß╗æ), LEO (Local Environmental Officer ΓÇô cß║Ñp X├ú/Ph╞░ß╗¥ng), Cleanup, Inspector, Admin.
+Authorization
+N/A (Chß║╖n ß╗ƒ backend/UI)
+BR-AUTH-010
+Tr╞░ß╗¥ng bß║»t buß╗Öc
+C├íc tr╞░ß╗¥ng: Hß╗ì t├¬n, email, S─ÉT, mß║¡t khß║⌐u l├á bß║»t buß╗Öc kh├┤ng ─æ╞░ß╗úc ─æß╗â trß╗æng.
+Validation
+Vui l├▓ng ─æiß╗ün ─æß║ºy ─æß╗º th├┤ng tin bß║»t buß╗Öc
+BR-AUTH-011
+─Éß╗ïnh dß║íng Hß╗ì t├¬n
+Hß╗ì t├¬n tß╗½ 2ΓÇô50 k├╜ tß╗▒, kh├┤ng chß╗⌐a k├╜ tß╗▒ ─æß║╖c biß╗çt (trß╗½ dß║Ñu tiß║┐ng Viß╗çt).
+Validation
+Hß╗ì t├¬n kh├┤ng hß╗úp lß╗ç (tß╗½ 2-50 k├╜ tß╗▒ v├á kh├┤ng chß╗⌐a k├╜ tß╗▒ ─æß║╖c biß╗çt)
+BR-AUTH-012
+Chß║Ñp nhß║¡n ─æiß╗üu khoß║ún
+Ng╞░ß╗¥i d├╣ng phß║úi tick chß╗ìn ─æß╗ông ├╜ '─Éiß╗üu khoß║ún sß╗¡ dß╗Ñng' v├á 'Ch├¡nh s├ích quyß╗ün ri├¬ng t╞░' tr╞░ß╗¢c khi ho├án tß║Ñt.
+Compliance
+Bß║ín phß║úi ─æß╗ông ├╜ vß╗¢i ─æiß╗üu khoß║ún ─æß╗â ─æ─âng k├╜
+1.2 ─É─âng nhß║¡p (Login)
+BR-AUTH-013
+Th├┤ng tin ─æ─âng nhß║¡p
+Ng╞░ß╗¥i d├╣ng ─æ─âng nhß║¡p bß║▒ng email HOß║╢C sß╗æ ─æiß╗çn thoß║íi + mß║¡t khß║⌐u. Hß╗ç thß╗æng kh├┤ng ph├ón biß╗çt chß╗» hoa/th╞░ß╗¥ng vß╗¢i email.
+Validation
+Th├┤ng tin ─æ─âng nhß║¡p kh├┤ng ch├¡nh x├íc
+BR-AUTH-014
+Giß╗¢i hß║ín sß╗æ lß║ºn sai mß║¡t khß║⌐u
+Nhß║¡p sai mß║¡t khß║⌐u qu├í 5 lß║ºn li├¬n tiß║┐p trong 15 ph├║t ΓåÆ kh├│a t├ái khoß║ún tß║ím thß╗¥i 30 ph├║t. Phß║úi g├╡ CAPTCHA tß╗½ lß║ºn sai thß╗⌐ 3.
+Security
+T├ái khoß║ún tß║ím bß╗ï kh├│a do ─æ─âng nhß║¡p sai nhiß╗üu lß║ºn. Thß╗¡ lß║íi sau 30 ph├║t
+BR-AUTH-015
+T├ái khoß║ún bß╗ï kh├│a
+T├ái khoß║ún c├│ trß║íng th├íi 'Inactive' hoß║╖c 'Banned' kh├┤ng ─æ╞░ß╗úc ph├⌐p ─æ─âng nhß║¡p.
+Authorization
+T├ái khoß║ún cß╗ºa bß║ín ─æ├ú bß╗ï v├┤ hiß╗çu h├│a. Li├¬n hß╗ç Admin
+BR-AUTH-016
+Phi├¬n l├ám viß╗çc (session)
+Access token hß║┐t hß║ín sau 24 giß╗¥; refresh token 30 ng├áy. Ng╞░ß╗¥i d├╣ng kh├┤ng hoß║ít ─æß╗Öng qu├í 30 ph├║t tr├¬n web ΓåÆ tß╗▒ ─æ─âng xuß║Ñt.
+Security
+Phi├¬n l├ám viß╗çc ─æ├ú hß║┐t hß║ín. Vui l├▓ng ─æ─âng nhß║¡p lß║íi
+BR-AUTH-017
+─É─âng nhß║¡p ß║⌐n danh (Anonymous)
+Citizen c├│ thß╗â gß╗¡i b├ío c├ío ß╗ƒ chß║┐ ─æß╗Ö ß║⌐n danh m├á kh├┤ng cß║ºn ─æ─âng nhß║¡p, nh╞░ng sß║╜ kh├┤ng ─æ╞░ß╗úc cß╗Öng ─æiß╗âm/huy hiß╗çu v├á kh├┤ng thß╗â theo d├╡i b├ío c├ío.
+Business Process
+N/A
+BR-AUTH-018
+Qu├¬n mß║¡t khß║⌐u
+Cho ph├⌐p reset qua link email (hiß╗çu lß╗▒c 15 ph├║t) hoß║╖c OTP S─ÉT (hiß╗çu lß╗▒c 5 ph├║t). Link/OTP chß╗ë d├╣ng 1 lß║ºn.
+Security
+Link ─æß║╖t lß║íi mß║¡t khß║⌐u ─æ├ú hß║┐t hß║ín hoß║╖c ─æ├ú ─æ╞░ß╗úc sß╗¡ dß╗Ñng
+1.3 Quß║ún l├╜ hß╗ô s╞í (Profile)
+BR-AUTH-019
+Cß║¡p nhß║¡t th├┤ng tin c├í nh├ón
+Ng╞░ß╗¥i d├╣ng chß╗ë ─æ╞░ß╗úc cß║¡p nhß║¡t: hß╗ì t├¬n, ß║únh ─æß║íi diß╗çn, S─ÉT (phß║úi x├íc thß╗▒c lß║íi). Email v├á vai tr├▓ kh├┤ng thß╗â tß╗▒ ─æß╗òi.
+Authorization
+Kh├┤ng thß╗â thay ─æß╗òi email/vai tr├▓. Li├¬n hß╗ç quß║ún trß╗ï vi├¬n
+BR-AUTH-020
+─Éß╗òi mß║¡t khß║⌐u
+Y├¬u cß║ºu nhß║¡p mß║¡t khß║⌐u c┼⌐. Mß║¡t khß║⌐u mß╗¢i kh├┤ng ─æ╞░ß╗úc tr├╣ng 3 mß║¡t khß║⌐u gß║ºn nhß║Ñt.
+Security
+Mß║¡t khß║⌐u mß╗¢i kh├┤ng ─æ╞░ß╗úc tr├╣ng vß╗¢i c├íc mß║¡t khß║⌐u ─æ├ú sß╗¡ dß╗Ñng
+BR-AUTH-021
+X├│a t├ái khoß║ún
+Ng╞░ß╗¥i d├╣ng c├│ thß╗â y├¬u cß║ºu x├│a t├ái khoß║ún. Hß╗ç thß╗æng ß║⌐n dß╗» liß╗çu c├í nh├ón (soft delete), giß╗» lß║íi b├ío c├ío vß╗¢i trß║íng th├íi 'Anonymized' trong 90 ng├áy tr╞░ß╗¢c khi x├│a v─⌐nh viß╗àn.
+Compliance (GDPR)
+T├ái khoß║ún sß║╜ ─æ╞░ß╗úc x├│a sau 90 ng├áy. Bß║ín c├│ thß╗â kh├┤i phß╗Ñc tr╞░ß╗¢c thß╗¥i hß║ín
+4. C╞í cß║Ñu tß╗ò chß╗⌐c & ─Éß╗ïnh tuyß║┐n b├ío c├ío (Organization & Routing)  [NEW v1.1]
+Nh├│m rule mß╗¢i trong v1.1 m├┤ tß║ú m├┤ h├¼nh tß╗ò chß╗⌐c 2 cß║Ñp (Department of Environmental Management cß║Ñp Tß╗ënh/Th├ánh phß╗æ v├á Local Environmental Office cß║Ñp X├ú/Ph╞░ß╗¥ng) v├á c├ích hß╗ç thß╗æng ─æß╗ïnh tuyß║┐n b├ío c├ío theo ─æß╗ïa giß╗¢i h├ánh ch├¡nh cß╗ºa Citizen.
+4.1 M├┤ h├¼nh tß╗ò chß╗⌐c tß╗òng quan
+Department of Environmental Management (cß║Ñp Tß╗ënh/Th├ánh phß╗æ) ΓÇô ─æ╞ín vß╗ï quß║ún l├╜ cß║Ñp cao.
+Local Environmental Office (cß║Ñp X├ú/Ph╞░ß╗¥ng) ΓÇô trß╗▒c thuß╗Öc Department, mß╗ùi x├ú/ph╞░ß╗¥ng c├│ 1 LEO + 1 or N+ Cleanup Team + 1 or N+ Inspection Team.
+Environmental Cleanup Team ΓÇô xß╗¡ l├╜ vß║¡t l├╜: R├íc thß║úi, N╞░ß╗¢c thß║úi, H├│a chß║Ñt.
+Environmental Inspection Team ΓÇô xß╗¡ phß║ít vi phß║ím: Tiß║┐ng ß╗ôn, Kh├┤ng kh├¡.
+ID
+Rule Name
+Description
+Type
+Error Message / Behavior
+Cß║Ñu tr├║c tß╗ò chß╗⌐c 2 cß║Ñp
+BR-ORG-001
+Cß║Ñp 1 ΓÇô Department of Environmental Management
+Department of Environmental Management (cß║Ñp Tß╗ënh/Th├ánh phß╗æ) l├á ─æ╞ín vß╗ï cß║Ñp cao nhß║Ñt. Quß║ún l├╜ to├án bß╗Ö c├íc Local Environmental Office trß╗▒c thuß╗Öc trong phß║ím vi tß╗ënh/th├ánh phß╗æ. C├│ quyß╗ün: xem b├ío c├ío to├án tß╗ënh, quß║ún l├╜ h├áng ─æß╗úi chung, t├íi ph├ón c├┤ng LEO, xem KPI tß╗òng hß╗úp.
+Authorization
+N/A
+BR-ORG-002
+Cß║Ñp 2 ΓÇô Local Environmental Office
+Local Environmental Office (cß║Ñp X├ú/Ph╞░ß╗¥ng) trß╗▒c thuß╗Öc Department of Environmental Management. Mß╗ùi x├ú/ph╞░ß╗¥ng ─æ╞░ß╗úc ph├ón c├┤ng 1 LEO (Local Environmental Officer) v├á 1 or N + Environmental Cleanup Team, 1 or N + Environmental Inspection Team. LEO chß╗ë tiß║┐p nhß║¡n b├ío c├ío ph├ít sinh trong phß║ím vi x├ú/ph╞░ß╗¥ng m├¼nh phß╗Ñ tr├ích.
+Authorization
+N/A
+BR-ORG-003
+Quan hß╗ç Office ΓÇô Team
+Mß╗ùi Local Environmental Office sß╗ƒ hß╗»u: 0..n Environmental Cleanup Team v├á 0..n Environmental Inspection Team. Mß╗Öt Team chß╗ë thuß╗Öc vß╗ü duy nhß║Ñt 1 Local Office tß║íi mß╗Öt thß╗¥i ─æiß╗âm. Viß╗çc ─æiß╗üu chuyß╗ân Team giß╗»a c├íc Office phß║úi do Admin thß╗▒c hiß╗çn v├á ghi audit log.
+Data Integrity
+N/A
+BR-ORG-004
+Phß║ím vi ─æß╗ïa l├╜ cß╗ºa Office
+Mß╗ùi Local Environmental Office ─æ╞░ß╗úc gß║»n vß╗¢i 1 ranh giß╗¢i h├ánh ch├¡nh (polygon GeoJSON) t╞░╞íng ß╗⌐ng vß╗¢i x├ú/ph╞░ß╗¥ng phß╗Ñ tr├ích. Hß╗ç thß╗æng d├╣ng polygon n├áy ─æß╗â ─æß╗ïnh tuyß║┐n b├ío c├ío (BR-ORG-010).
+Data Integrity
+N/A
+─Éß╗ïnh tuyß║┐n b├ío c├ío theo ─æß╗ïa giß╗¢i h├ánh ch├¡nh
+BR-ORG-010
+─Éß╗ïnh tuyß║┐n theo x├ú/ph╞░ß╗¥ng
+Khi b├ío c├ío ─æ╞░ß╗úc gß╗¡i vß╗¢i tß╗ìa ─æß╗Ö GPS hß╗úp lß╗ç (BR-REP-003), hß╗ç thß╗æng tß╗▒ x├íc ─æß╗ïnh x├ú/ph╞░ß╗¥ng chß╗⌐a ─æiß╗âm GPS ─æ├│ (point-in-polygon). Nß║┐u x├ú/ph╞░ß╗¥ng ─æ├ú c├│ Local Environmental Office onboard ΓåÆ b├ío c├ío ─æ╞░ß╗úc g├ín cho LEO cß╗ºa x├ú/ph╞░ß╗¥ng ─æ├│. Nß║┐u ch╞░a onboard ΓåÆ ─æ╞░a v├áo h├áng ─æß╗úi chung cß╗ºa Department cß║Ñp Tß╗ënh/Th├ánh phß╗æ (BR-ORG-011).
+Business Logic
+N/A
+BR-ORG-011
+H├áng ─æß╗úi chung cß║Ñp Tß╗ënh/Th├ánh phß╗æ
+B├ío c├ío thuß╗Öc x├ú/ph╞░ß╗¥ng ch╞░a onboard sß║╜ ─æ╞░ß╗úc ─æ╞░a v├áo 'Department Common Queue'. Admin hoß║╖c DEO c├│ quyß╗ün: (a) g├ín cho LEO cß╗ºa x├ú/ph╞░ß╗¥ng gß║ºn nhß║Ñt theo khoß║úng c├ích centroid, (b) tß╗▒ xß╗¡ l├╜ nß║┐u cß║Ñp tß╗ënh c├│ team trß╗▒c thuß╗Öc trß╗▒c tiß║┐p.
+Business Logic
+N/A
+BR-ORG-012
+Conflict of interest theo cß║Ñp
+DEO/LEO kh├┤ng ─æ╞░ß╗úc x├íc minh b├ío c├ío do ch├¡nh m├¼nh gß╗¡i (kß║┐ thß╗½a BR-OFF-004). Ngo├ái ra, nß║┐u b├ío c├ío nß║▒m ngo├ái phß║ím vi x├ú/ph╞░ß╗¥ng m├á LEO phß╗Ñ tr├ích, LEO kh├┤ng c├│ quyß╗ün tiß║┐p nhß║¡n (trß╗½ khi ─æ╞░ß╗úc Admin re-assign).
+Authorization
+Bß║ín kh├┤ng c├│ quyß╗ün tiß║┐p nhß║¡n b├ío c├ío ngo├ái khu vß╗▒c
+BR-ORG-013
+─Éß╗ïnh tuyß║┐n theo loß║íi ├┤ nhiß╗àm
+Sau khi LEO 'Verified' b├ío c├ío, hß╗ç thß╗æng gß╗úi ├╜ team ph├╣ hß╗úp: R├íc thß║úi / N╞░ß╗¢c thß║úi / H├│a chß║Ñt ΓåÆ Environmental Cleanup Team trong x├ú/ph╞░ß╗¥ng; Tiß║┐ng ß╗ôn / Kh├┤ng kh├¡ ΓåÆ Environmental Inspection Team trong x├ú/ph╞░ß╗¥ng. LEO ra quyß║┐t ─æß╗ïnh g├ín cuß╗æi c├╣ng.
+Business Logic
+N/A
+BR-ORG-014
+SLA tiß║┐p nhß║¡n cß║Ñp x├ú/ph╞░ß╗¥ng
+LEO phß║úi phß║ún hß╗ôi (Accept/Reject) b├ío c├ío ─æ╞░ß╗úc hß╗ç thß╗æng ─æß╗ïnh tuyß║┐n trong v├▓ng 24 giß╗¥. Qu├í hß║ín ΓåÆ b├ío c├ío tß╗▒ ─æß╗Öng eskalat l├¬n DEO cß║Ñp Tß╗ënh/Th├ánh phß╗æ v├á ─æ├ính dß║Ñu 'SLA Breach ΓÇô Acceptance'.
+SLA
+Cß║únh b├ío: B├ío c├ío [ID] v╞░ß╗út SLA tiß║┐p nhß║¡n 24h
+BR-ORG-015
+Re-assign khi LEO kh├┤ng thß╗â xß╗¡ l├╜
+Khi LEO 'Reject' b├ío c├ío: bß║»t buß╗Öc n├¬u l├╜ do ΓëÑ 20 k├╜ tß╗▒. B├ío c├ío ─æ╞░ß╗úc ─æß║⌐y vß╗ü h├áng ─æß╗úi chung cß╗ºa Department; DEO c├│ thß╗â g├ín cho LEO kh├íc hoß║╖c giß╗» lß║íi xß╗¡ l├╜ cß║Ñp tß╗ënh.
+Business Process
+Vui l├▓ng n├¬u l├╜ do tß╗½ chß╗æi ΓëÑ 20 k├╜ tß╗▒
+5. Quß║ún l├╜ b├ío c├ío ├┤ nhiß╗àm (Pollution Report Management)
+C├íc rule cß╗æt l├╡i cho to├án bß╗Ö v├▓ng ─æß╗¥i b├ío c├ío ├┤ nhiß╗àm ΓÇô tß╗½ khß╗ƒi tß║ío, chuyß╗ân trß║íng th├íi ─æß║┐n xß╗¡ l├╜ tr├╣ng lß║╖p. Trong v1.1, hß╗ç thß╗æng t├ích th├ánh 2 luß╗ông xß╗¡ l├╜ song song dß╗▒a theo loß║íi ├┤ nhiß╗àm.
+ID
+Rule Name
+Description
+Type
+Error Message / Behavior
+2.1 Tß║ío b├ío c├ío ├┤ nhiß╗àm (Create Pollution Report)
+BR-REP-001
+ß║ónh bß║»t buß╗Öc
+Mß╗ùi b├ío c├ío phß║úi c├│ ├¡t nhß║Ñt 1 ß║únh, tß╗æi ─æa 5 ß║únh. ─Éß╗ïnh dß║íng .jpg/.jpeg/.png/.webp, mß╗ùi ß║únh Γëñ 10MB.
+Validation
+Vui l├▓ng th├¬m ├¡t nhß║Ñt 1 ß║únh. Tß╗æi ─æa 5 ß║únh, mß╗ùi ß║únh Γëñ 10MB
+BR-REP-002
+Video (lß╗▒a chß╗ìn)
+Cho ph├⌐p tß║úi tß╗æi ─æa 1 video cho mß╗ùi b├ío c├ío. ─Éß╗ïnh dß║íng hß╗ù trß╗ú mp4, mov.
+Validation
+Chß╗ë hß╗ù trß╗ú 01 video ─æß╗ïnh dß║íng MP4, MOV
+BR-REP-003
+Tß╗ìa ─æß╗Ö GPS bß║»t buß╗Öc
+Tß╗ìa ─æß╗Ö (lat, lng) phß║úi c├│ trong b├ío c├ío v├á nß║▒m trong l├únh thß╗ò Viß╗çt Nam (lat: 8.0ΓÇô24.0; lng: 102.0ΓÇô110.0).
+Validation
+Vui l├▓ng bß║¡t GPS. Vß╗ï tr├¡ phß║úi nß║▒m trong l├únh thß╗ò Viß╗çt Nam
+BR-REP-004
+M├┤ tß║ú b├ío c├ío
+Tr╞░ß╗¥ng m├┤ tß║ú kh├┤ng bß║»t buß╗Öc nh╞░ng nß║┐u nhß║¡p phß║úi tß╗½ 10ΓÇô1000 k├╜ tß╗▒, kh├┤ng chß╗⌐a ng├┤n tß╗½ tß╗Ñc t─⌐u (qua bß╗Ö lß╗ìc tß╗½).
+Validation + Moderation
+M├┤ tß║ú phß║úi tß╗½ 10ΓÇô1000 k├╜ tß╗▒ / chß╗⌐a nß╗Öi dung kh├┤ng ph├╣ hß╗úp
+BR-REP-005
+Loß║íi ├┤ nhiß╗àm (5 loß║íi ch├¡nh thß╗⌐c)
+Phß║úi chß╗ìn ─æ├║ng 1 loß║íi tß╗½ danh mß╗Ñc cß╗æ ─æß╗ïnh gß╗ôm 5 nh├│m:
+ΓÇó R├íc thß║úi (Cleanup Team xß╗¡ l├╜)
+ΓÇó N╞░ß╗¢c thß║úi (Cleanup Team xß╗¡ l├╜)
+ΓÇó H├│a chß║Ñt (Cleanup Team xß╗¡ l├╜)
+ΓÇó Tiß║┐ng ß╗ôn (Inspection Team xß╗¡ l├╜ ΓÇô luß╗ông xß╗¡ phß║ít)
+ΓÇó Kh├┤ng kh├¡ / Kh├│i kh├¡ (Inspection Team xß╗¡ l├╜ ΓÇô luß╗ông xß╗¡ phß║ít)
+Loß║íi ├┤ nhiß╗àm quyß║┐t ─æß╗ïnh Team ─æ╞░ß╗úc g├ín theo BR-ORG-013.
+Validation + Routing
+Vui l├▓ng chß╗ìn 1 trong 5 loß║íi ├┤ nhiß╗àm
+BR-REP-006
+Mß╗⌐c ─æß╗Ö nghi├¬m trß╗ìng
+Ng╞░ß╗¥i d├╣ng chß╗ìn 1 trong 4 mß╗⌐c: Low / Medium / High / Critical. Nß║┐u kh├┤ng chß╗ìn, hß╗ç thß╗æng mß║╖c ─æß╗ïnh 'Medium' v├á ─æß╗â AI ─æ├ính gi├í lß║íi (BR-AI-003).
+Default + AI Override
+N/A
+BR-REP-008
+Cß║únh b├ío b├ío c├ío tß╗ôn ─æß╗ìng
+Nß║┐u mß╗Öt b├ío c├ío hß╗úp lß╗ç ß╗ƒ trß║íng th├íi Pending (Chß╗¥ xß╗¡ l├╜) qu├í 72 giß╗¥ (3 ng├áy), hß╗ç thß╗æng tß╗▒ ─æß╗Öng ─æ├ính dß║Ñu Overdue v├á gß╗¡i cß║únh b├ío nhß║»c nhß╗ƒ.
+Business Logic / Workflow
+N/A (Hß╗ç thß╗æng tß╗▒ gß╗¡i Notify)
+BR-REP-009
+Cß║únh b├ío ch╞░a ph├ón c├┤ng
+Nß║┐u b├ío c├ío ß╗ƒ trß║íng th├íi Verified qu├í 24 giß╗¥ m├á tr╞░ß╗¥ng Assigned_To vß║½n trß╗æng, hß╗ç thß╗æng tß╗▒ ─æß╗Öng cß║únh b├ío ─æiß╗üu phß╗æi vi├¬n (LEO phß╗Ñ tr├ích hoß║╖c DEO).
+Workflow Logic
+N/A (Hß╗ç thß╗æng tß╗▒ gß╗¡i Notify)
+BR-REP-010
+Giß╗¢i hß║ín spam theo tß║ºn suß║Ñt
+Mß╗Öt Citizen chß╗ë ─æ╞░ß╗úc gß╗¡i tß╗æi ─æa 5 b├ío c├ío trong 1 giß╗¥ v├á 20 b├ío c├ío trong 24 giß╗¥. V╞░ß╗út ng╞░ß╗íng ΓåÆ tß║ím kh├│a gß╗¡i b├ío c├ío 1 giß╗¥.
+Anti-Spam
+Bß║ín ─æ├ú ─æß║ít giß╗¢i hß║ín gß╗¡i b├ío c├ío. Thß╗¡ lß║íi sau [X] ph├║t
+BR-REP-011
+ß║ónh phß║úi c├│ metadata hß╗úp lß╗ç
+Hß╗ç thß╗æng ╞░u ti├¬n lß║Ñy GPS & timestamp tß╗½ EXIF. Nß║┐u ß║únh ─æ├ú qua chß╗ënh sß╗¡a qu├í 1 giß╗¥ so vß╗¢i thß╗¥i ─æiß╗âm gß╗¡i ΓåÆ cß║únh b├ío & ─æ├ính dß║Ñu 'Suspicious'.
+Data Quality
+ß║ónh c├│ thß╗â kh├┤ng phß║ún ├ính hiß╗çn trß║íng thß╗▒c tß║┐
+BR-REP-012
+B├ío c├ío ß║⌐n danh
+B├ío c├ío ß║⌐n danh kh├┤ng hiß╗ân thß╗ï t├¬n ng╞░ß╗¥i gß╗¡i c├┤ng khai, nh╞░ng LEO/DEO v├á Admin vß║½n c├│ thß╗â xem th├┤ng tin (vß╗¢i l├╜ do ─æ╞░ß╗úc ghi nhß║¡n trong audit log).
+Privacy
+N/A
+BR-REP-013
+Trß║íng th├íi khß╗ƒi tß║ío
+B├ío c├ío mß╗¢i lu├┤n c├│ status = 'Submitted'. Kh├┤ng thß╗â set trß╗▒c tiß║┐p trß║íng th├íi kh├íc khi tß║ío.
+State Machine
+N/A
+BR-REP-014
+ß║ónh before/after khi Resolved (Cleanup)
+├üp dß╗Ñng cho b├ío c├ío loß║íi R├íc/N╞░ß╗¢c/H├│a chß║Ñt do Cleanup Team xß╗¡ l├╜. Khi ─æ├ính dß║Ñu 'Resolved' phß║úi upload ├¡t nhß║Ñt 1 ß║únh 'before' v├á 1 ß║únh 'after'. ß║ónh 'after' phß║úi ─æ╞░ß╗úc chß╗Ñp Γëñ 24h tr╞░ß╗¢c thß╗¥i ─æiß╗âm submit. B├ío c├ío loß║íi Tiß║┐ng ß╗ôn/Kh├┤ng kh├¡ ├íp dß╗Ñng BR-INS-xxx thay thß║┐.
+Validation
+Cß║ºn upload ß║únh tr╞░ß╗¢c v├á sau khi xß╗¡ l├╜ ─æß╗â ho├án tß║Ñt
+BR-REP-015
+X├íc nhß║¡n h├ái l├▓ng cß╗ºa Citizen
+Sau trß║íng th├íi 'Resolved', Citizen c├│ 7 ng├áy ─æß╗â x├íc nhß║¡n (h├ái l├▓ng/kh├┤ng h├ái l├▓ng). Nß║┐u kh├┤ng h├ái l├▓ng ΓåÆ b├ío c├ío quay vß╗ü 'In Progress' (tß╗æi ─æa 2 lß║ºn re-open).
+Business Process
+B├ío c├ío ─æ├ú ─æ╞░ß╗úc re-open ─æß╗â xß╗¡ l├╜ lß║íi / ─É├ú hß║┐t sß╗æ lß║ºn mß╗ƒ lß║íi
+BR-REP-016
+Auto-close
+B├ío c├ío ß╗ƒ trß║íng th├íi 'Resolved' m├á kh├┤ng ─æ╞░ß╗úc x├íc nhß║¡n trong 7 ng├áy ΓåÆ tß╗▒ ─æß╗Öng chuyß╗ân 'Closed'.
+Automation
+N/A
+BR-REP-017
+Kh├┤ng thß╗â x├│a b├ío c├ío ─æ├ú verified
+Citizen chß╗ë ─æ╞░ß╗úc x├│a b├ío c├ío khi ß╗ƒ trß║íng th├íi 'Submitted' v├á ch╞░a c├│ ß║únh tß╗½ AI/Officer t╞░╞íng t├íc. Sau 'Verified' trß╗ƒ ─æi ΓåÆ kh├┤ng ─æ╞░ß╗úc x├│a, chß╗ë c├│ thß╗â y├¬u cß║ºu ß║⌐n.
+Data Integrity
+B├ío c├ío ─æ├ú ─æ╞░ß╗úc x├íc nhß║¡n. Kh├┤ng thß╗â x├│a
+BR-REP-018
+─É├ính gi├í cß╗ºa Citizen
+Sau khi ─æ╞░ß╗úc 'Resolved' ΓÇô C├íc citizen c├│ thß╗â ─æ├ính gi├í v├á b├¼nh luß║¡n, giao tiß║┐p c├╣ng nhau ngay ─æß╗ïa ─æiß╗âm ─æ├ú ─æ╞░ß╗úc ho├án th├ánh.
+Quality
+N/A
+BR-REP-019
+L╞░u nh├íp (Draft)
+Citizen c├│ thß╗â l╞░u nh├íp tß╗æi ─æa 3 b├ío c├ío. Nh├íp tß╗▒ x├│a sau 7 ng├áy kh├┤ng cß║¡p nhß║¡t.
+Business Process
+Bß║ín ─æ├ú ─æß║ít giß╗¢i hß║ín 3 bß║ún nh├íp. X├│a bß╗¢t hoß║╖c gß╗¡i ─æi
+2.2 Trß║íng th├íi b├ío c├ío (Report Status Lifecycle)
+BR-REP-020
+Quy tß║»c chuyß╗ân trß║íng th├íi
+C├│ 2 luß╗ông song song dß╗▒a theo loß║íi Team xß╗¡ l├╜:
+Luß╗ông Cleanup (R├íc/N╞░ß╗¢c/H├│a chß║Ñt): Submitted ΓåÆ Verified ΓåÆ In Progress ΓåÆ Resolved ΓåÆ Closed.
+Luß╗ông Inspection (Tiß║┐ng ß╗ôn/Kh├┤ng kh├¡): Submitted ΓåÆ Verified ΓåÆ In Progress ΓåÆ Penalty Issued ΓåÆ Closed.
+Nh├ính phß╗Ñ: Submitted ΓåÆ Rejected; Verified ΓåÆ Duplicate. Xem Phß╗Ñ lß╗Ñc A.
+State Machine
+Kh├┤ng thß╗â chuyß╗ân tß╗½ trß║íng th├íi [X] sang [Y]
+BR-REP-021
+Ai ─æ╞░ß╗úc chuyß╗ân trß║íng th├íi
+Submitted ΓåÆ Verified/Rejected/Duplicate: LEO (hoß║╖c DEO vß╗¢i b├ío c├ío trong queue chung).
+Verified ΓåÆ In Progress: LEO khi g├ín Team.
+In Progress ΓåÆ Resolved: Cleanup Team (luß╗ông R├íc/N╞░ß╗¢c/H├│a chß║Ñt).
+In Progress ΓåÆ Penalty Issued: Inspection Team (luß╗ông Tiß║┐ng ß╗ôn/Kh├┤ng kh├¡).
+Resolved/Penalty Issued ΓåÆ Closed: Citizen x├íc nhß║¡n HOß║╢C tß╗▒ ─æß╗Öng sau 7 ng├áy.
+Authorization
+Bß║ín kh├┤ng c├│ quyß╗ün thay ─æß╗òi trß║íng th├íi n├áy
+BR-REP-022
+L├╜ do tß╗½ chß╗æi (Rejected)
+Khi LEO/DEO chuyß╗ân sang 'Rejected', bß║»t buß╗Öc nhß║¡p l├╜ do ΓëÑ 20 k├╜ tß╗▒. L├╜ do sß║╜ ─æ╞░ß╗úc gß╗¡i cho ng╞░ß╗¥i b├ío c├ío qua notification.
+Validation
+Vui l├▓ng nhß║¡p l├╜ do tß╗½ chß╗æi (ΓëÑ 20 k├╜ tß╗▒)
+2.3 Xß╗¡ l├╜ tr├╣ng lß║╖p (Duplicate Handling)
+BR-REP-030
+─Éß╗ïnh ngh─⌐a tr├╣ng lß║╖p
+Hai b├ío c├ío ─æ╞░ß╗úc xem l├á tr├╣ng nß║┐u: (a) c├╣ng loß║íi ├┤ nhiß╗àm; (b) khoß║úng c├ích GPS Γëñ 50m; (c) ─æ╞░ß╗úc gß╗¡i trong v├▓ng 24 giß╗¥.
+Business Rule
+N/A
+BR-REP-031
+Cß╗¥ nghi ngß╗¥ tr├╣ng lß║╖p
+AI tß╗▒ ─æß╗Öng g├ín cß╗¥ 'possible_duplicate' nß║┐u khß╗¢p BR-REP-030. LEO quyß║┐t ─æß╗ïnh cuß╗æi c├╣ng.
+AI-Assisted
+N/A
+BR-REP-032
+Gß╗Öp b├ío c├ío tr├╣ng
+Khi ─æ├ính dß║Ñu tr├╣ng, b├ío c├ío sau sß║╜ gß║»n vß╗¢i b├ío c├ío gß╗æc (primary). Mß╗ìi b├¼nh luß║¡n/ß║únh tß╗½ b├ío c├ío sau ─æ╞░ß╗úc merge v├áo b├ío c├ío gß╗æc. Ng╞░ß╗¥i gß╗¡i vß║½n ─æ╞░ß╗úc cß╗Öng ─æiß╗âm tham gia (50% ─æiß╗âm b├ío c├ío gß╗æc) v├á ─æ╞░ß╗úc tham gia v├áo c├╣ng b├ío c├ío ─æß╗ïa ─æiß╗âm (sß╗æ ng╞░ß╗¥i b├ío c├ío +1).
+Business Rule + Gamification
+N/A
+BR-REP-033
+B├ío c├ío bß╗ƒi ng╞░ß╗¥i d├╣ng (flag duplicate)
+Bß║Ñt kß╗│ Citizen n├áo c┼⌐ng c├│ thß╗â flag 1 b├ío c├ío l├á tr├╣ng lß║╖p/kh├┤ng hß╗úp lß╗ç. Cß║ºn ΓëÑ 3 flag kh├íc nhau ─æß╗â hß╗ç thß╗æng gß╗¡i b├ío cho LEO xem x├⌐t.
+Crowdsourced Moderation
+N/A
+6. Bß║ún ─æß╗ô v├á vß╗ï tr├¡ (Map & Location)
+Hiß╗ân thß╗ï b├ío c├ío tr├¬n bß║ún ─æß╗ô, heatmap, hotspot v├á kiß╗âm so├ít quyß╗ün ri├¬ng t╞░ vß╗ü vß╗ï tr├¡.
+ID
+Rule Name
+Description
+Type
+Error Message / Behavior
+3.1 Hiß╗ân thß╗ï bß║ún ─æß╗ô
+BR-MAP-001
+Hiß╗ân thß╗ï mß║╖c ─æß╗ïnh
+Bß║ún ─æß╗ô mß║╖c ─æß╗ïnh hiß╗ân thß╗ï vß╗ï tr├¡ hiß╗çn tß║íi cß╗ºa ng╞░ß╗¥i d├╣ng (zoom theo kilometer ph├╣ hß╗úp theo thiß║┐t bß╗ï). Nß║┐u kh├┤ng lß║Ñy ─æ╞░ß╗úc GPS ΓåÆ hiß╗ân thß╗ï trung t├óm TP.HCM.
+UX
+N/A
+BR-MAP-002
+Phß║ím vi hiß╗ân thß╗ï b├ío c├ío l├ón cß║¡n
+'Nearby reports' hiß╗ân thß╗ï b├ío c├ío trong b├ín k├¡nh 5 km t├¡nh tß╗½ vß╗ï tr├¡ ng╞░ß╗¥i d├╣ng, tß╗æi ─æa 100 ─æiß╗âm. C├│ thß╗â mß╗ƒ rß╗Öng l├¬n 10/20/50 km.
+Business Rule
+N/A
+BR-MAP-003
+Bß╗Ö lß╗ìc bß║ún ─æß╗ô
+Citizen c├│ thß╗â lß╗ìc theo: loß║íi ├┤ nhiß╗àm (5 loß║íi), trß║íng th├íi, mß╗⌐c ─æß╗Ö, khoß║úng thß╗¥i gian (7/30/90 ng├áy/custom). C├íc bß╗Ö lß╗ìc cß╗Öng dß╗ôn theo AND.
+Business Rule
+N/A
+BR-MAP-004
+ß║¿n th├┤ng tin ri├¬ng t╞░
+Tr├¬n bß║ún ─æß╗ô c├┤ng khai, kh├┤ng hiß╗ân thß╗ï: t├¬n ng╞░ß╗¥i b├ío c├ío (nß║┐u b├ío ß║⌐n danh), S─ÉT, email. Vß╗ï tr├¡ ─æ╞░ß╗úc l├ám tr├▓n ─æß║┐n 10m ─æß╗â tr├ính ─æß╗ïnh vß╗ï ch├¡nh x├íc c├í nh├ón.
+Privacy
+N/A
+BR-MAP-005
+Cß╗Ñm ─æiß╗âm (Clustering)
+Khi zoom < 13, c├íc ─æiß╗âm gß║ºn nhau ─æ╞░ß╗úc gom cß╗Ñm. M├áu cß╗Ñm thß╗â hiß╗çn mß╗⌐c ─æß╗Ö nghi├¬m trß╗ìng tß╗òng hß╗úp.
+UX
+N/A
+3.2 Hotspot & Heatmap
+BR-MAP-010
+─Éß╗ïnh ngh─⌐a hotspot
+Mß╗Öt khu vß╗▒c ─æ╞░ß╗úc xem l├á 'hotspot' nß║┐u c├│ ΓëÑ 10 b├ío c├ío c├╣ng loß║íi trong b├ín k├¡nh 500m v├á trong 30 ng├áy gß║ºn nhß║Ñt.
+Analytics Rule
+N/A
+BR-MAP-011
+Heatmap cho Officer
+DEO/LEO c├│ heatmap theo mß║¡t ─æß╗Ö b├ío c├ío, trß╗ìng sß╗æ = severity (Low=1, Medium=2, High=3, Critical=4). LEO chß╗ë thß║Ñy heatmap trong x├ú/ph╞░ß╗¥ng m├¼nh phß╗Ñ tr├ích; DEO thß║Ñy to├án tß╗ënh.
+Analytics Rule
+N/A
+BR-MAP-012
+L├ám mß╗¢i dß╗» liß╗çu bß║ún ─æß╗ô
+Dß╗» liß╗çu bß║ún ─æß╗ô ─æ╞░ß╗úc cache 10 ph├║t. Thao t├íc refresh thß╗º c├┤ng c├│ rate-limit: tß╗æi ─æa 20 lß║ºn/ph├║t/user.
+Performance
+Vui l├▓ng thß╗¡ lß║íi sau v├ái gi├óy
+7. Environmental Officer (DEO & LEO)
+Quy tr├¼nh x├íc minh, ph├ón c├┤ng, ─æo l╞░ß╗¥ng SLA v├á KPI cß╗ºa Officer. V1.1 ph├ón biß╗çt hai cß║Ñp Officer: Department Environmental Officer (DEO ΓÇô cß║Ñp Tß╗ënh/Th├ánh phß╗æ) v├á Local Environmental Officer (LEO ΓÇô cß║Ñp X├ú/Ph╞░ß╗¥ng).
+ID
+Rule Name
+Description
+Type
+Error Message / Behavior
+4.1 X├íc minh b├ío c├ío (Verification)
+BR-OFF-001
+Ph├ón c├┤ng x├íc minh tß╗▒ ─æß╗Öng
+B├ío c├ío mß╗¢i ─æ╞░ß╗úc tß╗▒ g├ín cho LEO cß╗ºa x├ú/ph╞░ß╗¥ng chß╗⌐a tß╗ìa ─æß╗Ö GPS theo BR-ORG-010. Nß║┐u x├ú/ph╞░ß╗¥ng ch╞░a onboard ΓåÆ v├áo h├áng ─æß╗úi chung cß╗ºa Department cß║Ñp Tß╗ënh/Th├ánh phß╗æ (BR-ORG-011).
+Business Rule
+N/A
+BR-OFF-002
+SLA x├íc minh
+B├ío c├ío 'Submitted' phß║úi ─æ╞░ß╗úc x├íc minh trong v├▓ng 24 giß╗¥ (l├ám viß╗çc). Qu├í hß║ín ΓåÆ ─æ├ính dß║Ñu 'SLA Breach' v├á eskalat l├¬n DEO.
+SLA
+Cß║únh b├ío: B├ío c├ío ─æ├ú v╞░ß╗út SLA x├íc minh
+BR-OFF-003
+Chß╗ënh sß╗¡a loß║íi/mß╗⌐c ─æß╗Ö
+LEO c├│ thß╗â chß╗ënh loß║íi ├┤ nhiß╗àm v├á severity. Mß╗ùi thay ─æß╗òi phß║úi c├│ l├╜ do ΓëÑ 10 k├╜ tß╗▒ v├á ─æ╞░ß╗úc ghi audit log. L╞░u ├╜: thay ─æß╗òi loß║íi ├┤ nhiß╗àm c├│ thß╗â dß║½n ─æß║┐n ─æß╗òi Team g├ín (Cleanup Γåö Inspection).
+Auditability
+Vui l├▓ng nhß║¡p l├╜ do thay ─æß╗òi
+BR-OFF-004
+Kh├┤ng tß╗▒ xß╗¡ l├╜ b├ío c├ío do m├¼nh tß║ío
+LEO/DEO kh├┤ng ─æ╞░ß╗úc tß╗▒ x├íc minh b├ío c├ío do ch├¡nh m├¼nh gß╗¡i (conflict of interest). Hß╗ç thß╗æng chuyß╗ân cho Officer kh├íc c├╣ng cß║Ñp.
+Segregation of Duties
+Kh├┤ng thß╗â xß╗¡ l├╜ b├ío c├ío do bß║ín tß║ío
+4.2 ╞»u ti├¬n v├á giao viß╗çc
+BR-OFF-010
+T├¡nh ─æiß╗âm ╞░u ti├¬n
+Priority Score = severity*3 + sß╗æ_b├ío_c├ío_li├¬n_quan*2 + tuß╗òi_b├ío_c├ío(giß╗¥)/24. ─Éiß╗âm cao h╞ín ─æ╞░ß╗úc xß║┐p l├¬n ─æß║ºu h├áng ─æß╗úi.
+Business Logic
+N/A
+BR-OFF-011
+G├ín Team ph├╣ hß╗úp
+LEO chß╗ë ─æ╞░ß╗úc g├ín b├ío c├ío 'Verified' cho Team ph├╣ hß╗úp vß╗¢i loß║íi ├┤ nhiß╗àm theo BR-ORG-013:
+ΓÇó R├íc / N╞░ß╗¢c / H├│a chß║Ñt ΓåÆ Environmental Cleanup Team trong x├ú/ph╞░ß╗¥ng.
+ΓÇó Tiß║┐ng ß╗ôn / Kh├┤ng kh├¡ ΓåÆ Environmental Inspection Team trong x├ú/ph╞░ß╗¥ng.
+Mß╗ùi b├ío c├ío tß║íi mß╗Öt thß╗¥i ─æiß╗âm chß╗ë thuß╗Öc 1 team.
+State + Authorization
+Loß║íi Team kh├┤ng ph├╣ hß╗úp vß╗¢i loß║íi ├┤ nhiß╗àm
+BR-OFF-012
+Chuyß╗ân giao (Reassign)
+C├│ thß╗â chuyß╗ân giao cho team kh├íc nß║┐u: ch╞░a bß║»t ─æß║ºu xß╗¡ l├╜ hoß║╖c n├¬u l├╜ do nß║┐u ─æang 'In Progress' (bß║»t buß╗Öc ΓëÑ 20 k├╜ tß╗▒). Viß╗çc chuyß╗ân giao chß╗ë giß╗»a c├íc team c├╣ng loß║íi (Cleanup Γåö Cleanup, Inspection Γåö Inspection).
+Business Process
+Cß║ºn nhß║¡p l├╜ do chuyß╗ân giao
+BR-OFF-013
+Giß╗¢i hß║ín khß╗æi l╞░ß╗úng
+Mß╗Öt Team kh├┤ng ─æ╞░ß╗úc g├ín qu├í 10 b├ío c├ío 'In Progress' c├╣ng l├║c. Cß║únh b├ío khi ─æß║ít 8.
+Workload Limit
+Team ─æ├ú ─æß║ít giß╗¢i hß║ín. Chß╗ìn team kh├íc
+4.3 SLA xß╗¡ l├╜ & b├ío c├ío
+BR-OFF-020
+SLA xß╗¡ l├╜ theo mß╗⌐c ─æß╗Ö
+Critical: phß║úi Resolved/Penalty Issued trong 3 ng├áy; High: 5 ng├áy; Medium: 7 ng├áy; Low: 10 ng├áy (t├¡nh tß╗½ l├║c 'Verified').
+SLA
+B├ío c├ío [ID] sß║»p v╞░ß╗út SLA
+BR-OFF-021
+KPI Officer
+Hß╗ç thß╗æng t├¡nh: tß╗ë lß╗ç x├íc minh ─æ├║ng hß║ín, tß╗ë lß╗ç b├ío c├ío resolved/closed, thß╗¥i gian phß║ún hß╗ôi trung b├¼nh. DEO xem KPI tß╗òng hß╗úp to├án tß╗ënh; LEO xem KPI cß╗ºa m├¼nh.
+Reporting
+N/A
+BR-OFF-022
+Xuß║Ñt dß╗» liß╗çu
+LEO c├│ quyß╗ün export CSV/Excel b├ío c├ío trong x├ú/ph╞░ß╗¥ng phß╗Ñ tr├ích. DEO c├│ quyß╗ün export to├án tß╗ënh. Kh├┤ng ─æ╞░ß╗úc export th├┤ng tin c├í nh├ón ng╞░ß╗¥i gß╗¡i trß╗½ khi c├│ Request + Admin approval.
+Privacy + Authorization
+Kh├┤ng ─æß╗º quyß╗ün xuß║Ñt dß╗» liß╗çu c├í nh├ón
+8. Environmental Cleanup Team
+Quy tr├¼nh thß╗▒c ─æß╗ïa cß╗ºa ─æß╗Öi dß╗ìn dß║╣p ΓÇô nhß║¡n task, check-in, cß║¡p nhß║¡t tiß║┐n ─æß╗Ö, ─æ├│ng b├ío c├ío vß╗¢i ß║únh before/after. ├üp dß╗Ñng cho 3 loß║íi ├┤ nhiß╗àm: R├íc thß║úi, N╞░ß╗¢c thß║úi, H├│a chß║Ñt.
+ID
+Rule Name
+Description
+Type
+Error Message / Behavior
+BR-CLN-001
+Phß║ím vi tiß║┐p nhß║¡n
+Environmental Cleanup Team chß╗ë tiß║┐p nhß║¡n v├á xß╗¡ l├╜ b├ío c├ío thuß╗Öc 3 loß║íi: R├íc thß║úi, N╞░ß╗¢c thß║úi, H├│a chß║Ñt. B├ío c├ío loß║íi Tiß║┐ng ß╗ôn / Kh├┤ng kh├¡ ─æ╞░ß╗úc chuyß╗ân sang Inspection Team.
+Authorization
+Loß║íi ├┤ nhiß╗àm n├áy kh├┤ng thuß╗Öc phß║ím vi xß╗¡ l├╜ cß╗ºa Cleanup Team
+BR-CLN-002
+Chß╗ë xem task ─æ╞░ß╗úc g├ín
+Cleanup Team chß╗ë thß║Ñy b├ío c├ío ─æ╞░ß╗úc g├ín cho team m├¼nh. Kh├┤ng ─æ╞░ß╗úc truy cß║¡p b├ío c├ío ngo├ái phß║ím vi.
+Authorization
+Bß║ín kh├┤ng c├│ quyß╗ün xem b├ío c├ío n├áy
+BR-CLN-003
+Bß║»t ─æß║ºu task
+Chuyß╗ân 'Verified ΓåÆ In Progress' y├¬u cß║ºu chß╗⌐c n─âng 'Check-in'. Khoß║úng c├ích check-in Γëñ 200m so vß╗¢i tß╗ìa ─æß╗Ö b├ío c├ío (hoß║╖c c├│ l├╜ do ghi ch├║).
+Location Validation
+Bß║ín cß║ºn ß╗ƒ gß║ºn vß╗ï tr├¡ b├ío c├ío ─æß╗â check-in
+BR-CLN-004
+Cß║¡p nhß║¡t tiß║┐n ─æß╗Ö
+Bß║»t buß╗Öc cß║¡p nhß║¡t tiß║┐n ─æß╗Ö ├¡t nhß║Ñt 1 lß║ºn/ng├áy trong thß╗¥i gian 'In Progress'. Kh├┤ng cß║¡p nhß║¡t 24h ΓåÆ nhß║»c nhß╗ƒ lß║ºn 1; kh├┤ng cß║¡p nhß║¡t 48h ΓåÆ gß║»n cß╗¥ ─æß╗Öi (escalate LEO).
+SLA
+Cß║únh b├ío: Task [ID] ch╞░a ─æ╞░ß╗úc cß║¡p nhß║¡t
+BR-CLN-005
+ß║ónh after bß║»t buß╗Öc
+Khi Mark Resolved phß║úi upload ΓëÑ 2 ß║únh 'after' tß╗½ c├íc g├│c kh├íc nhau (hß╗ç thß╗æng kiß╗âm tra sß╗▒ kh├íc biß╗çt hash giß╗»a 2 ß║únh).
+Data Quality
+Vui l├▓ng upload ß║únh kh├íc g├│c, kh├┤ng tr├╣ng lß║╖p
+BR-CLN-006
+Leo thang (Escalate)
+Cleanup Team c├│ thß╗â leo thang b├ío c├ío l├¬n LEO nß║┐u v╞░ß╗út khß║ú n─âng xß╗¡ l├╜. Bß║»t buß╗Öc l├╜ do v├á k├¿m bß║▒ng chß╗⌐ng (ß║únh/m├┤ tß║ú).
+Business Process
+Vui l├▓ng n├¬u l├╜ do v├á bß║▒ng chß╗⌐ng khi escalate
+BR-CLN-007
+Tß╗½ chß╗æi task
+Cleanup Team c├│ thß╗â tß╗½ chß╗æi task trong v├▓ng 2 giß╗¥ (trong giß╗¥ h├ánh ch├¡nh) sau khi ─æ╞░ß╗úc g├ín, k├¿m l├╜ do ch├¡nh ─æ├íng (bß║»t buß╗Öc). Sau 2 giß╗¥ coi nh╞░ ─æ├ú chß║Ñp nhß║¡n.
+Business Process
+─É├ú hß║┐t thß╗¥i gian tß╗½ chß╗æi. H├úy li├¬n hß╗ç LEO
+9. Environmental Inspection Team (Quy tr├¼nh xß╗¡ phß║ít)  [NEW v1.1]
+Nh├│m rule mß╗¢i trong v1.1 quy ─æß╗ïnh quy tr├¼nh cß╗ºa ─Éß╗Öi Thanh tra/Kiß╗âm tra m├┤i tr╞░ß╗¥ng cß║Ñp x├ú/ph╞░ß╗¥ng. Kh├íc vß╗¢i Cleanup Team, Inspection Team kh├┤ng thß╗▒c hiß╗çn dß╗ìn dß║╣p m├á xß╗¡ phß║ít vi phß║ím (loß║íi Tiß║┐ng ß╗ôn tß╗½ nh├á m├íy v├á Kh├┤ng kh├¡ / Kh├│i kh├¡ tß╗½ nh├á m├íy).
+9.0 Luß╗ông tß╗òng quan
+Tiß║┐p nhß║¡n task tß╗½ LEO (b├ío c├ío Tiß║┐ng ß╗ôn / Kh├┤ng kh├¡).
+Khß║úo s├ít hiß╗çn tr╞░ß╗¥ng ΓåÆ Lß║¡p bi├¬n bß║ún (Inspection Report).
+Ph├ón loß║íi mß╗⌐c vi phß║ím ΓåÆ Ra Quyß║┐t ─æß╗ïnh xß╗¡ phß║ít (Penalty Decision).
+Theo d├╡i nß╗Öp phß║ít ΓåÆ ─æ├│ng vß╗Ñ viß╗çc khi ─æ├ú nß╗Öp ─æß╗º, hoß║╖c eskalat nß║┐u qu├í hß║ín.
+ID
+Rule Name
+Description
+Type
+Error Message / Behavior
+9.1 Phß║ím vi & tiß║┐p nhß║¡n task
+BR-INS-001
+Phß║ím vi xß╗¡ l├╜
+Environmental Inspection Team chß╗ë tiß║┐p nhß║¡n v├á xß╗¡ l├╜ b├ío c├ío thuß╗Öc 2 loß║íi: Tiß║┐ng ß╗ôn (tß╗½ nh├á m├íy/c╞í sß╗ƒ SX-KD) v├á Kh├┤ng kh├¡ / Kh├│i kh├¡ (tß╗½ nh├á m├íy/c╞í sß╗ƒ SX-KD). B├ío c├ío loß║íi R├íc/N╞░ß╗¢c/H├│a chß║Ñt ─æ╞░ß╗úc chuyß╗ân sang Cleanup Team.
+Authorization
+Loß║íi ├┤ nhiß╗àm n├áy kh├┤ng thuß╗Öc phß║ím vi xß╗¡ l├╜ cß╗ºa Inspection Team
+BR-INS-002
+Chß╗ë xem task ─æ╞░ß╗úc g├ín
+Inspection Team chß╗ë thß║Ñy b├ío c├ío ─æ╞░ß╗úc g├ín cho team m├¼nh trong x├ú/ph╞░ß╗¥ng phß╗Ñ tr├ích. Kh├┤ng ─æ╞░ß╗úc truy cß║¡p b├ío c├ío ngo├ái phß║ím vi.
+Authorization
+Bß║ín kh├┤ng c├│ quyß╗ün xem b├ío c├ío n├áy
+BR-INS-003
+Tß╗½ chß╗æi task
+Inspection Team c├│ thß╗â tß╗½ chß╗æi task trong v├▓ng 2 giß╗¥ (trong giß╗¥ h├ánh ch├¡nh) sau khi ─æ╞░ß╗úc g├ín, k├¿m l├╜ do ch├¡nh ─æ├íng. Sau 2 giß╗¥ coi nh╞░ ─æ├ú chß║Ñp nhß║¡n.
+Business Process
+─É├ú hß║┐t thß╗¥i gian tß╗½ chß╗æi. H├úy li├¬n hß╗ç LEO
+BR-INS-004
+Bß║»t ─æß║ºu task (Check-in)
+Chuyß╗ân 'Verified ΓåÆ In Progress' y├¬u cß║ºu Check-in tß║íi hiß╗çn tr╞░ß╗¥ng, khoß║úng c├ích Γëñ 200m so vß╗¢i tß╗ìa ─æß╗Ö b├ío c├ío. C├│ thß╗â ghi ch├║ l├╜ do nß║┐u kh├┤ng thß╗â check-in trß╗▒c tiß║┐p (v├¡ dß╗Ñ: nh├á m├íy kh├┤ng cho v├áo).
+Location Validation
+Bß║ín cß║ºn ß╗ƒ gß║ºn vß╗ï tr├¡ b├ío c├ío ─æß╗â check-in
+9.2 Lß║¡p bi├¬n bß║ún & quyß║┐t ─æß╗ïnh xß╗¡ phß║ít
+BR-INS-010
+Lß║¡p bi├¬n bß║ún hiß╗çn tr╞░ß╗¥ng
+Khi ─æß║┐n hiß╗çn tr╞░ß╗¥ng, Inspection Team bß║»t buß╗Öc tß║ío bi├¬n bß║ún (Inspection Report) gß╗ôm: (a) th├┤ng tin c╞í sß╗ƒ vi phß║ím (t├¬n, ─æß╗ïa chß╗ë, MST/MSDN nß║┐u c├│); (b) loß║íi vi phß║ím (tiß║┐ng ß╗ôn / kh├¡ thß║úi); (c) sß╗æ liß╗çu ─æo (dB, AQI/PM2.5 hoß║╖c m├┤ tß║ú ─æß╗ïnh t├¡nh); (d) ΓëÑ 2 ß║únh hiß╗çn tr╞░ß╗¥ng; (e) chß╗» k├╜ sß╗æ cß╗ºa Team Leader.
+Validation + Evidence
+Vui l├▓ng nhß║¡p ─æß║ºy ─æß╗º th├┤ng tin bi├¬n bß║ún & ß║únh hiß╗çn tr╞░ß╗¥ng
+BR-INS-011
+Ph├ón loß║íi mß╗⌐c vi phß║ím
+Mß╗⌐c vi phß║ím chia 4 cß║Ñp: Nhß║╣ (cß║únh c├ío) / Trung b├¼nh / Nß║╖ng / ─Éß║╖c biß╗çt nghi├¬m trß╗ìng. Mß╗ùi mß╗⌐c gß║»n vß╗¢i khung tiß╗ün phß║ít do Admin cß║Ñu h├¼nh (BR-ADM-008). Khung ─æ╞░ß╗úc t├¡nh bß║▒ng VND, c├│ thß╗â cß║¡p nhß║¡t theo quy ─æß╗ïnh ph├íp luß║¡t hiß╗çn h├ánh.
+Business Rule
+N/A
+BR-INS-012
+Quyß║┐t ─æß╗ïnh xß╗¡ phß║ít
+Sau khi lß║¡p bi├¬n bß║ún, Inspection Team Leader ban h├ánh 'Penalty Decision' gß╗ôm: sß╗æ quyß║┐t ─æß╗ïnh, mß╗⌐c phß║ít (trong khung BR-INS-011), thß╗¥i hß║ín nß╗Öp phß║ít (mß║╖c ─æß╗ïnh 10 ng├áy l├ám viß╗çc), h├¼nh thß╗⌐c bß╗ò sung (─æ├¼nh chß╗ë, khß║»c phß╗Ñc hß║¡u quß║ú). Trß║íng th├íi b├ío c├ío chuyß╗ân tß╗½ 'In Progress' ΓåÆ 'Penalty Issued'.
+State Machine + Authorization
+Chß╗ë Inspection Team Leader ─æ╞░ß╗úc ban h├ánh quyß║┐t ─æß╗ïnh xß╗¡ phß║ít
+BR-INS-013
+Tr╞░ß╗¥ng hß╗úp kh├┤ng ─æß╗º c─ân cß╗⌐ xß╗¡ phß║ít
+Nß║┐u sau khß║úo s├ít kh├┤ng ─æß╗º c─ân cß╗⌐ vi phß║ím, Inspection Team ghi bi├¬n bß║ún 'No Violation Found' k├¿m l├╜ do ΓëÑ 50 k├╜ tß╗▒, v├á chuyß╗ân b├ío c├ío vß╗ü trß║íng th├íi 'Closed ΓÇô No Violation'. Citizen ─æ╞░ß╗úc th├┤ng b├ío l├╜ do.
+Business Process
+Vui l├▓ng n├¬u l├╜ do ΓëÑ 50 k├╜ tß╗▒
+9.3 Theo d├╡i nß╗Öp phß║ít & ─æ├│ng vß╗Ñ viß╗çc
+BR-INS-020
+Ghi nhß║¡n nß╗Öp phß║ít
+Inspection Team cß║¡p nhß║¡t trß║íng th├íi nß╗Öp phß║ít: 'Paid' / 'Partially Paid' / 'Overdue'. Khi 'Paid' ─æß║ºy ─æß╗º ΓåÆ c├│ thß╗â chuyß╗ân sang 'Closed'. Viß╗çc cß║¡p nhß║¡t phß║úi k├¿m bß║▒ng chß╗⌐ng (ß║únh bi├¬n lai/chuyß╗ân khoß║ún).
+Validation + Evidence
+Vui l├▓ng ─æ├¡nh k├¿m bß║▒ng chß╗⌐ng nß╗Öp phß║ít
+BR-INS-021
+Qu├í hß║ín nß╗Öp phß║ít
+Nß║┐u c╞í sß╗ƒ vi phß║ím kh├┤ng nß╗Öp phß║ít trong thß╗¥i hß║ín ΓåÆ tß╗▒ ─æß╗Öng ─æ├ính dß║Ñu 'Overdue'; Inspection Team chuyß╗ân hß╗ô s╞í l├¬n LEO/DEO ─æß╗â phß╗æi hß╗úp vß╗¢i c╞í quan chß╗⌐c n─âng (thanh tra, c├┤ng an m├┤i tr╞░ß╗¥ng).
+Workflow
+Hß╗ô s╞í ─æ├ú ─æ╞░ß╗úc eskalat l├¬n cß║Ñp tr├¬n
+BR-INS-022
+T├íi phß║ím
+Nß║┐u c├╣ng c╞í sß╗ƒ vi phß║ím bß╗ï lß║¡p bi├¬n bß║ún ΓëÑ 2 lß║ºn trong 12 th├íng ΓåÆ hß╗ç thß╗æng tß╗▒ gß║»n cß╗¥ 'Repeat Offender'; mß╗⌐c phß║ít tß╗æi thiß╗âu n├óng l├¬n 1 bß║¡c theo BR-INS-011.
+Business Logic
+N/A
+9.4 SLA & KPI Inspection Team
+BR-INS-030
+SLA xß╗¡ l├╜ theo mß╗⌐c ─æß╗Ö
+├üp dß╗Ñng t╞░╞íng tß╗▒ BR-OFF-020: Critical: phß║úi c├│ Penalty Decision hoß║╖c 'No Violation' trong 3 ng├áy l├ám viß╗çc; High: 5 ng├áy; Medium: 7 ng├áy; Low: 10 ng├áy t├¡nh tß╗½ thß╗¥i ─æiß╗âm 'Verified'.
+SLA
+B├ío c├ío [ID] sß║»p v╞░ß╗út SLA xß╗¡ phß║ít
+BR-INS-031
+Cß║¡p nhß║¡t tiß║┐n ─æß╗Ö
+Bß║»t buß╗Öc cß║¡p nhß║¡t tiß║┐n ─æß╗Ö ├¡t nhß║Ñt 1 lß║ºn/ng├áy khi 'In Progress'. > 24h kh├┤ng cß║¡p nhß║¡t ΓåÆ nhß║»c lß║ºn 1. > 48h kh├┤ng cß║¡p nhß║¡t ΓåÆ gß║»n cß╗¥ ─æß╗Öi (escalate LEO).
+SLA
+Cß║únh b├ío: Task ch╞░a ─æ╞░ß╗úc cß║¡p nhß║¡t
+BR-INS-032
+KPI Inspection Team
+Hß╗ç thß╗æng t├¡nh: tß╗ë lß╗ç ban h├ánh quyß║┐t ─æß╗ïnh ─æ├║ng hß║ín, tß╗ë lß╗ç nß╗Öp phß║ít ─æß║ºy ─æß╗º/─æ├║ng hß║ín, sß╗æ vß╗Ñ t├íi phß║ím trong khu vß╗▒c phß╗Ñ tr├ích. Hiß╗ân thß╗ï dashboard th├íng/qu├╜.
+Reporting
+N/A
+10. Th├┤ng b├ío & B├¼nh luß║¡n (Notifications & Comments)
+K├¬nh giao tiß║┐p giß╗»a hß╗ç thß╗æng vß╗¢i user v├á giß╗»a c├íc user vß╗¢i nhau.
+ID
+Rule Name
+Description
+Type
+Error Message / Behavior
+6.1 Th├┤ng b├ío (Notifications)
+BR-NTF-001
+K├¬nh th├┤ng b├ío
+Hß╗ù trß╗ú: push (app), email. Ng╞░ß╗¥i d├╣ng ─æ╞░ß╗úc cß║Ñu h├¼nh bß║¡t/tß║»t theo tß╗½ng k├¬nh.
+Configurability
+N/A
+BR-NTF-002
+Sß╗▒ kiß╗çn k├¡ch hoß║ít
+Gß╗¡i th├┤ng b├ío khi: b├ío c├ío ─æß╗òi trß║íng th├íi, c├│ b├¼nh luß║¡n mß╗¢i, ─æß║ít badge/level mß╗¢i, SLA sß║»p v╞░ß╗út (cho LEO/DEO/Team), c├│ b├ío c├ío gß║ºn m├¼nh (Citizen b├ín k├¡nh 2km), Penalty Decision ─æ╞░ß╗úc ban h├ánh hoß║╖c ─æß║┐n hß║ín nß╗Öp phß║ít (Inspection workflow).
+Business Rule
+N/A
+BR-NTF-003
+Kh├┤ng spam
+Mß╗ùi ng╞░ß╗¥i nhß║¡n tß╗æi ─æa 20 th├┤ng b├ío/ng├áy cho mß╗Öt loß║íi sß╗▒ kiß╗çn lß║╖p. V╞░ß╗út ng╞░ß╗íng ΓåÆ gß╗Öp th├ánh 'digest' cuß╗æi ng├áy.
+Anti-Spam
+N/A
+BR-NTF-004
+Ng├┤n ngß╗» th├┤ng b├ío
+Nß╗Öi dung th├┤ng b├ío theo ng├┤n ngß╗» t├ái khoß║ún (vi-VN / en-US). Template do Admin quß║ún l├╜ (BR-ADM-004).
+i18n
+N/A
+6.2 B├¼nh luß║¡n (Comments)
+BR-CMT-001
+Quyß╗ün b├¼nh luß║¡n
+Mß╗ìi user ─æ├ú ─æ─âng nhß║¡p ─æß╗üu c├│ thß╗â b├¼nh luß║¡n v├áo b├ío c├ío c├┤ng khai. B├ío c├ío ß║⌐n danh chß╗ë cho ph├⌐p LEO/DEO/Admin v├á ng╞░ß╗¥i gß╗¡i gß╗æc b├¼nh luß║¡n.
+Authorization
+Bß║ín kh├┤ng c├│ quyß╗ün b├¼nh luß║¡n b├ío c├ío n├áy
+BR-CMT-002
+─Éß╗Ö d├ái b├¼nh luß║¡n
+B├¼nh luß║¡n tß╗½ 1ΓÇô500 k├╜ tß╗▒. C├│ thß╗â ─æ├¡nh k├¿m tß╗æi ─æa 2 ß║únh (Γëñ 5MB/ß║únh).
+Validation
+B├¼nh luß║¡n qu├í d├ái / qu├í nhiß╗üu ß║únh
+BR-CMT-003
+Kiß╗âm duyß╗çt nß╗Öi dung
+B├¼nh luß║¡n qua bß╗Ö lß╗ìc tß╗½ ngß╗» + AI moderation. Nß╗Öi dung vi phß║ím ΓåÆ tß╗▒ ß║⌐n v├á cß║únh b├ío user. Vi phß║ím 3 lß║ºn ΓåÆ bß╗ï tß║ím kh├│a b├¼nh luß║¡n 7 ng├áy.
+Moderation
+B├¼nh luß║¡n chß╗⌐a nß╗Öi dung kh├┤ng ph├╣ hß╗úp
+BR-CMT-004
+Sß╗¡a/x├│a b├¼nh luß║¡n
+Ng╞░ß╗¥i viß║┐t c├│ thß╗â sß╗¡a/x├│a b├¼nh luß║¡n trong 15 ph├║t sau khi ─æ─âng. LEO/Admin c├│ thß╗â ß║⌐n b├¼nh luß║¡n bß║Ñt kß╗│ l├║c n├áo (phß║úi ghi l├╜ do).
+Authorization
+─É├ú qu├í thß╗¥i gian chß╗ënh sß╗¡a
+11. Gamification
+C├┤ng thß╗⌐c t├¡nh ─æiß╗âm, level, badge, bß║úng xß║┐p hß║íng v├á chß╗æng gian lß║¡n gamification.
+ID
+Rule Name
+Description
+Type
+Error Message / Behavior
+BR-GAM-001
+C├┤ng thß╗⌐c t├¡nh ─æiß╗âm
+Gß╗¡i b├ío c├ío hß╗úp lß╗ç (Verified): +10─æ. B├ío c├ío Resolved hoß║╖c Penalty Issued: +20─æ (cß╗Öng th├¬m). B├ío c├ío tr├╣ng (duplicate): +5─æ. B├ío c├ío bß╗ï reject do sai: -5─æ.
+Business Logic
+N/A
+BR-GAM-002
+ß║¿n danh kh├┤ng t├¡nh ─æiß╗âm
+B├ío c├ío gß╗¡i ß║⌐n danh kh├┤ng cß╗Öng ─æiß╗âm, kh├┤ng t├¡nh v├áo leaderboard.
+Business Rule
+N/A
+BR-GAM-003
+Cß║Ñp ─æß╗Ö (Level)
+Level 1: 0ΓÇô99─æ; Level 2: 100ΓÇô499; Level 3: 500ΓÇô1,499; Level 4: 1,500ΓÇô4,999; Level 5: ΓëÑ 5,000. L├¬n level ΓåÆ th├┤ng b├ío + huy hiß╗çu.
+Business Rule
+N/A
+BR-GAM-004
+Huy hiß╗çu (Badges)
+C├íc badge: 'First Report', 'Eco Warrior (10 reports)', 'Hotspot Hunter (3 reports trong hotspot)', 'Verified Citizen (x├íc thß╗▒c CCCD)', 'Streak (7 ng├áy li├¬n tiß║┐p)'. Admin c├│ thß╗â th├¬m badge (BR-ADM-005).
+Business Rule
+N/A
+BR-GAM-005
+Bß║úng xß║┐p hß║íng
+Leaderboard t├¡nh theo tuß║ºn/th├íng/n─âm. Chß╗ë ng╞░ß╗¥i kh├┤ng ß║⌐n danh mß╗¢i xuß║Ñt hiß╗çn. Top 10 ─æ╞░ß╗úc vinh danh tr├¬n trang chß╗º.
+Business Rule
+N/A
+BR-GAM-006
+Chß╗æng gian lß║¡n gamification
+Nß║┐u ph├ít hiß╗çn h├ánh vi gian lß║¡n (b├ío c├ío giß║ú/tr├╣ng h├áng loß║ít) ΓåÆ trß╗½ to├án bß╗Ö ─æiß╗âm trong ─æß╗út v├á kh├│a t├¡nh ─æiß╗âm 30 ng├áy.
+Anti-Fraud
+T├ái khoß║ún cß╗ºa bß║ín ─æang bß╗ï ─æiß╗üu tra v├¼ hoß║ít ─æß╗Öng bß║Ñt th╞░ß╗¥ng
+12. AI Service
+C├íc rule cho service tß╗▒ ─æß╗Öng h├│a ΓÇô ph├ón loß║íi, ph├ít hiß╗çn tr├╣ng, ─æ├ính gi├í severity, chß╗æng gian lß║¡n.
+ID
+Rule Name
+Description
+Type
+Error Message / Behavior
+BR-AI-001
+Ph├ón loß║íi ß║únh
+AI ph├ón loß║íi loß║íi ├┤ nhiß╗àm tß╗½ ß║únh (trong 5 loß║íi cß╗ºa BR-REP-005) vß╗¢i ─æß╗Ö tin cß║¡y (confidence). Nß║┐u confidence ΓëÑ 0.8 ΓåÆ auto fill. Nß║┐u 0.5ΓÇô0.8 ΓåÆ gß╗úi ├╜. Nß║┐u < 0.5 ΓåÆ giß╗» lß╗▒a chß╗ìn cß╗ºa user.
+AI Logic
+Fine-tuning ΓÇô third party tß╗▒ build
+BR-AI-002
+Ph├ít hiß╗çn tr├╣ng lß║╖p
+AI so khß╗¢p GPS (Γëñ 50m) + thß╗¥i gian (Γëñ 24h) + ─æß╗Ö t╞░╞íng ─æß╗ông ß║únh (pHash > 0.85) ΓåÆ gß╗úi ├╜ LEO merge (theo BR-REP-030).
+AI Logic (API Key)
+N/A
+BR-AI-003
+╞»ß╗¢c l╞░ß╗úng mß╗⌐c ─æß╗Ö
+AI ─æ├ính gi├í severity dß╗▒a tr├¬n diß╗çn t├¡ch ├┤ nhiß╗àm trong ß║únh, loß║íi chß║Ñt, mß║¡t ─æß╗Ö b├ío c├ío l├ón cß║¡n. C├│ thß╗â override severity do Citizen chß╗ìn nß║┐u ch├¬nh lß╗çch ΓëÑ 2 mß╗⌐c v├á confidence ΓëÑ 0.85 (k├¿m log).
+AI Logic
+N/A
+BR-AI-004
+Cß╗¥ nß╗Öi dung khß║ú nghi
+AI ─æ├ính flag 'Suspicious' nß║┐u: ß║únh ─æ├ú qua chß╗ënh sß╗¡a (detect manipulation), kh├┤ng c├│ ├┤ nhiß╗àm trong ß║únh, hoß║╖c ß║únh tr├╣ng ß║únh ─æ├ú d├╣ng trong 30 ng├áy gß║ºn ─æ├óy.
+Anti-Fraud
+N/A
+BR-AI-005
+Ghi nhß║¡n kß║┐t quß║ú AI
+Mß╗ìi kß║┐t quß║ú AI (loß║íi, severity, duplicate flag) ─æ╞░ß╗úc ghi lß║íi nh╞░ metadata, kh├┤ng thay thß║┐ kß║┐t luß║¡n cß╗ºa LEO/DEO. Officer l├á ng╞░ß╗¥i quyß║┐t ─æß╗ïnh cuß╗æi.
+Auditability
+N/A
+BR-AI-006
+Fallback khi AI lß╗ùi
+Nß║┐u AI kh├┤ng phß║ún hß╗ôi trong 5 gi├óy ΓåÆ b├ío c├ío vß║½n ─æ╞░ß╗úc tß║ío b├¼nh th╞░ß╗¥ng, tag 'ai_pending'. Job chß║íy lß║íi trong v├▓ng 1 giß╗¥.
+Resilience
+N/A
+BR-AI-007
+Quyß╗ün ri├¬ng t╞░ dß╗» liß╗çu
+ß║ónh gß╗¡i ─æß║┐n AI service phß║úi ─æ╞░ß╗úc strip EXIF nhß║íy cß║úm (GPS chi tiß║┐t, chß╗º thiß║┐t bß╗ï) nß║┐u l├á third-party. Chß╗ë metadata cß║ºn thiß║┐t ─æ╞░ß╗úc truyß╗ün.
+Privacy
+N/A
+13. Quß║ún trß╗ï hß╗ç thß╗æng (Administration)
+C├íc rule d├ánh cho System Administrator ΓÇô quß║ún l├╜ user, danh mß╗Ñc, cß║Ñu h├¼nh, audit.
+ID
+Rule Name
+Description
+Type
+Error Message / Behavior
+BR-ADM-001
+Quß║ún l├╜ ng╞░ß╗¥i d├╣ng
+Admin c├│ thß╗â tß║ío/sß╗¡a/v├┤ hiß╗çu h├│a t├ái khoß║ún. Kh├┤ng ─æ╞░ß╗úc xem mß║¡t khß║⌐u (chß╗ë reset). Mß╗ìi thao t├íc ghi audit log.
+Authorization + Audit
+N/A
+BR-ADM-002
+Ph├ón quyß╗ün (Role)
+Hß╗ç thß╗æng c├│ 8 vai tr├▓ nß╗Öi bß╗Ö: Citizen, DEO (Department Environmental Officer), LEO (Local Environmental Officer), Cleanup, Inspector, Admin. Admin c├│ thß╗â tß║ío sub-role t├╣y chß╗ënh nh╞░ng kh├┤ng v╞░ß╗út quyß╗ün Admin gß╗æc.
+Authorization
+N/A
+BR-ADM-003
+Quß║ún l├╜ danh mß╗Ñc ├┤ nhiß╗àm
+Admin quß║ún l├╜ 5 loß║íi ch├¡nh thß╗⌐c (BR-REP-005). X├│a loß║íi ─æang ─æ╞░ß╗úc d├╣ng ΓåÆ chß╗ë cho 'Archive' (ß║⌐n khi chß╗ìn mß╗¢i, giß╗» cho b├ío c├ío c┼⌐).
+Data Integrity
+Loß║íi n├áy ─æang ─æ╞░ß╗úc sß╗¡ dß╗Ñng, chß╗ë c├│ thß╗â l╞░u trß╗»
+BR-ADM-004
+Template th├┤ng b├ío
+Admin cß║Ñu h├¼nh template theo ng├┤n ngß╗». Placeholder chuß║⌐n: {user_name}, {report_id}, {priority}, {status}, {time}, {penalty_amount}, {ward_name}. Test gß╗¡i tr╞░ß╗¢c khi publish.
+Configurability
+N/A
+BR-ADM-005
+Cß║Ñu h├¼nh gamification
+Admin chß╗ënh c├┤ng thß╗⌐c ─æiß╗âm, th├¬m badge, reset leaderboard. Thay ─æß╗òi chß╗ë ├íp dß╗Ñng tß╗½ thß╗¥i ─æiß╗âm publish trß╗ƒ ─æi (kh├┤ng ß║únh h╞░ß╗ƒng ─æiß╗âm ─æ├ú cß╗Öng).
+Business Rule
+N/A
+BR-ADM-006
+Kiß╗âm duyß╗çt nß╗Öi dung
+Admin c├│ quyß╗ün ß║⌐n/x├│a b├ío c├ío, b├¼nh luß║¡n, ß║únh vi phß║ím. Nß╗Öi dung bß╗ï x├│a vß║½n giß╗» trong audit 90 ng├áy.
+Moderation + Audit
+N/A
+BR-ADM-007
+Ph├ít hiß╗çn spam
+Admin xem dashboard 'Spam suspects' tß╗½ AI + heuristic (nhiß╗üu b├ío c├ío c├╣ng GPS, c├╣ng ß║únh, tß║ºn suß║Ñt cao). C├│ thß╗â ban t├ái khoß║ún.
+Anti-Fraud
+N/A
+BR-ADM-008
+Quß║ún l├╜ khung tiß╗ün phß║ít
+Admin cß║Ñu h├¼nh khung mß╗⌐c phß║ít cho 4 cß║Ñp vi phß║ím (BR-INS-011) cho tß╗½ng loß║íi Tiß║┐ng ß╗ôn v├á Kh├┤ng kh├¡, theo VND. C├│ thß╗â cß║¡p nhß║¡t khi ph├íp luß║¡t thay ─æß╗òi; thay ─æß╗òi kh├┤ng ß║únh h╞░ß╗ƒng c├íc quyß║┐t ─æß╗ïnh ─æ├ú ban h├ánh.
+Configurability
+N/A
+BR-ADM-009
+Ph├ón quyß╗ün dß╗» liß╗çu
+Admin thiß║┐t lß║¡p ai ─æ╞░ß╗úc xem/sß╗¡a/xuß║Ñt dß╗» liß╗çu theo phß║ím vi khu vß╗▒c: cß║Ñp Tß╗ënh/Th├ánh phß╗æ (DEO) hoß║╖c cß║Ñp X├ú/Ph╞░ß╗¥ng (LEO, Cleanup/Inspection Team).
+Authorization
+N/A
+BR-ADM-010
+Audit log
+Mß╗ìi h├ánh ─æß╗Öng nhß║íy cß║úm (─æß╗òi role, x├│a data, cß║Ñu h├¼nh, ban h├ánh quyß║┐t ─æß╗ïnh xß╗¡ phß║ít) ─æ╞░ß╗úc log: actor, action, target, time, IP, user-agent. Log giß╗» tß╗æi thiß╗âu 12 th├íng.
+Compliance + Audit
+N/A
+BR-ADM-011
+Onboard x├ú/ph╞░ß╗¥ng mß╗¢i
+Khi onboard x├ú/ph╞░ß╗¥ng mß╗¢i: Admin tß║ío Local Environmental Office, nß║íp polygon ranh giß╗¢i h├ánh ch├¡nh, g├ín LEO, tß║ío ΓëÑ 1 Cleanup Team v├á ΓëÑ 1 Inspection Team. Sau khi onboard, c├íc b├ío c├ío trong queue chung thuß╗Öc x├ú/ph╞░ß╗¥ng ─æ├│ ─æ╞░ß╗úc tß╗▒ ─æß╗Öng chuyß╗ân vß╗ü LEO mß╗¢i (BR-ORG-011).
+Business Process
+N/A
+14. Dß╗» liß╗çu, quyß╗ün ri├¬ng t╞░ & tu├ón thß╗º (Data, Privacy & Compliance)
+C├íc rule vß╗ü m├ú h├│a, l╞░u trß╗», quyß╗ün dß╗» liß╗çu c├í nh├ón (ph├╣ hß╗úp Nghß╗ï ─æß╗ïnh 13/2023/N─É-CP v├á GDPR).
+ID
+Rule Name
+Description
+Type
+Error Message / Behavior
+BR-DAT-001
+M├ú h├│a dß╗» liß╗çu
+Dß╗» liß╗çu nhß║íy cß║úm (password, token, API key) m├ú h├│a at-rest (AES-256). Mß║¡t khß║⌐u d├╣ng bcrypt ΓëÑ 12 rounds. Kß║┐t nß╗æi d├╣ng TLS 1.2+.
+Security
+N/A
+BR-DAT-002
+Thß╗¥i gian l╞░u trß╗»
+B├ío c├ío: 5 n─âm. ß║ónh: 2 n─âm (sau ─æ├│ n├⌐n/x├│a theo ch├¡nh s├ích). Audit log: 12 th├íng. Bi├¬n bß║ún xß╗¡ phß║ít & quyß║┐t ─æß╗ïnh xß╗¡ phß║ít: 10 n─âm. Dß╗» liß╗çu ng╞░ß╗¥i d├╣ng x├│a t├ái khoß║ún: ß║⌐n 90 ng├áy ΓåÆ x├│a v─⌐nh viß╗àn.
+Retention
+N/A
+BR-DAT-003
+Quyß╗ün truy cß║¡p dß╗» liß╗çu c├í nh├ón
+Ng╞░ß╗¥i d├╣ng c├│ quyß╗ün xem/tß║úi xuß╗æng dß╗» liß╗çu c├í nh├ón, y├¬u cß║ºu chß╗ënh sß╗¡a hoß║╖c x├│a (tu├ón thß╗º GDPR/Nghß╗ï ─æß╗ïnh 13/2023/N─É-CP Viß╗çt Nam).
+Compliance
+N/A
+BR-DAT-004
+Sao l╞░u
+Backup to├án bß╗Ö DB hß║▒ng ng├áy, giß╗» 30 bß║ún. Kh├┤i phß╗Ñc ─æß║ít RPO Γëñ 24h, RTO Γëñ 4h.
+Availability
+N/A
+BR-DAT-005
+─Éß╗ông thuß║¡n xß╗¡ l├╜ dß╗» liß╗çu
+Tr╞░ß╗¢c khi gß╗¡i ß║únh/GPS, app hiß╗ân thß╗ï consent r├╡ r├áng. Tß╗½ chß╗æi ΓåÆ vß║½n d├╣ng ─æ╞░ß╗úc phß║ºn c├┤ng khai.
+Compliance
+N/A
+15. Phi chß╗⌐c n─âng & hß╗ç thß╗æng (Non-Functional & System Rules)
+Hiß╗çu n─âng, khß║ú n─âng mß╗ƒ rß╗Öng, t├¡nh sß║╡n s├áng, khß║ú n─âng truy cß║¡p, v├á t╞░╞íng th├¡ch.
+ID
+Rule Name
+Description
+Type
+Error Message / Behavior
+BR-SYS-001
+Hiß╗çu n─âng
+Thß╗¥i gian phß║ún hß╗ôi API < 2s cho 95% request ß╗ƒ tß║úi 5,000 concurrent users. Trang ─æß║ºu web tß║úi xong < 3s tr├¬n 4G.
+Performance
+N/A
+BR-SYS-002
+Khß║ú n─âng mß╗ƒ rß╗Öng
+Hß╗ç thß╗æng scale ngang ─æß╗â xß╗¡ l├╜ 100,000+ b├ío c├ío. Image storage d├╣ng object storage (S3-compatible).
+Scalability
+N/A
+BR-SYS-003
+T├¡nh sß║╡n s├áng
+Uptime mß╗Ñc ti├¬u ΓëÑ 99.5%/th├íng cho production. C├│ trang status.
+Availability
+N/A
+BR-SYS-004
+Rate limit API c├┤ng khai
+API c├┤ng khai giß╗¢i hß║ín 60 request/ph├║t/IP cho user ß║⌐n danh, 300/ph├║t cho user ─æ├ú ─æ─âng nhß║¡p.
+Security
+Bß║ín ─æ├ú ─æß║ít giß╗¢i hß║ín. Thß╗¡ lß║íi sau
+BR-SYS-005
+T╞░╞íng th├¡ch ─æa nß╗ün tß║úng
+Mobile: Android 8.0+, iOS 13+. Web: Chrome/Edge/Safari/Firefox 2 phi├¬n bß║ún gß║ºn nhß║Ñt.
+Compatibility
+N/A
+BR-SYS-006
+Ng├┤n ngß╗»
+Hß╗ù trß╗ú tß╗æi thiß╗âu tiß║┐ng Viß╗çt v├á tiß║┐ng Anh. Mß╗ìi th├┤ng b├ío/lß╗ùi ─æß╗üu i18n.
+i18n
+N/A
+Phß╗Ñ lß╗Ñc A. S╞í ─æß╗ô trß║íng th├íi b├ío c├ío (Report State Machine)
+Hß╗ç thß╗æng ├íp dß╗Ñng state machine nghi├¬m ngß║╖t cho b├ío c├ío. Trong v1.1, state machine ─æ╞░ß╗úc t├ích th├ánh 2 luß╗ông song song dß╗▒a theo loß║íi Team xß╗¡ l├╜. Mß╗ìi chuyß╗ân trß║íng th├íi phß║úi do ─æ├║ng role thß╗▒c hiß╗çn (BR-REP-021) v├á ─æ╞░ß╗úc ghi audit log.
+A.1 Luß╗ông Cleanup (R├íc / N╞░ß╗¢c / H├│a chß║Ñt)
+Submitted ΓåÆ Verified ΓåÆ In Progress ΓåÆ Resolved ΓåÆ Closed
+A.2 Luß╗ông Inspection (Tiß║┐ng ß╗ôn / Kh├┤ng kh├¡)
+Submitted ΓåÆ Verified ΓåÆ In Progress ΓåÆ Penalty Issued ΓåÆ Closed
+(hoß║╖c Submitted ΓåÆ Verified ΓåÆ In Progress ΓåÆ Closed ΓÇô No Violation nß║┐u kh├┤ng ─æß╗º c─ân cß╗⌐)
+A.3 Bß║úng chuyß╗ân trß║íng th├íi chi tiß║┐t
+Tß╗½ trß║íng th├íi
+─Éß║┐n trß║íng th├íi
+Ng╞░ß╗¥i thß╗▒c hiß╗çn
+─Éiß╗üu kiß╗çn
+Submitted
+Verified
+LEO (hoß║╖c DEO ΓÇô queue chung)
+B├ío c├ío hß╗úp lß╗ç, ─æß╗º dß╗» liß╗çu (BR-OFF-001, BR-ORG-010)
+Submitted
+Rejected
+LEO / DEO
+C├│ l├╜ do ΓëÑ 20 k├╜ tß╗▒ (BR-REP-022)
+Submitted
+Duplicate
+LEO / AI
+Khß╗¢p BR-REP-030
+Verified
+In Progress
+LEO
+G├ín Cleanup Team hoß║╖c Inspection Team ─æ├║ng loß║íi (BR-OFF-011, BR-ORG-013)
+In Progress (Cleanup)
+Resolved
+Cleanup Team
+C├│ ß║únh before/after (BR-REP-014, BR-CLN-005)
+In Progress (Inspection)
+Penalty Issued
+Inspection Team Leader
+C├│ bi├¬n bß║ún + quyß║┐t ─æß╗ïnh xß╗¡ phß║ít (BR-INS-010, BR-INS-012)
+In Progress (Inspection)
+Closed ΓÇô No Violation
+Inspection Team
+Kh├┤ng ─æß╗º c─ân cß╗⌐ vi phß║ím, l├╜ do ΓëÑ 50 k├╜ tß╗▒ (BR-INS-013)
+Resolved
+Closed
+Citizen / System
+Citizen x├íc nhß║¡n hoß║╖c auto-close 7 ng├áy (BR-REP-015, BR-REP-016)
+Penalty Issued
+Closed
+Inspection Team
+─É├ú nß╗Öp phß║ít ─æß║ºy ─æß╗º (BR-INS-020)
+Resolved
+In Progress
+Citizen
+Kh├┤ng h├ái l├▓ng, tß╗æi ─æa 2 lß║ºn (BR-REP-015)
+Penalty Issued
+Overdue
+System (tß╗▒ ─æß╗Öng)
+Qu├í hß║ín nß╗Öp phß║ít kh├┤ng cß║¡p nhß║¡t (BR-INS-021)
+Phß╗Ñ lß╗Ñc B. Thuß║¡t ngß╗» (Glossary)
+Thuß║¡t ngß╗»
+─Éß╗ïnh ngh─⌐a
+SLA
+Service Level Agreement ΓÇô Cam kß║┐t vß╗ü thß╗¥i gian phß║ún hß╗ôi/giß║úi quyß║┐t
+Hotspot
+Khu vß╗▒c c├│ mß║¡t ─æß╗Ö ├┤ nhiß╗àm cao (ΓëÑ 10 b├ío c├ío/500m/30 ng├áy)
+Duplicate
+B├ío c├ío tr├╣ng lß║╖p theo BR-REP-030
+Crowdsourcing
+Thu thß║¡p dß╗» liß╗çu tß╗½ cß╗Öng ─æß╗ông ng╞░ß╗¥i d├╣ng
+PII
+Personally Identifiable Information ΓÇô Th├┤ng tin ─æß╗ïnh danh c├í nh├ón
+Audit log
+Nhß║¡t k├╜ hß╗ç thß╗æng ghi nhß║¡n mß╗ìi thao t├íc nhß║íy cß║úm
+EXIF
+Metadata ─æi k├¿m ß║únh (GPS, thß╗¥i gian, thiß║┐t bß╗ï)
+Gamification
+├üp dß╗Ñng yß║┐u tß╗æ tr├▓ ch╞íi ─æß╗â t─âng t╞░╞íng t├íc
+Anonymized
+Dß╗» liß╗çu ─æ├ú loß║íi bß╗Å th├┤ng tin ─æß╗ïnh danh
+Rate limit
+Giß╗¢i hß║ín sß╗æ request trong mß╗Öt khoß║úng thß╗¥i gian
+DEO
+Department Environmental Officer ΓÇô Officer cß║Ñp Tß╗ënh/Th├ánh phß╗æ (v1.1)
+LEO
+Local Environmental Officer ΓÇô Officer cß║Ñp X├ú/Ph╞░ß╗¥ng (v1.1)
+Cleanup Team
+─Éß╗Öi xß╗¡ l├╜ vß║¡t l├╜: R├íc / N╞░ß╗¢c / H├│a chß║Ñt
+Inspection Team
+─Éß╗Öi thanh tra/xß╗¡ phß║ít: Tiß║┐ng ß╗ôn / Kh├┤ng kh├¡ (v1.1)
+Penalty Decision
+Quyß║┐t ─æß╗ïnh xß╗¡ phß║ít do Inspection Team Leader ban h├ánh (BR-INS-012)
+Inspection Report
+Bi├¬n bß║ún hiß╗çn tr╞░ß╗¥ng lß║¡p bß╗ƒi Inspection Team (BR-INS-010)
+Department Common Queue
+H├áng ─æß╗úi chung cß╗ºa Department cß║Ñp Tß╗ënh/Th├ánh phß╗æ cho b├ío c├ío thuß╗Öc x├ú/ph╞░ß╗¥ng ch╞░a onboard (BR-ORG-011)
+Repeat Offender
+C╞í sß╗ƒ vi phß║ím bß╗ï lß║¡p bi├¬n bß║ún ΓëÑ 2 lß║ºn trong 12 th├íng (BR-INS-022)
+Phß╗Ñ lß╗Ñc C. K├╜ x├íc nhß║¡n
+Ng╞░ß╗¥i lß║¡p (Team)
+Ng╞░ß╗¥i duyß╗çt (Supervisor)
+K├╜ & ghi r├╡ hß╗ì t├¬n
+Nguyß╗àn Thß╗ï Cß║⌐m H╞░╞íng

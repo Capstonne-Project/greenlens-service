@@ -9,9 +9,10 @@ namespace Greenlens.Domain.Entities;
 /// </summary>
 /// <remarks>
 /// Implements: BR-REP-001 → BR-REP-033.
-/// State machine: SUBMITTED → VERIFIED → IN_PROGRESS → RESOLVED → CLOSED
+/// State machine: SUBMITTED → VERIFIED → ASSIGNED → IN_PROGRESS → RESOLVED → CLOSED
 ///                SUBMITTED → REJECTED
 ///                SUBMITTED/VERIFIED → DUPLICATE
+///                ASSIGNED → VERIFIED (team declines — BR-CLN-007)
 ///                RESOLVED → IN_PROGRESS (reopen, max 2)
 /// </remarks>
 public sealed class Report : SoftDeletableEntity
@@ -40,8 +41,12 @@ public sealed class Report : SoftDeletableEntity
 
     // ── Status & Assignment ──
     public ReportStatus Status { get; private set; } = ReportStatus.Submitted;
-    public Guid? AssignedTeamId { get; private set; }
+    /// <summary>LEO phụ trách khu vực — set lúc submit report theo LocalOffice.OfficerId (BR-ORG-010).</summary>
     public Guid? AssignedOfficerId { get; private set; }
+    /// <summary>Officer đã bấm Assign team — set lúc Officer gọi /assign (BR-OFF-011).</summary>
+    public Guid? AssignedByOfficerId { get; private set; }
+    public Guid? AssignedOfficeId { get; private set; }
+    public Guid? AssignedDepartmentId { get; private set; }
 
     // ── Duplicate tracking ──
     public Guid? ParentReportId { get; private set; }
@@ -76,11 +81,14 @@ public sealed class Report : SoftDeletableEntity
     public PollutionCategory Category { get; private set; } = default!;
     public Report? ParentReport { get; private set; }
     public User? VerifiedByUser { get; private set; }
+    public LocalOffice? AssignedOffice { get; private set; }
+    public Department? AssignedDepartment { get; private set; }
 
     public ICollection<ReportMedia> Media { get; private set; } = [];
     public ICollection<ReportStatusHistory> StatusHistory { get; private set; } = [];
     public ICollection<ReportFlag> Flags { get; private set; } = [];
     public ICollection<Report> DuplicateReports { get; private set; } = [];
+    public ICollection<ReportAssignment> Assignments { get; private set; } = [];
 
     // ────────────────────────────────────────────────────
     // Factory
@@ -156,21 +164,47 @@ public sealed class Report : SoftDeletableEntity
         RejectedReason = reason;
     }
 
-    /// <summary>Assign cleanup team. VERIFIED → IN_PROGRESS. BR-OFF-011.</summary>
-    public void Assign(Guid teamId, Guid officerId)
+    /// <summary>Officer assigns team(s). VERIFIED → INPROGRESS. BR-OFF-011.</summary>
+    public void Assign(Guid officerId)
     {
         EnsureStatus(ReportStatus.Verified);
 
         Status = ReportStatus.InProgress;
-        AssignedTeamId = teamId;
-        AssignedOfficerId = officerId;
-        StartedAt = DateTime.UtcNow;
+        AssignedByOfficerId = officerId;
+        // StartedAt is set when the first team accepts (not at assign time)
     }
 
-    /// <summary>Reassign to different team. BR-OFF-012.</summary>
-    public void Reassign(Guid newTeamId)
+    /// <summary>All teams Assigned or Declined — revert to Verified so officer can re-assign. BR-CLN-007.</summary>
+    public void RevertToVerified()
     {
-        AssignedTeamId = newTeamId;
+        if (Status != ReportStatus.InProgress)
+            throw new InvalidOperationException(
+                $"Cannot revert to Verified from status {Status}.");
+
+        Status = ReportStatus.Verified;
+        AssignedByOfficerId = null;
+        StartedAt = null;
+    }
+
+    /// <summary>Set StartedAt when first team accepts the assignment.</summary>
+    public void MarkStarted()
+    {
+        StartedAt ??= DateTime.UtcNow;
+    }
+
+    /// <summary>BR-ORG-010: Route report to the office covering the GPS location.</summary>
+    public void RouteToOffice(Guid officeId, Guid? officerId = null)
+    {
+        AssignedOfficeId = officeId;
+        if (officerId.HasValue)
+            AssignedOfficerId = officerId;
+    }
+
+    /// <summary>BR-ORG-011: Route to department common queue when ward is not onboarded.</summary>
+    public void RouteToDepartmentQueue(Guid departmentId)
+    {
+        AssignedDepartmentId = departmentId;
+        AssignedOfficeId = null;
     }
 
     /// <summary>Cleanup team resolves the report. BR-REP-014, 023.</summary>
@@ -185,9 +219,29 @@ public sealed class Report : SoftDeletableEntity
     /// <summary>Auto-close or citizen confirms satisfaction. BR-REP-016.</summary>
     public void Close()
     {
-        EnsureStatus(ReportStatus.Resolved);
+        if (Status is not (ReportStatus.Resolved or ReportStatus.PenaltyIssued))
+            throw new InvalidOperationException(
+                $"Cannot close from status {Status}. Must be Resolved or PenaltyIssued.");
 
         Status = ReportStatus.Closed;
+        ClosedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>Inspection Team issues penalty decision. IN_PROGRESS → PENALTY_ISSUED. BR-INS-012.</summary>
+    public void IssuePenalty()
+    {
+        EnsureStatus(ReportStatus.InProgress);
+
+        Status = ReportStatus.PenaltyIssued;
+        ResolvedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>No violation found. IN_PROGRESS → CLOSED_NO_VIOLATION. BR-INS-013.</summary>
+    public void CloseNoViolation()
+    {
+        EnsureStatus(ReportStatus.InProgress);
+
+        Status = ReportStatus.ClosedNoViolation;
         ClosedAt = DateTime.UtcNow;
     }
 
@@ -206,7 +260,7 @@ public sealed class Report : SoftDeletableEntity
     /// <summary>Mark as duplicate of another report. BR-REP-030.</summary>
     public void MarkDuplicate(Guid primaryReportId)
     {
-        if (Status is not (ReportStatus.Submitted or ReportStatus.Verified))
+        if (Status is not (ReportStatus.Submitted or ReportStatus.Verified or ReportStatus.Assigned))
             throw new InvalidOperationException($"Cannot mark as duplicate from status {Status}.");
 
         Status = ReportStatus.Duplicate;
@@ -255,4 +309,11 @@ public sealed class Report : SoftDeletableEntity
         Severity.Low => DateTime.UtcNow.AddDays(10),
         _ => DateTime.UtcNow.AddDays(7)
     };
+
+    /// <summary>Admin-only: force status without state machine validation.</summary>
+    public void ForceStatus(ReportStatus newStatus)
+    {
+        Status = newStatus;
+        UpdatedAt = DateTime.UtcNow;
+    }
 }

@@ -5,4 +5,6 @@ namespace Greenlens.Application.Common.Interfaces.Persistence;
 public interface IPollutionCategoryRepository : IGenericRepository<PollutionCategory>
 {
     Task<bool> ExistsActiveAsync(Guid id, CancellationToken ct = default);
+
+    Task<PollutionCategory?> GetActiveByCodeAsync(string code, CancellationToken ct = default);
 }

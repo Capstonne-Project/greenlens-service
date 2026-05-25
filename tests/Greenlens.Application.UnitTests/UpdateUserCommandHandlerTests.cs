@@ -26,13 +26,13 @@ public sealed class UpdateUserCommandHandlerTests
         _users.GetByIdAsync(userId, Arg.Any<CancellationToken>()).Returns(user);
 
         var result = await _sut.Handle(
-            new UpdateUserCommand(userId, "New Name", "0901234567", UserRole.Officer, true),
+            new UpdateUserCommand(userId, "New Name", "0901234567", UserRole.LEO, true),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.Equal("New Name", user.FullName);
         Assert.Equal("0901234567", user.PhoneNumber);
-        Assert.Equal(UserRole.Officer, user.Role);
+        Assert.Equal(UserRole.LEO, user.Role);
         Assert.True(user.IsEmailVerified);
         await _uow.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }

@@ -4,6 +4,9 @@ using Greenlens.Domain.Entities.Location;
 
 public interface IProvinceRepository : ICatalogRepository<Province>
 {
+    /// <summary>Simple lookup by code (no eager loading).</summary>
+    Task<Province?> GetByCodeAsync(string code, CancellationToken ct);
+
     /// <summary>
     /// Tải tỉnh theo code, eager-load <see cref="Province.AdministrativeRegion"/> + <see cref="Province.AdministrativeUnit"/>.
     /// </summary>

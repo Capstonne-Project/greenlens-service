@@ -139,9 +139,9 @@ public sealed class UserTests
     {
         var user = User.Create("test@test.com", "hash", "Test");
 
-        user.AdminUpdate(role: UserRole.Officer, isEmailVerified: true);
+        user.AdminUpdate(role: UserRole.LEO, isEmailVerified: true);
 
-        Assert.Equal(UserRole.Officer, user.Role);
+        Assert.Equal(UserRole.LEO, user.Role);
         Assert.True(user.IsEmailVerified);
     }
 
