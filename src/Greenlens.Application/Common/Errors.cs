@@ -153,6 +153,11 @@ public static class Errors
             "Không thể chuyển trạng thái từ trạng thái hiện tại.",
             ErrorType.BusinessRule);
 
+        public static Error ReportAlreadyAssigned => new(
+            "REPORT_ALREADY_ASSIGNED",
+            "Báo cáo đã được phân công cho team và đang trong quá trình xử lý.",
+            ErrorType.Conflict);
+
         public static Error ConflictOfInterest => new(
             "CONFLICT_OF_INTEREST",
             "Không thể xử lý báo cáo do bạn tạo.",

@@ -41,7 +41,11 @@ public sealed class AssignTeamCommandHandler(
             return Errors.Reports.ReportNotFound;
 
         if (report.Status != ReportStatus.Dispatched)
-            return Errors.Reports.InvalidStatusTransition;
+        {
+            return report.Status == ReportStatus.InProgress
+                ? Errors.Reports.ReportAlreadyAssigned
+                : Errors.Reports.InvalidStatusTransition;
+        }
 
         // Load pollution category to determine expected team type
         var category = await categories.GetByIdAsync(report.CategoryId, ct).ConfigureAwait(false);
