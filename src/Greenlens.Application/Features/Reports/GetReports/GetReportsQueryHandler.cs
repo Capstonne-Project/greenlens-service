@@ -2,11 +2,13 @@ using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.GetReports;
 
 public sealed class GetReportsQueryHandler(
-    IReportRepository reports)
+    IReportRepository reports,
+    ILogger<GetReportsQueryHandler> logger)
     : IRequestHandler<GetReportsQuery, Result<GetReportsResponse>>
 {
     public async Task<Result<GetReportsResponse>> Handle(

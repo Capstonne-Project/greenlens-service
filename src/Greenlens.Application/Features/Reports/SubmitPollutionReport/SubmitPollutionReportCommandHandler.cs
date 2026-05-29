@@ -5,6 +5,7 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.SubmitPollutionReport;
 
@@ -29,7 +30,8 @@ public sealed class SubmitPollutionReportCommandHandler(
     IUnitOfWork unitOfWork,
     ICurrentUser currentUser,
     ITempImageStore tempStore,
-    IFileStorageService fileStorage)
+    IFileStorageService fileStorage,
+    ILogger<SubmitPollutionReportCommandHandler> logger)
     : IRequestHandler<SubmitPollutionReportCommand, Result<SubmitPollutionReportResponse>>
 {
     public async Task<Result<SubmitPollutionReportResponse>> Handle(
@@ -159,6 +161,9 @@ public sealed class SubmitPollutionReportCommandHandler(
         statusHistory.Add(history);
 
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        logger.LogInformation("Report {ReportCode} submitted by {ReporterId}, routed to department {DepartmentId}",
+            report.Code, reporterId, report.AssignedDepartmentId);
 
         // ── Cleanup temp after successful save (AI flow only) ───────────────
         if (resolvedImage.IsAiFlow)

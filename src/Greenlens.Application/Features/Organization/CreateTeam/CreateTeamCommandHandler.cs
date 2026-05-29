@@ -3,6 +3,7 @@ using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Organization.CreateTeam;
 
@@ -13,7 +14,8 @@ namespace Greenlens.Application.Features.Organization.CreateTeam;
 public sealed class CreateTeamCommandHandler(
     IEnvironmentalTeamRepository teams,
     ILocalOfficeRepository localOffices,
-    IUnitOfWork uow) : IRequestHandler<CreateTeamCommand, Result<CreateTeamResponse>>
+    IUnitOfWork uow,
+    ILogger<CreateTeamCommandHandler> logger) : IRequestHandler<CreateTeamCommand, Result<CreateTeamResponse>>
 {
     public async Task<Result<CreateTeamResponse>> Handle(
         CreateTeamCommand request,
@@ -29,6 +31,9 @@ public sealed class CreateTeamCommandHandler(
         teams.Add(team);
 
         await uow.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        logger.LogInformation("Team {TeamId} ({TeamType}) created under office {OfficeId}",
+            team.Id, team.TeamType, team.LocalOfficeId);
 
         return new CreateTeamResponse(team.Id, team.Name, team.LocalOfficeId, team.TeamType.ToString());
     }

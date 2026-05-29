@@ -5,6 +5,7 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.GetOfficerQueue;
 
@@ -17,7 +18,8 @@ namespace Greenlens.Application.Features.Reports.GetOfficerQueue;
 public sealed class GetOfficerQueueQueryHandler(
     IReportRepository reports,
     IUserRepository users,
-    ICurrentUser currentUser) : IRequestHandler<GetOfficerQueueQuery, Result<GetOfficerQueueResponse>>
+    ICurrentUser currentUser,
+    ILogger<GetOfficerQueueQueryHandler> logger) : IRequestHandler<GetOfficerQueueQuery, Result<GetOfficerQueueResponse>>
 {
     public async Task<Result<GetOfficerQueueResponse>> Handle(
         GetOfficerQueueQuery request,

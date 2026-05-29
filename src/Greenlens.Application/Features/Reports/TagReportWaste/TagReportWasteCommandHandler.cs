@@ -5,6 +5,7 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.TagReportWaste;
 
@@ -17,7 +18,8 @@ public sealed class TagReportWasteCommandHandler(
     IWasteTagRepository wasteTags,
     IReportWasteTagRepository reportWasteTags,
     ICurrentUser currentUser,
-    IUnitOfWork uow) : IRequestHandler<TagReportWasteCommand, Result>
+    IUnitOfWork uow,
+    ILogger<TagReportWasteCommandHandler> logger) : IRequestHandler<TagReportWasteCommand, Result>
 {
     private static readonly HashSet<ReportStatus> AllowedStatuses =
     [
@@ -58,6 +60,9 @@ public sealed class TagReportWasteCommandHandler(
         reportWasteTags.AddRange(newTags);
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        logger.LogInformation("Report {ReportId} tagged with {TagCount} waste tags by {UserId}",
+            request.ReportId, request.WasteTagIds.Count, currentUser.UserId);
 
         return Result.Success();
     }

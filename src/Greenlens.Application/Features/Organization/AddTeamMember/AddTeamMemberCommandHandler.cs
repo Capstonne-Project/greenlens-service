@@ -4,6 +4,7 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Organization.AddTeamMember;
 
@@ -15,7 +16,8 @@ public sealed class AddTeamMemberCommandHandler(
     IEnvironmentalTeamRepository teams,
     ITeamMemberRepository teamMembers,
     IUserRepository users,
-    IUnitOfWork uow) : IRequestHandler<AddTeamMemberCommand, Result<AddTeamMemberResponse>>
+    IUnitOfWork uow,
+    ILogger<AddTeamMemberCommandHandler> logger) : IRequestHandler<AddTeamMemberCommand, Result<AddTeamMemberResponse>>
 {
     public async Task<Result<AddTeamMemberResponse>> Handle(
         AddTeamMemberCommand request,
@@ -55,6 +57,9 @@ public sealed class AddTeamMemberCommandHandler(
         teamMembers.Add(member);
 
         await uow.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        logger.LogInformation("User {UserId} added to team {TeamId} (leader={IsLeader})",
+            request.UserId, request.TeamId, request.IsLeader);
 
         return new AddTeamMemberResponse(member.Id, member.TeamId, member.UserId, member.IsLeader);
     }

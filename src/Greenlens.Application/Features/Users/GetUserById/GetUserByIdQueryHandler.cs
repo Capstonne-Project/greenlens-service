@@ -2,6 +2,7 @@ using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
 
 namespace Greenlens.Application.Features.Users.GetUserById;
@@ -9,7 +10,8 @@ namespace Greenlens.Application.Features.Users.GetUserById;
 /// <summary>
 /// Fetch a single user by ID. Admin only.
 /// </summary>
-public sealed class GetUserByIdQueryHandler(IUserRepository users)
+public sealed class GetUserByIdQueryHandler(IUserRepository users,
+    ILogger<GetUserByIdQueryHandler> logger)
     : IRequestHandler<GetUserByIdQuery, Result<UserDetailDto>>
 {
     public async Task<Result<UserDetailDto>> Handle(

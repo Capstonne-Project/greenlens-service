@@ -5,6 +5,7 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.VerifyReport;
 
@@ -18,7 +19,8 @@ public sealed class VerifyReportCommandHandler(
     IWasteTagRepository wasteTags,
     IReportWasteTagRepository reportWasteTags,
     ICurrentUser currentUser,
-    IUnitOfWork uow) : IRequestHandler<VerifyReportCommand, Result>
+    IUnitOfWork uow,
+    ILogger<VerifyReportCommandHandler> logger) : IRequestHandler<VerifyReportCommand, Result>
 {
     public async Task<Result> Handle(VerifyReportCommand request, CancellationToken ct)
     {
@@ -66,6 +68,8 @@ public sealed class VerifyReportCommandHandler(
 
         statusHistory.Add(history);
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        logger.LogInformation("Report {ReportId} verified by DEO {UserId}", report.Id, currentUser.UserId);
 
         return Result.Success();
     }

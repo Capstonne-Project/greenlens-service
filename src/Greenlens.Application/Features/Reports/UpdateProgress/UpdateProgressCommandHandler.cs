@@ -4,6 +4,7 @@ using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.UpdateProgress;
 
@@ -17,7 +18,8 @@ public sealed class UpdateProgressCommandHandler(
     ITeamMemberRepository teamMembers,
     IFileStorageService fileStorage,
     ICurrentUser currentUser,
-    IUnitOfWork uow) : IRequestHandler<UpdateProgressCommand, Result<UpdateProgressResponse>>
+    IUnitOfWork uow,
+    ILogger<UpdateProgressCommandHandler> logger) : IRequestHandler<UpdateProgressCommand, Result<UpdateProgressResponse>>
 {
     public async Task<Result<UpdateProgressResponse>> Handle(UpdateProgressCommand request, CancellationToken ct)
     {
@@ -48,9 +50,13 @@ public sealed class UpdateProgressCommandHandler(
             uploadedUrls.Add(uploaded.Url);
         }
 
+        // Update progress percentage and note
         assignment.UpdateProgress(request.ProgressPercent, request.ProgressNote, currentUser.UserId);
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        logger.LogInformation("Progress updated to {Percent}% for report {ReportId} by team {TeamId}",
+            request.ProgressPercent, request.ReportId, leader.TeamId);
 
         return new UpdateProgressResponse(uploadedUrls);
     }

@@ -6,6 +6,7 @@ using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.ReDispatchReport;
 
@@ -18,7 +19,8 @@ public sealed class ReDispatchReportCommandHandler(
     IReportStatusHistoryRepository statusHistory,
     IUserRepository users,
     ICurrentUser currentUser,
-    IUnitOfWork uow) : IRequestHandler<ReDispatchReportCommand, Result>
+    IUnitOfWork uow,
+    ILogger<ReDispatchReportCommandHandler> logger) : IRequestHandler<ReDispatchReportCommand, Result>
 {
     public async Task<Result> Handle(ReDispatchReportCommand request, CancellationToken ct)
     {
@@ -58,6 +60,9 @@ public sealed class ReDispatchReportCommandHandler(
 
         statusHistory.Add(history);
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        logger.LogInformation("Report {ReportId} re-dispatched from office {OldOfficeId} to {NewOfficeId}",
+            report.Id, oldOfficeId, newOffice.Id);
 
         return Result.Success();
     }

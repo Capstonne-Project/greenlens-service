@@ -5,6 +5,7 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.CloseReport;
 
@@ -13,7 +14,8 @@ public sealed class CloseReportCommandHandler(
     IReportRepository reports,
     IReportStatusHistoryRepository statusHistory,
     ICurrentUser currentUser,
-    IUnitOfWork uow) : IRequestHandler<CloseReportCommand, Result>
+    IUnitOfWork uow,
+    ILogger<CloseReportCommandHandler> logger) : IRequestHandler<CloseReportCommand, Result>
 {
     public async Task<Result> Handle(CloseReportCommand request, CancellationToken ct)
     {
@@ -21,6 +23,7 @@ public sealed class CloseReportCommandHandler(
         if (report is null)
             return Errors.Reports.ReportNotFound;
 
+        // Validate status — only Resolved or PenaltyIssued can be closed
         if (report.Status is not (ReportStatus.Resolved or ReportStatus.PenaltyIssued))
             return Errors.Reports.InvalidStatusTransition;
 
@@ -35,6 +38,8 @@ public sealed class CloseReportCommandHandler(
 
         statusHistory.Add(history);
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        logger.LogInformation("Report {ReportId} closed from {FromStatus}", report.Id, fromStatus);
 
         return Result.Success();
     }

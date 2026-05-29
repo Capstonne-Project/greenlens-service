@@ -2,13 +2,15 @@ using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
 
 namespace Greenlens.Application.Features.Organization.GetTeams;
 
 public sealed class GetTeamsQueryHandler(
     IEnvironmentalTeamRepository teams,
-    IReportAssignmentRepository assignments)
+    IReportAssignmentRepository assignments,
+    ILogger<GetTeamsQueryHandler> logger)
     : IRequestHandler<GetTeamsQuery, Result<GetTeamsResponse>>
 {
     public async Task<Result<GetTeamsResponse>> Handle(

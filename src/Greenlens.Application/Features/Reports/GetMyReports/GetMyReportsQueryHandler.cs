@@ -3,12 +3,14 @@ using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.GetMyReports;
 
 public sealed class GetMyReportsQueryHandler(
     IReportRepository reports,
-    ICurrentUser currentUser)
+    ICurrentUser currentUser,
+    ILogger<GetMyReportsQueryHandler> logger)
     : IRequestHandler<GetMyReportsQuery, Result<GetMyReportsResponse>>
 {
     public async Task<Result<GetMyReportsResponse>> Handle(

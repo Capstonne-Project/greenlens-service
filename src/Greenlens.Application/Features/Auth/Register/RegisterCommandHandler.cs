@@ -6,6 +6,7 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Auth.Register;
 
@@ -20,13 +21,15 @@ public sealed class RegisterCommandHandler(
     IOtpRepository otps,
     IUnitOfWork uow,
     IPasswordHasher passwordHasher,
-    IEmailSender emailSender)
+    IEmailSender emailSender,
+    ILogger<RegisterCommandHandler> logger)
     : IRequestHandler<RegisterCommand, Result<RegisterResponse>>
 {
     public async Task<Result<RegisterResponse>> Handle(
         RegisterCommand request,
         CancellationToken cancellationToken)
     {
+        // Check email uniqueness
         var emailExists = await users.ExistsAsync(
             u => u.Email == request.Email.ToLowerInvariant(),
             cancellationToken).ConfigureAwait(false);
@@ -34,8 +37,10 @@ public sealed class RegisterCommandHandler(
         if (emailExists)
             return Errors.Auth.EmailTaken;
 
+        // Hash password with bcrypt
         var passwordHash = passwordHasher.Hash(request.Password);
 
+        // Create new citizen user
         var user = User.Create(
             request.Email,
             passwordHash,
@@ -43,7 +48,7 @@ public sealed class RegisterCommandHandler(
 
         users.Add(user);
 
-        // ── Generate & send OTP for email verification ──
+        // Generate & send OTP for email verification
         var otpCode = RandomNumberGenerator.GetInt32(100000, 999999).ToString();
         var codeHash = passwordHasher.Hash(otpCode);
 
@@ -58,6 +63,8 @@ public sealed class RegisterCommandHandler(
             otpCode,
             OtpPurpose.EmailVerification.ToString(),
             cancellationToken).ConfigureAwait(false);
+
+        logger.LogInformation("New user registered {UserId} with email {Email}", user.Id, user.Email);
 
         return new RegisterResponse(
             user.Id,

@@ -3,6 +3,7 @@ using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Common;
 using Greenlens.Domain.Common;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.GetMyProgressHistory;
 
@@ -12,7 +13,8 @@ namespace Greenlens.Application.Features.Reports.GetMyProgressHistory;
 public sealed class GetMyProgressHistoryQueryHandler(
     IReportAssignmentRepository assignments,
     ITeamMemberRepository teamMembers,
-    ICurrentUser currentUser) : IRequestHandler<GetMyProgressHistoryQuery, Result<GetMyProgressHistoryResponse>>
+    ICurrentUser currentUser,
+    ILogger<GetMyProgressHistoryQueryHandler> logger) : IRequestHandler<GetMyProgressHistoryQuery, Result<GetMyProgressHistoryResponse>>
 {
     public async Task<Result<GetMyProgressHistoryResponse>> Handle(
         GetMyProgressHistoryQuery request, CancellationToken ct)

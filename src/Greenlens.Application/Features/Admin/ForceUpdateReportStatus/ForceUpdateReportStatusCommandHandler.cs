@@ -4,6 +4,7 @@ using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Admin.ForceUpdateReportStatus;
 
@@ -11,7 +12,8 @@ public sealed class ForceUpdateReportStatusCommandHandler(
     IReportRepository reports,
     IReportStatusHistoryRepository statusHistory,
     ICurrentUser currentUser,
-    IUnitOfWork uow) : IRequestHandler<ForceUpdateReportStatusCommand, Result>
+    IUnitOfWork uow,
+    ILogger<ForceUpdateReportStatusCommandHandler> logger) : IRequestHandler<ForceUpdateReportStatusCommand, Result>
 {
     public async Task<Result> Handle(ForceUpdateReportStatusCommand request, CancellationToken ct)
     {
@@ -31,6 +33,9 @@ public sealed class ForceUpdateReportStatusCommandHandler(
 
         statusHistory.Add(history);
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        logger.LogWarning("[ADMIN] Report {ReportId} force-updated {FromStatus} → {ToStatus} by {AdminId}: {Reason}",
+            report.Id, fromStatus, request.NewStatus, currentUser.UserId, request.Reason);
 
         return Result.Success();
     }

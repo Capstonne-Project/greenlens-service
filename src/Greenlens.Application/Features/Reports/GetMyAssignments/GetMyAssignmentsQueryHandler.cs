@@ -5,6 +5,7 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.GetMyAssignments;
 
@@ -18,7 +19,8 @@ namespace Greenlens.Application.Features.Reports.GetMyAssignments;
 public sealed class GetMyAssignmentsQueryHandler(
     ITeamMemberRepository teamMembers,
     IReportAssignmentRepository assignments,
-    ICurrentUser currentUser)
+    ICurrentUser currentUser,
+    ILogger<GetMyAssignmentsQueryHandler> logger)
     : IRequestHandler<GetMyAssignmentsQuery, Result<GetMyAssignmentsResponse>>
 {
     public async Task<Result<GetMyAssignmentsResponse>> Handle(

@@ -3,12 +3,14 @@ using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Admin.ArchiveCategory;
 
 public sealed class ArchiveCategoryCommandHandler(
     IPollutionCategoryRepository categories,
-    IUnitOfWork uow) : IRequestHandler<ArchiveCategoryCommand, Result>
+    IUnitOfWork uow,
+    ILogger<ArchiveCategoryCommandHandler> logger) : IRequestHandler<ArchiveCategoryCommand, Result>
 {
     public async Task<Result> Handle(ArchiveCategoryCommand request, CancellationToken ct)
     {
@@ -22,6 +24,9 @@ public sealed class ArchiveCategoryCommandHandler(
             category.Activate();
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        logger.LogInformation("Category {CategoryId} {Action}",
+            request.Id, request.Archive ? "archived" : "restored");
 
         return Result.Success();
     }

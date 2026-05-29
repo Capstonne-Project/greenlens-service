@@ -6,6 +6,7 @@ using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Map.GetPublicMapReports;
 
@@ -20,7 +21,8 @@ namespace Greenlens.Application.Features.Map.GetPublicMapReports;
 /// </remarks>
 public sealed class GetPublicMapReportsQueryHandler(
     IReportRepository reports,
-    IPollutionCategoryRepository categories)
+    IPollutionCategoryRepository categories,
+    ILogger<GetPublicMapReportsQueryHandler> logger)
     : IRequestHandler<GetPublicMapReportsQuery, Result<PublicMapReportsResponse>>
 {
     private static readonly ReportStatus[] PublicStatuses =

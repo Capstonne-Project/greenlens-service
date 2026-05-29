@@ -3,6 +3,7 @@ using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Organization.AssignDeoToDepartment;
 
@@ -17,7 +18,8 @@ namespace Greenlens.Application.Features.Organization.AssignDeoToDepartment;
 public sealed class AssignDeoToDepartmentCommandHandler(
     IDepartmentRepository departments,
     IUserRepository users,
-    IUnitOfWork uow) : IRequestHandler<AssignDeoToDepartmentCommand, Result>
+    IUnitOfWork uow,
+    ILogger<AssignDeoToDepartmentCommandHandler> logger) : IRequestHandler<AssignDeoToDepartmentCommand, Result>
 {
     public async Task<Result> Handle(
         AssignDeoToDepartmentCommand request,
@@ -41,6 +43,9 @@ public sealed class AssignDeoToDepartmentCommandHandler(
         user.AssignToDepartment(request.DepartmentId);
 
         await uow.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        logger.LogInformation("DEO {UserId} assigned to department {DeptId}",
+            request.UserId, request.DepartmentId);
 
         return Result.Success();
     }

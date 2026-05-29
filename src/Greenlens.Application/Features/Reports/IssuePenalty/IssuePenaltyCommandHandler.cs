@@ -5,6 +5,7 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.IssuePenalty;
 
@@ -18,7 +19,8 @@ public sealed class IssuePenaltyCommandHandler(
     IReportAssignmentRepository assignments,
     IReportStatusHistoryRepository statusHistory,
     ICurrentUser currentUser,
-    IUnitOfWork uow) : IRequestHandler<IssuePenaltyCommand, Result>
+    IUnitOfWork uow,
+    ILogger<IssuePenaltyCommandHandler> logger) : IRequestHandler<IssuePenaltyCommand, Result>
 {
     public async Task<Result> Handle(IssuePenaltyCommand request, CancellationToken ct)
     {
@@ -61,6 +63,12 @@ public sealed class IssuePenaltyCommandHandler(
         }
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        if (allCompleted)
+            logger.LogInformation("Penalty issued for report {ReportId} — all teams completed", report.Id);
+        else
+            logger.LogInformation("Team {TeamId} completed inspection for report {ReportId}",
+                request.TeamId, report.Id);
 
         return Result.Success();
     }

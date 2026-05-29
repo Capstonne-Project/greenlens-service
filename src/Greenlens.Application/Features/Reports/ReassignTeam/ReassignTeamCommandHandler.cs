@@ -5,6 +5,7 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.ReassignTeam;
 
@@ -15,7 +16,8 @@ public sealed class ReassignTeamCommandHandler(
     IReportAssignmentRepository assignments,
     IReportStatusHistoryRepository statusHistory,
     ICurrentUser currentUser,
-    IUnitOfWork uow) : IRequestHandler<ReassignTeamCommand, Result>
+    IUnitOfWork uow,
+    ILogger<ReassignTeamCommandHandler> logger) : IRequestHandler<ReassignTeamCommand, Result>
 {
     public async Task<Result> Handle(ReassignTeamCommand request, CancellationToken ct)
     {
@@ -60,6 +62,9 @@ public sealed class ReassignTeamCommandHandler(
         assignments.Add(newAssignment);
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        logger.LogInformation("Report {ReportId} reassigned from team {OldTeamId} to {NewTeamId}",
+            request.ReportId, request.OldTeamId, request.NewTeamId);
 
         return Result.Success();
     }

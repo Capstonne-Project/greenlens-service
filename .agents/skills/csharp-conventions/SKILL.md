@@ -17,6 +17,7 @@ description: >
 - **ImplicitUsings:** `enable`, but explicit when ambiguous.
 - **File-scoped namespaces** everywhere.
 - **Primary constructors** for DI injection.
+- **`ILogger<T>`** is **mandatory** in every `CommandHandler` / `QueryHandler`. Inject via primary constructor. Use structured logging (`LogInformation`, `LogWarning`, `LogError`) at key decision points.
 - **Collection expressions** (`[1, 2, 3]`) where applicable.
 - **`record`** for DTO / Command / Query / Event (immutable).
 - **`class`** for Entity (behavior + identity).
@@ -132,6 +133,25 @@ Errors follow RFC 7807 Problem Details.
 - English in code. Vietnamese OK in XML doc for BR terms.
 - Only "why" comments, never "what" comments.
 - BR IDs in XML doc on every handler implementing business rules.
+- **Inline intent notes** — every meaningful code block in a handler **MUST** have a short `//` comment explaining its purpose. This aids code reviews and future maintenance.
+
+```csharp
+// ✅ Good — intent is clear
+// Link Google account to existing user
+user.LinkGoogleAccount(googleUser.GoogleId);
+if (!user.IsEmailVerified)
+    user.VerifyEmail();
+
+// Check workload — team can only handle 1 task at a time
+var workload = await assignments.CountInProgressByTeamAsync(item.TeamId, ct);
+if (workload >= 1)
+    return Errors.Reports.TeamWorkloadExceeded;
+
+// ❌ Bad — no context for the reader
+user.LinkGoogleAccount(googleUser.GoogleId);
+if (!user.IsEmailVerified)
+    user.VerifyEmail();
+```
 
 ## Git
 

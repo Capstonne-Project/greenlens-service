@@ -3,6 +3,7 @@ using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Organization.CreateLocalOffice;
 
@@ -14,7 +15,8 @@ public sealed class CreateLocalOfficeCommandHandler(
     ILocalOfficeRepository localOffices,
     IDepartmentRepository departments,
     IWardRepository wards,
-    IUnitOfWork uow) : IRequestHandler<CreateLocalOfficeCommand, Result<CreateLocalOfficeResponse>>
+    IUnitOfWork uow,
+    ILogger<CreateLocalOfficeCommandHandler> logger) : IRequestHandler<CreateLocalOfficeCommand, Result<CreateLocalOfficeResponse>>
 {
     public async Task<Result<CreateLocalOfficeResponse>> Handle(
         CreateLocalOfficeCommand request,
@@ -49,6 +51,9 @@ public sealed class CreateLocalOfficeCommandHandler(
 
         localOffices.Add(office);
         await uow.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        logger.LogInformation("LocalOffice {OfficeId} created for ward {WardCode} in department {DeptId}",
+            office.Id, office.WardCode, office.DepartmentId);
 
         return new CreateLocalOfficeResponse(office.Id, office.Name, office.DepartmentId, office.WardCode);
     }

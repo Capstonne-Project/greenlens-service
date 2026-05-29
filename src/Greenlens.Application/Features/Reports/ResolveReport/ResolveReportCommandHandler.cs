@@ -5,6 +5,7 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.ResolveReport;
 
@@ -17,7 +18,8 @@ public sealed class ResolveReportCommandHandler(
     IReportAssignmentRepository assignments,
     IReportStatusHistoryRepository statusHistory,
     ICurrentUser currentUser,
-    IUnitOfWork uow) : IRequestHandler<ResolveReportCommand, Result>
+    IUnitOfWork uow,
+    ILogger<ResolveReportCommandHandler> logger) : IRequestHandler<ResolveReportCommand, Result>
 {
     public async Task<Result> Handle(ResolveReportCommand request, CancellationToken ct)
     {
@@ -65,6 +67,12 @@ public sealed class ResolveReportCommandHandler(
         }
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        if (allCompleted)
+            logger.LogInformation("Report {ReportId} resolved — all teams completed", report.Id);
+        else
+            logger.LogInformation("Team {TeamId} completed assignment for report {ReportId}",
+                request.TeamId, report.Id);
 
         return Result.Success();
     }

@@ -6,6 +6,7 @@ using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.DispatchReport;
 
@@ -20,7 +21,8 @@ public sealed class DispatchReportCommandHandler(
     IReportStatusHistoryRepository statusHistory,
     IUserRepository users,
     ICurrentUser currentUser,
-    IUnitOfWork uow) : IRequestHandler<DispatchReportCommand, Result>
+    IUnitOfWork uow,
+    ILogger<DispatchReportCommandHandler> logger) : IRequestHandler<DispatchReportCommand, Result>
 {
     public async Task<Result> Handle(DispatchReportCommand request, CancellationToken ct)
     {
@@ -64,6 +66,9 @@ public sealed class DispatchReportCommandHandler(
 
         statusHistory.Add(history);
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        logger.LogInformation("Report {ReportId} dispatched to office {OfficeId} by DEO {UserId}",
+            report.Id, request.TargetLocalOfficeId, currentUser.UserId);
 
         return Result.Success();
     }

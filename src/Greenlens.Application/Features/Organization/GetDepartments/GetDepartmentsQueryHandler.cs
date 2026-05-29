@@ -1,12 +1,14 @@
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
 
 namespace Greenlens.Application.Features.Organization.GetDepartments;
 
 public sealed class GetDepartmentsQueryHandler(
-    IDepartmentRepository departments)
+    IDepartmentRepository departments,
+    ILogger<GetDepartmentsQueryHandler> logger)
     : IRequestHandler<GetDepartmentsQuery, Result<GetDepartmentsResponse>>
 {
     public async Task<Result<GetDepartmentsResponse>> Handle(

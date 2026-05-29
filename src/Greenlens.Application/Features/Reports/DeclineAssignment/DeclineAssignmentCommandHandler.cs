@@ -5,6 +5,7 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.DeclineAssignment;
 
@@ -17,7 +18,8 @@ public sealed class DeclineAssignmentCommandHandler(
     IReportAssignmentRepository assignments,
     IReportStatusHistoryRepository statusHistory,
     ICurrentUser currentUser,
-    IUnitOfWork uow) : IRequestHandler<DeclineAssignmentCommand, Result>
+    IUnitOfWork uow,
+    ILogger<DeclineAssignmentCommandHandler> logger) : IRequestHandler<DeclineAssignmentCommand, Result>
 {
     public async Task<Result> Handle(DeclineAssignmentCommand request, CancellationToken ct)
     {
@@ -67,6 +69,12 @@ public sealed class DeclineAssignmentCommandHandler(
         }
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        if (allDeclined)
+            logger.LogWarning("All teams declined report {ReportId} — reverted to Dispatched", report.Id);
+        else
+            logger.LogInformation("Team {TeamId} declined assignment for report {ReportId}",
+                request.TeamId, report.Id);
 
         return Result.Success();
     }

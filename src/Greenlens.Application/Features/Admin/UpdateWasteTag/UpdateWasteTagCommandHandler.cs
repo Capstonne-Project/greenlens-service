@@ -2,12 +2,14 @@ using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Admin.UpdateWasteTag;
 
 public sealed class UpdateWasteTagCommandHandler(
     IWasteTagRepository wasteTags,
-    IUnitOfWork uow) : IRequestHandler<UpdateWasteTagCommand, Result>
+    IUnitOfWork uow,
+    ILogger<UpdateWasteTagCommandHandler> logger) : IRequestHandler<UpdateWasteTagCommand, Result>
 {
     public async Task<Result> Handle(UpdateWasteTagCommand request, CancellationToken ct)
     {
@@ -19,6 +21,9 @@ public sealed class UpdateWasteTagCommandHandler(
             request.Description, request.DisplayOrder);
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        logger.LogInformation("WasteTag {TagId} updated", request.Id);
+
         return Result.Success();
     }
 }

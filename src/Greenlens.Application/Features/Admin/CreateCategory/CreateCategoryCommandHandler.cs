@@ -3,12 +3,14 @@ using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Admin.CreateCategory;
 
 public sealed class CreateCategoryCommandHandler(
     IPollutionCategoryRepository categories,
-    IUnitOfWork uow)
+    IUnitOfWork uow,
+    ILogger<CreateCategoryCommandHandler> logger)
     : IRequestHandler<CreateCategoryCommand, Result<CreateCategoryResponse>>
 {
     public async Task<Result<CreateCategoryResponse>> Handle(
@@ -19,6 +21,9 @@ public sealed class CreateCategoryCommandHandler(
 
         categories.Add(category);
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        logger.LogInformation("Category {Code} created with id {CategoryId}",
+            category.Code, category.Id);
 
         return new CreateCategoryResponse(category.Id, category.Code, category.NameVi, category.NameEn);
     }

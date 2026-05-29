@@ -1,12 +1,14 @@
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
 
 namespace Greenlens.Application.Features.Organization.GetLocalOffices;
 
 public sealed class GetLocalOfficesQueryHandler(
-    ILocalOfficeRepository offices)
+    ILocalOfficeRepository offices,
+    ILogger<GetLocalOfficesQueryHandler> logger)
     : IRequestHandler<GetLocalOfficesQuery, Result<GetLocalOfficesResponse>>
 {
     public async Task<Result<GetLocalOfficesResponse>> Handle(

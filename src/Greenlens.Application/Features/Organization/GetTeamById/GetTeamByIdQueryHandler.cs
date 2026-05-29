@@ -2,12 +2,14 @@ using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
 
 namespace Greenlens.Application.Features.Organization.GetTeamById;
 
 public sealed class GetTeamByIdQueryHandler(
-    IEnvironmentalTeamRepository teams)
+    IEnvironmentalTeamRepository teams,
+    ILogger<GetTeamByIdQueryHandler> logger)
     : IRequestHandler<GetTeamByIdQuery, Result<TeamDetailResponse>>
 {
     public async Task<Result<TeamDetailResponse>> Handle(

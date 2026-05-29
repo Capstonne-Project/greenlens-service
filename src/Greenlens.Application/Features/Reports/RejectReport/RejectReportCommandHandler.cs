@@ -5,6 +5,7 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.RejectReport;
 
@@ -13,10 +14,12 @@ public sealed class RejectReportCommandHandler(
     IReportRepository reports,
     IReportStatusHistoryRepository statusHistory,
     ICurrentUser currentUser,
-    IUnitOfWork uow) : IRequestHandler<RejectReportCommand, Result>
+    IUnitOfWork uow,
+    ILogger<RejectReportCommandHandler> logger) : IRequestHandler<RejectReportCommand, Result>
 {
     public async Task<Result> Handle(RejectReportCommand request, CancellationToken ct)
     {
+        // Validate rejection reason length (BR-REP-022)
         if (request.Reason.Length < 20)
             return Errors.Reports.ReasonTooShort;
 
@@ -27,6 +30,7 @@ public sealed class RejectReportCommandHandler(
         if (report.Status != ReportStatus.Submitted)
             return Errors.Reports.InvalidStatusTransition;
 
+        // Transition: Submitted → Rejected
         report.Reject(request.Reason);
 
         var history = ReportStatusHistory.Create(
@@ -38,6 +42,8 @@ public sealed class RejectReportCommandHandler(
 
         statusHistory.Add(history);
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        logger.LogInformation("Report {ReportId} rejected by DEO {UserId}", report.Id, currentUser.UserId);
 
         return Result.Success();
     }

@@ -5,6 +5,7 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.AssignTeam;
 
@@ -24,7 +25,8 @@ public sealed class AssignTeamCommandHandler(
     IWasteTagRepository wasteTags,
     IReportWasteTagRepository reportWasteTags,
     ICurrentUser currentUser,
-    IUnitOfWork uow) : IRequestHandler<AssignTeamCommand, Result>
+    IUnitOfWork uow,
+    ILogger<AssignTeamCommandHandler> logger) : IRequestHandler<AssignTeamCommand, Result>
 {
     // Categories that route to Cleanup Team (BR-ORG-013)
     private static readonly HashSet<string> CleanupCategories = ["TRASH", "WASTEWATER", "CHEMICAL"];
@@ -121,6 +123,9 @@ public sealed class AssignTeamCommandHandler(
 
         statusHistory.Add(history);
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        logger.LogInformation("Report {ReportId} assigned to {TeamCount} team(s) by LEO {UserId}",
+            report.Id, request.Teams.Count, currentUser.UserId);
 
         return Result.Success();
     }

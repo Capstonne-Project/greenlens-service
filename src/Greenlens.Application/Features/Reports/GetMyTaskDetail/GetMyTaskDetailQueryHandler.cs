@@ -5,6 +5,7 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.GetMyTaskDetail;
 
@@ -15,7 +16,8 @@ namespace Greenlens.Application.Features.Reports.GetMyTaskDetail;
 public sealed class GetMyTaskDetailQueryHandler(
     IReportAssignmentRepository assignments,
     ITeamMemberRepository teamMembers,
-    ICurrentUser currentUser)
+    ICurrentUser currentUser,
+    ILogger<GetMyTaskDetailQueryHandler> logger)
     : IRequestHandler<GetMyTaskDetailQuery, Result<MyTaskDetailResponse>>
 {
     public async Task<Result<MyTaskDetailResponse>> Handle(

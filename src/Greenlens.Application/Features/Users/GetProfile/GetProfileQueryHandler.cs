@@ -3,6 +3,7 @@ using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
 
 namespace Greenlens.Application.Features.Users.GetProfile;
@@ -12,7 +13,8 @@ namespace Greenlens.Application.Features.Users.GetProfile;
 /// </summary>
 public sealed class GetProfileQueryHandler(
     IUserRepository users,
-    ICurrentUser currentUser)
+    ICurrentUser currentUser,
+    ILogger<GetProfileQueryHandler> logger)
     : IRequestHandler<GetProfileQuery, Result<UserDetailDto>>
 {
     public async Task<Result<UserDetailDto>> Handle(
