@@ -19,6 +19,8 @@ internal sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext
     public DbSet<ReportSatisfaction> ReportSatisfactions => Set<ReportSatisfaction>();
     public DbSet<ReportDraft> ReportDrafts => Set<ReportDraft>();
     public DbSet<ReportAssignment> ReportAssignments => Set<ReportAssignment>();
+    public DbSet<WasteTag> WasteTags => Set<WasteTag>();
+    public DbSet<ReportWasteTag> ReportWasteTags => Set<ReportWasteTag>();
 
     // ── Organization module (v1.1) ──
     public DbSet<Department> Departments => Set<Department>();

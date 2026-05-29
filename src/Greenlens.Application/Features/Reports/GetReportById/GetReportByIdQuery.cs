@@ -18,6 +18,8 @@ public sealed record ReportDetailResponse(
     Guid? AssignedOfficerId, Guid? AssignedByOfficerId, Guid? AssignedOfficeId,
     IReadOnlyList<ReportMediaItem> Media,
     IReadOnlyList<ReportAssignmentItem> Assignments,
+    IReadOnlyList<ReportWasteTagItem> WasteTags,
+    string? AiSuggestedWasteTagCodes,
     DateTime CreatedAt, DateTime? VerifiedAt, DateTime? StartedAt,
     DateTime? ResolvedAt, DateTime? ClosedAt,
     DateTime? SlaVerifyDueAt, DateTime? SlaResolveDueAt);
@@ -29,3 +31,6 @@ public sealed record ReportAssignmentItem(
     Guid Id, Guid TeamId, string? TeamName, string TeamType,
     string Status, string? Note, DateTime AssignedAt,
     DateTime? StartedAt, DateTime? CompletedAt);
+
+public sealed record ReportWasteTagItem(
+    Guid TagId, string Code, string NameVi, string NameEn, string? IconUrl);

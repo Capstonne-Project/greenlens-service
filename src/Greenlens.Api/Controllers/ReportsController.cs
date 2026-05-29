@@ -9,12 +9,14 @@ using Greenlens.Application.Features.Reports.GetOfficerQueue;
 using Greenlens.Application.Features.Reports.GetReportById;
 using Greenlens.Application.Features.Reports.GetReportHistory;
 using Greenlens.Application.Features.Reports.GetReports;
+using Greenlens.Application.Features.Reports.GetWasteTags;
 using Greenlens.Application.Features.Reports.IssuePenalty;
 using Greenlens.Application.Features.Reports.ReassignTeam;
 using Greenlens.Application.Features.Reports.RejectReport;
 using Greenlens.Application.Features.Reports.ReopenReport;
 using Greenlens.Application.Features.Reports.ResolveReport;
 using Greenlens.Application.Features.Reports.SubmitPollutionReport;
+using Greenlens.Application.Features.Reports.TagReportWaste;
 using Greenlens.Application.Features.Reports.UpdateProgress;
 using Greenlens.Application.Features.Reports.VerifyReport;
 using Greenlens.Domain.Enums;
@@ -36,10 +38,10 @@ public sealed class ReportsController(ISender sender) : ControllerBase
     // ═══════════════════════════════════════════
 
     [HttpPost("analyze")]
-    [AllowAnonymous]
+    [Authorize]
     [Consumes("multipart/form-data")]
     [SwaggerOperation(
-        Summary = "[Citizen/Anonymous] Phân tích ảnh trước khi tạo báo cáo (Step 1)",
+        Summary = "[Citizen] Phân tích ảnh trước khi tạo báo cáo (Step 1)",
         Description = "Upload ảnh để AI phân tích. Trả về temp_image_id (TTL 15 phút), kết quả AI, và " +
             "suggestedCategory (id, code, nameVi, nameEn) để FE auto-fill loại ô nhiễm. " +
             "Nếu decision = IRRELEVANT_OR_SUSPECTED_ABUSIVE → FE hiển thị warning, disable nút Submit. " +
@@ -82,9 +84,9 @@ public sealed class ReportsController(ISender sender) : ControllerBase
     // ═══════════════════════════════════════════
 
     [HttpPost]
-    [AllowAnonymous]
+    [Authorize]
     [SwaggerOperation(
-        Summary = "[Citizen/Anonymous] Tạo báo cáo ô nhiễm",
+        Summary = "[Citizen] Tạo báo cáo ô nhiễm",
         Description = "Tạo báo cáo mới. Hỗ trợ anonymous (không cần login). " +
             "Hệ thống tự động gán SLA 24h và route báo cáo theo wardCode đến LocalOffice hoặc Department queue.")]
     [SwaggerResponse(201, "Đã tạo", typeof(ApiResponse<SubmitPollutionReportResponse>))]
@@ -141,7 +143,7 @@ public sealed class ReportsController(ISender sender) : ControllerBase
     [SwaggerResponse(422, "Status không hợp lệ hoặc conflict of interest", typeof(ApiResponse))]
     public async Task<IActionResult> VerifyAsync(
         [FromRoute] Guid id, [FromBody] VerifyReportRequest request, CancellationToken ct)
-        => (await sender.Send(new VerifyReportCommand(id, request.OverrideSeverity, request.OverrideCategoryId), ct))
+        => (await sender.Send(new VerifyReportCommand(id, request.OverrideSeverity, request.OverrideCategoryId, request.WasteTagIds), ct))
             .ToHttpNoContent();
 
     [HttpPut("{id:guid}/reject")]
@@ -162,7 +164,7 @@ public sealed class ReportsController(ISender sender) : ControllerBase
         [FromRoute] Guid id, [FromBody] AssignTeamRequest request, CancellationToken ct)
     {
         var items = request.Teams.Select(t => new TeamAssignmentItem(t.TeamId, t.Note)).ToList();
-        return (await sender.Send(new AssignTeamCommand(id, items), ct)).ToHttpNoContent();
+        return (await sender.Send(new AssignTeamCommand(id, items, request.WasteTagIds), ct)).ToHttpNoContent();
     }
 
     [HttpPut("{id:guid}/reassign")]
@@ -190,10 +192,10 @@ public sealed class ReportsController(ISender sender) : ControllerBase
     // Xem: GET/PUT /v1/teams/my-tasks/* và GET /v1/teams/my-progress
 
     [HttpPut("{id:guid}/progress")]
-    [Authorize(Roles = "Cleanup,Inspector,Admin")]
+    [Authorize(Roles = "Cleaner,Inspector,Admin")]
     [Consumes("multipart/form-data")]
     [SwaggerOperation(
-        Summary = "[Cleanup/Inspector] Cập nhật tiến độ + ảnh",
+        Summary = "[Cleaner/Inspector] Cập nhật tiến độ + ảnh",
         Description = "Team leader cập nhật % tiến độ, ghi chú, và tùy chọn upload ảnh trong cùng 1 request. " +
             "TeamId tự động lấy từ token. Tối đa 5 ảnh, mỗi ảnh ≤ 20MB. Status không thay đổi.")]
     [SwaggerResponse(200, "Đã cập nhật, trả về URLs ảnh đã upload", typeof(ApiResponse<UpdateProgressResponse>))]
@@ -221,8 +223,8 @@ public sealed class ReportsController(ISender sender) : ControllerBase
     }
 
     [HttpPut("{id:guid}/resolve")]
-    [Authorize(Roles = "Cleanup,Admin")]
-    [SwaggerOperation(Summary = "[Cleanup] Hoàn thành phần việc của team", Description = "Cleanup Team đánh dấu phần việc đã hoàn thành. Yêu cầu ≥ 2 ảnh after. Khi tất cả team đều completed → report chuyển InProgress → Resolved.")]
+    [Authorize(Roles = "Cleaner,Admin")]
+    [SwaggerOperation(Summary = "[Cleaner] Hoàn thành phần việc của team", Description = "Cleanup Team đánh dấu phần việc đã hoàn thành. Yêu cầu ≥ 2 ảnh after. Khi tất cả team đều completed → report chuyển InProgress → Resolved.")]
     [SwaggerResponse(204, "Đã hoàn thành")]
     [SwaggerResponse(422, "Thiếu ảnh hoặc status không hợp lệ", typeof(ApiResponse))]
     public async Task<IActionResult> ResolveAsync(
@@ -249,6 +251,32 @@ public sealed class ReportsController(ISender sender) : ControllerBase
         => (await sender.Send(new CloseNoViolationCommand(id, request.Reason), ct)).ToHttpNoContent();
 
     // ═══════════════════════════════════════════
+    // ██  WASTE TAGS
+    // ═══════════════════════════════════════════
+
+    [HttpPut("{id:guid}/waste-tags")]
+    [Authorize(Roles = "LEO,DEO,Admin")]
+    [SwaggerOperation(
+        Summary = "[LEO/DEO] Gắn tag loại rác cho báo cáo",
+        Description = "Officer gắn tag loại rác (household, medical, hazardous,...) để cleanup team biết cần chuẩn bị gì. " +
+            "Thay thế toàn bộ tag cũ bằng danh sách mới. Tối thiểu 1, tối đa 12 tag.")]
+    [SwaggerResponse(204, "Đã gắn tag")]
+    [SwaggerResponse(404, "Report hoặc tag không tồn tại", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Status không hợp lệ hoặc tag bị vô hiệu hóa", typeof(ApiResponse))]
+    public async Task<IActionResult> TagWasteAsync(
+        [FromRoute] Guid id, [FromBody] TagWasteRequest request, CancellationToken ct)
+        => (await sender.Send(new TagReportWasteCommand(id, request.WasteTagIds), ct)).ToHttpNoContent();
+
+    [HttpGet("~/v1/waste-tags")]
+    [Authorize]
+    [SwaggerOperation(
+        Summary = "[Auth] Danh sách loại rác",
+        Description = "Trả về tất cả waste tag đang active, sắp theo displayOrder. Dùng cho dropdown/chip selection trên FE.")]
+    [SwaggerResponse(200, "Danh sách tag", typeof(ApiResponse<GetWasteTagsResponse>))]
+    public async Task<IActionResult> GetWasteTagsAsync(CancellationToken ct)
+        => (await sender.Send(new GetWasteTagsQuery(), ct)).ToHttp();
+
+    // ═══════════════════════════════════════════
     // ██  CITIZEN WORKFLOW
     // ═══════════════════════════════════════════
 
@@ -270,12 +298,13 @@ public sealed class ReportsController(ISender sender) : ControllerBase
 }
 
 // ── Request DTOs ──
-public sealed record VerifyReportRequest(Severity? OverrideSeverity = null, Guid? OverrideCategoryId = null);
+public sealed record VerifyReportRequest(Severity? OverrideSeverity = null, Guid? OverrideCategoryId = null, List<Guid>? WasteTagIds = null);
 public sealed record RejectReportRequest(string Reason);
-public sealed record AssignTeamRequest(List<AssignTeamItemRequest> Teams);
+public sealed record AssignTeamRequest(List<AssignTeamItemRequest> Teams, List<Guid>? WasteTagIds = null);
 public sealed record AssignTeamItemRequest(Guid TeamId, string? Note);
 public sealed record ReassignTeamRequest(Guid OldTeamId, Guid NewTeamId, string Reason);
 public sealed record ResolveReportRequest(Guid TeamId, List<string> AfterImageUrls);
 public sealed record IssuePenaltyRequest(Guid TeamId);
 public sealed record CloseNoViolationRequest(string Reason);
 public sealed record DeclineAssignmentRequest(Guid TeamId, string Reason);
+public sealed record TagWasteRequest(List<Guid> WasteTagIds);

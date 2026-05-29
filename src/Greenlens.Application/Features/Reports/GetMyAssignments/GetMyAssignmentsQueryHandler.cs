@@ -42,6 +42,9 @@ public sealed class GetMyAssignmentsQueryHandler(
                 .ThenInclude(r => r!.Category)
             .Include(a => a.Report)
                 .ThenInclude(r => r!.Media)
+            .Include(a => a.Report)
+                .ThenInclude(r => r!.WasteTags)
+                    .ThenInclude(wt => wt.WasteTag)
             .Where(a => myTeamIds.Contains(a.TeamId));
 
         if (request.AssignmentStatus.HasValue)
@@ -75,7 +78,11 @@ public sealed class GetMyAssignmentsQueryHandler(
                     .Where(m => m.Type == MediaType.Image)
                     .OrderBy(m => m.UploadedAt)
                     .Select(m => m.ThumbnailUrl ?? m.Url)
-                    .FirstOrDefault()))
+                    .FirstOrDefault(),
+                a.Report.WasteTags
+                    .Where(wt => wt.WasteTag != null)
+                    .Select(wt => wt.WasteTag!.Code)
+                    .ToList()))
             .ToListAsync(ct)
             .ConfigureAwait(false);
 

@@ -89,6 +89,11 @@ public sealed class Report : SoftDeletableEntity
     public ICollection<ReportFlag> Flags { get; private set; } = [];
     public ICollection<Report> DuplicateReports { get; private set; } = [];
     public ICollection<ReportAssignment> Assignments { get; private set; } = [];
+    public ICollection<ReportWasteTag> WasteTags { get; private set; } = [];
+
+    // ── AI-suggested waste tags (set by AI service, officer can override) ──
+    /// <summary>Comma-separated tag codes suggested by AI, e.g. "HOUSEHOLD,MEDICAL,ANIMAL_CARCASS".</summary>
+    public string? AiSuggestedWasteTagCodes { get; private set; }
 
     // ────────────────────────────────────────────────────
     // Factory
@@ -289,6 +294,9 @@ public sealed class Report : SoftDeletableEntity
     }
 
     public void UpdatePriorityScore(decimal score) => PriorityScore = score;
+
+    /// <summary>AI service sets suggested waste tag codes after image analysis.</summary>
+    public void SetAiSuggestedWasteTagCodes(string? codes) => AiSuggestedWasteTagCodes = codes;
 
     // ────────────────────────────────────────────────────
     // Helpers

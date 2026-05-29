@@ -44,6 +44,8 @@ public static class DependencyInjection
         services.AddScoped<IReportRepository, ReportRepository>();
         services.AddScoped<IReportMediaRepository, ReportMediaRepository>();
         services.AddScoped<IReportStatusHistoryRepository, ReportStatusHistoryRepository>();
+        services.AddScoped<IWasteTagRepository, WasteTagRepository>();
+        services.AddScoped<IReportWasteTagRepository, ReportWasteTagRepository>();
 
         // ── Organization module (v1.1) ──
         services.AddScoped<IDepartmentRepository, DepartmentRepository>();

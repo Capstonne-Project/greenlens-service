@@ -39,4 +39,5 @@ public sealed record MyAssignmentItem(
     DateTime? StartedAt,
     DateTime? CompletedAt,
     DateTime? SlaResolveDueAt,
-    string? FirstImageUrl);
+    string? FirstImageUrl,
+    IReadOnlyList<string> WasteTagCodes);

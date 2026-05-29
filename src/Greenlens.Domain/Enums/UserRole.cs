@@ -10,7 +10,7 @@ public enum UserRole
     Citizen,
     DEO,
     LEO,
-    Cleanup,
+    Cleaner,
     Inspector,
     Admin
 }

@@ -8,4 +8,5 @@ namespace Greenlens.Application.Features.Reports.VerifyReport;
 public sealed record VerifyReportCommand(
     Guid ReportId,
     Severity? OverrideSeverity,
-    Guid? OverrideCategoryId) : IRequest<Result>;
+    Guid? OverrideCategoryId,
+    List<Guid>? WasteTagIds) : IRequest<Result>;

@@ -36,6 +36,9 @@ public sealed class GetMyTaskDetailQueryHandler(
                 .ThenInclude(r => r!.Category)
             .Include(a => a.Report)
                 .ThenInclude(r => r!.Media)
+            .Include(a => a.Report)
+                .ThenInclude(r => r!.WasteTags)
+                    .ThenInclude(wt => wt.WasteTag)
             .FirstOrDefaultAsync(
                 a => a.ReportId == request.ReportId && a.TeamId == membership.TeamId, ct)
             .ConfigureAwait(false);
@@ -55,6 +58,13 @@ public sealed class GetMyTaskDetailQueryHandler(
             .Where(m => m.Type == MediaType.Image)
             .OrderBy(m => m.UploadedAt)
             .Select(m => new TaskImageItem(m.Url, m.MimeType))
+            .ToList();
+
+        var wasteTagItems = report.WasteTags
+            .Where(wt => wt.WasteTag is not null)
+            .Select(wt => new TaskWasteTagItem(
+                wt.WasteTag!.Code, wt.WasteTag.NameVi,
+                wt.WasteTag.NameEn, wt.WasteTag.IconUrl))
             .ToList();
 
         return new MyTaskDetailResponse(
@@ -88,7 +98,9 @@ public sealed class GetMyTaskDetailQueryHandler(
             ProgressUpdatedAt: assignment.ProgressUpdatedAt,
             ProgressUpdatedByUserId: assignment.ProgressUpdatedByUserId,
 
-            AssignmentNote: assignment.Note
+            AssignmentNote: assignment.Note,
+
+            WasteTags: wasteTagItems
         );
     }
 }

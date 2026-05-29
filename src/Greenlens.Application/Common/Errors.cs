@@ -232,6 +232,21 @@ public static class Errors
             "REPORT_NOT_ASSIGNED",
             "Báo cáo chưa được phân công cho team nào.",
             ErrorType.BusinessRule);
+
+        public static Error WasteTagNotFound => new(
+            "WASTE_TAG_NOT_FOUND",
+            "Một hoặc nhiều tag loại rác không tồn tại.",
+            ErrorType.NotFound);
+
+        public static Error WasteTagInactive => new(
+            "WASTE_TAG_INACTIVE",
+            "Một hoặc nhiều tag loại rác đã bị vô hiệu hóa.",
+            ErrorType.BusinessRule);
+
+        public static Error WasteTagCodeExists => new(
+            "WASTE_TAG_CODE_EXISTS",
+            "Mã tag loại rác đã tồn tại.",
+            ErrorType.Conflict);
     }
 
     public static class Map
@@ -344,7 +359,7 @@ public static class Errors
 
         public static Error InvalidRoleForTeamMember => new(
             "INVALID_ROLE_FOR_TEAM_MEMBER",
-            "Người dùng phải có vai trò Cleanup hoặc Inspector để tham gia đội.",
+            "Người dùng phải có vai trò Cleaner hoặc Inspector để tham gia đội.",
             ErrorType.BusinessRule);
 
         public static Error WardNotFound => new(

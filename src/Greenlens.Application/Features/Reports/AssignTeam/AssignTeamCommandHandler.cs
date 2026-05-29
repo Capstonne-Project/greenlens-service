@@ -12,6 +12,7 @@ namespace Greenlens.Application.Features.Reports.AssignTeam;
 /// LEO assigns team(s) to a verified report. All teams are equal — no primary/secondary.
 /// Validates team type against pollution category, checks workload limits.
 /// Report transitions Verified → InProgress. Each assignment tracks independently.
+/// Optionally tags waste types during assignment.
 /// BR-OFF-011, BR-OFF-013, BR-ORG-013.
 /// </summary>
 public sealed class AssignTeamCommandHandler(
@@ -20,6 +21,8 @@ public sealed class AssignTeamCommandHandler(
     IReportAssignmentRepository assignments,
     IReportStatusHistoryRepository statusHistory,
     IPollutionCategoryRepository categories,
+    IWasteTagRepository wasteTags,
+    IReportWasteTagRepository reportWasteTags,
     ICurrentUser currentUser,
     IUnitOfWork uow) : IRequestHandler<AssignTeamCommand, Result>
 {
@@ -66,6 +69,29 @@ public sealed class AssignTeamCommandHandler(
             var workload = await assignments.CountInProgressByTeamAsync(item.TeamId, ct).ConfigureAwait(false);
             if (workload >= 10)
                 return Errors.Reports.TeamWorkloadExceeded;
+        }
+
+        // Validate and persist waste tags if provided
+        if (request.WasteTagIds is { Count: > 0 })
+        {
+            var tags = await wasteTags.GetByIdsAsync(request.WasteTagIds, ct).ConfigureAwait(false);
+            if (tags.Count != request.WasteTagIds.Count)
+                return Errors.Reports.WasteTagNotFound;
+
+            var inactiveTags = tags.Where(t => !t.IsActive).ToList();
+            if (inactiveTags.Count > 0)
+                return Errors.Reports.WasteTagInactive;
+
+            // Remove existing tags, then add new ones
+            var existing = await reportWasteTags.GetByReportIdAsync(request.ReportId, ct).ConfigureAwait(false);
+            if (existing.Count > 0)
+                reportWasteTags.RemoveRange(existing);
+
+            var newTags = request.WasteTagIds
+                .Select(tagId => ReportWasteTag.Create(request.ReportId, tagId, currentUser.UserId))
+                .ToList();
+
+            reportWasteTags.AddRange(newTags);
         }
 
         // Create assignments — all teams equal

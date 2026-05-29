@@ -33,10 +33,10 @@ public sealed class AddTeamMemberCommandHandler(
         if (user is null)
             return Errors.Users.UserNotFound;
 
-        // Validate role compatibility: Cleanup team → Cleanup role, Inspection team → Inspector role
+        // Validate role compatibility: Cleanup team → Cleaner role, Inspection team → Inspector role
         var validRole = team.TeamType switch
         {
-            TeamType.Cleanup => user.Role == UserRole.Cleanup,
+            TeamType.Cleanup => user.Role == UserRole.Cleaner,
             TeamType.Inspection => user.Role == UserRole.Inspector,
             _ => false
         };
