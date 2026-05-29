@@ -10,7 +10,7 @@ namespace Greenlens.Application.Features.Reports.DeclineAssignment;
 
 /// <summary>
 /// Team declines within 2h window. BR-CLN-007, BR-INS-003.
-/// If ALL assignments are declined → report reverts to Verified so officer can re-assign.
+/// If ALL assignments are declined → report reverts to Dispatched so LEO can re-assign.
 /// </summary>
 public sealed class DeclineAssignmentCommandHandler(
     IReportRepository reports,
@@ -55,12 +55,12 @@ public sealed class DeclineAssignmentCommandHandler(
 
         if (allDeclined)
         {
-            report.RevertToVerified();
+            report.RevertToDispatched();
 
             var history = ReportStatusHistory.Create(
                 report.Id,
                 ReportStatus.InProgress,
-                ReportStatus.Verified,
+                ReportStatus.Dispatched,
                 currentUser.UserId);
 
             statusHistory.Add(history);

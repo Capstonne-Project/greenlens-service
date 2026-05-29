@@ -247,6 +247,11 @@ public static class Errors
             "WASTE_TAG_CODE_EXISTS",
             "Mã tag loại rác đã tồn tại.",
             ErrorType.Conflict);
+
+        public static Error DispatchOutsideProvince => new(
+            "DISPATCH_OUTSIDE_PROVINCE",
+            "Chỉ có thể điều phối task đến xã/phường trong phạm vi tỉnh của bạn.",
+            ErrorType.BusinessRule);
     }
 
     public static class Map
@@ -357,6 +362,11 @@ public static class Errors
             "Người dùng phải có vai trò LEO để được gán cho văn phòng.",
             ErrorType.BusinessRule);
 
+        public static Error InvalidRoleForDeo => new(
+            "INVALID_ROLE_FOR_DEO",
+            "Người dùng phải có vai trò DEO để được gán cho Sở TNMT.",
+            ErrorType.BusinessRule);
+
         public static Error InvalidRoleForTeamMember => new(
             "INVALID_ROLE_FOR_TEAM_MEMBER",
             "Người dùng phải có vai trò Cleaner hoặc Inspector để tham gia đội.",
@@ -371,5 +381,10 @@ public static class Errors
             "PROVINCE_NOT_FOUND",
             "Mã tỉnh/thành phố không tồn tại.",
             ErrorType.NotFound);
+
+        public static Error OfficeNotOnboarded => new(
+            "OFFICE_NOT_ONBOARDED",
+            "Văn phòng xã/phường chưa được kích hoạt. Không thể điều phối task.",
+            ErrorType.BusinessRule);
     }
 }

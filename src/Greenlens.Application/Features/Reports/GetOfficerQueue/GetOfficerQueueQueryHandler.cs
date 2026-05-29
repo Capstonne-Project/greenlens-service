@@ -10,6 +10,8 @@ namespace Greenlens.Application.Features.Reports.GetOfficerQueue;
 
 /// <summary>
 /// Returns paginated queue of reports for the current officer's area.
+/// DEO sees all reports in their department (Submitted/Verified — needs verify or dispatch).
+/// LEO sees only Dispatched reports for their office (needs team assignment).
 /// Sorted by priority score descending (BR-OFF-010).
 /// </summary>
 public sealed class GetOfficerQueueQueryHandler(
@@ -29,21 +31,21 @@ public sealed class GetOfficerQueueQueryHandler(
             .Include(r => r.Category)
             .AsQueryable();
 
-        // Filter by officer's scope
-        if (user.Role == UserRole.LEO && user.LocalOfficeId.HasValue)
+        // ── Role-based scope filtering ──
+        if (user.Role == UserRole.DEO && user.DepartmentId.HasValue)
         {
-            // LEO sees reports assigned to their office
-            query = query.Where(r => r.AssignedOfficeId == user.LocalOfficeId.Value);
+            // DEO sees all reports in their department queue (province level)
+            query = query.Where(r => r.AssignedDepartmentId == user.DepartmentId.Value);
         }
-        else if (user.Role == UserRole.DEO && user.DepartmentId.HasValue)
+        else if (user.Role == UserRole.LEO && user.LocalOfficeId.HasValue)
         {
-            // DEO sees reports in department queue + all offices in department
+            // LEO sees only Dispatched reports assigned to their office
             query = query.Where(r =>
-                r.AssignedDepartmentId == user.DepartmentId.Value ||
-                (r.AssignedOffice != null && r.AssignedOffice.DepartmentId == user.DepartmentId.Value));
+                r.AssignedOfficeId == user.LocalOfficeId.Value &&
+                r.Status == ReportStatus.Dispatched);
         }
 
-        // Status filter
+        // Status filter (override role-based default)
         if (request.StatusFilter.HasValue)
             query = query.Where(r => r.Status == request.StatusFilter.Value);
 

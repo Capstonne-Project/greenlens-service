@@ -10,7 +10,7 @@ namespace Greenlens.Application.Features.Reports.TagReportWaste;
 
 /// <summary>
 /// Replaces all waste tags on a report. Validates tag IDs exist and are active.
-/// Only officers (LEO/DEO/Admin) can tag. Report must be Submitted, Verified, or InProgress.
+/// Only DEO/Admin can tag. Report must be Submitted, Verified, Dispatched, or InProgress.
 /// </summary>
 public sealed class TagReportWasteCommandHandler(
     IReportRepository reports,
@@ -23,6 +23,7 @@ public sealed class TagReportWasteCommandHandler(
     [
         ReportStatus.Submitted,
         ReportStatus.Verified,
+        ReportStatus.Dispatched,
         ReportStatus.InProgress
     ];
 

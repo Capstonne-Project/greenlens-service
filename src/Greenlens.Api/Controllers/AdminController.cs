@@ -227,8 +227,8 @@ public sealed class AdminController(ISender sender) : ControllerBase
     private static string GetRoleDescription(UserRole role) => role switch
     {
         UserRole.Citizen => "Người dân — tạo và theo dõi báo cáo ô nhiễm",
-        UserRole.DEO => "Department Environmental Officer — quản lý cấp Tỉnh/TP",
-        UserRole.LEO => "Local Environmental Officer — quản lý cấp Xã/Phường",
+        UserRole.DEO => "Điều phối viên cấp Tỉnh — tiếp nhận, xác minh, điều phối task xuống phường/xã",
+        UserRole.LEO => "Giám sát viên cấp Phường/Xã — nhận task, phân công và quản lý team",
         UserRole.Cleaner => "Đội dọn dẹp — xử lý ô nhiễm rác/nước/hóa chất",
         UserRole.Inspector => "Đội thanh tra — xử phạt ô nhiễm tiếng ồn/không khí",
         UserRole.Admin => "Quản trị viên hệ thống — toàn quyền",

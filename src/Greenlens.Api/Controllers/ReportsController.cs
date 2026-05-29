@@ -4,6 +4,7 @@ using Greenlens.Application.Features.Reports.AnalyzeReportImage;
 using Greenlens.Application.Features.Reports.AssignTeam;
 using Greenlens.Application.Features.Reports.CloseNoViolation;
 using Greenlens.Application.Features.Reports.CloseReport;
+using Greenlens.Application.Features.Reports.DispatchReport;
 using Greenlens.Application.Features.Reports.GetMyReports;
 using Greenlens.Application.Features.Reports.GetOfficerQueue;
 using Greenlens.Application.Features.Reports.GetReportById;
@@ -12,6 +13,7 @@ using Greenlens.Application.Features.Reports.GetReports;
 using Greenlens.Application.Features.Reports.GetWasteTags;
 using Greenlens.Application.Features.Reports.IssuePenalty;
 using Greenlens.Application.Features.Reports.ReassignTeam;
+using Greenlens.Application.Features.Reports.ReDispatchReport;
 using Greenlens.Application.Features.Reports.RejectReport;
 using Greenlens.Application.Features.Reports.ReopenReport;
 using Greenlens.Application.Features.Reports.ResolveReport;
@@ -136,8 +138,8 @@ public sealed class ReportsController(ISender sender) : ControllerBase
     // ═══════════════════════════════════════════
 
     [HttpPut("{id:guid}/verify")]
-    [Authorize(Roles = "LEO,DEO,Admin")]
-    [SwaggerOperation(Summary = "[LEO/DEO] Xác minh báo cáo", Description = "Officer kiểm tra thông tin và xác minh báo cáo. Có thể override severity và category nếu cần. Chuyển status Submitted → Verified.")]
+    [Authorize(Roles = "DEO,Admin")]
+    [SwaggerOperation(Summary = "[DEO] Xác minh báo cáo", Description = "DEO kiểm tra thông tin và xác minh báo cáo. Có thể override severity và category nếu cần. Chuyển status Submitted → Verified.")]
     [SwaggerResponse(204, "Đã xác minh")]
     [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
     [SwaggerResponse(422, "Status không hợp lệ hoặc conflict of interest", typeof(ApiResponse))]
@@ -147,8 +149,8 @@ public sealed class ReportsController(ISender sender) : ControllerBase
             .ToHttpNoContent();
 
     [HttpPut("{id:guid}/reject")]
-    [Authorize(Roles = "LEO,DEO,Admin")]
-    [SwaggerOperation(Summary = "[LEO/DEO] Từ chối báo cáo", Description = "Officer từ chối báo cáo không hợp lệ. Yêu cầu lý do ≥ 20 ký tự. Chuyển status Submitted → Rejected.")]
+    [Authorize(Roles = "DEO,Admin")]
+    [SwaggerOperation(Summary = "[DEO] Từ chối báo cáo", Description = "DEO từ chối báo cáo không hợp lệ. Yêu cầu lý do ≥ 20 ký tự. Chuyển status Submitted → Rejected.")]
     [SwaggerResponse(204, "Đã từ chối")]
     [SwaggerResponse(422, "Lý do quá ngắn hoặc status không hợp lệ", typeof(ApiResponse))]
     public async Task<IActionResult> RejectAsync(
@@ -156,8 +158,8 @@ public sealed class ReportsController(ISender sender) : ControllerBase
         => (await sender.Send(new RejectReportCommand(id, request.Reason), ct)).ToHttpNoContent();
 
     [HttpPost("{id:guid}/assign")]
-    [Authorize(Roles = "LEO,DEO,Admin")]
-    [SwaggerOperation(Summary = "[LEO/DEO] Phân công team xử lý", Description = "Phân công 1 hoặc nhiều team cùng xử lý. Tất cả team ngang hàng. Team type phải khớp loại ô nhiễm. Chuyển status Verified → InProgress.")]
+    [Authorize(Roles = "LEO,Admin")]
+    [SwaggerOperation(Summary = "[LEO] Phân công team xử lý", Description = "LEO phân công 1 hoặc nhiều team cùng xử lý. Team type phải khớp loại ô nhiễm. Chuyển status Dispatched → InProgress.")]
     [SwaggerResponse(204, "Đã phân công")]
     [SwaggerResponse(422, "Team type không khớp hoặc workload vượt quá", typeof(ApiResponse))]
     public async Task<IActionResult> AssignTeamAsync(
@@ -168,13 +170,44 @@ public sealed class ReportsController(ISender sender) : ControllerBase
     }
 
     [HttpPut("{id:guid}/reassign")]
-    [Authorize(Roles = "LEO,DEO,Admin")]
-    [SwaggerOperation(Summary = "[LEO/DEO] Chuyển giao team", Description = "Chuyển assignment từ team cũ sang team mới cùng loại. Yêu cầu lý do ≥ 20 ký tự.")]
+    [Authorize(Roles = "LEO,Admin")]
+    [SwaggerOperation(Summary = "[LEO] Chuyển giao team", Description = "Chuyển assignment từ team cũ sang team mới cùng loại. Yêu cầu lý do ≥ 20 ký tự.")]
     [SwaggerResponse(204, "Đã chuyển giao")]
     [SwaggerResponse(422, "Khác loại team hoặc workload vượt quá", typeof(ApiResponse))]
     public async Task<IActionResult> ReassignAsync(
         [FromRoute] Guid id, [FromBody] ReassignTeamRequest request, CancellationToken ct)
         => (await sender.Send(new ReassignTeamCommand(id, request.OldTeamId, request.NewTeamId, request.Reason), ct))
+            .ToHttpNoContent();
+
+    // ═══════════════════════════════════════════
+    // ██  DEO DISPATCH
+    // ═══════════════════════════════════════════
+
+    [HttpPost("{id:guid}/dispatch")]
+    [Authorize(Roles = "DEO,Admin")]
+    [SwaggerOperation(
+        Summary = "[DEO] Điều phối task xuống xã/phường",
+        Description = "DEO chọn xã/phường phù hợp và điều phối task xuống. " +
+            "Chỉ được dispatch trong phạm vi tỉnh của DEO. Chuyển status Verified → Dispatched.")]
+    [SwaggerResponse(204, "Đã điều phối")]
+    [SwaggerResponse(404, "Report hoặc Office không tồn tại", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Status không hợp lệ hoặc ngoài phạm vi tỉnh", typeof(ApiResponse))]
+    public async Task<IActionResult> DispatchAsync(
+        [FromRoute] Guid id, [FromBody] DispatchRequest request, CancellationToken ct)
+        => (await sender.Send(new DispatchReportCommand(id, request.TargetLocalOfficeId, request.Note), ct))
+            .ToHttpNoContent();
+
+    [HttpPut("{id:guid}/re-dispatch")]
+    [Authorize(Roles = "DEO,Admin")]
+    [SwaggerOperation(
+        Summary = "[DEO] Điều phối lại task sang xã/phường khác",
+        Description = "DEO chuyển task từ xã/phường hiện tại sang xã/phường khác (trong cùng tỉnh). " +
+            "Chỉ được khi LEO chưa assign team (status vẫn là Dispatched).")]
+    [SwaggerResponse(204, "Đã điều phối lại")]
+    [SwaggerResponse(422, "Status không hợp lệ hoặc ngoài phạm vi tỉnh", typeof(ApiResponse))]
+    public async Task<IActionResult> ReDispatchAsync(
+        [FromRoute] Guid id, [FromBody] ReDispatchRequest request, CancellationToken ct)
+        => (await sender.Send(new ReDispatchReportCommand(id, request.NewLocalOfficeId, request.Note), ct))
             .ToHttpNoContent();
 
     [HttpGet("queue")]
@@ -255,10 +288,10 @@ public sealed class ReportsController(ISender sender) : ControllerBase
     // ═══════════════════════════════════════════
 
     [HttpPut("{id:guid}/waste-tags")]
-    [Authorize(Roles = "LEO,DEO,Admin")]
+    [Authorize(Roles = "DEO,Admin")]
     [SwaggerOperation(
-        Summary = "[LEO/DEO] Gắn tag loại rác cho báo cáo",
-        Description = "Officer gắn tag loại rác (household, medical, hazardous,...) để cleanup team biết cần chuẩn bị gì. " +
+        Summary = "[DEO] Gắn tag loại rác cho báo cáo",
+        Description = "DEO gắn tag loại rác (household, medical, hazardous,...) để cleanup team biết cần chuẩn bị gì. " +
             "Thay thế toàn bộ tag cũ bằng danh sách mới. Tối thiểu 1, tối đa 12 tag.")]
     [SwaggerResponse(204, "Đã gắn tag")]
     [SwaggerResponse(404, "Report hoặc tag không tồn tại", typeof(ApiResponse))]
@@ -308,3 +341,5 @@ public sealed record IssuePenaltyRequest(Guid TeamId);
 public sealed record CloseNoViolationRequest(string Reason);
 public sealed record DeclineAssignmentRequest(Guid TeamId, string Reason);
 public sealed record TagWasteRequest(List<Guid> WasteTagIds);
+public sealed record DispatchRequest(Guid TargetLocalOfficeId, string? Note = null);
+public sealed record ReDispatchRequest(Guid NewLocalOfficeId, string? Note = null);

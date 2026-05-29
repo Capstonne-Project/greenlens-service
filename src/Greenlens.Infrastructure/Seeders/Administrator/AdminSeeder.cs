@@ -20,6 +20,7 @@ internal static class AdminSeeder
     {
         await SeedAdminAsync(db, logger).ConfigureAwait(false);
         await PollutionCategorySeeder.SeedAsync(db, logger).ConfigureAwait(false);
+        await DepartmentSeeder.SeedAsync(db, logger).ConfigureAwait(false);
     }
 
     private static async Task SeedAdminAsync(ApplicationDbContext db, ILogger logger)

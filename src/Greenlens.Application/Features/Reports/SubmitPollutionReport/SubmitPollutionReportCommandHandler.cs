@@ -25,7 +25,6 @@ public sealed class SubmitPollutionReportCommandHandler(
     IReportMediaRepository reportMedia,
     IReportStatusHistoryRepository statusHistory,
     IWardRepository wards,
-    ILocalOfficeRepository localOffices,
     IDepartmentRepository departments,
     IUnitOfWork unitOfWork,
     ICurrentUser currentUser,
@@ -118,38 +117,17 @@ public sealed class SubmitPollutionReportCommandHandler(
 
         reports.Add(report);
 
-        // ── Auto-routing: BR-ORG-010, BR-ORG-011 ───────────────────────────
-        if (!string.IsNullOrEmpty(wardCode))
+        // ── Auto-routing: all reports go to Department queue (DEO dispatches later) ──
+        if (!string.IsNullOrEmpty(provinceCode))
         {
-            var officeExists = await localOffices.ExistsByWardCodeAsync(wardCode, cancellationToken)
+            var dept = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
+                .FirstOrDefaultAsync(
+                    departments.QueryAsNoTracking(),
+                    d => d.ProvinceCode == provinceCode, cancellationToken)
                 .ConfigureAwait(false);
 
-            if (officeExists)
-            {
-                var office = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
-                    .FirstOrDefaultAsync(
-                        localOffices.QueryAsNoTracking(),
-                        o => o.WardCode == wardCode, cancellationToken)
-                    .ConfigureAwait(false);
-
-                if (office is not null) report.RouteToOffice(office.Id, office.OfficerId);
-            }
-            else if (!string.IsNullOrEmpty(provinceCode))
-            {
-                var deptExists = await departments.ExistsByProvinceCodeAsync(provinceCode, cancellationToken)
-                    .ConfigureAwait(false);
-
-                if (deptExists)
-                {
-                    var dept = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
-                        .FirstOrDefaultAsync(
-                            departments.QueryAsNoTracking(),
-                            d => d.ProvinceCode == provinceCode, cancellationToken)
-                        .ConfigureAwait(false);
-
-                    if (dept is not null) report.RouteToDepartmentQueue(dept.Id);
-                }
-            }
+            if (dept is not null)
+                report.RouteToDepartmentQueue(dept.Id);
         }
 
         // ── Persist primary image ───────────────────────────────────────────

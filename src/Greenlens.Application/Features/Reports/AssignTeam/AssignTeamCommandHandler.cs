@@ -9,9 +9,9 @@ using MediatR;
 namespace Greenlens.Application.Features.Reports.AssignTeam;
 
 /// <summary>
-/// LEO assigns team(s) to a verified report. All teams are equal — no primary/secondary.
+/// LEO assigns team(s) to a dispatched report. All teams are equal — no primary/secondary.
 /// Validates team type against pollution category, checks workload limits.
-/// Report transitions Verified → InProgress. Each assignment tracks independently.
+/// Report transitions Dispatched → InProgress. Each assignment tracks independently.
 /// Optionally tags waste types during assignment.
 /// BR-OFF-011, BR-OFF-013, BR-ORG-013.
 /// </summary>
@@ -40,7 +40,7 @@ public sealed class AssignTeamCommandHandler(
         if (report is null)
             return Errors.Reports.ReportNotFound;
 
-        if (report.Status != ReportStatus.Verified)
+        if (report.Status != ReportStatus.Dispatched)
             return Errors.Reports.InvalidStatusTransition;
 
         // Load pollution category to determine expected team type
@@ -106,12 +106,12 @@ public sealed class AssignTeamCommandHandler(
             assignments.Add(assignment);
         }
 
-        // Transition report: Verified → InProgress
+        // Transition report: Dispatched → InProgress
         report.Assign(currentUser.UserId);
 
         var history = ReportStatusHistory.Create(
             report.Id,
-            ReportStatus.Verified,
+            ReportStatus.Dispatched,
             ReportStatus.InProgress,
             currentUser.UserId);
 
