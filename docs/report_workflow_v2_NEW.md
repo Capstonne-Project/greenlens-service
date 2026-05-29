@@ -153,8 +153,37 @@ stateDiagram-v2
 |------|--------|----------|------|-------|-------------------|
 | 3.1 | `GET` | `/v1/reports/queue` | LEO | Xem task đã dispatch xuống (filter: Dispatched) | — |
 | 3.2 | `GET` | `/v1/reports/{id}` | LEO | Xem chi tiết task + waste tags | — |
-| 3.3 | `GET` | `/v1/teams?localOfficeId=...` | LEO | Xem danh sách team trong phường | — |
-| 3.4 | `POST` | `/v1/reports/{id}/assign` | LEO | **Phân công** team (1 hoặc nhiều) | `Dispatched → InProgress` |
+| 3.3 | `GET` | `/v1/teams?localOfficeId=...&isAvailable=true` | LEO | Xem danh sách team **rảnh** (Available) trong phường | — |
+| 3.4 | `POST` | `/v1/reports/{id}/assign` | LEO | **Phân công** team (1 hoặc nhiều team cùng làm) | `Dispatched → InProgress` |
+
+> [!IMPORTANT]
+> **Quy tắc 1-task-per-team (BR-OFF-013):** Mỗi team chỉ được giao **1 task duy nhất** tại 1 thời điểm. Team phải hoàn thành (hoặc bị decline) task hiện tại trước khi nhận task mới. Nếu assign team đang bận → trả lỗi `TEAM_WORKLOAD_EXCEEDED`.
+>
+> Tuy nhiên, **1 task có thể được assign cho nhiều team** cùng xử lý (ví dụ: 1 Cleanup + 1 Inspector).
+
+**Response GET /v1/teams (Step 3.3):**
+```json
+{
+  "items": [
+    {
+      "id": "guid-team-1",
+      "name": "Đội vệ sinh phường A",
+      "teamType": "Cleanup",
+      "currentStatus": "Available",
+      "activeReportId": null,
+      "memberCount": 5
+    },
+    {
+      "id": "guid-team-2",
+      "name": "Đội thanh tra phường A",
+      "teamType": "Inspection",
+      "currentStatus": "Busy",
+      "activeReportId": "guid-report-xyz",
+      "memberCount": 3
+    }
+  ]
+}
+```
 
 **Request body (Step 3.4 — Assign):**
 ```json
@@ -171,6 +200,8 @@ stateDiagram-v2
 
 | Method | Endpoint | Mô tả |
 |--------|----------|-------|
+| `GET` | `/v1/teams?isAvailable=true` | Lọc team rảnh (Available) |
+| `GET` | `/v1/teams?isAvailable=false` | Lọc team đang bận (Busy) |
 | `POST` | `/v1/teams` | Tạo team mới |
 | `PUT` | `/v1/teams/{id}` | Cập nhật tên team |
 | `POST` | `/v1/teams/{teamId}/members` | Thêm thành viên |
@@ -306,6 +337,27 @@ Resolved ──[Citizen reopen]──→ InProgress (max 2 lần)
 | `POST /{teamId}/members` | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ |
 | `DELETE /{teamId}/members/{userId}` | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ |
 
+### DepartmentsController (`/v1/departments`)
+
+| Endpoint | Citizen | DEO | LEO | Cleaner | Inspector | Admin |
+|----------|---------|-----|-----|---------|-----------|-------|
+| `GET /` (list) | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ |
+| `GET /{id}` (detail) | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ |
+| `POST /` (create) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| `PUT /{id}` (update) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| `DELETE /{id}` (deactivate) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| `PUT /{id}/officer` (assign DEO) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+
+### LocalOfficesController (`/v1/offices`)
+
+| Endpoint | Citizen | DEO | LEO | Cleaner | Inspector | Admin |
+|----------|---------|-----|-----|---------|-----------|-------|
+| `GET /` (list) | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ |
+| `GET /{id}` (detail) | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ |
+| `POST /` (create) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| `PUT /{id}` (update) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| `PUT /{id}/officer` (assign LEO) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+
 ---
 
 ## 6. Sequence Diagram — Luồng chính (Happy Path)
@@ -385,7 +437,10 @@ sequenceDiagram
 | BR-OFF-010 | Officer queue: DEO sees department, LEO sees dispatched office |
 | BR-OFF-011 | LEO assign: Dispatched → InProgress |
 | BR-OFF-012 | Reassign: same team type only |
+| BR-OFF-013 | **Team chỉ nhận 1 task tại 1 thời điểm** — hoàn thành xong mới assign tiếp |
 | BR-CLN-007 | Team decline: 2h window, all decline → revert to Dispatched |
+| BR-ORG-001 | Mỗi tỉnh có 1 Department. Admin gán DEO cho Department (`PUT /departments/{id}/officer`) |
+| BR-ORG-002 | Mỗi xã/phường có 1 LocalOffice. Admin gán LEO cho Office (`PUT /offices/{id}/officer`) |
 | BR-ORG-011 | Submit routing: all reports go to Department queue |
 
 ---
@@ -404,3 +459,8 @@ sequenceDiagram
 | **Submit routing** | Auto → LocalOffice nếu có | **Luôn → Department queue** |
 | **Team decline revert** | → Verified | **→ Dispatched** |
 | **Status flow** | Submitted → Verified → InProgress | **Submitted → Verified → Dispatched → InProgress** |
+| **Team workload** | Mỗi team nhận tối đa 10 task | **Mỗi team chỉ nhận 1 task** |
+| **Team status** | Không hiển thị | **Available / Busy + activeReportId** |
+| **Filter team rảnh** | Không có | **`GET /teams?isAvailable=true`** |
+| **Assign DEO** | Không có | **`PUT /departments/{id}/officer`** |
+| **Assign LEO** | Có | **`PUT /offices/{id}/officer`** |
