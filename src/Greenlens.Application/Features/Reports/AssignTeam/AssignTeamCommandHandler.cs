@@ -69,9 +69,9 @@ public sealed class AssignTeamCommandHandler(
             if (expectedTeamType.HasValue && team.TeamType != expectedTeamType.Value)
                 return Errors.Reports.TeamTypeMismatch;
 
-            // BR-OFF-013: workload limit (10 in-progress per team)
+            // BR-OFF-013: team can only handle 1 task at a time
             var workload = await assignments.CountInProgressByTeamAsync(item.TeamId, ct).ConfigureAwait(false);
-            if (workload >= 10)
+            if (workload >= 1)
                 return Errors.Reports.TeamWorkloadExceeded;
         }
 

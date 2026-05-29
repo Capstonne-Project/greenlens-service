@@ -170,7 +170,7 @@ public static class Errors
 
         public static Error TeamWorkloadExceeded => new(
             "TEAM_WORKLOAD_EXCEEDED",
-            "Team đã đạt giới hạn 10 báo cáo In-Progress. Vui lòng chọn team khác.",
+            "Team đang thực hiện task khác. Chỉ có thể giao task mới khi team hoàn thành task hiện tại.",
             ErrorType.BusinessRule);
 
         public static Error AtLeastOneTeam => new(

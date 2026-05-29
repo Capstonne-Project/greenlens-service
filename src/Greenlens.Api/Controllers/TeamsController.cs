@@ -115,13 +115,17 @@ public sealed class TeamsController(ISender sender) : ControllerBase
 
     [HttpGet]
     [Authorize(Roles = "Admin,LEO,DEO")]
-    [SwaggerOperation(Summary = "[Admin/LEO/DEO] Danh sách teams", Description = "Trả về danh sách đội MT. Hỗ trợ lọc theo office, loại team, trạng thái.")]
+    [SwaggerOperation(
+        Summary = "[Admin/LEO/DEO] Danh sách teams",
+        Description = "Trả về danh sách đội MT kèm trạng thái hiện tại (Available/Busy). " +
+            "Hỗ trợ lọc theo office, loại team, trạng thái và tình trạng rảnh/bận (isAvailable).")]
     [SwaggerResponse(200, "Danh sách teams", typeof(ApiResponse<GetTeamsResponse>))]
     public async Task<IActionResult> GetAllAsync(
         [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
         [FromQuery] Guid? localOfficeId = null, [FromQuery] TeamType? teamType = null,
-        [FromQuery] bool? isActive = null, CancellationToken ct = default)
-        => (await sender.Send(new GetTeamsQuery(page, pageSize, localOfficeId, teamType, isActive), ct)).ToHttp();
+        [FromQuery] bool? isActive = null, [FromQuery] bool? isAvailable = null,
+        CancellationToken ct = default)
+        => (await sender.Send(new GetTeamsQuery(page, pageSize, localOfficeId, teamType, isActive, isAvailable), ct)).ToHttp();
 
     [HttpGet("{id:guid}")]
     [Authorize(Roles = "Admin,LEO,DEO")]

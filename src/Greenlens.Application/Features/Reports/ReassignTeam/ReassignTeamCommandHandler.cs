@@ -36,9 +36,9 @@ public sealed class ReassignTeamCommandHandler(
         if (oldTeam.TeamType != newTeam.TeamType)
             return Errors.Reports.ReassignSameTeamType;
 
-        // Check workload
+        // BR-OFF-013: team can only handle 1 task at a time
         var workload = await assignments.CountInProgressByTeamAsync(request.NewTeamId, ct).ConfigureAwait(false);
-        if (workload >= 10)
+        if (workload >= 1)
             return Errors.Reports.TeamWorkloadExceeded;
 
         // Find and update assignment
