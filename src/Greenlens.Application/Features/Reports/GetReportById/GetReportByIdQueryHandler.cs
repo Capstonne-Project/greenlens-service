@@ -30,7 +30,8 @@ public sealed class GetReportByIdQueryHandler(
         var assignments = r.Assignments.Select(a => new ReportAssignmentItem(
             a.Id, a.TeamId, a.Team?.Name, a.Team?.TeamType.ToString() ?? "",
             a.Status.ToString(), a.Note, a.AssignedAt,
-            a.StartedAt, a.CompletedAt)).ToList();
+            a.StartedAt, a.CompletedAt,
+            a.ProgressPercent, a.ProgressNote, a.ProgressUpdatedAt)).ToList();
 
         var wasteTagItems = r.WasteTags
             .Where(wt => wt.WasteTag is not null)

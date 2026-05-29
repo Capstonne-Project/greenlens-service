@@ -30,7 +30,8 @@ public sealed record ReportMediaItem(
 public sealed record ReportAssignmentItem(
     Guid Id, Guid TeamId, string? TeamName, string TeamType,
     string Status, string? Note, DateTime AssignedAt,
-    DateTime? StartedAt, DateTime? CompletedAt);
+    DateTime? StartedAt, DateTime? CompletedAt,
+    int ProgressPercent, string? ProgressNote, DateTime? ProgressUpdatedAt);
 
 public sealed record ReportWasteTagItem(
     Guid TagId, string Code, string NameVi, string NameEn, string? IconUrl);
