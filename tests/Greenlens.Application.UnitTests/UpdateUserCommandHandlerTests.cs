@@ -3,6 +3,7 @@ using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Features.Users.UpdateUser;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 
 namespace Greenlens.Application.UnitTests;
@@ -15,7 +16,7 @@ public sealed class UpdateUserCommandHandlerTests
 
     public UpdateUserCommandHandlerTests()
     {
-        _sut = new UpdateUserCommandHandler(_users, _uow);
+        _sut = new UpdateUserCommandHandler(_users, _uow, NullLogger<UpdateUserCommandHandler>.Instance);
     }
 
     [Fact]

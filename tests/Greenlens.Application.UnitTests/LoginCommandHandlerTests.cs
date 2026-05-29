@@ -4,6 +4,7 @@ using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Features.Auth.Login;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 
 namespace Greenlens.Application.UnitTests;
@@ -19,7 +20,7 @@ public sealed class LoginCommandHandlerTests
 
     public LoginCommandHandlerTests()
     {
-        _sut = new LoginCommandHandler(_users, _refreshTokens, _uow, _jwt, _hasher);
+        _sut = new LoginCommandHandler(_users, _refreshTokens, _uow, _jwt, _hasher, NullLogger<LoginCommandHandler>.Instance);
     }
 
     private static User CreateUser(string email = "test@test.com")

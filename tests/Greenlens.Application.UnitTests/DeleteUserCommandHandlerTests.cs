@@ -3,6 +3,7 @@ using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Features.Users.DeleteUser;
 using Greenlens.Domain.Entities;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 
 namespace Greenlens.Application.UnitTests;
@@ -21,7 +22,7 @@ public sealed class DeleteUserCommandHandlerTests
     {
         _currentUser.UserId.Returns(AdminId);
         _currentUser.Email.Returns("admin@greenlens.com.vn");
-        _sut = new DeleteUserCommandHandler(_users, _uow, _currentUser);
+        _sut = new DeleteUserCommandHandler(_users, _uow, _currentUser, NullLogger<DeleteUserCommandHandler>.Instance);
     }
 
     [Fact]
