@@ -1,5 +1,6 @@
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Common.Models;
 using Greenlens.Application.Common;
 using Greenlens.Domain.Common;
 using MediatR;
@@ -45,6 +46,7 @@ public sealed class GetMyProgressHistoryQueryHandler(
             CompletedAt: a.CompletedAt
         )).ToList();
 
-        return new GetMyProgressHistoryResponse(result, total, request.Page, request.PageSize);
+        var pagination = PaginationMeta.Create(request.Page, request.PageSize, total);
+        return new GetMyProgressHistoryResponse(result, pagination);
     }
 }

@@ -1,3 +1,4 @@
+using Greenlens.Application.Common.Models;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -12,7 +13,7 @@ public sealed record GetReportsQuery(
     Severity? Severity = null) : IRequest<Result<GetReportsResponse>>;
 
 public sealed record GetReportsResponse(
-    IReadOnlyList<ReportListItem> Items, int TotalCount, int Page, int PageSize);
+    IReadOnlyList<ReportListItem> Items, PaginationMeta Pagination);
 
 public sealed record ReportListItem(
     Guid Id, string Code, string CategoryCode, string CategoryName,

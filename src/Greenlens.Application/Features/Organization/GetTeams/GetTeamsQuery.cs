@@ -1,3 +1,4 @@
+using Greenlens.Application.Common.Models;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -12,7 +13,7 @@ public sealed record GetTeamsQuery(
     bool? IsAvailable = null) : IRequest<Result<GetTeamsResponse>>;
 
 public sealed record GetTeamsResponse(
-    IReadOnlyList<TeamItem> Items, int TotalCount, int Page, int PageSize);
+    IReadOnlyList<TeamItem> Items, PaginationMeta Pagination);
 
 public sealed record TeamItem(
     Guid Id, string Name, TeamType TeamType, Guid LocalOfficeId,

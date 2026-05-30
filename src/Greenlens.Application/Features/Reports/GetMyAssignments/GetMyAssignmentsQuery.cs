@@ -1,3 +1,4 @@
+using Greenlens.Application.Common.Models;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -17,9 +18,7 @@ public sealed record GetMyAssignmentsQuery(
 
 public sealed record GetMyAssignmentsResponse(
     IReadOnlyList<MyAssignmentItem> Items,
-    int TotalCount,
-    int Page,
-    int PageSize);
+    PaginationMeta Pagination);
 
 public sealed record MyAssignmentItem(
     Guid ReportId,

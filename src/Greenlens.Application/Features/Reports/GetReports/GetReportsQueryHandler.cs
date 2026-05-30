@@ -1,4 +1,5 @@
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Common.Models;
 using Greenlens.Domain.Common;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -29,6 +30,8 @@ public sealed class GetReportsQueryHandler(
 
         var totalCount = await query.CountAsync(ct).ConfigureAwait(false);
 
+        var pagination = PaginationMeta.Create(request.Page, request.PageSize, totalCount);
+
         var items = await query
             .OrderByDescending(r => r.CreatedAt)
             .Skip((request.Page - 1) * request.PageSize)
@@ -40,6 +43,6 @@ public sealed class GetReportsQueryHandler(
                 r.CreatedAt, r.ResolvedAt))
             .ToListAsync(ct).ConfigureAwait(false);
 
-        return new GetReportsResponse(items, totalCount, request.Page, request.PageSize);
+        return new GetReportsResponse(items, pagination);
     }
 }

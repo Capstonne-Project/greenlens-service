@@ -1,6 +1,7 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Common.Models;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -53,6 +54,8 @@ public sealed class GetOfficerQueueQueryHandler(
 
         var totalCount = await query.CountAsync(ct).ConfigureAwait(false);
 
+        var pagination = PaginationMeta.Create(request.Page, request.PageSize, totalCount);
+
         var items = await query
             .OrderByDescending(r => r.PriorityScore)
             .ThenByDescending(r => r.CreatedAt)
@@ -76,6 +79,6 @@ public sealed class GetOfficerQueueQueryHandler(
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
-        return new GetOfficerQueueResponse(items, totalCount, request.Page, request.PageSize);
+        return new GetOfficerQueueResponse(items, pagination);
     }
 }

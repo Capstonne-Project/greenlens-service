@@ -1,6 +1,7 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Common.Models;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -36,7 +37,7 @@ public sealed class GetMyAssignmentsQueryHandler(
             .ConfigureAwait(false);
 
         if (myTeamIds.Count == 0)
-            return new GetMyAssignmentsResponse([], 0, request.Page, request.PageSize);
+            return new GetMyAssignmentsResponse([], PaginationMeta.Create(request.Page, request.PageSize, 0));
 
         var query = assignments
             .QueryAsNoTracking()
@@ -53,6 +54,8 @@ public sealed class GetMyAssignmentsQueryHandler(
             query = query.Where(a => a.Status == request.AssignmentStatus.Value);
 
         var totalCount = await query.CountAsync(ct).ConfigureAwait(false);
+
+        var pagination = PaginationMeta.Create(request.Page, request.PageSize, totalCount);
 
         var items = await query
             .OrderByDescending(a => a.AssignedAt)
@@ -88,6 +91,6 @@ public sealed class GetMyAssignmentsQueryHandler(
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
-        return new GetMyAssignmentsResponse(items, totalCount, request.Page, request.PageSize);
+        return new GetMyAssignmentsResponse(items, pagination);
     }
 }

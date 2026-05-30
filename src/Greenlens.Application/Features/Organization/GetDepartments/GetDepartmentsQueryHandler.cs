@@ -1,4 +1,5 @@
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Common.Models;
 using Greenlens.Domain.Common;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -23,6 +24,7 @@ public sealed class GetDepartmentsQueryHandler(
             query = query.Where(d => d.IsActive == request.IsActive.Value);
 
         var totalCount = await query.CountAsync(ct).ConfigureAwait(false);
+        var pagination = PaginationMeta.Create(request.Page, request.PageSize, totalCount);
 
         var items = await query
             .OrderBy(d => d.Name)
@@ -39,6 +41,6 @@ public sealed class GetDepartmentsQueryHandler(
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
-        return new GetDepartmentsResponse(items, totalCount, request.Page, request.PageSize);
+        return new GetDepartmentsResponse(items, pagination);
     }
 }

@@ -1,3 +1,4 @@
+using Greenlens.Application.Common.Models;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -13,7 +14,7 @@ public sealed record GetAdminReportsQuery(
     string? Search = null) : IRequest<Result<GetAdminReportsResponse>>;
 
 public sealed record GetAdminReportsResponse(
-    IReadOnlyList<AdminReportItem> Items, int TotalCount, int Page, int PageSize);
+    IReadOnlyList<AdminReportItem> Items, PaginationMeta Pagination);
 
 public sealed record AdminReportItem(
     Guid Id, string Code, string CategoryCode, string CategoryName,

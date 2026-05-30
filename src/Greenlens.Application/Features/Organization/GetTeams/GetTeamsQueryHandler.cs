@@ -1,4 +1,5 @@
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Common.Models;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -55,6 +56,7 @@ public sealed class GetTeamsQueryHandler(
 
         var materialized = filteredTeams.ToList();
         var totalCount = materialized.Count;
+        var pagination = PaginationMeta.Create(request.Page, request.PageSize, totalCount);
 
         var items = materialized
             .Skip((request.Page - 1) * request.PageSize)
@@ -70,7 +72,7 @@ public sealed class GetTeamsQueryHandler(
             })
             .ToList();
 
-        return new GetTeamsResponse(items, totalCount, request.Page, request.PageSize);
+        return new GetTeamsResponse(items, pagination);
     }
 }
 
