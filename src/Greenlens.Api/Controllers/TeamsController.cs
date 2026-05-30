@@ -33,6 +33,7 @@ public sealed class TeamsController(ISender sender) : ControllerBase
 
     [HttpGet("my-profile")]
     [Authorize(Roles = "Cleaner,Inspector")]
+    [Tags("🧹 Cleaner Dashboard")]
     [SwaggerOperation(Summary = "[Cleaner/Inspector] Profile team của tôi", Description = "Trả về thông tin team và danh sách thành viên của team mà user hiện tại đang thuộc về.")]
     [SwaggerResponse(200, "Profile team", typeof(ApiResponse<TeamDetailResponse>))]
     [SwaggerResponse(404, "Chưa thuộc team nào", typeof(ApiResponse))]
@@ -45,6 +46,7 @@ public sealed class TeamsController(ISender sender) : ControllerBase
 
     [HttpGet("my-tasks")]
     [Authorize(Roles = "Cleaner,Inspector,Admin")]
+    [Tags("🧹 Cleaner Dashboard")]
     [SwaggerOperation(
         Summary = "[Cleaner/Inspector] Danh sách task được giao",
         Description = "Trả về các report được assign cho team của user đang login. " +
@@ -60,6 +62,7 @@ public sealed class TeamsController(ISender sender) : ControllerBase
 
     [HttpGet("my-tasks/{reportId:guid}")]
     [Authorize(Roles = "Cleaner,Inspector,Admin")]
+    [Tags("🧹 Cleaner Dashboard")]
     [SwaggerOperation(
         Summary = "[Cleaner/Inspector] Chi tiết task",
         Description = "Trả về full thông tin task từ góc nhìn của team đang login: " +
@@ -74,6 +77,7 @@ public sealed class TeamsController(ISender sender) : ControllerBase
 
     [HttpPut("my-tasks/{reportId:guid}/accept")]
     [Authorize(Roles = "Cleaner,Inspector,Admin")]
+    [Tags("🧹 Cleaner Dashboard")]
     [SwaggerOperation(
         Summary = "[Cleaner/Inspector] Chấp nhận task",
         Description = "Team leader chấp nhận task được phân công. TeamId tự động lấy từ token. " +
@@ -85,6 +89,7 @@ public sealed class TeamsController(ISender sender) : ControllerBase
 
     [HttpPut("my-tasks/{reportId:guid}/decline")]
     [Authorize(Roles = "Cleaner,Inspector,Admin")]
+    [Tags("🧹 Cleaner Dashboard")]
     [SwaggerOperation(
         Summary = "[Cleaner/Inspector] Từ chối task",
         Description = "Team từ chối task trong vòng 2 giờ sau khi được phân công. Yêu cầu lý do ≥ 20 ký tự. " +
@@ -98,6 +103,7 @@ public sealed class TeamsController(ISender sender) : ControllerBase
 
     [HttpGet("my-progress")]
     [Authorize(Roles = "Cleaner,Inspector,Admin")]
+    [Tags("🧹 Cleaner Dashboard")]
     [SwaggerOperation(
         Summary = "[Cleaner/Inspector] Lịch sử tiến độ của team",
         Description = "Trả về lịch sử cập nhật tiến độ của team. TeamId tự động lấy từ token. " +
@@ -115,6 +121,7 @@ public sealed class TeamsController(ISender sender) : ControllerBase
 
     [HttpGet]
     [Authorize(Roles = "Admin,LEO,DEO")]
+    [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(
         Summary = "[Admin/LEO/DEO] Danh sách teams",
         Description = "Trả về danh sách đội MT kèm trạng thái hiện tại (Available/Busy). " +
@@ -129,6 +136,7 @@ public sealed class TeamsController(ISender sender) : ControllerBase
 
     [HttpGet("{id:guid}")]
     [Authorize(Roles = "Admin,LEO,DEO")]
+    [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(Summary = "[Admin/LEO/DEO] Chi tiết team", Description = "Trả về thông tin team kèm danh sách thành viên (tên, email, role leader).")]
     [SwaggerResponse(200, "Chi tiết team", typeof(ApiResponse<TeamDetailResponse>))]
     [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
@@ -137,6 +145,7 @@ public sealed class TeamsController(ISender sender) : ControllerBase
 
     [HttpPost]
     [Authorize(Roles = "Admin,LEO")]
+    [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(Summary = "[Admin/LEO] Tạo team", Description = "Tạo đội Cleaner (dọn dẹp) hoặc Inspection (thanh tra) thuộc 1 LocalOffice. LEO chỉ tạo team cho office của mình.")]
     [SwaggerResponse(201, "Đã tạo", typeof(ApiResponse<CreateTeamResponse>))]
     [SwaggerResponse(404, "Office không tồn tại", typeof(ApiResponse))]
@@ -146,6 +155,7 @@ public sealed class TeamsController(ISender sender) : ControllerBase
 
     [HttpPut("{id:guid}")]
     [Authorize(Roles = "Admin,LEO")]
+    [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(Summary = "[Admin/LEO] Cập nhật team", Description = "Cập nhật tên team. LEO chỉ cập nhật team trong office của mình.")]
     [SwaggerResponse(204, "Đã cập nhật")]
     [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
@@ -157,6 +167,7 @@ public sealed class TeamsController(ISender sender) : ControllerBase
 
     [HttpPost("{teamId:guid}/members")]
     [Authorize(Roles = "Admin,LEO")]
+    [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(Summary = "[Admin/LEO] Thêm thành viên vào team", Description = "Thêm user vào đội. Role Cleaner chỉ vào team Cleanup, role Inspector chỉ vào team Inspection. LEO chỉ quản lý team trong office của mình.")]
     [SwaggerResponse(201, "Đã thêm", typeof(ApiResponse<AddTeamMemberResponse>))]
     [SwaggerResponse(409, "User đã trong team", typeof(ApiResponse))]
@@ -166,6 +177,7 @@ public sealed class TeamsController(ISender sender) : ControllerBase
 
     [HttpDelete("{teamId:guid}/members/{userId:guid}")]
     [Authorize(Roles = "Admin,LEO")]
+    [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(Summary = "[Admin/LEO] Xóa thành viên khỏi team", Description = "Xóa user khỏi đội MT. LEO chỉ quản lý team trong office của mình.")]
     [SwaggerResponse(204, "Đã xóa")]
     [SwaggerResponse(404, "Không tìm thấy thành viên", typeof(ApiResponse))]

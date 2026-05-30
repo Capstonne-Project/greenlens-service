@@ -41,6 +41,7 @@ public sealed class ReportsController(ISender sender) : ControllerBase
 
     [HttpPost("analyze")]
     [Authorize]
+    [Tags("📋 Reports — Citizen Flow")]
     [Consumes("multipart/form-data")]
     [SwaggerOperation(
         Summary = "[Citizen] Phân tích ảnh trước khi tạo báo cáo (Step 1)",
@@ -87,10 +88,12 @@ public sealed class ReportsController(ISender sender) : ControllerBase
 
     [HttpPost]
     [Authorize]
+    [Tags("📋 Reports — Citizen Flow")]
     [SwaggerOperation(
         Summary = "[Citizen] Tạo báo cáo ô nhiễm",
-        Description = "Tạo báo cáo mới. Hỗ trợ anonymous (không cần login). " +
-            "Hệ thống tự động gán SLA 24h và route báo cáo theo wardCode đến LocalOffice hoặc Department queue.")]
+        Description = "Tạo báo cáo mới. " +
+            "Hệ thống tự động gán SLA 24h và route báo cáo theo wardCode đến LocalOffice hoặc Department queue. " +
+            "Có thể đính kèm wasteTagIds (optional) để citizen tự gắn loại rác — DEO có thể bổ sung/sửa sau.")]
     [SwaggerResponse(201, "Đã tạo", typeof(ApiResponse<SubmitPollutionReportResponse>))]
     [SwaggerResponse(400, "Thiếu thông tin xác thực hoặc ward/province không hợp lệ", typeof(ApiResponse))]
     [SwaggerResponse(404, "Danh mục không tồn tại", typeof(ApiResponse))]
@@ -100,6 +103,7 @@ public sealed class ReportsController(ISender sender) : ControllerBase
 
     [HttpGet]
     [Authorize]
+    [Tags("📋 Reports — Citizen Flow")]
     [SwaggerOperation(Summary = "[Auth] Danh sách báo cáo", Description = "Trả về danh sách báo cáo ô nhiễm. Hỗ trợ lọc theo status, category, ward, severity.")]
     [SwaggerResponse(200, "Danh sách báo cáo", typeof(ApiResponse<GetReportsResponse>))]
     public async Task<IActionResult> GetAllAsync(
@@ -111,6 +115,7 @@ public sealed class ReportsController(ISender sender) : ControllerBase
 
     [HttpGet("{id:guid}")]
     [Authorize]
+    [Tags("📋 Reports — Citizen Flow")]
     [SwaggerOperation(Summary = "[Auth] Chi tiết báo cáo", Description = "Trả về full thông tin báo cáo kèm media, assignments, lịch sử status.")]
     [SwaggerResponse(200, "Chi tiết báo cáo", typeof(ApiResponse<ReportDetailResponse>))]
     [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
@@ -119,6 +124,7 @@ public sealed class ReportsController(ISender sender) : ControllerBase
 
     [HttpGet("my")]
     [Authorize]
+    [Tags("📋 Reports — Citizen Flow")]
     [SwaggerOperation(Summary = "[Citizen] Báo cáo của tôi", Description = "Trả về danh sách báo cáo do user hiện tại tạo. Hỗ trợ lọc theo status.")]
     [SwaggerResponse(200, "Danh sách báo cáo của tôi", typeof(ApiResponse<GetMyReportsResponse>))]
     public async Task<IActionResult> GetMyAsync(
@@ -128,6 +134,7 @@ public sealed class ReportsController(ISender sender) : ControllerBase
 
     [HttpGet("{id:guid}/history")]
     [Authorize]
+    [Tags("📋 Reports — Citizen Flow")]
     [SwaggerOperation(Summary = "[Auth] Lịch sử status báo cáo", Description = "Trả về timeline thay đổi status của báo cáo, kèm thông tin người thực hiện.")]
     [SwaggerResponse(200, "Lịch sử status", typeof(ApiResponse<GetReportHistoryResponse>))]
     public async Task<IActionResult> GetHistoryAsync([FromRoute] Guid id, CancellationToken ct)
@@ -139,6 +146,7 @@ public sealed class ReportsController(ISender sender) : ControllerBase
 
     [HttpPut("{id:guid}/verify")]
     [Authorize(Roles = "DEO,Admin")]
+    [Tags("🔍 DEO Dashboard")]
     [SwaggerOperation(Summary = "[DEO] Xác minh báo cáo", Description = "DEO kiểm tra thông tin và xác minh báo cáo. Có thể override severity và category nếu cần. Chuyển status Submitted → Verified.")]
     [SwaggerResponse(204, "Đã xác minh")]
     [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
@@ -150,6 +158,7 @@ public sealed class ReportsController(ISender sender) : ControllerBase
 
     [HttpPut("{id:guid}/reject")]
     [Authorize(Roles = "DEO,Admin")]
+    [Tags("🔍 DEO Dashboard")]
     [SwaggerOperation(Summary = "[DEO] Từ chối báo cáo", Description = "DEO từ chối báo cáo không hợp lệ. Yêu cầu lý do ≥ 20 ký tự. Chuyển status Submitted → Rejected.")]
     [SwaggerResponse(204, "Đã từ chối")]
     [SwaggerResponse(422, "Lý do quá ngắn hoặc status không hợp lệ", typeof(ApiResponse))]
@@ -159,6 +168,7 @@ public sealed class ReportsController(ISender sender) : ControllerBase
 
     [HttpPost("{id:guid}/assign")]
     [Authorize(Roles = "LEO,Admin")]
+    [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(Summary = "[LEO] Phân công team xử lý", Description = "LEO phân công 1 hoặc nhiều team cùng xử lý. Team type phải khớp loại ô nhiễm. Chuyển status Dispatched → InProgress.")]
     [SwaggerResponse(204, "Đã phân công")]
     [SwaggerResponse(422, "Team type không khớp hoặc workload vượt quá", typeof(ApiResponse))]
@@ -171,6 +181,7 @@ public sealed class ReportsController(ISender sender) : ControllerBase
 
     [HttpPut("{id:guid}/reassign")]
     [Authorize(Roles = "LEO,Admin")]
+    [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(Summary = "[LEO] Chuyển giao team", Description = "Chuyển assignment từ team cũ sang team mới cùng loại. Yêu cầu lý do ≥ 20 ký tự.")]
     [SwaggerResponse(204, "Đã chuyển giao")]
     [SwaggerResponse(422, "Khác loại team hoặc workload vượt quá", typeof(ApiResponse))]
@@ -185,6 +196,7 @@ public sealed class ReportsController(ISender sender) : ControllerBase
 
     [HttpPost("{id:guid}/dispatch")]
     [Authorize(Roles = "DEO,Admin")]
+    [Tags("🔍 DEO Dashboard")]
     [SwaggerOperation(
         Summary = "[DEO] Điều phối task xuống xã/phường",
         Description = "DEO chọn xã/phường phù hợp và điều phối task xuống. " +
@@ -199,6 +211,7 @@ public sealed class ReportsController(ISender sender) : ControllerBase
 
     [HttpPut("{id:guid}/re-dispatch")]
     [Authorize(Roles = "DEO,Admin")]
+    [Tags("🔍 DEO Dashboard")]
     [SwaggerOperation(
         Summary = "[DEO] Điều phối lại task sang xã/phường khác",
         Description = "DEO chuyển task từ xã/phường hiện tại sang xã/phường khác (trong cùng tỉnh). " +
@@ -212,6 +225,7 @@ public sealed class ReportsController(ISender sender) : ControllerBase
 
     [HttpGet("queue")]
     [Authorize(Roles = "LEO,DEO,Admin")]
+    [Tags("🔍 DEO Dashboard")]
     [SwaggerOperation(Summary = "[LEO/DEO] Xem hàng đợi báo cáo", Description = "Trả về danh sách báo cáo trong phạm vi quản lý, sắp theo điểm ưu tiên giảm dần.")]
     [SwaggerResponse(200, "Hàng đợi", typeof(ApiResponse<GetOfficerQueueResponse>))]
     public async Task<IActionResult> GetQueueAsync(
@@ -226,6 +240,7 @@ public sealed class ReportsController(ISender sender) : ControllerBase
 
     [HttpPut("{id:guid}/progress")]
     [Authorize(Roles = "Cleaner,Inspector,Admin")]
+    [Tags("🧹 Cleaner Dashboard")]
     [Consumes("multipart/form-data")]
     [SwaggerOperation(
         Summary = "[Cleaner/Inspector] Cập nhật tiến độ + ảnh",
@@ -257,6 +272,7 @@ public sealed class ReportsController(ISender sender) : ControllerBase
 
     [HttpPut("{id:guid}/resolve")]
     [Authorize(Roles = "Cleaner,Admin")]
+    [Tags("🧹 Cleaner Dashboard")]
     [SwaggerOperation(Summary = "[Cleaner] Hoàn thành phần việc của team", Description = "Cleanup Team đánh dấu phần việc đã hoàn thành. Yêu cầu ≥ 2 ảnh after. Khi tất cả team đều completed → report chuyển InProgress → Resolved.")]
     [SwaggerResponse(204, "Đã hoàn thành")]
     [SwaggerResponse(422, "Thiếu ảnh hoặc status không hợp lệ", typeof(ApiResponse))]
@@ -267,6 +283,7 @@ public sealed class ReportsController(ISender sender) : ControllerBase
 
     [HttpPut("{id:guid}/penalty")]
     [Authorize(Roles = "Inspector,Admin")]
+    [Tags("🔎 Inspector Dashboard")]
     [SwaggerOperation(Summary = "[Inspector] Xử phạt vi phạm", Description = "Inspection Team Leader ban hành quyết định xử phạt. Khi tất cả team đều completed → report chuyển InProgress → PenaltyIssued.")]
     [SwaggerResponse(204, "Đã xử phạt")]
     [SwaggerResponse(422, "Status không hợp lệ", typeof(ApiResponse))]
@@ -276,6 +293,7 @@ public sealed class ReportsController(ISender sender) : ControllerBase
 
     [HttpPut("{id:guid}/close-no-violation")]
     [Authorize(Roles = "Inspector,Admin")]
+    [Tags("🔎 Inspector Dashboard")]
     [SwaggerOperation(Summary = "[Inspector] Đóng — không vi phạm", Description = "Inspection Team đóng báo cáo khi khảo sát không phát hiện vi phạm. Yêu cầu lý do ≥ 50 ký tự.")]
     [SwaggerResponse(204, "Đã đóng")]
     [SwaggerResponse(422, "Lý do quá ngắn hoặc status không hợp lệ", typeof(ApiResponse))]
@@ -289,6 +307,7 @@ public sealed class ReportsController(ISender sender) : ControllerBase
 
     [HttpPut("{id:guid}/waste-tags")]
     [Authorize(Roles = "DEO,Admin")]
+    [Tags("🔍 DEO Dashboard")]
     [SwaggerOperation(
         Summary = "[DEO] Gắn tag loại rác cho báo cáo",
         Description = "DEO gắn tag loại rác (household, medical, hazardous,...) để cleanup team biết cần chuẩn bị gì. " +
@@ -302,6 +321,7 @@ public sealed class ReportsController(ISender sender) : ControllerBase
 
     [HttpGet("~/v1/waste-tags")]
     [Authorize]
+    [Tags("📋 Reports — Citizen Flow")]
     [SwaggerOperation(
         Summary = "[Auth] Danh sách loại rác",
         Description = "Trả về tất cả waste tag đang active, sắp theo displayOrder. Dùng cho dropdown/chip selection trên FE.")]
@@ -315,6 +335,7 @@ public sealed class ReportsController(ISender sender) : ControllerBase
 
     [HttpPut("{id:guid}/close")]
     [Authorize]
+    [Tags("📋 Reports — Citizen Flow")]
     [SwaggerOperation(Summary = "[Citizen/Auto] Đóng báo cáo", Description = "Citizen xác nhận hài lòng hoặc hệ thống tự động đóng sau 7 ngày. Chuyển status Resolved/PenaltyIssued → Closed.")]
     [SwaggerResponse(204, "Đã đóng")]
     [SwaggerResponse(422, "Status không hợp lệ", typeof(ApiResponse))]
@@ -323,6 +344,7 @@ public sealed class ReportsController(ISender sender) : ControllerBase
 
     [HttpPut("{id:guid}/reopen")]
     [Authorize]
+    [Tags("📋 Reports — Citizen Flow")]
     [SwaggerOperation(Summary = "[Citizen] Mở lại báo cáo", Description = "Citizen mở lại báo cáo nếu chưa hài lòng. Tối đa 2 lần reopen. Chuyển status Resolved → InProgress.")]
     [SwaggerResponse(204, "Đã mở lại")]
     [SwaggerResponse(422, "Hết lượt reopen hoặc status không hợp lệ", typeof(ApiResponse))]

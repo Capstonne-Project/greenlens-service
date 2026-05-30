@@ -1,4 +1,3 @@
-using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Features.Users.UpdateUser;
 using Greenlens.Domain.Entities;

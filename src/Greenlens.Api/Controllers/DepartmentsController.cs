@@ -21,6 +21,7 @@ public sealed class DepartmentsController(ISender sender) : ControllerBase
 {
     [HttpGet]
     [Authorize(Roles = "Admin,DEO")]
+    [Tags("⚙️ Admin Dashboard")]
     [SwaggerOperation(Summary = "[Admin/DEO] Danh sách departments", Description = "Trả về danh sách Sở TNMT, hỗ trợ phân trang và lọc theo trạng thái hoạt động.")]
     [SwaggerResponse(200, "Danh sách departments", typeof(ApiResponse<GetDepartmentsResponse>))]
     public async Task<IActionResult> GetAllAsync(
@@ -30,6 +31,7 @@ public sealed class DepartmentsController(ISender sender) : ControllerBase
 
     [HttpGet("{id:guid}")]
     [Authorize(Roles = "Admin,DEO")]
+    [Tags("⚙️ Admin Dashboard")]
     [SwaggerOperation(Summary = "[Admin/DEO] Chi tiết department", Description = "Trả về thông tin department kèm danh sách offices trực thuộc.")]
     [SwaggerResponse(200, "Chi tiết department", typeof(ApiResponse<DepartmentDetailResponse>))]
     [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
@@ -38,6 +40,7 @@ public sealed class DepartmentsController(ISender sender) : ControllerBase
 
     [HttpPost]
     [Authorize(Roles = "Admin")]
+    [Tags("⚙️ Admin Dashboard")]
     [SwaggerOperation(Summary = "[Admin] Tạo department", Description = "Tạo Sở TNMT cấp Tỉnh/TP. Mỗi tỉnh chỉ có 1 department.")]
     [SwaggerResponse(201, "Đã tạo", typeof(ApiResponse<CreateDepartmentResponse>))]
     [SwaggerResponse(409, "Tỉnh đã có department", typeof(ApiResponse))]
@@ -47,6 +50,7 @@ public sealed class DepartmentsController(ISender sender) : ControllerBase
 
     [HttpPut("{id:guid}")]
     [Authorize(Roles = "Admin")]
+    [Tags("⚙️ Admin Dashboard")]
     [SwaggerOperation(Summary = "[Admin] Cập nhật department", Description = "Cập nhật tên department.")]
     [SwaggerResponse(204, "Đã cập nhật")]
     [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
@@ -56,6 +60,7 @@ public sealed class DepartmentsController(ISender sender) : ControllerBase
 
     [HttpDelete("{id:guid}")]
     [Authorize(Roles = "Admin")]
+    [Tags("⚙️ Admin Dashboard")]
     [SwaggerOperation(Summary = "[Admin] Vô hiệu hóa department", Description = "Soft-delete: chuyển trạng thái IsActive = false. Không xóa dữ liệu.")]
     [SwaggerResponse(204, "Đã vô hiệu hóa")]
     [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
@@ -65,6 +70,7 @@ public sealed class DepartmentsController(ISender sender) : ControllerBase
 
     [HttpPut("{id:guid}/officer")]
     [Authorize(Roles = "Admin")]
+    [Tags("⚙️ Admin Dashboard")]
     [SwaggerOperation(
         Summary = "[Admin] Gán DEO cho department",
         Description = "Gán 1 user có role DEO làm điều phối viên cho Sở TNMT. " +

@@ -25,5 +25,8 @@ public sealed record SubmitPollutionReportCommand(
     string? TempImageId,
 
     /// <summary>Manual flow: danh sách ảnh đã upload qua POST /v1/media/reports/images.</summary>
-    IReadOnlyList<SubmitPollutionReportImageItem>? Images
+    IReadOnlyList<SubmitPollutionReportImageItem>? Images,
+
+    /// <summary>Optional: citizen tự chọn loại rác khi submit (có thể bổ sung/thay đổi bởi DEO sau).</summary>
+    IReadOnlyList<Guid>? WasteTagIds
 ) : IRequest<Result<SubmitPollutionReportResponse>>;

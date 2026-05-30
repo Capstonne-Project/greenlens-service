@@ -25,6 +25,8 @@ public sealed class SubmitPollutionReportCommandHandler(
     IReportRepository reports,
     IReportMediaRepository reportMedia,
     IReportStatusHistoryRepository statusHistory,
+    IWasteTagRepository wasteTags,
+    IReportWasteTagRepository reportWasteTags,
     IWardRepository wards,
     IDepartmentRepository departments,
     IUnitOfWork unitOfWork,
@@ -159,6 +161,26 @@ public sealed class SubmitPollutionReportCommandHandler(
             report.Id, fromStatus: null,
             toStatus: ReportStatus.Submitted, changedBy: reporterId);
         statusHistory.Add(history);
+
+        // ── Optional waste tags ───────────────────────────────────────────────
+        if (request.WasteTagIds is { Count: > 0 })
+        {
+            var tags = await wasteTags.GetByIdsAsync(request.WasteTagIds.ToList(), cancellationToken)
+                .ConfigureAwait(false);
+
+            if (tags.Count != request.WasteTagIds.Count)
+                return Errors.Reports.WasteTagNotFound;
+
+            var inactiveTags = tags.Where(t => !t.IsActive).ToList();
+            if (inactiveTags.Count > 0)
+                return Errors.Reports.WasteTagInactive;
+
+            var taggedById = reporterId ?? Guid.Empty;
+            var newTags = request.WasteTagIds
+                .Select(tagId => ReportWasteTag.Create(report.Id, tagId, taggedById))
+                .ToList();
+            reportWasteTags.AddRange(newTags);
+        }
 
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 

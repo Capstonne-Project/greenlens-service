@@ -21,6 +21,7 @@ public sealed class LocalOfficesController(ISender sender) : ControllerBase
 {
     [HttpGet]
     [Authorize(Roles = "Admin,DEO,LEO")]
+    [Tags("⚙️ Admin Dashboard")]
     [SwaggerOperation(Summary = "[Admin/DEO/LEO] Danh sách offices", Description = "Trả về danh sách văn phòng MT cấp xã/phường. Hỗ trợ lọc theo department và trạng thái.")]
     [SwaggerResponse(200, "Danh sách offices", typeof(ApiResponse<GetLocalOfficesResponse>))]
     public async Task<IActionResult> GetAllAsync(
@@ -31,6 +32,7 @@ public sealed class LocalOfficesController(ISender sender) : ControllerBase
 
     [HttpGet("{id:guid}")]
     [Authorize(Roles = "Admin,DEO,LEO")]
+    [Tags("⚙️ Admin Dashboard")]
     [SwaggerOperation(Summary = "[Admin/DEO/LEO] Chi tiết office", Description = "Trả về thông tin office kèm danh sách teams trực thuộc, thông tin officer phụ trách.")]
     [SwaggerResponse(200, "Chi tiết office", typeof(ApiResponse<LocalOfficeDetailResponse>))]
     [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
@@ -39,6 +41,7 @@ public sealed class LocalOfficesController(ISender sender) : ControllerBase
 
     [HttpPost]
     [Authorize(Roles = "Admin")]
+    [Tags("⚙️ Admin Dashboard")]
     [SwaggerOperation(Summary = "[Admin] Tạo office", Description = "Onboard văn phòng MT cấp xã/phường. Sau khi tạo, báo cáo trong ward đó sẽ tự động route đến office này.")]
     [SwaggerResponse(201, "Đã tạo", typeof(ApiResponse<CreateLocalOfficeResponse>))]
     [SwaggerResponse(409, "Ward đã có office", typeof(ApiResponse))]
@@ -48,6 +51,7 @@ public sealed class LocalOfficesController(ISender sender) : ControllerBase
 
     [HttpPut("{id:guid}")]
     [Authorize(Roles = "Admin")]
+    [Tags("⚙️ Admin Dashboard")]
     [SwaggerOperation(Summary = "[Admin] Cập nhật office", Description = "Cập nhật tên văn phòng.")]
     [SwaggerResponse(204, "Đã cập nhật")]
     [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
@@ -57,6 +61,7 @@ public sealed class LocalOfficesController(ISender sender) : ControllerBase
 
     [HttpPut("{id:guid}/officer")]
     [Authorize(Roles = "Admin")]
+    [Tags("⚙️ Admin Dashboard")]
     [SwaggerOperation(Summary = "[Admin] Gán LEO cho office", Description = "Gán 1 user có role LEO làm người phụ trách văn phòng.")]
     [SwaggerResponse(204, "Đã gán")]
     [SwaggerResponse(404, "Office hoặc User không tồn tại", typeof(ApiResponse))]

@@ -11,6 +11,7 @@ namespace Greenlens.Api.Controllers;
 [ApiController]
 [Route("v1/map")]
 [Produces("application/json")]
+[Tags("🗺️ Map — Public Map")]
 public sealed class MapController(ISender sender) : ControllerBase
 {
     /// <summary>Reports in map viewport (verified and later statuses only).</summary>

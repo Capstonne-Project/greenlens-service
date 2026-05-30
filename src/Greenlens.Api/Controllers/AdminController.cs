@@ -30,6 +30,7 @@ namespace Greenlens.Api.Controllers;
 [Route("v1/admin")]
 [Authorize(Roles = "Admin")]
 [Produces("application/json")]
+[Tags("⚙️ Admin Dashboard")]
 public sealed class AdminController(ISender sender) : ControllerBase
 {
     // ═══════════════════════════════════════════

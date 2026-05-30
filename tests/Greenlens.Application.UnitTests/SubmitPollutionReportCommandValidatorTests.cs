@@ -25,7 +25,8 @@ public sealed class SubmitPollutionReportCommandValidatorTests
                     "https://cdn.example.com/a.jpg",
                     "image/jpeg",
                     100)
-            ]);
+            ],
+            WasteTagIds: null);
 
     private static SubmitPollutionReportCommand AiBase() =>
         new(
@@ -39,7 +40,8 @@ public sealed class SubmitPollutionReportCommandValidatorTests
             ProvinceCode: null,
             IsAnonymous: true,
             TempImageId: Guid.NewGuid().ToString("N"),
-            Images: null);
+            Images: null,
+            WasteTagIds: null);
 
     // ── Mutually exclusive image source ──────────────────────────────────
 

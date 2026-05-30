@@ -13,6 +13,7 @@ namespace Greenlens.Api.Controllers;
 [ApiController]
 [Route("v1/catalog")]
 [Produces("application/json")]
+[Tags("📚 Catalog — Reference Data")]
 public sealed class CatalogController(ISender sender) : ControllerBase
 {
     /// <summary>Active pollution categories for report submission.</summary>
