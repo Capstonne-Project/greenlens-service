@@ -19,7 +19,6 @@ public sealed record SubmitPollutionReportCommand(
     string? Address,
     string? WardCode,
     string? ProvinceCode,
-    bool IsAnonymous,
 
     /// <summary>AI flow: temp_image_id từ POST /reports/analyze (TTL 15 phút).</summary>
     string? TempImageId,

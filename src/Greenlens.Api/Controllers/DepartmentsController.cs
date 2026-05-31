@@ -4,6 +4,7 @@ using Greenlens.Application.Features.Organization.AssignDeoToDepartment;
 using Greenlens.Application.Features.Organization.CreateDepartment;
 using Greenlens.Application.Features.Organization.GetDepartmentById;
 using Greenlens.Application.Features.Organization.GetDepartments;
+using Greenlens.Application.Features.Organization.GetMyWards;
 using Greenlens.Application.Features.Organization.UpdateDepartment;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -81,8 +82,24 @@ public sealed class DepartmentsController(ISender sender) : ControllerBase
     public async Task<IActionResult> AssignDeoAsync(
         [FromRoute] Guid id, [FromBody] AssignDeoRequest request, CancellationToken ct)
         => (await sender.Send(new AssignDeoToDepartmentCommand(id, request.UserId), ct)).ToHttpNoContent();
+
+    /// <summary>Danh sách xã/phường thuộc tỉnh mà officer đang quản lý.</summary>
+    [HttpGet("my/wards")]
+    [Authorize(Roles = "DEO,LEO")]
+    [Tags("🏢 Officer Dashboard")]
+    [SwaggerOperation(
+        Summary = "[DEO/LEO] Lấy danh sách xã/phường thuộc tỉnh quản lý",
+        Description =
+            "Trả về tất cả xã/phường thuộc tỉnh mà officer đang đảm nhiệm. " +
+            "DEO lấy từ Department → Province. LEO lấy từ LocalOffice → Department → Province. " +
+            "Dùng cho dropdown dispatch / filter trên dashboard.")]
+    [SwaggerResponse(200, "Danh sách wards", typeof(ApiResponse<GetMyWardsResponse>))]
+    [SwaggerResponse(404, "Chưa gán department", typeof(ApiResponse))]
+    public async Task<IActionResult> GetMyWardsAsync(CancellationToken ct)
+        => (await sender.Send(new GetMyWardsQuery(), ct)).ToHttp();
 }
 
 public sealed record UpdateDepartmentRequest(string Name);
 public sealed record AssignDeoRequest(Guid UserId);
+
 

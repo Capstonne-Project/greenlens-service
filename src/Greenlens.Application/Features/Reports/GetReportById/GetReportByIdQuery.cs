@@ -7,7 +7,7 @@ namespace Greenlens.Application.Features.Reports.GetReportById;
 public sealed record GetReportByIdQuery(Guid Id) : IRequest<Result<ReportDetailResponse>>;
 
 public sealed record ReportDetailResponse(
-    Guid Id, string Code, Guid? ReporterId, bool IsAnonymous,
+    Guid Id, string Code, Guid? ReporterId,
     Guid CategoryId, string CategoryCode, string CategoryName,
     Severity Severity, SeveritySource SeveritySetBy,
     ReportStatus Status, string? Description,

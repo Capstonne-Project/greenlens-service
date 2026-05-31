@@ -17,7 +17,6 @@ public sealed class SubmitPollutionReportCommandValidatorTests
             Address: null,
             WardCode: null,
             ProvinceCode: null,
-            IsAnonymous: true,
             TempImageId: null,
             Images:
             [
@@ -38,7 +37,6 @@ public sealed class SubmitPollutionReportCommandValidatorTests
             Address: null,
             WardCode: null,
             ProvinceCode: null,
-            IsAnonymous: true,
             TempImageId: Guid.NewGuid().ToString("N"),
             Images: null,
             WasteTagIds: null);

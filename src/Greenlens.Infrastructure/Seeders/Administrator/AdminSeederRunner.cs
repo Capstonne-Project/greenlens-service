@@ -19,9 +19,11 @@ public static class AdminSeederRunner
             .CreateLogger("AdminSeeder");
 
         await db.Database.MigrateAsync().ConfigureAwait(false);
-        await AdminSeeder.SeedAsync(db, logger).ConfigureAwait(false);
 
-        // Administrative catalog (~regions/units/provinces/wards): DbContext is scoped — use same scope.
+        // Administrative catalog (~regions/units/provinces/wards) MUST run before
+        // departments/offices which have FK to provinces.province_code.
         await scope.ServiceProvider.SeedLocationAsync().ConfigureAwait(false);
+
+        await AdminSeeder.SeedAsync(db, logger).ConfigureAwait(false);
     }
 }

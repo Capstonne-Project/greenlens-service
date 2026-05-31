@@ -26,7 +26,6 @@ public sealed class Report : SoftDeletableEntity
 
     // ── Reporter ──
     public Guid? ReporterId { get; private set; }
-    public bool IsAnonymous { get; private set; }
 
     // ── Classification ──
     public Guid CategoryId { get; private set; }
@@ -112,7 +111,6 @@ public sealed class Report : SoftDeletableEntity
     public static Report Create(
         string code,
         Guid? reporterId,
-        bool isAnonymous,
         Guid categoryId,
         Severity severity,
         string? description,
@@ -125,8 +123,7 @@ public sealed class Report : SoftDeletableEntity
         var report = new Report
         {
             Code = code,
-            ReporterId = isAnonymous ? null : reporterId,
-            IsAnonymous = isAnonymous,
+            ReporterId = reporterId,
             CategoryId = categoryId,
             Severity = severity,
             SeveritySetBy = SeveritySource.User,

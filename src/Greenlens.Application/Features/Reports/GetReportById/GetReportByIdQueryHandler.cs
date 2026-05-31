@@ -45,7 +45,7 @@ public sealed class GetReportByIdQueryHandler(
 
         logger.LogInformation("Lấy chi tiết báo cáo thành công. Mã báo cáo: {ReportCode}", r.Code);
         return new ReportDetailResponse(
-            r.Id, r.Code, r.ReporterId, r.IsAnonymous,
+            r.Id, r.Code, r.ReporterId,
             r.CategoryId, r.Category.Code, r.Category.NameVi,
             r.Severity, r.SeveritySetBy, r.Status, r.Description,
             r.Latitude, r.Longitude, r.Address,

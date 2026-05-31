@@ -40,7 +40,7 @@ public sealed class SubmitPollutionReportCommandHandler(
         SubmitPollutionReportCommand request,
         CancellationToken cancellationToken)
     {
-        if (!request.IsAnonymous && !currentUser.IsAuthenticated)
+        if (!currentUser.IsAuthenticated)
             return Errors.Reports.AuthenticationRequired;
 
         // ── Validate category ───────────────────────────────────────────────
@@ -61,7 +61,7 @@ public sealed class SubmitPollutionReportCommandHandler(
                 return Errors.Reports.InvalidWardProvincePair;
         }
 
-        Guid? reporterId = request.IsAnonymous ? null : currentUser.UserId;
+        var reporterId = currentUser.UserId;
 
         // ── Resolve image(s) based on flow ──────────────────────────────────
         ResolvedImage resolvedImage;
@@ -110,7 +110,7 @@ public sealed class SubmitPollutionReportCommandHandler(
         var code = await GenerateUniqueCodeAsync(cancellationToken).ConfigureAwait(false);
 
         var report = Report.Create(
-            code, reporterId, request.IsAnonymous,
+            code, reporterId,
             request.CategoryId, request.Severity, request.Description,
             request.Latitude, request.Longitude,
             request.Address, wardCode, provinceCode);
@@ -175,9 +175,8 @@ public sealed class SubmitPollutionReportCommandHandler(
             if (inactiveTags.Count > 0)
                 return Errors.Reports.WasteTagInactive;
 
-            var taggedById = reporterId ?? Guid.Empty;
             var newTags = request.WasteTagIds
-                .Select(tagId => ReportWasteTag.Create(report.Id, tagId, taggedById))
+                .Select(tagId => ReportWasteTag.Create(report.Id, tagId, reporterId))
                 .ToList();
             reportWasteTags.AddRange(newTags);
         }
@@ -204,7 +203,7 @@ public sealed class SubmitPollutionReportCommandHandler(
             report.Severity, report.Description,
             report.Latitude, report.Longitude,
             report.Address, report.WardCode, report.ProvinceCode,
-            report.IsAnonymous, report.ReporterId,
+            reporterId,
             report.Status, report.CreatedAt, report.SlaVerifyDueAt,
             report.AiPending, imageInfos);
     }

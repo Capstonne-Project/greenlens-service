@@ -6,12 +6,10 @@ namespace Greenlens.Domain.UnitTests;
 public sealed class ReportTests
 {
     private static Report CreateTestReport(
-        Severity severity = Severity.Medium,
-        bool isAnonymous = false) =>
+        Severity severity = Severity.Medium) =>
         Report.Create(
             code: "RPT-2026-000001",
             reporterId: Guid.NewGuid(),
-            isAnonymous: isAnonymous,
             categoryId: Guid.NewGuid(),
             severity: severity,
             description: "Test pollution report",
@@ -36,28 +34,7 @@ public sealed class ReportTests
         Assert.Equal(1, report.ReporterCount);
         Assert.Equal(0, report.ReopenedCount);
         Assert.NotNull(report.SlaVerifyDueAt);
-        Assert.False(report.IsAnonymous);
         Assert.NotNull(report.ReporterId);
-    }
-
-    [Fact]
-    public void Create_Anonymous_ShouldNullifyReporterId()
-    {
-        var report = Report.Create(
-            code: "RPT-2026-000002",
-            reporterId: Guid.NewGuid(),
-            isAnonymous: true,
-            categoryId: Guid.NewGuid(),
-            severity: Severity.Low,
-            description: null,
-            latitude: 10m,
-            longitude: 106m,
-            address: null,
-            wardCode: null,
-            provinceCode: null);
-
-        Assert.True(report.IsAnonymous);
-        Assert.Null(report.ReporterId);
     }
 
     [Fact]
