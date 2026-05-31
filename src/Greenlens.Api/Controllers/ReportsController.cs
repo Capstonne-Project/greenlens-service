@@ -7,6 +7,8 @@ using Greenlens.Application.Features.Reports.CloseReport;
 using Greenlens.Application.Features.Reports.DispatchReport;
 using Greenlens.Application.Features.Reports.GetMyReports;
 using Greenlens.Application.Features.Reports.GetOfficerQueue;
+using Greenlens.Application.Features.Reports.GetReportProgress;
+using Greenlens.Application.Features.Reports.GetReportProgressBoard;
 using Greenlens.Application.Features.Reports.GetReportById;
 using Greenlens.Application.Features.Reports.GetReportHistory;
 using Greenlens.Application.Features.Reports.GetReports;
@@ -222,6 +224,41 @@ public sealed class ReportsController(ISender sender) : ControllerBase
         [FromRoute] Guid id, [FromBody] ReDispatchRequest request, CancellationToken ct)
         => (await sender.Send(new ReDispatchReportCommand(id, request.NewLocalOfficeId, request.Note), ct))
             .ToHttpNoContent();
+
+    [HttpGet("progress-board")]
+    [Authorize(Roles = "LEO,Admin")]
+    [Tags("📌 LEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO] Board tổng quan các báo cáo đang xử lý",
+        Description = "Trả về danh sách card báo cáo InProgress trong office của LEO, " +
+            "mỗi card gồm: SLA countdown, tiến độ tổng thể, avatar top-3 team leader. " +
+            "Dùng cho trang dashboard dạng grid. " +
+            "hoursRemaining âm = đã breach SLA. " +
+            "Lọc thêm: severity, slaBreachedOnly=true.")]
+    [SwaggerResponse(200, "Danh sách card báo cáo", typeof(ApiResponse<GetReportProgressBoardResponse>))]
+    public async Task<IActionResult> GetProgressBoardAsync(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] Severity? severity = null,
+        [FromQuery] bool slaBreachedOnly = false,
+        CancellationToken ct = default)
+        => (await sender.Send(
+            new GetReportProgressBoardQuery(page, pageSize, severity, slaBreachedOnly), ct)).ToHttp();
+
+    [HttpGet("{id:guid}/progress")]
+    [Authorize(Roles = "LEO,Admin")]
+    [Tags("📌 LEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO] Tiến trình xử lý báo cáo",
+        Description = "Trả về toàn bộ thông tin tiến trình của một báo cáo đang InProgress: " +
+            "trạng thái từng team, % hoàn thành, ảnh tiến trình/nghiệm thu, SLA còn lại, và lịch sử status. " +
+            "overallProgressPercent là trung bình của các assignment đang active (Completed = 100%). " +
+            "sla.hoursRemaining âm = đã breach. " +
+            "media.progressImages gom tất cả ảnh tiến trình từ mọi team.")]
+    [SwaggerResponse(200, "Tiến trình báo cáo", typeof(ApiResponse<ReportProgressResponse>))]
+    [SwaggerResponse(404, "Không tìm thấy báo cáo", typeof(ApiResponse))]
+    public async Task<IActionResult> GetProgressAsync([FromRoute] Guid id, CancellationToken ct)
+        => (await sender.Send(new GetReportProgressQuery(id), ct)).ToHttp();
 
     [HttpGet("queue")]
     [Authorize(Roles = "LEO,DEO,Admin")]

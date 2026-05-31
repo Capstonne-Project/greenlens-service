@@ -17,6 +17,7 @@ public sealed class ResolveReportCommandHandler(
     IReportRepository reports,
     IReportAssignmentRepository assignments,
     IReportStatusHistoryRepository statusHistory,
+    IReportMediaRepository reportMedia,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     ILogger<ResolveReportCommandHandler> logger) : IRequestHandler<ResolveReportCommand, Result>
@@ -44,6 +45,19 @@ public sealed class ResolveReportCommandHandler(
             return Errors.Reports.InvalidStatusTransition;
 
         assignment.Complete();
+
+        // Persist after images as ReportMedia (Type = After) for LEO visibility
+        foreach (var url in request.AfterImageUrls)
+        {
+            var media = ReportMedia.Create(
+                request.ReportId,
+                MediaType.After,
+                url,
+                "image/jpeg",
+                0L,
+                currentUser.UserId);
+            reportMedia.Add(media);
+        }
 
         // Check if ALL active assignments (non-declined) are completed
         var activeAssignments = reportAssignments

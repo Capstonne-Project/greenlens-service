@@ -2,6 +2,7 @@ using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
+using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -16,6 +17,7 @@ namespace Greenlens.Application.Features.Reports.UpdateProgress;
 public sealed class UpdateProgressCommandHandler(
     IReportAssignmentRepository assignments,
     ITeamMemberRepository teamMembers,
+    IReportMediaRepository reportMedia,
     IFileStorageService fileStorage,
     ICurrentUser currentUser,
     IUnitOfWork uow,
@@ -39,7 +41,7 @@ public sealed class UpdateProgressCommandHandler(
         if (assignment.Status != AssignmentStatus.InProgress)
             return Errors.Reports.AssignmentNotInProgress;
 
-        // Upload images if provided
+        // Upload images and persist as ReportMedia (Type = Progress)
         var uploadedUrls = new List<string>();
         foreach (var img in request.Images)
         {
@@ -47,6 +49,15 @@ public sealed class UpdateProgressCommandHandler(
             using var stream = new MemoryStream(img.Bytes);
             var uploaded = await fileStorage.UploadAsync(stream, img.FileName, img.ContentType, folder, ct)
                 .ConfigureAwait(false);
+
+            var media = ReportMedia.Create(
+                request.ReportId,
+                MediaType.Progress,
+                uploaded.Url,
+                img.ContentType,
+                img.Bytes.LongLength,
+                currentUser.UserId);
+            reportMedia.Add(media);
             uploadedUrls.Add(uploaded.Url);
         }
 
