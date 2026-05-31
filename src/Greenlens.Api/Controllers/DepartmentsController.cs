@@ -86,7 +86,7 @@ public sealed class DepartmentsController(ISender sender) : ControllerBase
     /// <summary>Danh sách xã/phường thuộc tỉnh mà officer đang quản lý.</summary>
     [HttpGet("my/wards")]
     [Authorize(Roles = "DEO,LEO")]
-    [Tags("🏢 Officer Dashboard")]
+    [Tags("🔍 DEO Dashboard")]
     [SwaggerOperation(
         Summary = "[DEO/LEO] Lấy danh sách xã/phường thuộc tỉnh quản lý",
         Description =
