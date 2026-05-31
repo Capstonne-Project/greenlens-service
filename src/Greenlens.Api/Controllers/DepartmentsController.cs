@@ -84,7 +84,7 @@ public sealed class DepartmentsController(ISender sender) : ControllerBase
         => (await sender.Send(new AssignDeoToDepartmentCommand(id, request.UserId), ct)).ToHttpNoContent();
 
     /// <summary>Danh sách xã/phường thuộc tỉnh mà officer đang quản lý.</summary>
-    [HttpGet("my/wards")]
+    [HttpGet("wards")]
     [Authorize(Roles = "DEO,LEO")]
     [Tags("🔍 DEO Dashboard")]
     [SwaggerOperation(
