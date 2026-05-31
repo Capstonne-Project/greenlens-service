@@ -1,3 +1,4 @@
+using Greenlens.Application.Common.Models;
 using Greenlens.Domain.Common;
 using MediatR;
 
@@ -10,7 +11,7 @@ public sealed record GetLocalOfficesQuery(
     bool? IsOnboarded = null) : IRequest<Result<GetLocalOfficesResponse>>;
 
 public sealed record GetLocalOfficesResponse(
-    IReadOnlyList<LocalOfficeItem> Items, int TotalCount, int Page, int PageSize);
+    IReadOnlyList<LocalOfficeItem> Items, PaginationMeta Pagination);
 
 public sealed record LocalOfficeItem(
     Guid Id, string Name, Guid DepartmentId, string? DepartmentName,

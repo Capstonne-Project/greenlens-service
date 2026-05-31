@@ -3,6 +3,7 @@ using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Organization.CreateDepartment;
 
@@ -13,7 +14,8 @@ namespace Greenlens.Application.Features.Organization.CreateDepartment;
 public sealed class CreateDepartmentCommandHandler(
     IDepartmentRepository departments,
     IProvinceRepository provinces,
-    IUnitOfWork uow) : IRequestHandler<CreateDepartmentCommand, Result<CreateDepartmentResponse>>
+    IUnitOfWork uow,
+    ILogger<CreateDepartmentCommandHandler> logger) : IRequestHandler<CreateDepartmentCommand, Result<CreateDepartmentResponse>>
 {
     public async Task<Result<CreateDepartmentResponse>> Handle(
         CreateDepartmentCommand request,
@@ -37,6 +39,9 @@ public sealed class CreateDepartmentCommandHandler(
         departments.Add(department);
 
         await uow.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        logger.LogInformation("Department {DeptId} created for province {ProvinceCode}",
+            department.Id, department.ProvinceCode);
 
         return new CreateDepartmentResponse(department.Id, department.Name, department.ProvinceCode);
     }

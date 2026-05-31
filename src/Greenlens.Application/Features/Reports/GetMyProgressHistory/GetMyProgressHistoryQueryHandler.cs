@@ -1,8 +1,10 @@
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Common.Models;
 using Greenlens.Application.Common;
 using Greenlens.Domain.Common;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.GetMyProgressHistory;
 
@@ -12,14 +14,18 @@ namespace Greenlens.Application.Features.Reports.GetMyProgressHistory;
 public sealed class GetMyProgressHistoryQueryHandler(
     IReportAssignmentRepository assignments,
     ITeamMemberRepository teamMembers,
-    ICurrentUser currentUser) : IRequestHandler<GetMyProgressHistoryQuery, Result<GetMyProgressHistoryResponse>>
+    ICurrentUser currentUser,
+    ILogger<GetMyProgressHistoryQueryHandler> logger) : IRequestHandler<GetMyProgressHistoryQuery, Result<GetMyProgressHistoryResponse>>
 {
     public async Task<Result<GetMyProgressHistoryResponse>> Handle(
         GetMyProgressHistoryQuery request, CancellationToken ct)
     {
         var leader = await teamMembers.GetLeaderByUserIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
         if (leader is null)
+        {
+            logger.LogWarning("Người dùng không phải là đội trưởng. User ID: {UserId}", currentUser.UserId);
             return Errors.Reports.NotTeamLeader;
+        }
 
         var (items, total) = await assignments.GetByTeamIdAsync(
             leader.TeamId,
@@ -43,6 +49,9 @@ public sealed class GetMyProgressHistoryQueryHandler(
             CompletedAt: a.CompletedAt
         )).ToList();
 
-        return new GetMyProgressHistoryResponse(result, total, request.Page, request.PageSize);
+        var pagination = PaginationMeta.Create(request.Page, request.PageSize, total);
+
+        logger.LogInformation("Lấy lịch sử tiến độ thành công. Số lượng: {Count}", result.Count);
+        return new GetMyProgressHistoryResponse(result, pagination);
     }
 }

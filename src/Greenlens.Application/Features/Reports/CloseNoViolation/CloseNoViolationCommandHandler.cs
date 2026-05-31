@@ -5,6 +5,7 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.CloseNoViolation;
 
@@ -13,10 +14,12 @@ public sealed class CloseNoViolationCommandHandler(
     IReportRepository reports,
     IReportStatusHistoryRepository statusHistory,
     ICurrentUser currentUser,
-    IUnitOfWork uow) : IRequestHandler<CloseNoViolationCommand, Result>
+    IUnitOfWork uow,
+    ILogger<CloseNoViolationCommandHandler> logger) : IRequestHandler<CloseNoViolationCommand, Result>
 {
     public async Task<Result> Handle(CloseNoViolationCommand request, CancellationToken ct)
     {
+        // BR-INS-013: reason must be at least 50 characters
         if (request.Reason.Length < 50)
             return Errors.Reports.ReasonTooShort50;
 
@@ -38,6 +41,9 @@ public sealed class CloseNoViolationCommandHandler(
 
         statusHistory.Add(history);
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        logger.LogInformation("Report {ReportId} closed with no violation by {UserId}",
+            report.Id, currentUser.UserId);
 
         return Result.Success();
     }

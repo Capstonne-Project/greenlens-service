@@ -19,6 +19,7 @@ namespace Greenlens.Api.Controllers;
 [ApiController]
 [Route("v1/auth")]
 [Produces("application/json")]
+[Tags("🔐 Auth — Authentication")]
 public sealed class AuthController(ISender sender) : ControllerBase
 {
     [HttpPost("register")]

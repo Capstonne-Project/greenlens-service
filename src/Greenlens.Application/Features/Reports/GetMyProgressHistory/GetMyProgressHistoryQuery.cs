@@ -1,3 +1,4 @@
+using Greenlens.Application.Common.Models;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -12,9 +13,7 @@ public sealed record GetMyProgressHistoryQuery(
 
 public sealed record GetMyProgressHistoryResponse(
     IReadOnlyList<ProgressHistoryItem> Items,
-    int TotalCount,
-    int Page,
-    int PageSize);
+    PaginationMeta Pagination);
 
 public sealed record ProgressHistoryItem(
     Guid ReportId,

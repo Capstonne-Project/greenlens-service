@@ -47,7 +47,13 @@ public sealed record MyTaskDetailResponse(
     Guid? ProgressUpdatedByUserId,
 
     // Assignment note from officer
-    string? AssignmentNote
+    string? AssignmentNote,
+
+    // Waste tags on the report (so team knows what to prepare)
+    IReadOnlyList<TaskWasteTagItem> WasteTags
 );
 
 public sealed record TaskImageItem(string Url, string MimeType);
+
+public sealed record TaskWasteTagItem(
+    string Code, string NameVi, string NameEn, string? IconUrl);

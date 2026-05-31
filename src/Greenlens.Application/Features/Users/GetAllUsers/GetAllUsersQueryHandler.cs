@@ -1,6 +1,7 @@
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
 
 namespace Greenlens.Application.Features.Users.GetAllUsers;
@@ -8,7 +9,8 @@ namespace Greenlens.Application.Features.Users.GetAllUsers;
 /// <summary>
 /// Fetch all users (no pagination). Admin only.
 /// </summary>
-public sealed class GetAllUsersQueryHandler(IUserRepository users)
+public sealed class GetAllUsersQueryHandler(IUserRepository users,
+    ILogger<GetAllUsersQueryHandler> logger)
     : IRequestHandler<GetAllUsersQuery, Result<List<UserListItemDto>>>
 {
     public async Task<Result<List<UserListItemDto>>> Handle(
@@ -29,6 +31,7 @@ public sealed class GetAllUsersQueryHandler(IUserRepository users)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
+        logger.LogInformation("Lấy danh sách người dùng thành công. Số lượng: {Count}", list.Count);
         return list;
     }
 }

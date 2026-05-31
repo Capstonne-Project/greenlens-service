@@ -82,6 +82,19 @@ public sealed class SubmitPollutionReportCommandValidator : AbstractValidator<Su
                     .WithMessage($"Kích thước ảnh phải từ 1 đến {MaxImageSizeBytes} bytes.");
             });
         });
+
+        // ── Optional waste tags ──
+        When(x => x.WasteTagIds is { Count: > 0 }, () =>
+        {
+            RuleFor(x => x.WasteTagIds!)
+                .Must(ids => ids.Count <= 10)
+                .WithMessage("Tối đa 10 waste tags mỗi báo cáo.")
+                .Must(ids => ids.Distinct().Count() == ids.Count)
+                .WithMessage("Danh sách waste tags không được trùng lặp.");
+
+            RuleForEach(x => x.WasteTagIds!)
+                .NotEmpty().WithMessage("WasteTagId không được rỗng.");
+        });
     }
 
     private static bool HasExactlyOneImageSource(SubmitPollutionReportCommand x)

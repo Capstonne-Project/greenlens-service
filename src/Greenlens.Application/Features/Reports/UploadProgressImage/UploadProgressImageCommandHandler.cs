@@ -4,6 +4,7 @@ using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.UploadProgressImage;
 
@@ -14,7 +15,7 @@ namespace Greenlens.Application.Features.Reports.UploadProgressImage;
 public sealed class UploadProgressImageCommandHandler(
     IReportAssignmentRepository assignments,
     IFileStorageService fileStorage,
-    IUnitOfWork uow) : IRequestHandler<UploadProgressImageCommand, Result<UploadProgressImageResponse>>
+    ILogger<UploadProgressImageCommandHandler> logger) : IRequestHandler<UploadProgressImageCommand, Result<UploadProgressImageResponse>>
 {
     public async Task<Result<UploadProgressImageResponse>> Handle(
         UploadProgressImageCommand request,
@@ -33,6 +34,9 @@ public sealed class UploadProgressImageCommandHandler(
         using var stream = new MemoryStream(request.ImageBytes);
         var uploaded = await fileStorage.UploadAsync(
             stream, request.FileName, request.ContentType, folder, ct).ConfigureAwait(false);
+
+        logger.LogInformation("Progress image uploaded for report {ReportId} team {TeamId}",
+            request.ReportId, request.TeamId);
 
         return new UploadProgressImageResponse(uploaded.Url);
     }

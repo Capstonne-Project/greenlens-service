@@ -2,6 +2,7 @@ using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Features.Auth.Register;
 using Greenlens.Domain.Entities;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 
 namespace Greenlens.Application.UnitTests;
@@ -17,7 +18,7 @@ public sealed class RegisterCommandHandlerTests
 
     public RegisterCommandHandlerTests()
     {
-        _sut = new RegisterCommandHandler(_users, _otps, _uow, _hasher, _email);
+        _sut = new RegisterCommandHandler(_users, _otps, _uow, _hasher, _email, NullLogger<RegisterCommandHandler>.Instance);
         _hasher.Hash(Arg.Any<string>()).Returns("hashed");
     }
 

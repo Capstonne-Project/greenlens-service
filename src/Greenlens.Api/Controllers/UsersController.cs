@@ -16,6 +16,7 @@ namespace Greenlens.Api.Controllers;
 [Route("v1/users")]
 [Authorize]
 [Produces("application/json")]
+[Tags("👤 Users — User Profile")]
 public sealed class UsersController(ISender sender) : ControllerBase
 {
     [HttpGet("profile")]

@@ -6,10 +6,12 @@ namespace Greenlens.Application.Features.Reports.AssignTeam;
 /// <summary>
 /// LEO assigns one or more teams to a verified report. BR-OFF-011, BR-ORG-013.
 /// All teams are equal — no primary/secondary distinction.
+/// Optionally tags waste types during assignment.
 /// </summary>
 public sealed record AssignTeamCommand(
     Guid ReportId,
-    List<TeamAssignmentItem> Teams) : IRequest<Result>;
+    List<TeamAssignmentItem> Teams,
+    List<Guid>? WasteTagIds) : IRequest<Result>;
 
 public sealed record TeamAssignmentItem(
     Guid TeamId,

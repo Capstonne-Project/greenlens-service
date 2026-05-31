@@ -5,6 +5,7 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.SubmitPollutionReport;
 
@@ -24,13 +25,15 @@ public sealed class SubmitPollutionReportCommandHandler(
     IReportRepository reports,
     IReportMediaRepository reportMedia,
     IReportStatusHistoryRepository statusHistory,
+    IWasteTagRepository wasteTags,
+    IReportWasteTagRepository reportWasteTags,
     IWardRepository wards,
-    ILocalOfficeRepository localOffices,
     IDepartmentRepository departments,
     IUnitOfWork unitOfWork,
     ICurrentUser currentUser,
     ITempImageStore tempStore,
-    IFileStorageService fileStorage)
+    IFileStorageService fileStorage,
+    ILogger<SubmitPollutionReportCommandHandler> logger)
     : IRequestHandler<SubmitPollutionReportCommand, Result<SubmitPollutionReportResponse>>
 {
     public async Task<Result<SubmitPollutionReportResponse>> Handle(
@@ -118,38 +121,17 @@ public sealed class SubmitPollutionReportCommandHandler(
 
         reports.Add(report);
 
-        // ── Auto-routing: BR-ORG-010, BR-ORG-011 ───────────────────────────
-        if (!string.IsNullOrEmpty(wardCode))
+        // ── Auto-routing: all reports go to Department queue (DEO dispatches later) ──
+        if (!string.IsNullOrEmpty(provinceCode))
         {
-            var officeExists = await localOffices.ExistsByWardCodeAsync(wardCode, cancellationToken)
+            var dept = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
+                .FirstOrDefaultAsync(
+                    departments.QueryAsNoTracking(),
+                    d => d.ProvinceCode == provinceCode, cancellationToken)
                 .ConfigureAwait(false);
 
-            if (officeExists)
-            {
-                var office = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
-                    .FirstOrDefaultAsync(
-                        localOffices.QueryAsNoTracking(),
-                        o => o.WardCode == wardCode, cancellationToken)
-                    .ConfigureAwait(false);
-
-                if (office is not null) report.RouteToOffice(office.Id, office.OfficerId);
-            }
-            else if (!string.IsNullOrEmpty(provinceCode))
-            {
-                var deptExists = await departments.ExistsByProvinceCodeAsync(provinceCode, cancellationToken)
-                    .ConfigureAwait(false);
-
-                if (deptExists)
-                {
-                    var dept = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
-                        .FirstOrDefaultAsync(
-                            departments.QueryAsNoTracking(),
-                            d => d.ProvinceCode == provinceCode, cancellationToken)
-                        .ConfigureAwait(false);
-
-                    if (dept is not null) report.RouteToDepartmentQueue(dept.Id);
-                }
-            }
+            if (dept is not null)
+                report.RouteToDepartmentQueue(dept.Id);
         }
 
         // ── Persist primary image ───────────────────────────────────────────
@@ -180,7 +162,30 @@ public sealed class SubmitPollutionReportCommandHandler(
             toStatus: ReportStatus.Submitted, changedBy: reporterId);
         statusHistory.Add(history);
 
+        // ── Optional waste tags ───────────────────────────────────────────────
+        if (request.WasteTagIds is { Count: > 0 })
+        {
+            var tags = await wasteTags.GetByIdsAsync(request.WasteTagIds.ToList(), cancellationToken)
+                .ConfigureAwait(false);
+
+            if (tags.Count != request.WasteTagIds.Count)
+                return Errors.Reports.WasteTagNotFound;
+
+            var inactiveTags = tags.Where(t => !t.IsActive).ToList();
+            if (inactiveTags.Count > 0)
+                return Errors.Reports.WasteTagInactive;
+
+            var taggedById = reporterId ?? Guid.Empty;
+            var newTags = request.WasteTagIds
+                .Select(tagId => ReportWasteTag.Create(report.Id, tagId, taggedById))
+                .ToList();
+            reportWasteTags.AddRange(newTags);
+        }
+
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        logger.LogInformation("Report {ReportCode} submitted by {ReporterId}, routed to department {DepartmentId}",
+            report.Code, reporterId, report.AssignedDepartmentId);
 
         // ── Cleanup temp after successful save (AI flow only) ───────────────
         if (resolvedImage.IsAiFlow)

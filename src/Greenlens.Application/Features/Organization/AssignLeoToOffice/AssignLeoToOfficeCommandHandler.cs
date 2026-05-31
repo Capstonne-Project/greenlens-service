@@ -3,6 +3,7 @@ using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Organization.AssignLeoToOffice;
 
@@ -13,7 +14,8 @@ namespace Greenlens.Application.Features.Organization.AssignLeoToOffice;
 public sealed class AssignLeoToOfficeCommandHandler(
     ILocalOfficeRepository localOffices,
     IUserRepository users,
-    IUnitOfWork uow) : IRequestHandler<AssignLeoToOfficeCommand, Result>
+    IUnitOfWork uow,
+    ILogger<AssignLeoToOfficeCommandHandler> logger) : IRequestHandler<AssignLeoToOfficeCommand, Result>
 {
     public async Task<Result> Handle(
         AssignLeoToOfficeCommand request,
@@ -38,6 +40,9 @@ public sealed class AssignLeoToOfficeCommandHandler(
         user.AssignToLocalOffice(request.LocalOfficeId);
 
         await uow.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        logger.LogInformation("LEO {UserId} assigned to office {OfficeId}",
+            request.UserId, request.LocalOfficeId);
 
         return Result.Success();
     }

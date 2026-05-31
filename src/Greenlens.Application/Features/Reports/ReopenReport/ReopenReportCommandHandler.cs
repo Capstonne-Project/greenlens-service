@@ -5,6 +5,7 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.ReopenReport;
 
@@ -13,16 +14,22 @@ public sealed class ReopenReportCommandHandler(
     IReportRepository reports,
     IReportStatusHistoryRepository statusHistory,
     ICurrentUser currentUser,
-    IUnitOfWork uow) : IRequestHandler<ReopenReportCommand, Result>
+    IUnitOfWork uow,
+    ILogger<ReopenReportCommandHandler> logger) : IRequestHandler<ReopenReportCommand, Result>
 {
     public async Task<Result> Handle(ReopenReportCommand request, CancellationToken ct)
     {
+        // Find report
         var report = await reports.GetByIdAsync(request.ReportId, ct).ConfigureAwait(false);
         if (report is null)
             return Errors.Reports.ReportNotFound;
 
+        // Attempt reopen — max 2 times (BR-REP-015)
         if (!report.TryReopen())
+        {
+            logger.LogWarning("Reopen limit reached for report {ReportId}", report.Id);
             return Errors.Reports.ReopenLimitReached;
+        }
 
         var history = ReportStatusHistory.Create(
             report.Id,
@@ -32,6 +39,8 @@ public sealed class ReopenReportCommandHandler(
 
         statusHistory.Add(history);
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        logger.LogInformation("Report {ReportId} reopened by citizen {UserId}", report.Id, currentUser.UserId);
 
         return Result.Success();
     }

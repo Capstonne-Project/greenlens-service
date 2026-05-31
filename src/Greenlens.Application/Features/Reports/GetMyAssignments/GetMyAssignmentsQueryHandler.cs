@@ -1,10 +1,12 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Common.Models;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.GetMyAssignments;
 
@@ -18,7 +20,8 @@ namespace Greenlens.Application.Features.Reports.GetMyAssignments;
 public sealed class GetMyAssignmentsQueryHandler(
     ITeamMemberRepository teamMembers,
     IReportAssignmentRepository assignments,
-    ICurrentUser currentUser)
+    ICurrentUser currentUser,
+    ILogger<GetMyAssignmentsQueryHandler> logger)
     : IRequestHandler<GetMyAssignmentsQuery, Result<GetMyAssignmentsResponse>>
 {
     public async Task<Result<GetMyAssignmentsResponse>> Handle(
@@ -34,7 +37,10 @@ public sealed class GetMyAssignmentsQueryHandler(
             .ConfigureAwait(false);
 
         if (myTeamIds.Count == 0)
-            return new GetMyAssignmentsResponse([], 0, request.Page, request.PageSize);
+        {
+            logger.LogWarning("Người dùng không thuộc đội nào. User ID: {UserId}", currentUser.UserId);
+            return new GetMyAssignmentsResponse([], PaginationMeta.Create(request.Page, request.PageSize, 0));
+        }
 
         var query = assignments
             .QueryAsNoTracking()
@@ -42,12 +48,17 @@ public sealed class GetMyAssignmentsQueryHandler(
                 .ThenInclude(r => r!.Category)
             .Include(a => a.Report)
                 .ThenInclude(r => r!.Media)
+            .Include(a => a.Report)
+                .ThenInclude(r => r!.WasteTags)
+                    .ThenInclude(wt => wt.WasteTag)
             .Where(a => myTeamIds.Contains(a.TeamId));
 
         if (request.AssignmentStatus.HasValue)
             query = query.Where(a => a.Status == request.AssignmentStatus.Value);
 
         var totalCount = await query.CountAsync(ct).ConfigureAwait(false);
+
+        var pagination = PaginationMeta.Create(request.Page, request.PageSize, totalCount);
 
         var items = await query
             .OrderByDescending(a => a.AssignedAt)
@@ -75,10 +86,15 @@ public sealed class GetMyAssignmentsQueryHandler(
                     .Where(m => m.Type == MediaType.Image)
                     .OrderBy(m => m.UploadedAt)
                     .Select(m => m.ThumbnailUrl ?? m.Url)
-                    .FirstOrDefault()))
+                    .FirstOrDefault(),
+                a.Report.WasteTags
+                    .Where(wt => wt.WasteTag != null)
+                    .Select(wt => wt.WasteTag!.Code)
+                    .ToList()))
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
-        return new GetMyAssignmentsResponse(items, totalCount, request.Page, request.PageSize);
+        logger.LogInformation("Lấy danh sách báo cáo thành công. Số lượng: {Count}", items.Count);
+        return new GetMyAssignmentsResponse(items, pagination);
     }
 }

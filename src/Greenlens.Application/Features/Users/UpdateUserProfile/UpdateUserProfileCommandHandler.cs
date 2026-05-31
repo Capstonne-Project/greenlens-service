@@ -3,6 +3,7 @@ using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Users.UpdateUserProfile;
 
@@ -12,7 +13,8 @@ namespace Greenlens.Application.Features.Users.UpdateUserProfile;
 public sealed class UpdateUserProfileCommandHandler(
     IUserRepository users,
     IUnitOfWork uow,
-    ICurrentUser currentUser)
+    ICurrentUser currentUser,
+    ILogger<UpdateUserProfileCommandHandler> logger)
     : IRequestHandler<UpdateUserProfileCommand, Result<UpdateUserProfileResponse>>
 {
     public async Task<Result<UpdateUserProfileResponse>> Handle(
@@ -28,6 +30,8 @@ public sealed class UpdateUserProfileCommandHandler(
         user.UpdateProfile(request.FullName);
 
         await uow.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        logger.LogInformation("User {UserId} updated their profile", currentUser.UserId);
 
         return new UpdateUserProfileResponse(user.Id, "Cập nhật hồ sơ thành công.");
     }

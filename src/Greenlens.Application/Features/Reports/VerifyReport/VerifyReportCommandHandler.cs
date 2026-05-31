@@ -5,17 +5,22 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.VerifyReport;
 
 /// <summary>
 /// Officer verifies a submitted report. Checks conflict of interest (BR-OFF-004).
+/// Optionally tags waste types during verification.
 /// </summary>
 public sealed class VerifyReportCommandHandler(
     IReportRepository reports,
     IReportStatusHistoryRepository statusHistory,
+    IWasteTagRepository wasteTags,
+    IReportWasteTagRepository reportWasteTags,
     ICurrentUser currentUser,
-    IUnitOfWork uow) : IRequestHandler<VerifyReportCommand, Result>
+    IUnitOfWork uow,
+    ILogger<VerifyReportCommandHandler> logger) : IRequestHandler<VerifyReportCommand, Result>
 {
     public async Task<Result> Handle(VerifyReportCommand request, CancellationToken ct)
     {
@@ -30,6 +35,29 @@ public sealed class VerifyReportCommandHandler(
         if (report.ReporterId == currentUser.UserId)
             return Errors.Reports.ConflictOfInterest;
 
+        // Validate and persist waste tags if provided
+        if (request.WasteTagIds is { Count: > 0 })
+        {
+            var tags = await wasteTags.GetByIdsAsync(request.WasteTagIds, ct).ConfigureAwait(false);
+            if (tags.Count != request.WasteTagIds.Count)
+                return Errors.Reports.WasteTagNotFound;
+
+            var inactiveTags = tags.Where(t => !t.IsActive).ToList();
+            if (inactiveTags.Count > 0)
+                return Errors.Reports.WasteTagInactive;
+
+            // Remove existing tags (in case of re-verify scenario)
+            var existing = await reportWasteTags.GetByReportIdAsync(request.ReportId, ct).ConfigureAwait(false);
+            if (existing.Count > 0)
+                reportWasteTags.RemoveRange(existing);
+
+            var newTags = request.WasteTagIds
+                .Select(tagId => ReportWasteTag.Create(request.ReportId, tagId, currentUser.UserId))
+                .ToList();
+
+            reportWasteTags.AddRange(newTags);
+        }
+
         report.Verify(currentUser.UserId, request.OverrideSeverity, request.OverrideCategoryId);
 
         var history = ReportStatusHistory.Create(
@@ -40,6 +68,8 @@ public sealed class VerifyReportCommandHandler(
 
         statusHistory.Add(history);
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        logger.LogInformation("Report {ReportId} verified by DEO {UserId}", report.Id, currentUser.UserId);
 
         return Result.Success();
     }

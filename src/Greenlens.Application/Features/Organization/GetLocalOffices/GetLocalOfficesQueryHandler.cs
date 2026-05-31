@@ -1,12 +1,15 @@
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Common.Models;
 using Greenlens.Domain.Common;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
 
 namespace Greenlens.Application.Features.Organization.GetLocalOffices;
 
 public sealed class GetLocalOfficesQueryHandler(
-    ILocalOfficeRepository offices)
+    ILocalOfficeRepository offices,
+    ILogger<GetLocalOfficesQueryHandler> logger)
     : IRequestHandler<GetLocalOfficesQuery, Result<GetLocalOfficesResponse>>
 {
     public async Task<Result<GetLocalOfficesResponse>> Handle(
@@ -26,6 +29,8 @@ public sealed class GetLocalOfficesQueryHandler(
 
         var totalCount = await query.CountAsync(ct).ConfigureAwait(false);
 
+        var pagination = PaginationMeta.Create(request.Page, request.PageSize, totalCount);
+
         var items = await query
             .OrderBy(o => o.Name)
             .Skip((request.Page - 1) * request.PageSize)
@@ -40,6 +45,7 @@ public sealed class GetLocalOfficesQueryHandler(
                 o.IsOnboarded, o.Teams.Count, o.CreatedAt))
             .ToListAsync(ct).ConfigureAwait(false);
 
-        return new GetLocalOfficesResponse(items, totalCount, request.Page, request.PageSize);
+        logger.LogInformation("Lấy danh sách đơn vị hành chính thành công. Số lượng: {Count}", items.Count);
+        return new GetLocalOfficesResponse(items, pagination);
     }
 }

@@ -2,6 +2,7 @@ using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Catalog.GetProvinces;
 
@@ -13,7 +14,9 @@ namespace Greenlens.Application.Features.Catalog.GetProvinces;
 /// <c>ProvinceCode</c> / <c>WardCode</c> (BR-REP-003 location metadata).
 /// Includes <c>BoundaryUrl</c> for client map overlays when seeded.
 /// </remarks>
-public sealed class GetProvincesQueryHandler(IProvinceRepository provinces)
+public sealed class GetProvincesQueryHandler(
+    IProvinceRepository provinces,
+    ILogger<GetProvincesQueryHandler> logger)
     : IRequestHandler<GetProvincesQuery, Result<GetProvincesResponse>>
 {
     public async Task<Result<GetProvincesResponse>> Handle(
@@ -26,6 +29,7 @@ public sealed class GetProvincesQueryHandler(IProvinceRepository provinces)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
+        logger.LogInformation("Lấy danh sách tỉnh thành công. Số lượng: {Count}", items.Count);
         return new GetProvincesResponse(items);
     }
 }

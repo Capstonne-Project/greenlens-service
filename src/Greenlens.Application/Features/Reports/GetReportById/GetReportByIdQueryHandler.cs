@@ -3,11 +3,13 @@ using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.GetReportById;
 
 public sealed class GetReportByIdQueryHandler(
-    IReportRepository reports)
+    IReportRepository reports,
+    ILogger<GetReportByIdQueryHandler> logger)
     : IRequestHandler<GetReportByIdQuery, Result<ReportDetailResponse>>
 {
     public async Task<Result<ReportDetailResponse>> Handle(
@@ -17,6 +19,7 @@ public sealed class GetReportByIdQueryHandler(
             .Include(x => x.Category)
             .Include(x => x.Media)
             .Include(x => x.Assignments).ThenInclude(a => a.Team)
+            .Include(x => x.WasteTags).ThenInclude(wt => wt.WasteTag)
             .FirstOrDefaultAsync(x => x.Id == request.Id, ct)
             .ConfigureAwait(false);
 
@@ -29,8 +32,18 @@ public sealed class GetReportByIdQueryHandler(
         var assignments = r.Assignments.Select(a => new ReportAssignmentItem(
             a.Id, a.TeamId, a.Team?.Name, a.Team?.TeamType.ToString() ?? "",
             a.Status.ToString(), a.Note, a.AssignedAt,
-            a.StartedAt, a.CompletedAt)).ToList();
+            a.StartedAt, a.CompletedAt,
+            a.ProgressPercent, a.ProgressNote, a.ProgressUpdatedAt)).ToList();
 
+        var wasteTagItems = r.WasteTags
+            .Where(wt => wt.WasteTag is not null)
+            .Select(wt => new ReportWasteTagItem(
+                wt.WasteTagId, wt.WasteTag!.Code,
+                wt.WasteTag.NameVi, wt.WasteTag.NameEn,
+                wt.WasteTag.IconUrl))
+            .ToList();
+
+        logger.LogInformation("Lấy chi tiết báo cáo thành công. Mã báo cáo: {ReportCode}", r.Code);
         return new ReportDetailResponse(
             r.Id, r.Code, r.ReporterId, r.IsAnonymous,
             r.CategoryId, r.Category.Code, r.Category.NameVi,
@@ -40,7 +53,8 @@ public sealed class GetReportByIdQueryHandler(
             r.PriorityScore, r.ReporterCount, r.ReopenedCount,
             r.AiClassifiedType, r.AiConfidence,
             r.AssignedOfficerId, r.AssignedByOfficerId, r.AssignedOfficeId,
-            media, assignments,
+            media, assignments, wasteTagItems,
+            r.AiSuggestedWasteTagCodes,
             r.CreatedAt, r.VerifiedAt, r.StartedAt,
             r.ResolvedAt, r.ClosedAt,
             r.SlaVerifyDueAt, r.SlaResolveDueAt);

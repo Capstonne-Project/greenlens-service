@@ -1,21 +1,26 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Common.Models;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.GetOfficerQueue;
 
 /// <summary>
 /// Returns paginated queue of reports for the current officer's area.
+/// DEO sees all reports in their department (Submitted/Verified — needs verify or dispatch).
+/// LEO sees only Dispatched reports for their office (needs team assignment).
 /// Sorted by priority score descending (BR-OFF-010).
 /// </summary>
 public sealed class GetOfficerQueueQueryHandler(
     IReportRepository reports,
     IUserRepository users,
-    ICurrentUser currentUser) : IRequestHandler<GetOfficerQueueQuery, Result<GetOfficerQueueResponse>>
+    ICurrentUser currentUser,
+    ILogger<GetOfficerQueueQueryHandler> logger) : IRequestHandler<GetOfficerQueueQuery, Result<GetOfficerQueueResponse>>
 {
     public async Task<Result<GetOfficerQueueResponse>> Handle(
         GetOfficerQueueQuery request,
@@ -29,25 +34,27 @@ public sealed class GetOfficerQueueQueryHandler(
             .Include(r => r.Category)
             .AsQueryable();
 
-        // Filter by officer's scope
-        if (user.Role == UserRole.LEO && user.LocalOfficeId.HasValue)
+        // ── Role-based scope filtering ──
+        if (user.Role == UserRole.DEO && user.DepartmentId.HasValue)
         {
-            // LEO sees reports assigned to their office
-            query = query.Where(r => r.AssignedOfficeId == user.LocalOfficeId.Value);
+            // DEO sees all reports in their department queue (province level)
+            query = query.Where(r => r.AssignedDepartmentId == user.DepartmentId.Value);
         }
-        else if (user.Role == UserRole.DEO && user.DepartmentId.HasValue)
+        else if (user.Role == UserRole.LEO && user.LocalOfficeId.HasValue)
         {
-            // DEO sees reports in department queue + all offices in department
+            // LEO sees only Dispatched reports assigned to their office
             query = query.Where(r =>
-                r.AssignedDepartmentId == user.DepartmentId.Value ||
-                (r.AssignedOffice != null && r.AssignedOffice.DepartmentId == user.DepartmentId.Value));
+                r.AssignedOfficeId == user.LocalOfficeId.Value &&
+                r.Status == ReportStatus.Dispatched);
         }
 
-        // Status filter
+        // Status filter (override role-based default)
         if (request.StatusFilter.HasValue)
             query = query.Where(r => r.Status == request.StatusFilter.Value);
 
         var totalCount = await query.CountAsync(ct).ConfigureAwait(false);
+
+        var pagination = PaginationMeta.Create(request.Page, request.PageSize, totalCount);
 
         var items = await query
             .OrderByDescending(r => r.PriorityScore)
@@ -72,6 +79,7 @@ public sealed class GetOfficerQueueQueryHandler(
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
-        return new GetOfficerQueueResponse(items, totalCount, request.Page, request.PageSize);
+        logger.LogInformation("Lấy danh sách báo cáo thành công. Số lượng: {Count}", items.Count);
+        return new GetOfficerQueueResponse(items, pagination);
     }
 }

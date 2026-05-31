@@ -2,12 +2,14 @@ using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
 
 namespace Greenlens.Application.Features.Organization.GetDepartmentById;
 
 public sealed class GetDepartmentByIdQueryHandler(
-    IDepartmentRepository departments)
+    IDepartmentRepository departments,
+    ILogger<GetDepartmentByIdQueryHandler> logger)
     : IRequestHandler<GetDepartmentByIdQuery, Result<DepartmentDetailResponse>>
 {
     public async Task<Result<DepartmentDetailResponse>> Handle(
@@ -22,7 +24,10 @@ public sealed class GetDepartmentByIdQueryHandler(
             .ConfigureAwait(false);
 
         if (dept is null)
+        {
+            logger.LogWarning("Không tìm thấy phòng ban với ID: {DepartmentId}", request.Id);
             return Errors.Organization.DepartmentNotFound;
+        }
 
         var offices = dept.LocalOffices.Select(o => new OfficeInDepartment(
             o.Id, o.Name, o.WardCode,
@@ -32,6 +37,7 @@ public sealed class GetDepartmentByIdQueryHandler(
             o.IsOnboarded,
             o.Teams.Count)).ToList();
 
+        logger.LogInformation("Lấy thông tin chi tiết phòng ban thành công. Tên phòng ban: {DepartmentName}", dept.Name);
         return new DepartmentDetailResponse(
             dept.Id, dept.Name, dept.ProvinceCode,
             dept.Province?.Name,

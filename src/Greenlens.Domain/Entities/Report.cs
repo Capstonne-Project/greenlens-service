@@ -5,15 +5,17 @@ namespace Greenlens.Domain.Entities;
 
 /// <summary>
 /// Aggregate root for pollution reports. Manages the full lifecycle from
-/// submission through verification, cleanup, resolution, and closure.
+/// submission through verification, dispatch, team assignment, and closure.
 /// </summary>
 /// <remarks>
 /// Implements: BR-REP-001 → BR-REP-033.
-/// State machine: SUBMITTED → VERIFIED → ASSIGNED → IN_PROGRESS → RESOLVED → CLOSED
-///                SUBMITTED → REJECTED
-///                SUBMITTED/VERIFIED → DUPLICATE
-///                ASSIGNED → VERIFIED (team declines — BR-CLN-007)
-///                RESOLVED → IN_PROGRESS (reopen, max 2)
+/// Two-tier dispatch model (v2.0):
+///   DEO flow:     SUBMITTED → VERIFIED → DISPATCHED (DEO sends to ward/commune)
+///   LEO flow:     DISPATCHED → IN_PROGRESS (LEO assigns team) → RESOLVED → CLOSED
+///   Reject:       SUBMITTED → REJECTED
+///   Decline path: IN_PROGRESS → DISPATCHED (all teams decline — LEO re-assigns)
+///   Re-dispatch:  DISPATCHED → DISPATCHED (DEO re-routes to different ward)
+///   Reopen:       RESOLVED → IN_PROGRESS (max 2)
 /// </remarks>
 public sealed class Report : SoftDeletableEntity
 {
@@ -41,12 +43,19 @@ public sealed class Report : SoftDeletableEntity
 
     // ── Status & Assignment ──
     public ReportStatus Status { get; private set; } = ReportStatus.Submitted;
-    /// <summary>LEO phụ trách khu vực — set lúc submit report theo LocalOffice.OfficerId (BR-ORG-010).</summary>
+    /// <summary>LEO phụ trách khu vực — set lúc DEO dispatch xuống LocalOffice.</summary>
     public Guid? AssignedOfficerId { get; private set; }
-    /// <summary>Officer đã bấm Assign team — set lúc Officer gọi /assign (BR-OFF-011).</summary>
+    /// <summary>LEO đã bấm Assign team — set lúc LEO gọi /assign (BR-OFF-011).</summary>
     public Guid? AssignedByOfficerId { get; private set; }
+    /// <summary>Office (xã/phường) được DEO dispatch xuống. Null cho đến khi dispatch.</summary>
     public Guid? AssignedOfficeId { get; private set; }
+    /// <summary>Department (tỉnh) — set lúc submit theo ProvinceCode. All reports start here.</summary>
     public Guid? AssignedDepartmentId { get; private set; }
+
+    // ── Dispatch tracking ──
+    /// <summary>DEO đã dispatch task xuống xã/phường.</summary>
+    public Guid? DispatchedById { get; private set; }
+    public DateTime? DispatchedAt { get; private set; }
 
     // ── Duplicate tracking ──
     public Guid? ParentReportId { get; private set; }
@@ -81,6 +90,7 @@ public sealed class Report : SoftDeletableEntity
     public PollutionCategory Category { get; private set; } = default!;
     public Report? ParentReport { get; private set; }
     public User? VerifiedByUser { get; private set; }
+    public User? DispatchedByUser { get; private set; }
     public LocalOffice? AssignedOffice { get; private set; }
     public Department? AssignedDepartment { get; private set; }
 
@@ -89,6 +99,11 @@ public sealed class Report : SoftDeletableEntity
     public ICollection<ReportFlag> Flags { get; private set; } = [];
     public ICollection<Report> DuplicateReports { get; private set; } = [];
     public ICollection<ReportAssignment> Assignments { get; private set; } = [];
+    public ICollection<ReportWasteTag> WasteTags { get; private set; } = [];
+
+    // ── AI-suggested waste tags (set by AI service, officer can override) ──
+    /// <summary>Comma-separated tag codes suggested by AI, e.g. "HOUSEHOLD,MEDICAL,ANIMAL_CARCASS".</summary>
+    public string? AiSuggestedWasteTagCodes { get; private set; }
 
     // ────────────────────────────────────────────────────
     // Factory
@@ -134,7 +149,7 @@ public sealed class Report : SoftDeletableEntity
     // State machine transitions
     // ────────────────────────────────────────────────────
 
-    /// <summary>Officer verifies the report. BR-REP-020, 021.</summary>
+    /// <summary>DEO verifies the report. Submitted → Verified. BR-REP-020, 021.</summary>
     public void Verify(Guid officerId, Severity? overrideSeverity = null, Guid? overrideCategoryId = null)
     {
         EnsureStatus(ReportStatus.Submitted);
@@ -155,6 +170,33 @@ public sealed class Report : SoftDeletableEntity
         SlaResolveDueAt = ComputeSlaResolveDue(Severity);
     }
 
+    /// <summary>DEO dispatches verified report to a ward/commune LocalOffice. Verified → Dispatched.</summary>
+    public void Dispatch(Guid deoId, Guid targetOfficeId, Guid? targetOfficerId = null)
+    {
+        EnsureStatus(ReportStatus.Verified);
+
+        Status = ReportStatus.Dispatched;
+        DispatchedById = deoId;
+        DispatchedAt = DateTime.UtcNow;
+        AssignedOfficeId = targetOfficeId;
+
+        if (targetOfficerId.HasValue)
+            AssignedOfficerId = targetOfficerId;
+    }
+
+    /// <summary>DEO re-dispatches to a different ward. Dispatched → Dispatched.</summary>
+    public void ReDispatch(Guid deoId, Guid newOfficeId, Guid? newOfficerId = null)
+    {
+        EnsureStatus(ReportStatus.Dispatched);
+
+        DispatchedById = deoId;
+        DispatchedAt = DateTime.UtcNow;
+        AssignedOfficeId = newOfficeId;
+        AssignedOfficerId = newOfficerId;
+        // Reset any prior assignments when re-dispatching
+        AssignedByOfficerId = null;
+    }
+
     /// <summary>Officer rejects the report. BR-REP-022.</summary>
     public void Reject(string reason)
     {
@@ -164,24 +206,24 @@ public sealed class Report : SoftDeletableEntity
         RejectedReason = reason;
     }
 
-    /// <summary>Officer assigns team(s). VERIFIED → INPROGRESS. BR-OFF-011.</summary>
-    public void Assign(Guid officerId)
+    /// <summary>LEO assigns team(s). DISPATCHED → INPROGRESS. BR-OFF-011.</summary>
+    public void Assign(Guid leoId)
     {
-        EnsureStatus(ReportStatus.Verified);
+        EnsureStatus(ReportStatus.Dispatched);
 
         Status = ReportStatus.InProgress;
-        AssignedByOfficerId = officerId;
+        AssignedByOfficerId = leoId;
         // StartedAt is set when the first team accepts (not at assign time)
     }
 
-    /// <summary>All teams Assigned or Declined — revert to Verified so officer can re-assign. BR-CLN-007.</summary>
-    public void RevertToVerified()
+    /// <summary>All teams declined — revert to Dispatched so LEO can re-assign. BR-CLN-007.</summary>
+    public void RevertToDispatched()
     {
         if (Status != ReportStatus.InProgress)
             throw new InvalidOperationException(
-                $"Cannot revert to Verified from status {Status}.");
+                $"Cannot revert to Dispatched from status {Status}.");
 
-        Status = ReportStatus.Verified;
+        Status = ReportStatus.Dispatched;
         AssignedByOfficerId = null;
         StartedAt = null;
     }
@@ -192,19 +234,10 @@ public sealed class Report : SoftDeletableEntity
         StartedAt ??= DateTime.UtcNow;
     }
 
-    /// <summary>BR-ORG-010: Route report to the office covering the GPS location.</summary>
-    public void RouteToOffice(Guid officeId, Guid? officerId = null)
-    {
-        AssignedOfficeId = officeId;
-        if (officerId.HasValue)
-            AssignedOfficerId = officerId;
-    }
-
-    /// <summary>BR-ORG-011: Route to department common queue when ward is not onboarded.</summary>
+    /// <summary>BR-ORG-011: Route all reports to department queue on submit. DEO dispatches from here.</summary>
     public void RouteToDepartmentQueue(Guid departmentId)
     {
         AssignedDepartmentId = departmentId;
-        AssignedOfficeId = null;
     }
 
     /// <summary>Cleanup team resolves the report. BR-REP-014, 023.</summary>
@@ -289,6 +322,9 @@ public sealed class Report : SoftDeletableEntity
     }
 
     public void UpdatePriorityScore(decimal score) => PriorityScore = score;
+
+    /// <summary>AI service sets suggested waste tag codes after image analysis.</summary>
+    public void SetAiSuggestedWasteTagCodes(string? codes) => AiSuggestedWasteTagCodes = codes;
 
     // ────────────────────────────────────────────────────
     // Helpers

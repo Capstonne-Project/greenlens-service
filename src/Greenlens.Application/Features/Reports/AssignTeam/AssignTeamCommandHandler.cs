@@ -5,13 +5,15 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.AssignTeam;
 
 /// <summary>
-/// LEO assigns team(s) to a verified report. All teams are equal — no primary/secondary.
+/// LEO assigns team(s) to a dispatched report. All teams are equal — no primary/secondary.
 /// Validates team type against pollution category, checks workload limits.
-/// Report transitions Verified → InProgress. Each assignment tracks independently.
+/// Report transitions Dispatched → InProgress. Each assignment tracks independently.
+/// Optionally tags waste types during assignment.
 /// BR-OFF-011, BR-OFF-013, BR-ORG-013.
 /// </summary>
 public sealed class AssignTeamCommandHandler(
@@ -20,8 +22,11 @@ public sealed class AssignTeamCommandHandler(
     IReportAssignmentRepository assignments,
     IReportStatusHistoryRepository statusHistory,
     IPollutionCategoryRepository categories,
+    IWasteTagRepository wasteTags,
+    IReportWasteTagRepository reportWasteTags,
     ICurrentUser currentUser,
-    IUnitOfWork uow) : IRequestHandler<AssignTeamCommand, Result>
+    IUnitOfWork uow,
+    ILogger<AssignTeamCommandHandler> logger) : IRequestHandler<AssignTeamCommand, Result>
 {
     // Categories that route to Cleanup Team (BR-ORG-013)
     private static readonly HashSet<string> CleanupCategories = ["TRASH", "WASTEWATER", "CHEMICAL"];
@@ -37,8 +42,12 @@ public sealed class AssignTeamCommandHandler(
         if (report is null)
             return Errors.Reports.ReportNotFound;
 
-        if (report.Status != ReportStatus.Verified)
-            return Errors.Reports.InvalidStatusTransition;
+        if (report.Status != ReportStatus.Dispatched)
+        {
+            return report.Status == ReportStatus.InProgress
+                ? Errors.Reports.ReportAlreadyAssigned
+                : Errors.Reports.InvalidStatusTransition;
+        }
 
         // Load pollution category to determine expected team type
         var category = await categories.GetByIdAsync(report.CategoryId, ct).ConfigureAwait(false);
@@ -62,10 +71,33 @@ public sealed class AssignTeamCommandHandler(
             if (expectedTeamType.HasValue && team.TeamType != expectedTeamType.Value)
                 return Errors.Reports.TeamTypeMismatch;
 
-            // BR-OFF-013: workload limit (10 in-progress per team)
+            // BR-OFF-013: team can only handle 1 task at a time
             var workload = await assignments.CountInProgressByTeamAsync(item.TeamId, ct).ConfigureAwait(false);
-            if (workload >= 10)
+            if (workload >= 1)
                 return Errors.Reports.TeamWorkloadExceeded;
+        }
+
+        // Validate and persist waste tags if provided
+        if (request.WasteTagIds is { Count: > 0 })
+        {
+            var tags = await wasteTags.GetByIdsAsync(request.WasteTagIds, ct).ConfigureAwait(false);
+            if (tags.Count != request.WasteTagIds.Count)
+                return Errors.Reports.WasteTagNotFound;
+
+            var inactiveTags = tags.Where(t => !t.IsActive).ToList();
+            if (inactiveTags.Count > 0)
+                return Errors.Reports.WasteTagInactive;
+
+            // Remove existing tags, then add new ones
+            var existing = await reportWasteTags.GetByReportIdAsync(request.ReportId, ct).ConfigureAwait(false);
+            if (existing.Count > 0)
+                reportWasteTags.RemoveRange(existing);
+
+            var newTags = request.WasteTagIds
+                .Select(tagId => ReportWasteTag.Create(request.ReportId, tagId, currentUser.UserId))
+                .ToList();
+
+            reportWasteTags.AddRange(newTags);
         }
 
         // Create assignments — all teams equal
@@ -80,17 +112,20 @@ public sealed class AssignTeamCommandHandler(
             assignments.Add(assignment);
         }
 
-        // Transition report: Verified → InProgress
+        // Transition report: Dispatched → InProgress
         report.Assign(currentUser.UserId);
 
         var history = ReportStatusHistory.Create(
             report.Id,
-            ReportStatus.Verified,
+            ReportStatus.Dispatched,
             ReportStatus.InProgress,
             currentUser.UserId);
 
         statusHistory.Add(history);
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        logger.LogInformation("Report {ReportId} assigned to {TeamCount} team(s) by LEO {UserId}",
+            report.Id, request.Teams.Count, currentUser.UserId);
 
         return Result.Success();
     }

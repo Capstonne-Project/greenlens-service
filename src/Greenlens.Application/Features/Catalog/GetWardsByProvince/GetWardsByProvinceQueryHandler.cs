@@ -3,6 +3,7 @@ using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Catalog.GetWardsByProvince;
 
@@ -14,7 +15,8 @@ namespace Greenlens.Application.Features.Catalog.GetWardsByProvince;
 /// </remarks>
 public sealed class GetWardsByProvinceQueryHandler(
     IProvinceRepository provinces,
-    IWardRepository wards)
+    IWardRepository wards,
+    ILogger<GetWardsByProvinceQueryHandler> logger)
     : IRequestHandler<GetWardsByProvinceQuery, Result<GetWardsByProvinceResponse>>
 {
     public async Task<Result<GetWardsByProvinceResponse>> Handle(
@@ -38,6 +40,7 @@ public sealed class GetWardsByProvinceQueryHandler(
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
+        logger.LogInformation("Lấy danh sách phường xã thành công. Số lượng: {Count}", items.Count);
         return new GetWardsByProvinceResponse(items);
     }
 }

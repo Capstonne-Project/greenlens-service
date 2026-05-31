@@ -2,6 +2,7 @@ using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Users.UpdateUser;
 
@@ -13,7 +14,8 @@ namespace Greenlens.Application.Features.Users.UpdateUser;
 /// </remarks>
 public sealed class UpdateUserCommandHandler(
     IUserRepository users,
-    IUnitOfWork uow)
+    IUnitOfWork uow,
+    ILogger<UpdateUserCommandHandler> logger)
     : IRequestHandler<UpdateUserCommand, Result<UpdateUserResponse>>
 {
     public async Task<Result<UpdateUserResponse>> Handle(
@@ -26,6 +28,7 @@ public sealed class UpdateUserCommandHandler(
         if (user is null)
             return Errors.Users.UserNotFound;
 
+        // Admin updates user details
         user.AdminUpdate(
             request.FullName,
             request.PhoneNumber,
@@ -33,6 +36,8 @@ public sealed class UpdateUserCommandHandler(
             request.IsEmailVerified);
 
         await uow.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        logger.LogInformation("Admin updated user {UserId}", request.UserId);
 
         return new UpdateUserResponse(user.Id, "Cập nhật người dùng thành công.");
     }

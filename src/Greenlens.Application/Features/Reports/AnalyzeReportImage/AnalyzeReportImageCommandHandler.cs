@@ -5,6 +5,7 @@ using Greenlens.Application.Common.Mappings;
 using Greenlens.Application.Features.Catalog.GetPollutionCategories;
 using Greenlens.Domain.Common;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.AnalyzeReportImage;
 
@@ -19,7 +20,8 @@ namespace Greenlens.Application.Features.Reports.AnalyzeReportImage;
 public sealed class AnalyzeReportImageCommandHandler(
     IAiClassificationService aiService,
     ITempImageStore tempStore,
-    IPollutionCategoryRepository categories)
+    IPollutionCategoryRepository categories,
+    ILogger<AnalyzeReportImageCommandHandler> logger)
     : IRequestHandler<AnalyzeReportImageCommand, Result<AnalyzeReportImageResponse>>
 {
     private const int TempTtlSeconds = 900; // 15 minutes
@@ -35,7 +37,10 @@ public sealed class AnalyzeReportImageCommandHandler(
             .ConfigureAwait(false);
 
         if (aiResult is null)
+        {
+            logger.LogWarning("AI service unavailable for image {FileName}", request.FileName);
             return Errors.Ai.ServiceUnavailable;
+        }
 
         // Save temp regardless of AI decision (FE needs to show the result to user)
         var tempId = await tempStore.SaveAsync(
@@ -52,6 +57,9 @@ public sealed class AnalyzeReportImageCommandHandler(
             ExpiresInSeconds: TempTtlSeconds,
             AiResult: MapAiResult(aiResult),
             SuggestedCategory: suggestedCategory);
+
+        logger.LogInformation("Image analyzed: {FileName}, decision={Decision}, category={Category}",
+            request.FileName, aiResult.Decision, aiResult.Classify.PrimaryClass);
 
         return response;
     }

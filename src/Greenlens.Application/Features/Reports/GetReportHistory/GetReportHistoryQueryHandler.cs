@@ -2,11 +2,13 @@ using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.GetReportHistory;
 
 public sealed class GetReportHistoryQueryHandler(
-    IReportStatusHistoryRepository statusHistory)
+    IReportStatusHistoryRepository statusHistory,
+    ILogger<GetReportHistoryQueryHandler> logger)
     : IRequestHandler<GetReportHistoryQuery, Result<GetReportHistoryResponse>>
 {
     public async Task<Result<GetReportHistoryResponse>> Handle(
@@ -22,6 +24,7 @@ public sealed class GetReportHistoryQueryHandler(
                 h.Reason, h.CreatedAt))
             .ToListAsync(ct).ConfigureAwait(false);
 
+        logger.LogInformation("Lấy lịch sử trạng thái báo cáo thành công. Số lượng: {Count}", items.Count);
         return new GetReportHistoryResponse(items);
     }
 }

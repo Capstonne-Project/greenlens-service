@@ -2,9 +2,12 @@ using Greenlens.Api.Extensions;
 using Greenlens.Application.Common.Models;
 using Greenlens.Application.Features.Admin.ArchiveCategory;
 using Greenlens.Application.Features.Admin.CreateCategory;
+using Greenlens.Application.Features.Admin.CreateWasteTag;
 using Greenlens.Application.Features.Admin.ForceUpdateReportStatus;
 using Greenlens.Application.Features.Admin.GetAdminReports;
+using Greenlens.Application.Features.Admin.ToggleWasteTag;
 using Greenlens.Application.Features.Admin.UpdateCategory;
+using Greenlens.Application.Features.Admin.UpdateWasteTag;
 using Greenlens.Application.Features.Admin.UpdateUserRole;
 using Greenlens.Application.Features.Reports.GetReportById;
 using Greenlens.Application.Features.Users;
@@ -27,6 +30,7 @@ namespace Greenlens.Api.Controllers;
 [Route("v1/admin")]
 [Authorize(Roles = "Admin")]
 [Produces("application/json")]
+[Tags("⚙️ Admin Dashboard")]
 public sealed class AdminController(ISender sender) : ControllerBase
 {
     // ═══════════════════════════════════════════
@@ -34,7 +38,7 @@ public sealed class AdminController(ISender sender) : ControllerBase
     // ═══════════════════════════════════════════
 
     [HttpPost("users")]
-    [SwaggerOperation(Summary = "[Admin] Tạo tài khoản", Description = "Tạo tài khoản mới (Officer, Cleanup, Inspector, Citizen). Email tự động xác minh.")]
+    [SwaggerOperation(Summary = "[Admin] Tạo tài khoản", Description = "Tạo tài khoản mới (Officer, Cleaner, Inspector, Citizen). Email tự động xác minh.")]
     [SwaggerResponse(201, "Đã tạo", typeof(ApiResponse<CreateAccountResponse>))]
     [SwaggerResponse(409, "Email đã tồn tại", typeof(ApiResponse))]
     public async Task<IActionResult> CreateAccountAsync(
@@ -181,7 +185,7 @@ public sealed class AdminController(ISender sender) : ControllerBase
             new("Admin", ["*"]),
             new("DEO", ["GET /departments", "GET /offices", "GET /teams", "GET /reports", "PUT /reports/*/verify", "PUT /reports/*/reject", "POST /reports/*/assign", "PUT /reports/*/reassign", "GET /reports/queue"]),
             new("LEO", ["GET /offices", "GET /teams", "GET /reports", "PUT /reports/*/verify", "PUT /reports/*/reject", "POST /reports/*/assign", "PUT /reports/*/reassign", "GET /reports/queue"]),
-            new("Cleanup", ["PUT /reports/*/resolve", "PUT /reports/*/decline"]),
+            new("Cleaner", ["PUT /reports/*/resolve", "PUT /reports/*/decline"]),
             new("Inspector", ["PUT /reports/*/penalty", "PUT /reports/*/close-no-violation", "PUT /reports/*/decline"]),
             new("Citizen", ["POST /reports", "GET /reports/my", "PUT /reports/*/close", "PUT /reports/*/reopen"])
         };
@@ -189,14 +193,44 @@ public sealed class AdminController(ISender sender) : ControllerBase
         return Task.FromResult(result);
     }
 
+    // ═══════════════════════════════════════════
+    // ██  WASTE TAGS MANAGEMENT
+    // ═══════════════════════════════════════════
+
+    [HttpPost("waste-tags")]
+    [SwaggerOperation(Summary = "[Admin] Tạo tag loại rác mới", Description = "Tạo waste tag mới. Code phải viết HOA (UPPER_SNAKE_CASE), duy nhất.")]
+    [SwaggerResponse(201, "Đã tạo", typeof(ApiResponse<CreateWasteTagResponse>))]
+    [SwaggerResponse(409, "Code đã tồn tại", typeof(ApiResponse))]
+    public async Task<IActionResult> CreateWasteTagAsync(
+        [FromBody] CreateWasteTagCommand command, CancellationToken ct)
+        => (await sender.Send(command, ct)).ToHttpCreated();
+
+    [HttpPut("waste-tags/{id:guid}")]
+    [SwaggerOperation(Summary = "[Admin] Sửa tag loại rác", Description = "Cập nhật tên, icon, mô tả, thứ tự hiển thị. Không thể đổi Code.")]
+    [SwaggerResponse(204, "Đã cập nhật")]
+    [SwaggerResponse(404, "Tag không tồn tại", typeof(ApiResponse))]
+    public async Task<IActionResult> UpdateWasteTagAsync(
+        [FromRoute] Guid id, [FromBody] AdminUpdateWasteTagRequest request, CancellationToken ct)
+        => (await sender.Send(new UpdateWasteTagCommand(
+            id, request.NameVi, request.NameEn, request.IconUrl,
+            request.Description, request.DisplayOrder), ct)).ToHttpNoContent();
+
+    [HttpPatch("waste-tags/{id:guid}/toggle")]
+    [SwaggerOperation(Summary = "[Admin] Bật/tắt tag loại rác", Description = "Vô hiệu hóa hoặc kích hoạt lại waste tag. Tag bị vô hiệu hóa sẽ không xuất hiện trong dropdown nhưng dữ liệu cũ vẫn giữ.")]
+    [SwaggerResponse(204, "Đã thay đổi trạng thái")]
+    [SwaggerResponse(404, "Tag không tồn tại", typeof(ApiResponse))]
+    public async Task<IActionResult> ToggleWasteTagAsync(
+        [FromRoute] Guid id, [FromBody] ToggleWasteTagRequest request, CancellationToken ct)
+        => (await sender.Send(new ToggleWasteTagCommand(id, request.IsActive), ct)).ToHttpNoContent();
+
     // ── Helpers ──
 
     private static string GetRoleDescription(UserRole role) => role switch
     {
         UserRole.Citizen => "Người dân — tạo và theo dõi báo cáo ô nhiễm",
-        UserRole.DEO => "Department Environmental Officer — quản lý cấp Tỉnh/TP",
-        UserRole.LEO => "Local Environmental Officer — quản lý cấp Xã/Phường",
-        UserRole.Cleanup => "Đội dọn dẹp — xử lý ô nhiễm rác/nước/hóa chất",
+        UserRole.DEO => "Điều phối viên cấp Tỉnh — tiếp nhận, xác minh, điều phối task xuống phường/xã",
+        UserRole.LEO => "Giám sát viên cấp Phường/Xã — nhận task, phân công và quản lý team",
+        UserRole.Cleaner => "Đội dọn dẹp — xử lý ô nhiễm rác/nước/hóa chất",
         UserRole.Inspector => "Đội thanh tra — xử phạt ô nhiễm tiếng ồn/không khí",
         UserRole.Admin => "Quản trị viên hệ thống — toàn quyền",
         _ => role.ToString()
@@ -212,3 +246,5 @@ public sealed record UpdateCategoryRequest(string NameVi, string NameEn, string?
 public sealed record ArchiveCategoryRequest(bool Archive);
 public sealed record RoleDto(string Name, string Description);
 public sealed record RolePermissionDto(string Role, List<string> Permissions);
+public sealed record AdminUpdateWasteTagRequest(string NameVi, string NameEn, string? IconUrl, string? Description, int DisplayOrder);
+public sealed record ToggleWasteTagRequest(bool IsActive);

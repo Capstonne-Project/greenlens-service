@@ -5,6 +5,7 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.GetMyTaskDetail;
 
@@ -15,7 +16,8 @@ namespace Greenlens.Application.Features.Reports.GetMyTaskDetail;
 public sealed class GetMyTaskDetailQueryHandler(
     IReportAssignmentRepository assignments,
     ITeamMemberRepository teamMembers,
-    ICurrentUser currentUser)
+    ICurrentUser currentUser,
+    ILogger<GetMyTaskDetailQueryHandler> logger)
     : IRequestHandler<GetMyTaskDetailQuery, Result<MyTaskDetailResponse>>
 {
     public async Task<Result<MyTaskDetailResponse>> Handle(
@@ -36,6 +38,9 @@ public sealed class GetMyTaskDetailQueryHandler(
                 .ThenInclude(r => r!.Category)
             .Include(a => a.Report)
                 .ThenInclude(r => r!.Media)
+            .Include(a => a.Report)
+                .ThenInclude(r => r!.WasteTags)
+                    .ThenInclude(wt => wt.WasteTag)
             .FirstOrDefaultAsync(
                 a => a.ReportId == request.ReportId && a.TeamId == membership.TeamId, ct)
             .ConfigureAwait(false);
@@ -57,6 +62,14 @@ public sealed class GetMyTaskDetailQueryHandler(
             .Select(m => new TaskImageItem(m.Url, m.MimeType))
             .ToList();
 
+        var wasteTagItems = report.WasteTags
+            .Where(wt => wt.WasteTag is not null)
+            .Select(wt => new TaskWasteTagItem(
+                wt.WasteTag!.Code, wt.WasteTag.NameVi,
+                wt.WasteTag.NameEn, wt.WasteTag.IconUrl))
+            .ToList();
+
+        logger.LogInformation("Lấy chi tiết báo cáo thành công. Mã báo cáo: {ReportCode}", report.Code);
         return new MyTaskDetailResponse(
             AssignmentId: assignment.Id,
             AssignmentStatus: assignment.Status,
@@ -88,7 +101,9 @@ public sealed class GetMyTaskDetailQueryHandler(
             ProgressUpdatedAt: assignment.ProgressUpdatedAt,
             ProgressUpdatedByUserId: assignment.ProgressUpdatedByUserId,
 
-            AssignmentNote: assignment.Note
+            AssignmentNote: assignment.Note,
+
+            WasteTags: wasteTagItems
         );
     }
 }

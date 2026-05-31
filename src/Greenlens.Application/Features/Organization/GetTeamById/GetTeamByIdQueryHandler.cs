@@ -2,12 +2,14 @@ using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
 
 namespace Greenlens.Application.Features.Organization.GetTeamById;
 
 public sealed class GetTeamByIdQueryHandler(
-    IEnvironmentalTeamRepository teams)
+    IEnvironmentalTeamRepository teams,
+    ILogger<GetTeamByIdQueryHandler> logger)
     : IRequestHandler<GetTeamByIdQuery, Result<TeamDetailResponse>>
 {
     public async Task<Result<TeamDetailResponse>> Handle(
@@ -26,6 +28,7 @@ public sealed class GetTeamByIdQueryHandler(
             m.UserId, m.User?.FullName, m.User?.Email, m.User?.PhoneNumber,
             m.User?.AvatarUrl, m.IsLeader, m.JoinedAt)).ToList();
 
+        logger.LogInformation("Lấy thông tin chi tiết đội ngũ thành công. Tên đội: {TeamName}", team.Name);
         return new TeamDetailResponse(
             team.Id, team.Name, team.TeamType, team.LocalOfficeId,
             team.LocalOffice?.Name, team.IsActive,

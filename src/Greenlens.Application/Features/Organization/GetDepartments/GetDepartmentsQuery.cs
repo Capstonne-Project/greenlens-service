@@ -1,3 +1,4 @@
+using Greenlens.Application.Common.Models;
 using Greenlens.Domain.Common;
 using MediatR;
 
@@ -10,9 +11,7 @@ public sealed record GetDepartmentsQuery(
 
 public sealed record GetDepartmentsResponse(
     IReadOnlyList<DepartmentItem> Items,
-    int TotalCount,
-    int Page,
-    int PageSize);
+    PaginationMeta Pagination);
 
 public sealed record DepartmentItem(
     Guid Id,

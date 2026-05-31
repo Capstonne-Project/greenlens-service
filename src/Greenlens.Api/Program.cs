@@ -104,6 +104,30 @@ builder.Services.AddSwaggerGen(options =>
             Array.Empty<string>()
         }
     });
+
+    // Tag ordering — FE đọc Swagger theo thứ tự dashboard
+    var tagOrder = new[]
+    {
+        "📋 Reports — Citizen Flow",
+        "🔐 Auth — Authentication",
+        "👤 Users — User Profile",
+        "🔍 DEO Dashboard",
+        "📌 LEO Dashboard",
+        "🧹 Cleaner Dashboard",
+        "🔎 Inspector Dashboard",
+        "⚙️ Admin Dashboard",
+        "📚 Catalog — Reference Data",
+        "🗺️ Map — Public Map",
+        "📎 Media — File Upload"
+    };
+    options.OrderActionsBy(apiDesc =>
+    {
+        var tag = apiDesc.ActionDescriptor.EndpointMetadata
+            .OfType<TagsAttribute>()
+            .FirstOrDefault()?.Tags.FirstOrDefault() ?? "zzz";
+        var idx = Array.IndexOf(tagOrder, tag);
+        return $"{(idx >= 0 ? idx : 99):D2}_{tag}_{apiDesc.RelativePath}";
+    });
 });
 
 var app = builder.Build();

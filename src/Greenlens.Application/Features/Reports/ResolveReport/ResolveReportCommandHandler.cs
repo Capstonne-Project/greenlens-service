@@ -5,6 +5,7 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.ResolveReport;
 
@@ -16,8 +17,10 @@ public sealed class ResolveReportCommandHandler(
     IReportRepository reports,
     IReportAssignmentRepository assignments,
     IReportStatusHistoryRepository statusHistory,
+    IReportMediaRepository reportMedia,
     ICurrentUser currentUser,
-    IUnitOfWork uow) : IRequestHandler<ResolveReportCommand, Result>
+    IUnitOfWork uow,
+    ILogger<ResolveReportCommandHandler> logger) : IRequestHandler<ResolveReportCommand, Result>
 {
     public async Task<Result> Handle(ResolveReportCommand request, CancellationToken ct)
     {
@@ -43,6 +46,19 @@ public sealed class ResolveReportCommandHandler(
 
         assignment.Complete();
 
+        // Persist after images as ReportMedia (Type = After) for LEO visibility
+        foreach (var url in request.AfterImageUrls)
+        {
+            var media = ReportMedia.Create(
+                request.ReportId,
+                MediaType.After,
+                url,
+                "image/jpeg",
+                0L,
+                currentUser.UserId);
+            reportMedia.Add(media);
+        }
+
         // Check if ALL active assignments (non-declined) are completed
         var activeAssignments = reportAssignments
             .Where(a => a.Status != AssignmentStatus.Declined)
@@ -65,6 +81,12 @@ public sealed class ResolveReportCommandHandler(
         }
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        if (allCompleted)
+            logger.LogInformation("Report {ReportId} resolved — all teams completed", report.Id);
+        else
+            logger.LogInformation("Team {TeamId} completed assignment for report {ReportId}",
+                request.TeamId, report.Id);
 
         return Result.Success();
     }

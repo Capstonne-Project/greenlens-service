@@ -5,19 +5,21 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.DeclineAssignment;
 
 /// <summary>
 /// Team declines within 2h window. BR-CLN-007, BR-INS-003.
-/// If ALL assignments are declined → report reverts to Verified so officer can re-assign.
+/// If ALL assignments are declined → report reverts to Dispatched so LEO can re-assign.
 /// </summary>
 public sealed class DeclineAssignmentCommandHandler(
     IReportRepository reports,
     IReportAssignmentRepository assignments,
     IReportStatusHistoryRepository statusHistory,
     ICurrentUser currentUser,
-    IUnitOfWork uow) : IRequestHandler<DeclineAssignmentCommand, Result>
+    IUnitOfWork uow,
+    ILogger<DeclineAssignmentCommandHandler> logger) : IRequestHandler<DeclineAssignmentCommand, Result>
 {
     public async Task<Result> Handle(DeclineAssignmentCommand request, CancellationToken ct)
     {
@@ -55,18 +57,24 @@ public sealed class DeclineAssignmentCommandHandler(
 
         if (allDeclined)
         {
-            report.RevertToVerified();
+            report.RevertToDispatched();
 
             var history = ReportStatusHistory.Create(
                 report.Id,
                 ReportStatus.InProgress,
-                ReportStatus.Verified,
+                ReportStatus.Dispatched,
                 currentUser.UserId);
 
             statusHistory.Add(history);
         }
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        if (allDeclined)
+            logger.LogWarning("All teams declined report {ReportId} — reverted to Dispatched", report.Id);
+        else
+            logger.LogInformation("Team {TeamId} declined assignment for report {ReportId}",
+                request.TeamId, report.Id);
 
         return Result.Success();
     }

@@ -12,6 +12,7 @@ namespace Greenlens.Api.Controllers;
 [Route("v1/media")]
 [Authorize]
 [Produces("application/json")]
+[Tags("📎 Media — File Upload")]
 public sealed class MediaController(ISender sender) : ControllerBase
 {
     [HttpPost("reports/images")]

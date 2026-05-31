@@ -4,17 +4,23 @@ using Greenlens.Application.Features.Reports.AnalyzeReportImage;
 using Greenlens.Application.Features.Reports.AssignTeam;
 using Greenlens.Application.Features.Reports.CloseNoViolation;
 using Greenlens.Application.Features.Reports.CloseReport;
+using Greenlens.Application.Features.Reports.DispatchReport;
 using Greenlens.Application.Features.Reports.GetMyReports;
 using Greenlens.Application.Features.Reports.GetOfficerQueue;
+using Greenlens.Application.Features.Reports.GetReportProgress;
+using Greenlens.Application.Features.Reports.GetReportProgressBoard;
 using Greenlens.Application.Features.Reports.GetReportById;
 using Greenlens.Application.Features.Reports.GetReportHistory;
 using Greenlens.Application.Features.Reports.GetReports;
+using Greenlens.Application.Features.Reports.GetWasteTags;
 using Greenlens.Application.Features.Reports.IssuePenalty;
 using Greenlens.Application.Features.Reports.ReassignTeam;
+using Greenlens.Application.Features.Reports.ReDispatchReport;
 using Greenlens.Application.Features.Reports.RejectReport;
 using Greenlens.Application.Features.Reports.ReopenReport;
 using Greenlens.Application.Features.Reports.ResolveReport;
 using Greenlens.Application.Features.Reports.SubmitPollutionReport;
+using Greenlens.Application.Features.Reports.TagReportWaste;
 using Greenlens.Application.Features.Reports.UpdateProgress;
 using Greenlens.Application.Features.Reports.VerifyReport;
 using Greenlens.Domain.Enums;
@@ -36,10 +42,11 @@ public sealed class ReportsController(ISender sender) : ControllerBase
     // ═══════════════════════════════════════════
 
     [HttpPost("analyze")]
-    [AllowAnonymous]
+    [Authorize]
+    [Tags("📋 Reports — Citizen Flow")]
     [Consumes("multipart/form-data")]
     [SwaggerOperation(
-        Summary = "[Citizen/Anonymous] Phân tích ảnh trước khi tạo báo cáo (Step 1)",
+        Summary = "[Citizen] Phân tích ảnh trước khi tạo báo cáo (Step 1)",
         Description = "Upload ảnh để AI phân tích. Trả về temp_image_id (TTL 15 phút), kết quả AI, và " +
             "suggestedCategory (id, code, nameVi, nameEn) để FE auto-fill loại ô nhiễm. " +
             "Nếu decision = IRRELEVANT_OR_SUSPECTED_ABUSIVE → FE hiển thị warning, disable nút Submit. " +
@@ -82,11 +89,13 @@ public sealed class ReportsController(ISender sender) : ControllerBase
     // ═══════════════════════════════════════════
 
     [HttpPost]
-    [AllowAnonymous]
+    [Authorize]
+    [Tags("📋 Reports — Citizen Flow")]
     [SwaggerOperation(
-        Summary = "[Citizen/Anonymous] Tạo báo cáo ô nhiễm",
-        Description = "Tạo báo cáo mới. Hỗ trợ anonymous (không cần login). " +
-            "Hệ thống tự động gán SLA 24h và route báo cáo theo wardCode đến LocalOffice hoặc Department queue.")]
+        Summary = "[Citizen] Tạo báo cáo ô nhiễm",
+        Description = "Tạo báo cáo mới. " +
+            "Hệ thống tự động gán SLA 24h và route báo cáo theo wardCode đến LocalOffice hoặc Department queue. " +
+            "Có thể đính kèm wasteTagIds (optional) để citizen tự gắn loại rác — DEO có thể bổ sung/sửa sau.")]
     [SwaggerResponse(201, "Đã tạo", typeof(ApiResponse<SubmitPollutionReportResponse>))]
     [SwaggerResponse(400, "Thiếu thông tin xác thực hoặc ward/province không hợp lệ", typeof(ApiResponse))]
     [SwaggerResponse(404, "Danh mục không tồn tại", typeof(ApiResponse))]
@@ -96,6 +105,7 @@ public sealed class ReportsController(ISender sender) : ControllerBase
 
     [HttpGet]
     [Authorize]
+    [Tags("📋 Reports — Citizen Flow")]
     [SwaggerOperation(Summary = "[Auth] Danh sách báo cáo", Description = "Trả về danh sách báo cáo ô nhiễm. Hỗ trợ lọc theo status, category, ward, severity.")]
     [SwaggerResponse(200, "Danh sách báo cáo", typeof(ApiResponse<GetReportsResponse>))]
     public async Task<IActionResult> GetAllAsync(
@@ -107,6 +117,7 @@ public sealed class ReportsController(ISender sender) : ControllerBase
 
     [HttpGet("{id:guid}")]
     [Authorize]
+    [Tags("📋 Reports — Citizen Flow")]
     [SwaggerOperation(Summary = "[Auth] Chi tiết báo cáo", Description = "Trả về full thông tin báo cáo kèm media, assignments, lịch sử status.")]
     [SwaggerResponse(200, "Chi tiết báo cáo", typeof(ApiResponse<ReportDetailResponse>))]
     [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
@@ -115,6 +126,7 @@ public sealed class ReportsController(ISender sender) : ControllerBase
 
     [HttpGet("my")]
     [Authorize]
+    [Tags("📋 Reports — Citizen Flow")]
     [SwaggerOperation(Summary = "[Citizen] Báo cáo của tôi", Description = "Trả về danh sách báo cáo do user hiện tại tạo. Hỗ trợ lọc theo status.")]
     [SwaggerResponse(200, "Danh sách báo cáo của tôi", typeof(ApiResponse<GetMyReportsResponse>))]
     public async Task<IActionResult> GetMyAsync(
@@ -124,6 +136,7 @@ public sealed class ReportsController(ISender sender) : ControllerBase
 
     [HttpGet("{id:guid}/history")]
     [Authorize]
+    [Tags("📋 Reports — Citizen Flow")]
     [SwaggerOperation(Summary = "[Auth] Lịch sử status báo cáo", Description = "Trả về timeline thay đổi status của báo cáo, kèm thông tin người thực hiện.")]
     [SwaggerResponse(200, "Lịch sử status", typeof(ApiResponse<GetReportHistoryResponse>))]
     public async Task<IActionResult> GetHistoryAsync([FromRoute] Guid id, CancellationToken ct)
@@ -134,19 +147,21 @@ public sealed class ReportsController(ISender sender) : ControllerBase
     // ═══════════════════════════════════════════
 
     [HttpPut("{id:guid}/verify")]
-    [Authorize(Roles = "LEO,DEO,Admin")]
-    [SwaggerOperation(Summary = "[LEO/DEO] Xác minh báo cáo", Description = "Officer kiểm tra thông tin và xác minh báo cáo. Có thể override severity và category nếu cần. Chuyển status Submitted → Verified.")]
+    [Authorize(Roles = "DEO,Admin")]
+    [Tags("🔍 DEO Dashboard")]
+    [SwaggerOperation(Summary = "[DEO] Xác minh báo cáo", Description = "DEO kiểm tra thông tin và xác minh báo cáo. Có thể override severity và category nếu cần. Chuyển status Submitted → Verified.")]
     [SwaggerResponse(204, "Đã xác minh")]
     [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
     [SwaggerResponse(422, "Status không hợp lệ hoặc conflict of interest", typeof(ApiResponse))]
     public async Task<IActionResult> VerifyAsync(
         [FromRoute] Guid id, [FromBody] VerifyReportRequest request, CancellationToken ct)
-        => (await sender.Send(new VerifyReportCommand(id, request.OverrideSeverity, request.OverrideCategoryId), ct))
+        => (await sender.Send(new VerifyReportCommand(id, request.OverrideSeverity, request.OverrideCategoryId, request.WasteTagIds), ct))
             .ToHttpNoContent();
 
     [HttpPut("{id:guid}/reject")]
-    [Authorize(Roles = "LEO,DEO,Admin")]
-    [SwaggerOperation(Summary = "[LEO/DEO] Từ chối báo cáo", Description = "Officer từ chối báo cáo không hợp lệ. Yêu cầu lý do ≥ 20 ký tự. Chuyển status Submitted → Rejected.")]
+    [Authorize(Roles = "DEO,Admin")]
+    [Tags("🔍 DEO Dashboard")]
+    [SwaggerOperation(Summary = "[DEO] Từ chối báo cáo", Description = "DEO từ chối báo cáo không hợp lệ. Yêu cầu lý do ≥ 20 ký tự. Chuyển status Submitted → Rejected.")]
     [SwaggerResponse(204, "Đã từ chối")]
     [SwaggerResponse(422, "Lý do quá ngắn hoặc status không hợp lệ", typeof(ApiResponse))]
     public async Task<IActionResult> RejectAsync(
@@ -154,20 +169,22 @@ public sealed class ReportsController(ISender sender) : ControllerBase
         => (await sender.Send(new RejectReportCommand(id, request.Reason), ct)).ToHttpNoContent();
 
     [HttpPost("{id:guid}/assign")]
-    [Authorize(Roles = "LEO,DEO,Admin")]
-    [SwaggerOperation(Summary = "[LEO/DEO] Phân công team xử lý", Description = "Phân công 1 hoặc nhiều team cùng xử lý. Tất cả team ngang hàng. Team type phải khớp loại ô nhiễm. Chuyển status Verified → InProgress.")]
+    [Authorize(Roles = "LEO,Admin")]
+    [Tags("📌 LEO Dashboard")]
+    [SwaggerOperation(Summary = "[LEO] Phân công team xử lý", Description = "LEO phân công 1 hoặc nhiều team cùng xử lý. Team type phải khớp loại ô nhiễm. Chuyển status Dispatched → InProgress.")]
     [SwaggerResponse(204, "Đã phân công")]
     [SwaggerResponse(422, "Team type không khớp hoặc workload vượt quá", typeof(ApiResponse))]
     public async Task<IActionResult> AssignTeamAsync(
         [FromRoute] Guid id, [FromBody] AssignTeamRequest request, CancellationToken ct)
     {
         var items = request.Teams.Select(t => new TeamAssignmentItem(t.TeamId, t.Note)).ToList();
-        return (await sender.Send(new AssignTeamCommand(id, items), ct)).ToHttpNoContent();
+        return (await sender.Send(new AssignTeamCommand(id, items, request.WasteTagIds), ct)).ToHttpNoContent();
     }
 
     [HttpPut("{id:guid}/reassign")]
-    [Authorize(Roles = "LEO,DEO,Admin")]
-    [SwaggerOperation(Summary = "[LEO/DEO] Chuyển giao team", Description = "Chuyển assignment từ team cũ sang team mới cùng loại. Yêu cầu lý do ≥ 20 ký tự.")]
+    [Authorize(Roles = "LEO,Admin")]
+    [Tags("📌 LEO Dashboard")]
+    [SwaggerOperation(Summary = "[LEO] Chuyển giao team", Description = "Chuyển assignment từ team cũ sang team mới cùng loại. Yêu cầu lý do ≥ 20 ký tự.")]
     [SwaggerResponse(204, "Đã chuyển giao")]
     [SwaggerResponse(422, "Khác loại team hoặc workload vượt quá", typeof(ApiResponse))]
     public async Task<IActionResult> ReassignAsync(
@@ -175,8 +192,77 @@ public sealed class ReportsController(ISender sender) : ControllerBase
         => (await sender.Send(new ReassignTeamCommand(id, request.OldTeamId, request.NewTeamId, request.Reason), ct))
             .ToHttpNoContent();
 
+    // ═══════════════════════════════════════════
+    // ██  DEO DISPATCH
+    // ═══════════════════════════════════════════
+
+    [HttpPost("{id:guid}/dispatch")]
+    [Authorize(Roles = "DEO,Admin")]
+    [Tags("🔍 DEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[DEO] Điều phối task xuống xã/phường",
+        Description = "DEO chọn xã/phường phù hợp và điều phối task xuống. " +
+            "Chỉ được dispatch trong phạm vi tỉnh của DEO. Chuyển status Verified → Dispatched.")]
+    [SwaggerResponse(204, "Đã điều phối")]
+    [SwaggerResponse(404, "Report hoặc Office không tồn tại", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Status không hợp lệ hoặc ngoài phạm vi tỉnh", typeof(ApiResponse))]
+    public async Task<IActionResult> DispatchAsync(
+        [FromRoute] Guid id, [FromBody] DispatchRequest request, CancellationToken ct)
+        => (await sender.Send(new DispatchReportCommand(id, request.TargetLocalOfficeId, request.Note), ct))
+            .ToHttpNoContent();
+
+    [HttpPut("{id:guid}/re-dispatch")]
+    [Authorize(Roles = "DEO,Admin")]
+    [Tags("🔍 DEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[DEO] Điều phối lại task sang xã/phường khác",
+        Description = "DEO chuyển task từ xã/phường hiện tại sang xã/phường khác (trong cùng tỉnh). " +
+            "Chỉ được khi LEO chưa assign team (status vẫn là Dispatched).")]
+    [SwaggerResponse(204, "Đã điều phối lại")]
+    [SwaggerResponse(422, "Status không hợp lệ hoặc ngoài phạm vi tỉnh", typeof(ApiResponse))]
+    public async Task<IActionResult> ReDispatchAsync(
+        [FromRoute] Guid id, [FromBody] ReDispatchRequest request, CancellationToken ct)
+        => (await sender.Send(new ReDispatchReportCommand(id, request.NewLocalOfficeId, request.Note), ct))
+            .ToHttpNoContent();
+
+    [HttpGet("progress-board")]
+    [Authorize(Roles = "LEO,Admin")]
+    [Tags("📌 LEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO] Board tổng quan các báo cáo đang xử lý",
+        Description = "Trả về danh sách card báo cáo InProgress trong office của LEO, " +
+            "mỗi card gồm: SLA countdown, tiến độ tổng thể, avatar top-3 team leader. " +
+            "Dùng cho trang dashboard dạng grid. " +
+            "hoursRemaining âm = đã breach SLA. " +
+            "Lọc thêm: severity, slaBreachedOnly=true.")]
+    [SwaggerResponse(200, "Danh sách card báo cáo", typeof(ApiResponse<GetReportProgressBoardResponse>))]
+    public async Task<IActionResult> GetProgressBoardAsync(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] Severity? severity = null,
+        [FromQuery] bool slaBreachedOnly = false,
+        CancellationToken ct = default)
+        => (await sender.Send(
+            new GetReportProgressBoardQuery(page, pageSize, severity, slaBreachedOnly), ct)).ToHttp();
+
+    [HttpGet("{id:guid}/progress")]
+    [Authorize(Roles = "LEO,Admin")]
+    [Tags("📌 LEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO] Tiến trình xử lý báo cáo",
+        Description = "Trả về toàn bộ thông tin tiến trình của một báo cáo đang InProgress: " +
+            "trạng thái từng team, % hoàn thành, ảnh tiến trình/nghiệm thu, SLA còn lại, và lịch sử status. " +
+            "overallProgressPercent là trung bình của các assignment đang active (Completed = 100%). " +
+            "sla.hoursRemaining âm = đã breach. " +
+            "media.progressImages gom tất cả ảnh tiến trình từ mọi team.")]
+    [SwaggerResponse(200, "Tiến trình báo cáo", typeof(ApiResponse<ReportProgressResponse>))]
+    [SwaggerResponse(404, "Không tìm thấy báo cáo", typeof(ApiResponse))]
+    public async Task<IActionResult> GetProgressAsync([FromRoute] Guid id, CancellationToken ct)
+        => (await sender.Send(new GetReportProgressQuery(id), ct)).ToHttp();
+
     [HttpGet("queue")]
     [Authorize(Roles = "LEO,DEO,Admin")]
+    [Tags("🔍 DEO Dashboard")]
     [SwaggerOperation(Summary = "[LEO/DEO] Xem hàng đợi báo cáo", Description = "Trả về danh sách báo cáo trong phạm vi quản lý, sắp theo điểm ưu tiên giảm dần.")]
     [SwaggerResponse(200, "Hàng đợi", typeof(ApiResponse<GetOfficerQueueResponse>))]
     public async Task<IActionResult> GetQueueAsync(
@@ -190,10 +276,11 @@ public sealed class ReportsController(ISender sender) : ControllerBase
     // Xem: GET/PUT /v1/teams/my-tasks/* và GET /v1/teams/my-progress
 
     [HttpPut("{id:guid}/progress")]
-    [Authorize(Roles = "Cleanup,Inspector,Admin")]
+    [Authorize(Roles = "Cleaner,Inspector,Admin")]
+    [Tags("🧹 Cleaner Dashboard")]
     [Consumes("multipart/form-data")]
     [SwaggerOperation(
-        Summary = "[Cleanup/Inspector] Cập nhật tiến độ + ảnh",
+        Summary = "[Cleaner/Inspector] Cập nhật tiến độ + ảnh",
         Description = "Team leader cập nhật % tiến độ, ghi chú, và tùy chọn upload ảnh trong cùng 1 request. " +
             "TeamId tự động lấy từ token. Tối đa 5 ảnh, mỗi ảnh ≤ 20MB. Status không thay đổi.")]
     [SwaggerResponse(200, "Đã cập nhật, trả về URLs ảnh đã upload", typeof(ApiResponse<UpdateProgressResponse>))]
@@ -221,8 +308,9 @@ public sealed class ReportsController(ISender sender) : ControllerBase
     }
 
     [HttpPut("{id:guid}/resolve")]
-    [Authorize(Roles = "Cleanup,Admin")]
-    [SwaggerOperation(Summary = "[Cleanup] Hoàn thành phần việc của team", Description = "Cleanup Team đánh dấu phần việc đã hoàn thành. Yêu cầu ≥ 2 ảnh after. Khi tất cả team đều completed → report chuyển InProgress → Resolved.")]
+    [Authorize(Roles = "Cleaner,Admin")]
+    [Tags("🧹 Cleaner Dashboard")]
+    [SwaggerOperation(Summary = "[Cleaner] Hoàn thành phần việc của team", Description = "Cleanup Team đánh dấu phần việc đã hoàn thành. Yêu cầu ≥ 2 ảnh after. Khi tất cả team đều completed → report chuyển InProgress → Resolved.")]
     [SwaggerResponse(204, "Đã hoàn thành")]
     [SwaggerResponse(422, "Thiếu ảnh hoặc status không hợp lệ", typeof(ApiResponse))]
     public async Task<IActionResult> ResolveAsync(
@@ -232,6 +320,7 @@ public sealed class ReportsController(ISender sender) : ControllerBase
 
     [HttpPut("{id:guid}/penalty")]
     [Authorize(Roles = "Inspector,Admin")]
+    [Tags("🔎 Inspector Dashboard")]
     [SwaggerOperation(Summary = "[Inspector] Xử phạt vi phạm", Description = "Inspection Team Leader ban hành quyết định xử phạt. Khi tất cả team đều completed → report chuyển InProgress → PenaltyIssued.")]
     [SwaggerResponse(204, "Đã xử phạt")]
     [SwaggerResponse(422, "Status không hợp lệ", typeof(ApiResponse))]
@@ -241,6 +330,7 @@ public sealed class ReportsController(ISender sender) : ControllerBase
 
     [HttpPut("{id:guid}/close-no-violation")]
     [Authorize(Roles = "Inspector,Admin")]
+    [Tags("🔎 Inspector Dashboard")]
     [SwaggerOperation(Summary = "[Inspector] Đóng — không vi phạm", Description = "Inspection Team đóng báo cáo khi khảo sát không phát hiện vi phạm. Yêu cầu lý do ≥ 50 ký tự.")]
     [SwaggerResponse(204, "Đã đóng")]
     [SwaggerResponse(422, "Lý do quá ngắn hoặc status không hợp lệ", typeof(ApiResponse))]
@@ -249,11 +339,40 @@ public sealed class ReportsController(ISender sender) : ControllerBase
         => (await sender.Send(new CloseNoViolationCommand(id, request.Reason), ct)).ToHttpNoContent();
 
     // ═══════════════════════════════════════════
+    // ██  WASTE TAGS
+    // ═══════════════════════════════════════════
+
+    [HttpPut("{id:guid}/waste-tags")]
+    [Authorize(Roles = "DEO,Admin")]
+    [Tags("🔍 DEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[DEO] Gắn tag loại rác cho báo cáo",
+        Description = "DEO gắn tag loại rác (household, medical, hazardous,...) để cleanup team biết cần chuẩn bị gì. " +
+            "Thay thế toàn bộ tag cũ bằng danh sách mới. Tối thiểu 1, tối đa 12 tag.")]
+    [SwaggerResponse(204, "Đã gắn tag")]
+    [SwaggerResponse(404, "Report hoặc tag không tồn tại", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Status không hợp lệ hoặc tag bị vô hiệu hóa", typeof(ApiResponse))]
+    public async Task<IActionResult> TagWasteAsync(
+        [FromRoute] Guid id, [FromBody] TagWasteRequest request, CancellationToken ct)
+        => (await sender.Send(new TagReportWasteCommand(id, request.WasteTagIds), ct)).ToHttpNoContent();
+
+    [HttpGet("~/v1/waste-tags")]
+    [Authorize]
+    [Tags("📋 Reports — Citizen Flow")]
+    [SwaggerOperation(
+        Summary = "[Auth] Danh sách loại rác",
+        Description = "Trả về tất cả waste tag đang active, sắp theo displayOrder. Dùng cho dropdown/chip selection trên FE.")]
+    [SwaggerResponse(200, "Danh sách tag", typeof(ApiResponse<GetWasteTagsResponse>))]
+    public async Task<IActionResult> GetWasteTagsAsync(CancellationToken ct)
+        => (await sender.Send(new GetWasteTagsQuery(), ct)).ToHttp();
+
+    // ═══════════════════════════════════════════
     // ██  CITIZEN WORKFLOW
     // ═══════════════════════════════════════════
 
     [HttpPut("{id:guid}/close")]
     [Authorize]
+    [Tags("📋 Reports — Citizen Flow")]
     [SwaggerOperation(Summary = "[Citizen/Auto] Đóng báo cáo", Description = "Citizen xác nhận hài lòng hoặc hệ thống tự động đóng sau 7 ngày. Chuyển status Resolved/PenaltyIssued → Closed.")]
     [SwaggerResponse(204, "Đã đóng")]
     [SwaggerResponse(422, "Status không hợp lệ", typeof(ApiResponse))]
@@ -262,6 +381,7 @@ public sealed class ReportsController(ISender sender) : ControllerBase
 
     [HttpPut("{id:guid}/reopen")]
     [Authorize]
+    [Tags("📋 Reports — Citizen Flow")]
     [SwaggerOperation(Summary = "[Citizen] Mở lại báo cáo", Description = "Citizen mở lại báo cáo nếu chưa hài lòng. Tối đa 2 lần reopen. Chuyển status Resolved → InProgress.")]
     [SwaggerResponse(204, "Đã mở lại")]
     [SwaggerResponse(422, "Hết lượt reopen hoặc status không hợp lệ", typeof(ApiResponse))]
@@ -270,12 +390,15 @@ public sealed class ReportsController(ISender sender) : ControllerBase
 }
 
 // ── Request DTOs ──
-public sealed record VerifyReportRequest(Severity? OverrideSeverity = null, Guid? OverrideCategoryId = null);
+public sealed record VerifyReportRequest(Severity? OverrideSeverity = null, Guid? OverrideCategoryId = null, List<Guid>? WasteTagIds = null);
 public sealed record RejectReportRequest(string Reason);
-public sealed record AssignTeamRequest(List<AssignTeamItemRequest> Teams);
+public sealed record AssignTeamRequest(List<AssignTeamItemRequest> Teams, List<Guid>? WasteTagIds = null);
 public sealed record AssignTeamItemRequest(Guid TeamId, string? Note);
 public sealed record ReassignTeamRequest(Guid OldTeamId, Guid NewTeamId, string Reason);
 public sealed record ResolveReportRequest(Guid TeamId, List<string> AfterImageUrls);
 public sealed record IssuePenaltyRequest(Guid TeamId);
 public sealed record CloseNoViolationRequest(string Reason);
 public sealed record DeclineAssignmentRequest(Guid TeamId, string Reason);
+public sealed record TagWasteRequest(List<Guid> WasteTagIds);
+public sealed record DispatchRequest(Guid TargetLocalOfficeId, string? Note = null);
+public sealed record ReDispatchRequest(Guid NewLocalOfficeId, string? Note = null);

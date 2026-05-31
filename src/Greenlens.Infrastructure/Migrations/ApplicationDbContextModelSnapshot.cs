@@ -17,7 +17,7 @@ namespace Greenlens.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.16")
+                .HasAnnotation("ProductVersion", "9.0.15")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -506,6 +506,10 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("ai_pending");
 
+                    b.Property<string>("AiSuggestedWasteTagCodes")
+                        .HasColumnType("text")
+                        .HasColumnName("ai_suggested_waste_tag_codes");
+
                     b.Property<Guid?>("AssignedByOfficerId")
                         .HasColumnType("uuid")
                         .HasColumnName("assigned_by_officer_id");
@@ -556,6 +560,14 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)")
                         .HasColumnName("description");
+
+                    b.Property<DateTime?>("DispatchedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("dispatched_at");
+
+                    b.Property<Guid?>("DispatchedById")
+                        .HasColumnType("uuid")
+                        .HasColumnName("dispatched_by_id");
 
                     b.Property<bool>("IsAnonymous")
                         .HasColumnType("boolean")
@@ -689,6 +701,9 @@ namespace Greenlens.Infrastructure.Migrations
 
                     b.HasIndex("CreatedAt")
                         .HasDatabaseName("ix_reports_created_at");
+
+                    b.HasIndex("DispatchedById")
+                        .HasDatabaseName("ix_reports_dispatched_by_id");
 
                     b.HasIndex("ParentReportId")
                         .HasDatabaseName("ix_reports_parent_report_id");
@@ -1053,6 +1068,39 @@ namespace Greenlens.Infrastructure.Migrations
                     b.ToTable("report_status_history", (string)null);
                 });
 
+            modelBuilder.Entity("Greenlens.Domain.Entities.ReportWasteTag", b =>
+                {
+                    b.Property<Guid>("ReportId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("report_id");
+
+                    b.Property<Guid>("WasteTagId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("waste_tag_id");
+
+                    b.Property<DateTime>("TaggedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("tagged_at");
+
+                    b.Property<Guid>("TaggedById")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tagged_by_id");
+
+                    b.HasKey("ReportId", "WasteTagId")
+                        .HasName("pk_report_waste_tags");
+
+                    b.HasIndex("ReportId")
+                        .HasDatabaseName("ix_report_waste_tags_report_id");
+
+                    b.HasIndex("TaggedById")
+                        .HasDatabaseName("ix_report_waste_tags_tagged_by_id");
+
+                    b.HasIndex("WasteTagId")
+                        .HasDatabaseName("ix_report_waste_tags_waste_tag_id");
+
+                    b.ToTable("report_waste_tags", (string)null);
+                });
+
             modelBuilder.Entity("Greenlens.Domain.Entities.TeamMember", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1211,6 +1259,201 @@ namespace Greenlens.Infrastructure.Migrations
                     b.ToTable("users", (string)null);
                 });
 
+            modelBuilder.Entity("Greenlens.Domain.Entities.WasteTag", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<int>("DisplayOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("display_order");
+
+                    b.Property<string>("IconUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("icon_url");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("NameEn")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name_en");
+
+                    b.Property<string>("NameVi")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name_vi");
+
+                    b.HasKey("Id")
+                        .HasName("pk_waste_tags");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("ix_waste_tags_code");
+
+                    b.ToTable("waste_tags", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("b46da84b-0149-8c5e-b378-0e9ad27d2da9"),
+                            Code = "HOUSEHOLD",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Túi nilon, quần áo cũ, rác hỗn hợp gia đình",
+                            DisplayOrder = 1,
+                            IsActive = true,
+                            NameEn = "Household Waste",
+                            NameVi = "Rác sinh hoạt"
+                        },
+                        new
+                        {
+                            Id = new Guid("5173c601-0868-d457-bb6e-a85c6c4da2ca"),
+                            Code = "FOOD_ORGANIC",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Thức ăn thừa, rau củ hỏng, bã trà, rác vườn",
+                            DisplayOrder = 2,
+                            IsActive = true,
+                            NameEn = "Food & Organic",
+                            NameVi = "Thực phẩm & Hữu cơ"
+                        },
+                        new
+                        {
+                            Id = new Guid("0ce80d1c-c18c-6659-bf72-7cf11da0ab50"),
+                            Code = "RECYCLABLE",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Chai PET, lon nhôm, carton, giấy, thủy tinh",
+                            DisplayOrder = 3,
+                            IsActive = true,
+                            NameEn = "Recyclable",
+                            NameVi = "Tái chế"
+                        },
+                        new
+                        {
+                            Id = new Guid("9a4d7cfd-020a-c755-bb98-39b91fbfd516"),
+                            Code = "MEDICAL",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Khẩu trang, kim tiêm, băng gạc, thuốc hết hạn",
+                            DisplayOrder = 4,
+                            IsActive = true,
+                            NameEn = "Medical Waste",
+                            NameVi = "Rác y tế"
+                        },
+                        new
+                        {
+                            Id = new Guid("2502c58b-22fd-565a-a0b1-9c2467803d4f"),
+                            Code = "ELECTRONIC",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Điện thoại, dây cáp, bảng mạch, TV, máy tính",
+                            DisplayOrder = 5,
+                            IsActive = true,
+                            NameEn = "Electronic Waste",
+                            NameVi = "Rác điện tử"
+                        },
+                        new
+                        {
+                            Id = new Guid("0fe341a2-447c-2d5d-854c-08094907923e"),
+                            Code = "HAZARDOUS",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Pin, bình hóa chất, sơn, dầu nhớt, thuốc trừ sâu",
+                            DisplayOrder = 6,
+                            IsActive = true,
+                            NameEn = "Hazardous",
+                            NameVi = "Nguy hại"
+                        },
+                        new
+                        {
+                            Id = new Guid("376dcb07-7199-fe55-808d-76cd884bb418"),
+                            Code = "CONSTRUCTION",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Gạch, xi măng, tấm lợp, ống nước, sắt thép",
+                            DisplayOrder = 7,
+                            IsActive = true,
+                            NameEn = "Construction Debris",
+                            NameVi = "Phế thải xây dựng"
+                        },
+                        new
+                        {
+                            Id = new Guid("82c9191f-338d-435b-8ea9-c1b4792adc32"),
+                            Code = "BULKY",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Nệm, ghế sofa, tủ lạnh, bàn ghế, máy giặt",
+                            DisplayOrder = 8,
+                            IsActive = true,
+                            NameEn = "Bulky Items",
+                            NameVi = "Đồ cồng kềnh"
+                        },
+                        new
+                        {
+                            Id = new Guid("ff25abe9-6df3-3c5f-8a0a-a28e9823bb6b"),
+                            Code = "TIRE",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Lốp xe máy, ô tô, xe tải bị vứt bỏ",
+                            DisplayOrder = 9,
+                            IsActive = true,
+                            NameEn = "Tires",
+                            NameVi = "Lốp xe"
+                        },
+                        new
+                        {
+                            Id = new Guid("142cf16b-4bfa-8052-9d37-c54b4f777257"),
+                            Code = "ANIMAL_CARCASS",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Chuột, chó mèo bị xe cán, gia cầm chết",
+                            DisplayOrder = 10,
+                            IsActive = true,
+                            NameEn = "Animal Carcass",
+                            NameVi = "Xác động vật"
+                        },
+                        new
+                        {
+                            Id = new Guid("1cc2956d-5b96-c453-9823-6a4422c95cf9"),
+                            Code = "TEXTILE",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Quần áo cũ, vải vụn, thảm, rèm cửa",
+                            DisplayOrder = 11,
+                            IsActive = true,
+                            NameEn = "Textile",
+                            NameVi = "Vải, quần áo"
+                        },
+                        new
+                        {
+                            Id = new Guid("f016f98a-ede8-2855-abad-509b0beae201"),
+                            Code = "VEGETATION",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Cành cây, gốc cây, cỏ, lá khô số lượng lớn",
+                            DisplayOrder = 12,
+                            IsActive = true,
+                            NameEn = "Yard/Vegetation",
+                            NameVi = "Cây cỏ, lá"
+                        });
+                });
+
             modelBuilder.Entity("Greenlens.Domain.Entities.Department", b =>
                 {
                     b.HasOne("Greenlens.Domain.Entities.Location.Province", "Province")
@@ -1327,6 +1570,12 @@ namespace Greenlens.Infrastructure.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_reports_pollution_categories_category_id");
 
+                    b.HasOne("Greenlens.Domain.Entities.User", "DispatchedByUser")
+                        .WithMany()
+                        .HasForeignKey("DispatchedById")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_reports_users_dispatched_by_id");
+
                     b.HasOne("Greenlens.Domain.Entities.Report", "ParentReport")
                         .WithMany("DuplicateReports")
                         .HasForeignKey("ParentReportId")
@@ -1350,6 +1599,8 @@ namespace Greenlens.Infrastructure.Migrations
                     b.Navigation("AssignedOffice");
 
                     b.Navigation("Category");
+
+                    b.Navigation("DispatchedByUser");
 
                     b.Navigation("ParentReport");
 
@@ -1482,6 +1733,36 @@ namespace Greenlens.Infrastructure.Migrations
                     b.Navigation("Report");
                 });
 
+            modelBuilder.Entity("Greenlens.Domain.Entities.ReportWasteTag", b =>
+                {
+                    b.HasOne("Greenlens.Domain.Entities.Report", "Report")
+                        .WithMany("WasteTags")
+                        .HasForeignKey("ReportId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_report_waste_tags_reports_report_id");
+
+                    b.HasOne("Greenlens.Domain.Entities.User", "TaggedByUser")
+                        .WithMany()
+                        .HasForeignKey("TaggedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_report_waste_tags_users_tagged_by_id");
+
+                    b.HasOne("Greenlens.Domain.Entities.WasteTag", "WasteTag")
+                        .WithMany("ReportWasteTags")
+                        .HasForeignKey("WasteTagId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_report_waste_tags_waste_tags_waste_tag_id");
+
+                    b.Navigation("Report");
+
+                    b.Navigation("TaggedByUser");
+
+                    b.Navigation("WasteTag");
+                });
+
             modelBuilder.Entity("Greenlens.Domain.Entities.TeamMember", b =>
                 {
                     b.HasOne("Greenlens.Domain.Entities.EnvironmentalTeam", "Team")
@@ -1570,6 +1851,13 @@ namespace Greenlens.Infrastructure.Migrations
                     b.Navigation("Media");
 
                     b.Navigation("StatusHistory");
+
+                    b.Navigation("WasteTags");
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.WasteTag", b =>
+                {
+                    b.Navigation("ReportWasteTags");
                 });
 #pragma warning restore 612, 618
         }

@@ -3,6 +3,7 @@ using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Users.VerifyPhoneFirebase;
 
@@ -15,7 +16,8 @@ public sealed class VerifyPhoneFirebaseCommandHandler(
     IFirebasePhoneAuthService firebasePhoneAuth,
     IUserRepository users,
     IUnitOfWork uow,
-    ICurrentUser currentUser)
+    ICurrentUser currentUser,
+    ILogger<VerifyPhoneFirebaseCommandHandler> logger)
     : IRequestHandler<VerifyPhoneFirebaseCommand, Result<VerifyPhoneFirebaseResponse>>
 {
     public async Task<Result<VerifyPhoneFirebaseResponse>> Handle(
@@ -28,7 +30,10 @@ public sealed class VerifyPhoneFirebaseCommandHandler(
             .ConfigureAwait(false);
 
         if (phoneInfo is null)
+        {
+            logger.LogWarning("Firebase phone token invalid for user {UserId}", currentUser.UserId);
             return Errors.Phone.FirebaseTokenInvalid;
+        }
 
         var phone = NormalizePhone(phoneInfo.PhoneNumber);
 
@@ -53,6 +58,9 @@ public sealed class VerifyPhoneFirebaseCommandHandler(
         user.VerifyPhone(phone);
 
         await uow.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        logger.LogInformation("Phone {Phone} verified for user {UserId}",
+            phone, currentUser.UserId);
 
         return new VerifyPhoneFirebaseResponse(
             "Xác thực số điện thoại thành công.",

@@ -1,12 +1,15 @@
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Common.Models;
 using Greenlens.Domain.Common;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
 
 namespace Greenlens.Application.Features.Organization.GetDepartments;
 
 public sealed class GetDepartmentsQueryHandler(
-    IDepartmentRepository departments)
+    IDepartmentRepository departments,
+    ILogger<GetDepartmentsQueryHandler> logger)
     : IRequestHandler<GetDepartmentsQuery, Result<GetDepartmentsResponse>>
 {
     public async Task<Result<GetDepartmentsResponse>> Handle(
@@ -21,6 +24,7 @@ public sealed class GetDepartmentsQueryHandler(
             query = query.Where(d => d.IsActive == request.IsActive.Value);
 
         var totalCount = await query.CountAsync(ct).ConfigureAwait(false);
+        var pagination = PaginationMeta.Create(request.Page, request.PageSize, totalCount);
 
         var items = await query
             .OrderBy(d => d.Name)
@@ -37,6 +41,7 @@ public sealed class GetDepartmentsQueryHandler(
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
-        return new GetDepartmentsResponse(items, totalCount, request.Page, request.PageSize);
+        logger.LogInformation("Lấy danh sách phòng ban thành công. Số lượng: {Count}", items.Count);
+        return new GetDepartmentsResponse(items, pagination);
     }
 }

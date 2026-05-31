@@ -4,6 +4,7 @@ using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.AcceptAssignment;
 
@@ -16,7 +17,8 @@ public sealed class AcceptAssignmentCommandHandler(
     IReportAssignmentRepository assignments,
     ITeamMemberRepository teamMembers,
     ICurrentUser currentUser,
-    IUnitOfWork uow) : IRequestHandler<AcceptAssignmentCommand, Result>
+    IUnitOfWork uow,
+    ILogger<AcceptAssignmentCommandHandler> logger) : IRequestHandler<AcceptAssignmentCommand, Result>
 {
     public async Task<Result> Handle(AcceptAssignmentCommand request, CancellationToken ct)
     {
@@ -46,6 +48,9 @@ public sealed class AcceptAssignmentCommandHandler(
         report.MarkStarted();
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        logger.LogInformation("Assignment accepted: team {TeamId} for report {ReportId}",
+            leader.TeamId, request.ReportId);
 
         return Result.Success();
     }
