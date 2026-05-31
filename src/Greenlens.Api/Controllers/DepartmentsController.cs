@@ -4,7 +4,7 @@ using Greenlens.Application.Features.Organization.AssignDeoToDepartment;
 using Greenlens.Application.Features.Organization.CreateDepartment;
 using Greenlens.Application.Features.Organization.GetDepartmentById;
 using Greenlens.Application.Features.Organization.GetDepartments;
-using Greenlens.Application.Features.Organization.GetMyWards;
+using Greenlens.Application.Features.Organization.GetMyLocalOffices;
 using Greenlens.Application.Features.Organization.UpdateDepartment;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -83,23 +83,23 @@ public sealed class DepartmentsController(ISender sender) : ControllerBase
         [FromRoute] Guid id, [FromBody] AssignDeoRequest request, CancellationToken ct)
         => (await sender.Send(new AssignDeoToDepartmentCommand(id, request.UserId), ct)).ToHttpNoContent();
 
-    /// <summary>Danh sách xã/phường thuộc tỉnh mà officer đang quản lý.</summary>
-    [HttpGet("wards")]
-    [Authorize(Roles = "DEO,LEO")]
+    /// <summary>Danh sách văn phòng MT cấp xã/phường thuộc department mà officer đang quản lý.</summary>
+    [HttpGet("my-offices")]
+    [Authorize(Roles = "DEO")]
     [Tags("🔍 DEO Dashboard")]
     [SwaggerOperation(
-        Summary = "[DEO/LEO] Lấy danh sách xã/phường thuộc tỉnh quản lý",
+        Summary = "[DEO] Lấy danh sách văn phòng MT cấp xã/phường mà DEO quản lý",
         Description =
-            "Trả về tất cả xã/phường thuộc tỉnh mà officer đang đảm nhiệm. " +
-            "DEO lấy từ Department → Province. LEO lấy từ LocalOffice → Department → Province. " +
+            "Trả về tất cả văn phòng môi trường cấp xã/phường trực thuộc department mà officer đảm nhiệm. " +
+            "Bao gồm thông tin ward, LEO phụ trách, số đội, trạng thái onboard. " +
             "Dùng cho dropdown dispatch / filter trên dashboard.")]
-    [SwaggerResponse(200, "Danh sách wards", typeof(ApiResponse<GetMyWardsResponse>))]
+    [SwaggerResponse(200, "Danh sách offices", typeof(ApiResponse<GetMyLocalOfficesResponse>))]
     [SwaggerResponse(404, "Chưa gán department", typeof(ApiResponse))]
-    public async Task<IActionResult> GetMyWardsAsync(CancellationToken ct)
-        => (await sender.Send(new GetMyWardsQuery(), ct)).ToHttp();
+    public async Task<IActionResult> GetMyLocalOfficesAsync(
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
+        CancellationToken ct = default)
+        => (await sender.Send(new GetMyLocalOfficesQuery(page, pageSize), ct)).ToHttp();
 }
 
 public sealed record UpdateDepartmentRequest(string Name);
 public sealed record AssignDeoRequest(Guid UserId);
-
-
