@@ -49,6 +49,8 @@ internal static partial class LocationSeeder
         await SeedProvincesAsync(db, sql, logger, cancellationToken);
         await SeedWardsAsync(db, sql, logger, cancellationToken);
         await SeedProvinceBoundaryUrlsAsync(db, logger, cancellationToken);
+        await SeedWardBoundaryUrlsAsync(db, logger, cancellationToken);
+
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -194,6 +196,34 @@ internal static partial class LocationSeeder
 
         logger.LogInformation("Seeded {Count} province boundary URLs", ProvinceBoundaryUrls.Mapping.Count);
     }
+
+
+    private static async Task SeedWardBoundaryUrlsAsync(
+        ApplicationDbContext db, ILogger logger, CancellationToken ct)
+    {
+        var hasPending = await db.Set<Ward>()
+            .AnyAsync(w => w.BoundaryUrl == null, ct);
+
+        if (!hasPending)
+        {
+            logger.LogDebug("All wards already have BoundaryUrl, skipping");
+            return;
+        }
+
+        var valueRows = string.Join(",",
+            WardBoundaryUrls.Mapping.Select(kv => $"('{kv.Key}','{kv.Value}')"));
+
+#pragma warning disable EF1002
+        await db.Database.ExecuteSqlRawAsync(
+            $"""
+            UPDATE wards SET boundary_url = v.url
+            FROM (VALUES {valueRows}) AS v(code, url)
+            WHERE wards.code = v.code AND wards.boundary_url IS NULL
+            """, ct);
+#pragma warning restore EF1002
+
+        logger.LogInformation("Seeded {Count} ward boundary URLs", WardBoundaryUrls.Mapping.Count);
+}
 
     // ─────────────────────────────────────────────────────────────────────────
     // Resource loading
