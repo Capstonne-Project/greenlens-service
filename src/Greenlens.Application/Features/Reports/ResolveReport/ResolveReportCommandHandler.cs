@@ -16,6 +16,7 @@ namespace Greenlens.Application.Features.Reports.ResolveReport;
 public sealed class ResolveReportCommandHandler(
     IReportRepository reports,
     IReportAssignmentRepository assignments,
+    ITeamMemberRepository teamMembers,
     IReportStatusHistoryRepository statusHistory,
     IReportMediaRepository reportMedia,
     ICurrentUser currentUser,
@@ -28,6 +29,10 @@ public sealed class ResolveReportCommandHandler(
         if (request.AfterImageUrls.Count < 2)
             return Errors.Reports.InsufficientAfterImages;
 
+        var leader = await teamMembers.GetLeaderByUserIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
+        if (leader is null)
+            return Errors.Reports.NotTeamLeader;
+
         var report = await reports.GetByIdAsync(request.ReportId, ct).ConfigureAwait(false);
         if (report is null)
             return Errors.Reports.ReportNotFound;
@@ -35,9 +40,9 @@ public sealed class ResolveReportCommandHandler(
         if (report.Status != ReportStatus.InProgress)
             return Errors.Reports.InvalidStatusTransition;
 
-        // Find this team's assignment
+        // Find this team's assignment via token — no need to pass teamId in body
         var reportAssignments = await assignments.GetByReportIdAsync(request.ReportId, ct).ConfigureAwait(false);
-        var assignment = reportAssignments.FirstOrDefault(a => a.TeamId == request.TeamId);
+        var assignment = reportAssignments.FirstOrDefault(a => a.TeamId == leader.TeamId);
         if (assignment is null)
             return Errors.Reports.AssignmentNotFound;
 
@@ -86,7 +91,7 @@ public sealed class ResolveReportCommandHandler(
             logger.LogInformation("Report {ReportId} resolved — all teams completed", report.Id);
         else
             logger.LogInformation("Team {TeamId} completed assignment for report {ReportId}",
-                request.TeamId, report.Id);
+                leader.TeamId, report.Id);
 
         return Result.Success();
     }

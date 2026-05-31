@@ -9,5 +9,4 @@ namespace Greenlens.Application.Features.Reports.ResolveReport;
 /// </summary>
 public sealed record ResolveReportCommand(
     Guid ReportId,
-    Guid TeamId,
     List<string> AfterImageUrls) : IRequest<Result>;
