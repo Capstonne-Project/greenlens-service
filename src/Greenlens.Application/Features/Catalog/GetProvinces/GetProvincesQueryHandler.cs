@@ -29,6 +29,7 @@ public sealed class GetProvincesQueryHandler(
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
+        logger.LogInformation("Lấy danh sách tỉnh thành công. Số lượng: {Count}", items.Count);
         return new GetProvincesResponse(items);
     }
 }

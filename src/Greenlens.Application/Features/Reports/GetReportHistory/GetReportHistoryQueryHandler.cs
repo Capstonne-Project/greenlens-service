@@ -24,6 +24,7 @@ public sealed class GetReportHistoryQueryHandler(
                 h.Reason, h.CreatedAt))
             .ToListAsync(ct).ConfigureAwait(false);
 
+        logger.LogInformation("Lấy lịch sử trạng thái báo cáo thành công. Số lượng: {Count}", items.Count);
         return new GetReportHistoryResponse(items);
     }
 }

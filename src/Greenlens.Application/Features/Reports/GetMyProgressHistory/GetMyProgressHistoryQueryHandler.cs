@@ -22,7 +22,10 @@ public sealed class GetMyProgressHistoryQueryHandler(
     {
         var leader = await teamMembers.GetLeaderByUserIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
         if (leader is null)
+        {
+            logger.LogWarning("Người dùng không phải là đội trưởng. User ID: {UserId}", currentUser.UserId);
             return Errors.Reports.NotTeamLeader;
+        }
 
         var (items, total) = await assignments.GetByTeamIdAsync(
             leader.TeamId,
@@ -47,6 +50,8 @@ public sealed class GetMyProgressHistoryQueryHandler(
         )).ToList();
 
         var pagination = PaginationMeta.Create(request.Page, request.PageSize, total);
+
+        logger.LogInformation("Lấy lịch sử tiến độ thành công. Số lượng: {Count}", result.Count);
         return new GetMyProgressHistoryResponse(result, pagination);
     }
 }

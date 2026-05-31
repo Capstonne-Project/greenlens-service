@@ -40,6 +40,7 @@ public sealed class GetWardsByProvinceQueryHandler(
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
+        logger.LogInformation("Lấy danh sách phường xã thành công. Số lượng: {Count}", items.Count);
         return new GetWardsByProvinceResponse(items);
     }
 }

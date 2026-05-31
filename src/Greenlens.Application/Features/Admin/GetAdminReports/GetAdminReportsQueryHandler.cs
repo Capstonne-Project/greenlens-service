@@ -51,6 +51,7 @@ public sealed class GetAdminReportsQueryHandler(
                 r.CreatedAt, r.VerifiedAt, r.ResolvedAt, r.ClosedAt))
             .ToListAsync(ct).ConfigureAwait(false);
 
+        logger.LogInformation("Lấy danh sách báo cáo thành công. Số lượng: {Count}", items.Count);
         return new GetAdminReportsResponse(items, pagination);
     }
 }

@@ -34,6 +34,7 @@ public sealed class GetUserByIdQueryHandler(IUserRepository users,
             .FirstOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
 
+        logger.LogInformation("Lấy thông tin chi tiết người dùng thành công. ID: {UserId}", request.UserId);
         return dto is null
             ? Result<UserDetailDto>.Failure(Errors.Users.UserNotFound)
             : dto;

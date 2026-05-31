@@ -43,6 +43,7 @@ public sealed class GetReportsQueryHandler(
                 r.CreatedAt, r.ResolvedAt))
             .ToListAsync(ct).ConfigureAwait(false);
 
+        logger.LogInformation("Lấy danh sách báo cáo thành công. Số lượng: {Count}", items.Count);
         return new GetReportsResponse(items, pagination);
     }
 }

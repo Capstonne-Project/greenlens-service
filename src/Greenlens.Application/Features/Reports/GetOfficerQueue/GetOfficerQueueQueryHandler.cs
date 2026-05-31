@@ -79,6 +79,7 @@ public sealed class GetOfficerQueueQueryHandler(
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
+        logger.LogInformation("Lấy danh sách báo cáo thành công. Số lượng: {Count}", items.Count);
         return new GetOfficerQueueResponse(items, pagination);
     }
 }

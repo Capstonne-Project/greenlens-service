@@ -33,6 +33,7 @@ public sealed class GetPollutionCategoriesQueryHandler(
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
+        logger.LogInformation("Lấy danh sách danh mục ô nhiễm thành công. Số lượng: {Count}", items.Count);
         return new GetPollutionCategoriesResponse(items);
     }
 }

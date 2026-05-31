@@ -45,6 +45,7 @@ public sealed class GetLocalOfficesQueryHandler(
                 o.IsOnboarded, o.Teams.Count, o.CreatedAt))
             .ToListAsync(ct).ConfigureAwait(false);
 
+        logger.LogInformation("Lấy danh sách đơn vị hành chính thành công. Số lượng: {Count}", items.Count);
         return new GetLocalOfficesResponse(items, pagination);
     }
 }

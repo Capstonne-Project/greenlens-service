@@ -43,6 +43,7 @@ public sealed class GetReportByIdQueryHandler(
                 wt.WasteTag.IconUrl))
             .ToList();
 
+        logger.LogInformation("Lấy chi tiết báo cáo thành công. Mã báo cáo: {ReportCode}", r.Code);
         return new ReportDetailResponse(
             r.Id, r.Code, r.ReporterId, r.IsAnonymous,
             r.CategoryId, r.Category.Code, r.Category.NameVi,

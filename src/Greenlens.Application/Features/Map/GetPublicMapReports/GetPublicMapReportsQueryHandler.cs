@@ -44,7 +44,10 @@ public sealed class GetPublicMapReportsQueryHandler(
                     cancellationToken)
                 .ConfigureAwait(false);
             if (!categoryOk)
+            {
+                logger.LogWarning("Không tìm thấy danh mục với ID: {CategoryId}", request.CategoryId);
                 return Errors.Reports.CategoryNotFound;
+            }
         }
 
         var mode = request.Mode.Trim().ToLowerInvariant();
@@ -65,8 +68,12 @@ public sealed class GetPublicMapReportsQueryHandler(
             baseQuery = baseQuery.Where(r => r.CategoryId == request.CategoryId.Value);
 
         if (mode == "aggregate")
+        {
+            logger.LogInformation("Lấy danh sách báo cáo thành công. Số lượng: {Count}", baseQuery.Count());
             return await HandleAggregateAsync(baseQuery, request, cancellationToken).ConfigureAwait(false);
+        }
 
+        logger.LogInformation("Lấy danh sách báo cáo thành công. Số lượng: {Count}", baseQuery.Count());
         return await HandleDetailAsync(baseQuery, request, cancellationToken).ConfigureAwait(false);
     }
 

@@ -31,6 +31,7 @@ public sealed class GetAllUsersQueryHandler(IUserRepository users,
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
+        logger.LogInformation("Lấy danh sách người dùng thành công. Số lượng: {Count}", list.Count);
         return list;
     }
 }

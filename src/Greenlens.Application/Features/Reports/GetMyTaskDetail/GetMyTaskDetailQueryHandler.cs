@@ -69,6 +69,7 @@ public sealed class GetMyTaskDetailQueryHandler(
                 wt.WasteTag.NameEn, wt.WasteTag.IconUrl))
             .ToList();
 
+        logger.LogInformation("Lấy chi tiết báo cáo thành công. Mã báo cáo: {ReportCode}", report.Code);
         return new MyTaskDetailResponse(
             AssignmentId: assignment.Id,
             AssignmentStatus: assignment.Status,

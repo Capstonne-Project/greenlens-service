@@ -58,6 +58,7 @@ public sealed class GetAllUsersWithPagedQueryHandler(IUserRepository users,
 
         var pagination = PaginationMeta.Create(request.Page, request.PageSize, totalItems);
 
+        logger.LogInformation("Lấy danh sách người dùng thành công. Số lượng: {Count}", items.Count);
         return new PagedList<UserListItemDto>(items, pagination);
     }
 }

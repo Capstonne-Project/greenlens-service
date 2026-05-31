@@ -37,6 +37,7 @@ public sealed class GetProfileQueryHandler(
             .FirstOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
 
+        logger.LogInformation("Lấy thông tin chi tiết người dùng thành công. ID: {UserId}", currentUser.UserId);
         return dto is null
             ? Result<UserDetailDto>.Failure(Errors.Users.UserNotFound)
             : dto;

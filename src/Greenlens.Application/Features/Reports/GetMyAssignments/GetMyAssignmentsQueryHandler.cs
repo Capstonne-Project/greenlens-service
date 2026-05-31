@@ -37,7 +37,10 @@ public sealed class GetMyAssignmentsQueryHandler(
             .ConfigureAwait(false);
 
         if (myTeamIds.Count == 0)
+        {
+            logger.LogWarning("Người dùng không thuộc đội nào. User ID: {UserId}", currentUser.UserId);
             return new GetMyAssignmentsResponse([], PaginationMeta.Create(request.Page, request.PageSize, 0));
+        }
 
         var query = assignments
             .QueryAsNoTracking()
@@ -91,6 +94,7 @@ public sealed class GetMyAssignmentsQueryHandler(
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
+        logger.LogInformation("Lấy danh sách báo cáo thành công. Số lượng: {Count}", items.Count);
         return new GetMyAssignmentsResponse(items, pagination);
     }
 }

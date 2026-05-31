@@ -72,6 +72,7 @@ public sealed class GetTeamsQueryHandler(
             })
             .ToList();
 
+        logger.LogInformation("Lấy danh sách đội ngũ thành công. Số lượng: {Count}", items.Count);
         return new GetTeamsResponse(items, pagination);
     }
 }

@@ -41,6 +41,7 @@ public sealed class GetDepartmentsQueryHandler(
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
+        logger.LogInformation("Lấy danh sách phòng ban thành công. Số lượng: {Count}", items.Count);
         return new GetDepartmentsResponse(items, pagination);
     }
 }

@@ -15,7 +15,6 @@ namespace Greenlens.Application.Features.Reports.UploadProgressImage;
 public sealed class UploadProgressImageCommandHandler(
     IReportAssignmentRepository assignments,
     IFileStorageService fileStorage,
-    IUnitOfWork uow,
     ILogger<UploadProgressImageCommandHandler> logger) : IRequestHandler<UploadProgressImageCommand, Result<UploadProgressImageResponse>>
 {
     public async Task<Result<UploadProgressImageResponse>> Handle(

@@ -14,7 +14,6 @@ public sealed class ReassignTeamCommandHandler(
     IReportRepository reports,
     IEnvironmentalTeamRepository teams,
     IReportAssignmentRepository assignments,
-    IReportStatusHistoryRepository statusHistory,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     ILogger<ReassignTeamCommandHandler> logger) : IRequestHandler<ReassignTeamCommand, Result>

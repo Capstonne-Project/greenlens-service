@@ -32,6 +32,7 @@ public sealed class GetMyTeamProfileQueryHandler(
             m.UserId, m.User?.FullName, m.User?.Email, m.User?.PhoneNumber,
             m.User?.AvatarUrl, m.IsLeader, m.JoinedAt)).ToList();
 
+        logger.LogInformation("Lấy thông tin đội của tôi thành công. Tên đội: {TeamName}", team.Name);
         return new TeamDetailResponse(
             team.Id, team.Name, team.TeamType, team.LocalOfficeId,
             team.LocalOffice?.Name, team.IsActive,
