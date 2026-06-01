@@ -49,13 +49,50 @@ public sealed class GetMyLocalOfficesQueryHandler(
         var baseQuery = localOffices.QueryAsNoTracking()
             .Where(o => o.DepartmentId == deptInfo.DepartmentId);
 
-        // 3. Count total
+        // 3. Apply search filter (office name, ward name, officer name)
+        if (!string.IsNullOrWhiteSpace(request.Search))
+        {
+            var keyword = request.Search.Trim().ToLower();
+            baseQuery = baseQuery.Where(o =>
+                o.Name.ToLower().Contains(keyword) ||
+                (o.Ward != null && o.Ward.Name.ToLower().Contains(keyword)) ||
+                (o.Officer != null && o.Officer.FullName.ToLower().Contains(keyword)));
+        }
+
+        // 4. Apply isOnboarded filter
+        if (request.IsOnboarded.HasValue)
+        {
+            baseQuery = baseQuery.Where(o => o.IsOnboarded == request.IsOnboarded.Value);
+        }
+
+        // 5. Count total
         var totalItems = await baseQuery.CountAsync(ct).ConfigureAwait(false);
         var pagination = PaginationMeta.Create(request.Page, request.PageSize, totalItems);
 
-        // 4. Paginate & project
-        var offices = await baseQuery
-            .OrderBy(o => o.Name)
+        // 6. Apply sorting
+        var sortBy = request.SortBy?.Trim().ToLowerInvariant();
+        var orderedQuery = sortBy switch
+        {
+            "name" => request.SortDesc
+                ? baseQuery.OrderByDescending(o => o.Name)
+                : baseQuery.OrderBy(o => o.Name),
+            "wardname" => request.SortDesc
+                ? baseQuery.OrderByDescending(o => o.Ward != null ? o.Ward.Name : "")
+                : baseQuery.OrderBy(o => o.Ward != null ? o.Ward.Name : ""),
+            "officername" => request.SortDesc
+                ? baseQuery.OrderByDescending(o => o.Officer != null ? o.Officer.FullName : "")
+                : baseQuery.OrderBy(o => o.Officer != null ? o.Officer.FullName : ""),
+            "teamcount" => request.SortDesc
+                ? baseQuery.OrderByDescending(o => o.Teams.Count)
+                : baseQuery.OrderBy(o => o.Teams.Count),
+            "createdat" => request.SortDesc
+                ? baseQuery.OrderByDescending(o => o.CreatedAt)
+                : baseQuery.OrderBy(o => o.CreatedAt),
+            _ => baseQuery.OrderBy(o => o.Name) // default sort by name ASC
+        };
+
+        // 7. Paginate & project
+        var offices = await orderedQuery
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
             .Select(o => new MyLocalOfficeItem(
@@ -72,8 +109,9 @@ public sealed class GetMyLocalOfficesQueryHandler(
             .ConfigureAwait(false);
 
         logger.LogInformation(
-            "Officer {UserId} fetched {Count} local offices for department {DepartmentId} (page {Page})",
-            currentUser.UserId, offices.Count, deptInfo.DepartmentId, request.Page);
+            "Officer {UserId} fetched {Count} local offices for department {DepartmentId} (page {Page}, search: {Search}, isOnboarded: {IsOnboarded}, sort: {SortBy})",
+            currentUser.UserId, offices.Count, deptInfo.DepartmentId, request.Page,
+            request.Search, request.IsOnboarded, request.SortBy);
 
         return new GetMyLocalOfficesResponse(
             deptInfo.DepartmentId,

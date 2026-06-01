@@ -5,6 +5,7 @@ using Greenlens.Application.Features.Admin.CreateCategory;
 using Greenlens.Application.Features.Admin.CreateWasteTag;
 using Greenlens.Application.Features.Admin.ForceUpdateReportStatus;
 using Greenlens.Application.Features.Admin.GetAdminReports;
+using Greenlens.Application.Features.Admin.GetAdminWasteTags;
 using Greenlens.Application.Features.Admin.ToggleWasteTag;
 using Greenlens.Application.Features.Admin.UpdateCategory;
 using Greenlens.Application.Features.Admin.UpdateWasteTag;
@@ -87,11 +88,11 @@ public sealed class AdminController(ISender sender) : ControllerBase
 
     [HttpPut("users/{id:guid}/role")]
     [SwaggerOperation(Summary = "[Admin] Đổi role user", Description = "Thay đổi role của user. Dùng khi cần chuyển Citizen → LEO, hoặc LEO → DEO...")]
-    [SwaggerResponse(204, "Đã đổi role")]
+    [SwaggerResponse(200, "Đã đổi role", typeof(ApiResponse))]
     [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
     public async Task<IActionResult> UpdateUserRoleAsync(
         [FromRoute] Guid id, [FromBody] UpdateUserRoleRequest request, CancellationToken ct)
-        => (await sender.Send(new UpdateUserRoleCommand(id, request.NewRole), ct)).ToHttpNoContent();
+        => (await sender.Send(new UpdateUserRoleCommand(id, request.NewRole), ct)).ToHttpNoContent("Đã đổi role thành công.");
 
     // ═══════════════════════════════════════════
     // ██  REPORTS
@@ -117,12 +118,12 @@ public sealed class AdminController(ISender sender) : ControllerBase
 
     [HttpPut("reports/{id:guid}/status")]
     [SwaggerOperation(Summary = "[Admin] Cập nhật status báo cáo", Description = "Admin override: chuyển status bất kỳ, bypass state machine. Cần lý do ≥ 10 ký tự.")]
-    [SwaggerResponse(204, "Đã cập nhật status")]
+    [SwaggerResponse(200, "Đã cập nhật status", typeof(ApiResponse))]
     [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
     public async Task<IActionResult> ForceUpdateStatusAsync(
         [FromRoute] Guid id, [FromBody] ForceUpdateStatusRequest request, CancellationToken ct)
         => (await sender.Send(
-            new ForceUpdateReportStatusCommand(id, request.NewStatus, request.Reason), ct)).ToHttpNoContent();
+            new ForceUpdateReportStatusCommand(id, request.NewStatus, request.Reason), ct)).ToHttpNoContent("Đã cập nhật status báo cáo.");
 
     // ═══════════════════════════════════════════
     // ██  POLLUTION CATEGORIES
@@ -137,27 +138,27 @@ public sealed class AdminController(ISender sender) : ControllerBase
 
     [HttpPut("pollution-categories/{id:guid}")]
     [SwaggerOperation(Summary = "[Admin] Cập nhật danh mục ô nhiễm", Description = "Cập nhật tên VN, tên EN, icon URL của danh mục.")]
-    [SwaggerResponse(204, "Đã cập nhật")]
+    [SwaggerResponse(200, "Đã cập nhật", typeof(ApiResponse))]
     [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
     public async Task<IActionResult> UpdateCategoryAsync(
         [FromRoute] Guid id, [FromBody] UpdateCategoryRequest request, CancellationToken ct)
         => (await sender.Send(
-            new UpdateCategoryCommand(id, request.NameVi, request.NameEn, request.IconUrl), ct)).ToHttpNoContent();
+            new UpdateCategoryCommand(id, request.NameVi, request.NameEn, request.IconUrl), ct)).ToHttpNoContent("Đã cập nhật danh mục.");
 
     [HttpDelete("pollution-categories/{id:guid}")]
     [SwaggerOperation(Summary = "[Admin] Xóa danh mục (soft-delete)", Description = "Deactivate danh mục. Các báo cáo cũ vẫn giữ reference. Danh mục sẽ không xuất hiện cho citizen nữa.")]
-    [SwaggerResponse(204, "Đã xóa")]
+    [SwaggerResponse(200, "Đã xóa", typeof(ApiResponse))]
     [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
     public async Task<IActionResult> DeleteCategoryAsync([FromRoute] Guid id, CancellationToken ct)
-        => (await sender.Send(new ArchiveCategoryCommand(id, Archive: true), ct)).ToHttpNoContent();
+        => (await sender.Send(new ArchiveCategoryCommand(id, Archive: true), ct)).ToHttpNoContent("Đã xóa danh mục.");
 
     [HttpPut("pollution-categories/{id:guid}/archive")]
     [SwaggerOperation(Summary = "[Admin] Archive/Unarchive danh mục", Description = "Toggle trạng thái active/inactive. Body: { archive: true/false }.")]
-    [SwaggerResponse(204, "Đã cập nhật")]
+    [SwaggerResponse(200, "Đã cập nhật", typeof(ApiResponse))]
     [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
     public async Task<IActionResult> ArchiveCategoryAsync(
         [FromRoute] Guid id, [FromBody] ArchiveCategoryRequest request, CancellationToken ct)
-        => (await sender.Send(new ArchiveCategoryCommand(id, request.Archive), ct)).ToHttpNoContent();
+        => (await sender.Send(new ArchiveCategoryCommand(id, request.Archive), ct)).ToHttpNoContent("Đã cập nhật trạng thái danh mục.");
 
     // ═══════════════════════════════════════════
     // ██  ROLES & PERMISSIONS
@@ -197,6 +198,21 @@ public sealed class AdminController(ISender sender) : ControllerBase
     // ██  WASTE TAGS MANAGEMENT
     // ═══════════════════════════════════════════
 
+    [HttpGet("waste-tags")]
+    [SwaggerOperation(
+        Summary = "[Admin] Danh sách tag loại rác (phân trang)",
+        Description = "Trả về tất cả waste tag (bao gồm inactive) cho Admin Dashboard. " +
+            "Hỗ trợ tìm kiếm (code, tên VN, tên EN, mô tả), lọc theo trạng thái active, " +
+            "sắp xếp theo: code, nameVi, nameEn, isActive, reportCount, createdAt (mặc định: displayOrder). " +
+            "Mỗi tag kèm reportCount (số báo cáo đang sử dụng tag này).")]
+    [SwaggerResponse(200, "Danh sách tag", typeof(ApiResponse<GetAdminWasteTagsResponse>))]
+    public async Task<IActionResult> GetAllWasteTagsAsync(
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
+        [FromQuery] string? search = null, [FromQuery] bool? isActive = null,
+        [FromQuery] string? sortBy = null, [FromQuery] bool sortDesc = false,
+        CancellationToken ct = default)
+        => (await sender.Send(new GetAdminWasteTagsQuery(page, pageSize, search, isActive, sortBy, sortDesc), ct)).ToHttp();
+
     [HttpPost("waste-tags")]
     [SwaggerOperation(Summary = "[Admin] Tạo tag loại rác mới", Description = "Tạo waste tag mới. Code phải viết HOA (UPPER_SNAKE_CASE), duy nhất.")]
     [SwaggerResponse(201, "Đã tạo", typeof(ApiResponse<CreateWasteTagResponse>))]
@@ -207,21 +223,21 @@ public sealed class AdminController(ISender sender) : ControllerBase
 
     [HttpPut("waste-tags/{id:guid}")]
     [SwaggerOperation(Summary = "[Admin] Sửa tag loại rác", Description = "Cập nhật tên, icon, mô tả, thứ tự hiển thị. Không thể đổi Code.")]
-    [SwaggerResponse(204, "Đã cập nhật")]
+    [SwaggerResponse(200, "Đã cập nhật", typeof(ApiResponse))]
     [SwaggerResponse(404, "Tag không tồn tại", typeof(ApiResponse))]
     public async Task<IActionResult> UpdateWasteTagAsync(
         [FromRoute] Guid id, [FromBody] AdminUpdateWasteTagRequest request, CancellationToken ct)
         => (await sender.Send(new UpdateWasteTagCommand(
             id, request.NameVi, request.NameEn, request.IconUrl,
-            request.Description, request.DisplayOrder), ct)).ToHttpNoContent();
+            request.Description, request.DisplayOrder), ct)).ToHttpNoContent("Đã cập nhật tag loại rác.");
 
     [HttpPatch("waste-tags/{id:guid}/toggle")]
     [SwaggerOperation(Summary = "[Admin] Bật/tắt tag loại rác", Description = "Vô hiệu hóa hoặc kích hoạt lại waste tag. Tag bị vô hiệu hóa sẽ không xuất hiện trong dropdown nhưng dữ liệu cũ vẫn giữ.")]
-    [SwaggerResponse(204, "Đã thay đổi trạng thái")]
+    [SwaggerResponse(200, "Đã thay đổi trạng thái", typeof(ApiResponse))]
     [SwaggerResponse(404, "Tag không tồn tại", typeof(ApiResponse))]
     public async Task<IActionResult> ToggleWasteTagAsync(
         [FromRoute] Guid id, [FromBody] ToggleWasteTagRequest request, CancellationToken ct)
-        => (await sender.Send(new ToggleWasteTagCommand(id, request.IsActive), ct)).ToHttpNoContent();
+        => (await sender.Send(new ToggleWasteTagCommand(id, request.IsActive), ct)).ToHttpNoContent("Đã thay đổi trạng thái tag.");
 
     // ── Helpers ──
 
