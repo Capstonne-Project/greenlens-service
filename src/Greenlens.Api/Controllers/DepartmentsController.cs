@@ -6,6 +6,8 @@ using Greenlens.Application.Features.Organization.GetDepartmentById;
 using Greenlens.Application.Features.Organization.GetDepartments;
 using Greenlens.Application.Features.Organization.GetMyLocalOffices;
 using Greenlens.Application.Features.Organization.UpdateDepartment;
+using Greenlens.Application.Features.Reports.GetDepartmentReports;
+using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -92,13 +94,40 @@ public sealed class DepartmentsController(ISender sender) : ControllerBase
         Description =
             "Trả về tất cả văn phòng môi trường cấp xã/phường trực thuộc department mà officer đảm nhiệm. " +
             "Bao gồm thông tin ward, LEO phụ trách, số đội, trạng thái onboard. " +
+            "Hỗ trợ tìm kiếm (tên office, tên phường, tên LEO), lọc theo trạng thái onboard, " +
+            "sắp xếp theo: name, wardName, officerName, teamCount, createdAt. " +
             "Dùng cho dropdown dispatch / filter trên dashboard.")]
     [SwaggerResponse(200, "Danh sách offices", typeof(ApiResponse<GetMyLocalOfficesResponse>))]
     [SwaggerResponse(404, "Chưa gán department", typeof(ApiResponse))]
     public async Task<IActionResult> GetMyLocalOfficesAsync(
         [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
+        [FromQuery] string? search = null, [FromQuery] bool? isOnboarded = null,
+        [FromQuery] string? sortBy = null, [FromQuery] bool sortDesc = false,
         CancellationToken ct = default)
-        => (await sender.Send(new GetMyLocalOfficesQuery(page, pageSize), ct)).ToHttp();
+        => (await sender.Send(new GetMyLocalOfficesQuery(page, pageSize, search, isOnboarded, sortBy, sortDesc), ct)).ToHttp();
+
+    /// <summary>Tất cả báo cáo thuộc department mà DEO quản lý.</summary>
+    [HttpGet("my/reports")]
+    [Authorize(Roles = "DEO")]
+    [Tags("🔍 DEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[DEO] Danh sách tất cả báo cáo trong department (phân trang)",
+        Description =
+            "Trả về tất cả báo cáo (mọi trạng thái) thuộc department mà DEO đang quản lý. " +
+            "Hỗ trợ tìm kiếm (mã báo cáo, mô tả, địa chỉ), lọc theo status/category/severity/ward, " +
+            "sắp xếp theo: code, status, severity, priority, createdAt, verifiedAt (mặc định: mới nhất). " +
+            "Bao gồm thông tin reporter, office được dispatch, SLA deadlines.")]
+    [SwaggerResponse(200, "Danh sách báo cáo", typeof(ApiResponse<GetDepartmentReportsResponse>))]
+    [SwaggerResponse(404, "Chưa gán department", typeof(ApiResponse))]
+    public async Task<IActionResult> GetDepartmentReportsAsync(
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
+        [FromQuery] string? search = null, [FromQuery] ReportStatus? status = null,
+        [FromQuery] Guid? categoryId = null, [FromQuery] Severity? severity = null,
+        [FromQuery] string? wardCode = null,
+        [FromQuery] string? sortBy = null, [FromQuery] bool sortDesc = false,
+        CancellationToken ct = default)
+        => (await sender.Send(new GetDepartmentReportsQuery(
+            page, pageSize, search, status, categoryId, severity, wardCode, sortBy, sortDesc), ct)).ToHttp();
 }
 
 public sealed record UpdateDepartmentRequest(string Name);

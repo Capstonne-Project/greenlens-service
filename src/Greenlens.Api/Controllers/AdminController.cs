@@ -5,6 +5,7 @@ using Greenlens.Application.Features.Admin.CreateCategory;
 using Greenlens.Application.Features.Admin.CreateWasteTag;
 using Greenlens.Application.Features.Admin.ForceUpdateReportStatus;
 using Greenlens.Application.Features.Admin.GetAdminReports;
+using Greenlens.Application.Features.Admin.GetAdminWasteTags;
 using Greenlens.Application.Features.Admin.ToggleWasteTag;
 using Greenlens.Application.Features.Admin.UpdateCategory;
 using Greenlens.Application.Features.Admin.UpdateWasteTag;
@@ -196,6 +197,21 @@ public sealed class AdminController(ISender sender) : ControllerBase
     // ═══════════════════════════════════════════
     // ██  WASTE TAGS MANAGEMENT
     // ═══════════════════════════════════════════
+
+    [HttpGet("waste-tags")]
+    [SwaggerOperation(
+        Summary = "[Admin] Danh sách tag loại rác (phân trang)",
+        Description = "Trả về tất cả waste tag (bao gồm inactive) cho Admin Dashboard. " +
+            "Hỗ trợ tìm kiếm (code, tên VN, tên EN, mô tả), lọc theo trạng thái active, " +
+            "sắp xếp theo: code, nameVi, nameEn, isActive, reportCount, createdAt (mặc định: displayOrder). " +
+            "Mỗi tag kèm reportCount (số báo cáo đang sử dụng tag này).")]
+    [SwaggerResponse(200, "Danh sách tag", typeof(ApiResponse<GetAdminWasteTagsResponse>))]
+    public async Task<IActionResult> GetAllWasteTagsAsync(
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
+        [FromQuery] string? search = null, [FromQuery] bool? isActive = null,
+        [FromQuery] string? sortBy = null, [FromQuery] bool sortDesc = false,
+        CancellationToken ct = default)
+        => (await sender.Send(new GetAdminWasteTagsQuery(page, pageSize, search, isActive, sortBy, sortDesc), ct)).ToHttp();
 
     [HttpPost("waste-tags")]
     [SwaggerOperation(Summary = "[Admin] Tạo tag loại rác mới", Description = "Tạo waste tag mới. Code phải viết HOA (UPPER_SNAKE_CASE), duy nhất.")]
