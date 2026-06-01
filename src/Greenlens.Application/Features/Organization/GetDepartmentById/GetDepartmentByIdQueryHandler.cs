@@ -1,6 +1,7 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
+using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
@@ -9,6 +10,7 @@ namespace Greenlens.Application.Features.Organization.GetDepartmentById;
 
 public sealed class GetDepartmentByIdQueryHandler(
     IDepartmentRepository departments,
+    IUserRepository users,
     ILogger<GetDepartmentByIdQueryHandler> logger)
     : IRequestHandler<GetDepartmentByIdQuery, Result<DepartmentDetailResponse>>
 {
@@ -29,6 +31,18 @@ public sealed class GetDepartmentByIdQueryHandler(
             return Errors.Organization.DepartmentNotFound;
         }
 
+        // ── Tìm DEO phụ trách department này ──
+        var deo = await users.QueryAsNoTracking()
+            .Where(u => u.DepartmentId == dept.Id && u.Role == UserRole.DEO)
+            .Select(u => new DeoOfficerInfo(
+                u.Id,
+                u.FullName,
+                u.Email,
+                u.PhoneNumber,
+                u.AvatarUrl))
+            .FirstOrDefaultAsync(ct)
+            .ConfigureAwait(false);
+
         var offices = dept.LocalOffices.Select(o => new OfficeInDepartment(
             o.Id, o.Name, o.WardCode,
             o.Ward?.Name,
@@ -41,7 +55,7 @@ public sealed class GetDepartmentByIdQueryHandler(
         return new DepartmentDetailResponse(
             dept.Id, dept.Name, dept.ProvinceCode,
             dept.Province?.Name,
-            dept.IsActive, offices,
+            dept.IsActive, deo, offices,
             dept.CreatedAt, dept.UpdatedAt);
     }
 }
