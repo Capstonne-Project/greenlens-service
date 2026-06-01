@@ -28,9 +28,13 @@ public sealed class GetPublicMapReportsQueryHandler(
     private static readonly ReportStatus[] PublicStatuses =
     [
         ReportStatus.Verified,
+        ReportStatus.Dispatched,
+        ReportStatus.Assigned,
         ReportStatus.InProgress,
         ReportStatus.Resolved,
-        ReportStatus.Closed
+        ReportStatus.Closed,
+        ReportStatus.PenaltyIssued,
+        ReportStatus.ClosedNoViolation
     ];
 
     public async Task<Result<PublicMapReportsResponse>> Handle(

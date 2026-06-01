@@ -315,8 +315,8 @@ public sealed class ReportsController(ISender sender) : ControllerBase
     [SwaggerResponse(422, "Thiếu ảnh hoặc status không hợp lệ", typeof(ApiResponse))]
     public async Task<IActionResult> ResolveAsync(
         [FromRoute] Guid id, [FromBody] ResolveReportRequest request, CancellationToken ct)
-        => (await sender.Send(new ResolveReportCommand(id, request.TeamId, request.AfterImageUrls), ct))
-            .ToHttpNoContent("Đã hoàn thành phần việc của team.");
+        => (await sender.Send(new ResolveReportCommand(id, request.AfterImageUrls), ct))
+            .ToHttpNoContent();
 
     [HttpPut("{id:guid}/penalty")]
     [Authorize(Roles = "Inspector,Admin")]
@@ -395,7 +395,7 @@ public sealed record RejectReportRequest(string Reason);
 public sealed record AssignTeamRequest(List<AssignTeamItemRequest> Teams, List<Guid>? WasteTagIds = null);
 public sealed record AssignTeamItemRequest(Guid TeamId, string? Note);
 public sealed record ReassignTeamRequest(Guid OldTeamId, Guid NewTeamId, string Reason);
-public sealed record ResolveReportRequest(Guid TeamId, List<string> AfterImageUrls);
+public sealed record ResolveReportRequest(List<string> AfterImageUrls);
 public sealed record IssuePenaltyRequest(Guid TeamId);
 public sealed record CloseNoViolationRequest(string Reason);
 public sealed record DeclineAssignmentRequest(Guid TeamId, string Reason);
