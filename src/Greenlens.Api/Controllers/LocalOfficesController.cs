@@ -53,22 +53,22 @@ public sealed class LocalOfficesController(ISender sender) : ControllerBase
     [Authorize(Roles = "Admin")]
     [Tags("⚙️ Admin Dashboard")]
     [SwaggerOperation(Summary = "[Admin] Cập nhật office", Description = "Cập nhật tên văn phòng.")]
-    [SwaggerResponse(204, "Đã cập nhật")]
+    [SwaggerResponse(200, "Đã cập nhật", typeof(ApiResponse))]
     [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
     public async Task<IActionResult> UpdateAsync(
         [FromRoute] Guid id, [FromBody] UpdateLocalOfficeRequest request, CancellationToken ct)
-        => (await sender.Send(new UpdateLocalOfficeCommand(id, request.Name), ct)).ToHttpNoContent();
+        => (await sender.Send(new UpdateLocalOfficeCommand(id, request.Name), ct)).ToHttpNoContent("Đã cập nhật văn phòng.");
 
     [HttpPut("{id:guid}/officer")]
     [Authorize(Roles = "Admin")]
     [Tags("⚙️ Admin Dashboard")]
     [SwaggerOperation(Summary = "[Admin] Gán LEO cho office", Description = "Gán 1 user có role LEO làm người phụ trách văn phòng.")]
-    [SwaggerResponse(204, "Đã gán")]
+    [SwaggerResponse(200, "Đã gán", typeof(ApiResponse))]
     [SwaggerResponse(404, "Office hoặc User không tồn tại", typeof(ApiResponse))]
     [SwaggerResponse(422, "User không có role LEO", typeof(ApiResponse))]
     public async Task<IActionResult> AssignOfficerAsync(
         [FromRoute] Guid id, [FromBody] AssignLeoRequest request, CancellationToken ct)
-        => (await sender.Send(new AssignLeoToOfficeCommand(id, request.UserId), ct)).ToHttpNoContent();
+        => (await sender.Send(new AssignLeoToOfficeCommand(id, request.UserId), ct)).ToHttpNoContent("Đã gán LEO cho văn phòng.");
 }
 
 public sealed record UpdateLocalOfficeRequest(string Name);

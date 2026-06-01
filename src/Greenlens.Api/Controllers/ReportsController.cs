@@ -150,47 +150,47 @@ public sealed class ReportsController(ISender sender) : ControllerBase
     [Authorize(Roles = "DEO,Admin")]
     [Tags("🔍 DEO Dashboard")]
     [SwaggerOperation(Summary = "[DEO] Xác minh báo cáo", Description = "DEO kiểm tra thông tin và xác minh báo cáo. Có thể override severity và category nếu cần. Chuyển status Submitted → Verified.")]
-    [SwaggerResponse(204, "Đã xác minh")]
+    [SwaggerResponse(200, "Đã xác minh", typeof(ApiResponse))]
     [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
     [SwaggerResponse(422, "Status không hợp lệ hoặc conflict of interest", typeof(ApiResponse))]
     public async Task<IActionResult> VerifyAsync(
         [FromRoute] Guid id, [FromBody] VerifyReportRequest request, CancellationToken ct)
         => (await sender.Send(new VerifyReportCommand(id, request.OverrideSeverity, request.OverrideCategoryId, request.WasteTagIds), ct))
-            .ToHttpNoContent();
+            .ToHttpNoContent("Đã xác minh báo cáo thành công.");
 
     [HttpPut("{id:guid}/reject")]
     [Authorize(Roles = "DEO,Admin")]
     [Tags("🔍 DEO Dashboard")]
     [SwaggerOperation(Summary = "[DEO] Từ chối báo cáo", Description = "DEO từ chối báo cáo không hợp lệ. Yêu cầu lý do ≥ 20 ký tự. Chuyển status Submitted → Rejected.")]
-    [SwaggerResponse(204, "Đã từ chối")]
+    [SwaggerResponse(200, "Đã từ chối", typeof(ApiResponse))]
     [SwaggerResponse(422, "Lý do quá ngắn hoặc status không hợp lệ", typeof(ApiResponse))]
     public async Task<IActionResult> RejectAsync(
         [FromRoute] Guid id, [FromBody] RejectReportRequest request, CancellationToken ct)
-        => (await sender.Send(new RejectReportCommand(id, request.Reason), ct)).ToHttpNoContent();
+        => (await sender.Send(new RejectReportCommand(id, request.Reason), ct)).ToHttpNoContent("Đã từ chối báo cáo.");
 
     [HttpPost("{id:guid}/assign")]
     [Authorize(Roles = "LEO,Admin")]
     [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(Summary = "[LEO] Phân công team xử lý", Description = "LEO phân công 1 hoặc nhiều team cùng xử lý. Team type phải khớp loại ô nhiễm. Chuyển status Dispatched → InProgress.")]
-    [SwaggerResponse(204, "Đã phân công")]
+    [SwaggerResponse(200, "Đã phân công", typeof(ApiResponse))]
     [SwaggerResponse(422, "Team type không khớp hoặc workload vượt quá", typeof(ApiResponse))]
     public async Task<IActionResult> AssignTeamAsync(
         [FromRoute] Guid id, [FromBody] AssignTeamRequest request, CancellationToken ct)
     {
         var items = request.Teams.Select(t => new TeamAssignmentItem(t.TeamId, t.Note)).ToList();
-        return (await sender.Send(new AssignTeamCommand(id, items, request.WasteTagIds), ct)).ToHttpNoContent();
+        return (await sender.Send(new AssignTeamCommand(id, items, request.WasteTagIds), ct)).ToHttpNoContent("Đã phân công team thành công.");
     }
 
     [HttpPut("{id:guid}/reassign")]
     [Authorize(Roles = "LEO,Admin")]
     [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(Summary = "[LEO] Chuyển giao team", Description = "Chuyển assignment từ team cũ sang team mới cùng loại. Yêu cầu lý do ≥ 20 ký tự.")]
-    [SwaggerResponse(204, "Đã chuyển giao")]
+    [SwaggerResponse(200, "Đã chuyển giao", typeof(ApiResponse))]
     [SwaggerResponse(422, "Khác loại team hoặc workload vượt quá", typeof(ApiResponse))]
     public async Task<IActionResult> ReassignAsync(
         [FromRoute] Guid id, [FromBody] ReassignTeamRequest request, CancellationToken ct)
         => (await sender.Send(new ReassignTeamCommand(id, request.OldTeamId, request.NewTeamId, request.Reason), ct))
-            .ToHttpNoContent();
+            .ToHttpNoContent("Đã chuyển giao team thành công.");
 
     // ═══════════════════════════════════════════
     // ██  DEO DISPATCH
@@ -203,13 +203,13 @@ public sealed class ReportsController(ISender sender) : ControllerBase
         Summary = "[DEO] Điều phối task xuống xã/phường",
         Description = "DEO chọn xã/phường phù hợp và điều phối task xuống. " +
             "Chỉ được dispatch trong phạm vi tỉnh của DEO. Chuyển status Verified → Dispatched.")]
-    [SwaggerResponse(204, "Đã điều phối")]
+    [SwaggerResponse(200, "Đã điều phối", typeof(ApiResponse))]
     [SwaggerResponse(404, "Report hoặc Office không tồn tại", typeof(ApiResponse))]
     [SwaggerResponse(422, "Status không hợp lệ hoặc ngoài phạm vi tỉnh", typeof(ApiResponse))]
     public async Task<IActionResult> DispatchAsync(
         [FromRoute] Guid id, [FromBody] DispatchRequest request, CancellationToken ct)
         => (await sender.Send(new DispatchReportCommand(id, request.TargetLocalOfficeId, request.Note), ct))
-            .ToHttpNoContent();
+            .ToHttpNoContent("Đã điều phối báo cáo thành công.");
 
     [HttpPut("{id:guid}/re-dispatch")]
     [Authorize(Roles = "DEO,Admin")]
@@ -218,12 +218,12 @@ public sealed class ReportsController(ISender sender) : ControllerBase
         Summary = "[DEO] Điều phối lại task sang xã/phường khác",
         Description = "DEO chuyển task từ xã/phường hiện tại sang xã/phường khác (trong cùng tỉnh). " +
             "Chỉ được khi LEO chưa assign team (status vẫn là Dispatched).")]
-    [SwaggerResponse(204, "Đã điều phối lại")]
+    [SwaggerResponse(200, "Đã điều phối lại", typeof(ApiResponse))]
     [SwaggerResponse(422, "Status không hợp lệ hoặc ngoài phạm vi tỉnh", typeof(ApiResponse))]
     public async Task<IActionResult> ReDispatchAsync(
         [FromRoute] Guid id, [FromBody] ReDispatchRequest request, CancellationToken ct)
         => (await sender.Send(new ReDispatchReportCommand(id, request.NewLocalOfficeId, request.Note), ct))
-            .ToHttpNoContent();
+            .ToHttpNoContent("Đã điều phối lại báo cáo thành công.");
 
     [HttpGet("progress-board")]
     [Authorize(Roles = "LEO,Admin")]
@@ -311,32 +311,32 @@ public sealed class ReportsController(ISender sender) : ControllerBase
     [Authorize(Roles = "Cleaner,Admin")]
     [Tags("🧹 Cleaner Dashboard")]
     [SwaggerOperation(Summary = "[Cleaner] Hoàn thành phần việc của team", Description = "Cleanup Team đánh dấu phần việc đã hoàn thành. Yêu cầu ≥ 2 ảnh after. Khi tất cả team đều completed → report chuyển InProgress → Resolved.")]
-    [SwaggerResponse(204, "Đã hoàn thành")]
+    [SwaggerResponse(200, "Đã hoàn thành", typeof(ApiResponse))]
     [SwaggerResponse(422, "Thiếu ảnh hoặc status không hợp lệ", typeof(ApiResponse))]
     public async Task<IActionResult> ResolveAsync(
         [FromRoute] Guid id, [FromBody] ResolveReportRequest request, CancellationToken ct)
         => (await sender.Send(new ResolveReportCommand(id, request.TeamId, request.AfterImageUrls), ct))
-            .ToHttpNoContent();
+            .ToHttpNoContent("Đã hoàn thành phần việc của team.");
 
     [HttpPut("{id:guid}/penalty")]
     [Authorize(Roles = "Inspector,Admin")]
     [Tags("🔎 Inspector Dashboard")]
     [SwaggerOperation(Summary = "[Inspector] Xử phạt vi phạm", Description = "Inspection Team Leader ban hành quyết định xử phạt. Khi tất cả team đều completed → report chuyển InProgress → PenaltyIssued.")]
-    [SwaggerResponse(204, "Đã xử phạt")]
+    [SwaggerResponse(200, "Đã xử phạt", typeof(ApiResponse))]
     [SwaggerResponse(422, "Status không hợp lệ", typeof(ApiResponse))]
     public async Task<IActionResult> IssuePenaltyAsync(
         [FromRoute] Guid id, [FromBody] IssuePenaltyRequest request, CancellationToken ct)
-        => (await sender.Send(new IssuePenaltyCommand(id, request.TeamId), ct)).ToHttpNoContent();
+        => (await sender.Send(new IssuePenaltyCommand(id, request.TeamId), ct)).ToHttpNoContent("Đã xử phạt vi phạm.");
 
     [HttpPut("{id:guid}/close-no-violation")]
     [Authorize(Roles = "Inspector,Admin")]
     [Tags("🔎 Inspector Dashboard")]
     [SwaggerOperation(Summary = "[Inspector] Đóng — không vi phạm", Description = "Inspection Team đóng báo cáo khi khảo sát không phát hiện vi phạm. Yêu cầu lý do ≥ 50 ký tự.")]
-    [SwaggerResponse(204, "Đã đóng")]
+    [SwaggerResponse(200, "Đã đóng", typeof(ApiResponse))]
     [SwaggerResponse(422, "Lý do quá ngắn hoặc status không hợp lệ", typeof(ApiResponse))]
     public async Task<IActionResult> CloseNoViolationAsync(
         [FromRoute] Guid id, [FromBody] CloseNoViolationRequest request, CancellationToken ct)
-        => (await sender.Send(new CloseNoViolationCommand(id, request.Reason), ct)).ToHttpNoContent();
+        => (await sender.Send(new CloseNoViolationCommand(id, request.Reason), ct)).ToHttpNoContent("Đã đóng báo cáo — không vi phạm.");
 
     // ═══════════════════════════════════════════
     // ██  WASTE TAGS
@@ -349,12 +349,12 @@ public sealed class ReportsController(ISender sender) : ControllerBase
         Summary = "[DEO] Gắn tag loại rác cho báo cáo",
         Description = "DEO gắn tag loại rác (household, medical, hazardous,...) để cleanup team biết cần chuẩn bị gì. " +
             "Thay thế toàn bộ tag cũ bằng danh sách mới. Tối thiểu 1, tối đa 12 tag.")]
-    [SwaggerResponse(204, "Đã gắn tag")]
+    [SwaggerResponse(200, "Đã gắn tag", typeof(ApiResponse))]
     [SwaggerResponse(404, "Report hoặc tag không tồn tại", typeof(ApiResponse))]
     [SwaggerResponse(422, "Status không hợp lệ hoặc tag bị vô hiệu hóa", typeof(ApiResponse))]
     public async Task<IActionResult> TagWasteAsync(
         [FromRoute] Guid id, [FromBody] TagWasteRequest request, CancellationToken ct)
-        => (await sender.Send(new TagReportWasteCommand(id, request.WasteTagIds), ct)).ToHttpNoContent();
+        => (await sender.Send(new TagReportWasteCommand(id, request.WasteTagIds), ct)).ToHttpNoContent("Đã gắn tag loại rác thành công.");
 
     [HttpGet("~/v1/waste-tags")]
     [Authorize]
@@ -374,19 +374,19 @@ public sealed class ReportsController(ISender sender) : ControllerBase
     [Authorize]
     [Tags("📋 Reports — Citizen Flow")]
     [SwaggerOperation(Summary = "[Citizen/Auto] Đóng báo cáo", Description = "Citizen xác nhận hài lòng hoặc hệ thống tự động đóng sau 7 ngày. Chuyển status Resolved/PenaltyIssued → Closed.")]
-    [SwaggerResponse(204, "Đã đóng")]
+    [SwaggerResponse(200, "Đã đóng", typeof(ApiResponse))]
     [SwaggerResponse(422, "Status không hợp lệ", typeof(ApiResponse))]
     public async Task<IActionResult> CloseAsync([FromRoute] Guid id, CancellationToken ct)
-        => (await sender.Send(new CloseReportCommand(id), ct)).ToHttpNoContent();
+        => (await sender.Send(new CloseReportCommand(id), ct)).ToHttpNoContent("Đã đóng báo cáo.");
 
     [HttpPut("{id:guid}/reopen")]
     [Authorize]
     [Tags("📋 Reports — Citizen Flow")]
     [SwaggerOperation(Summary = "[Citizen] Mở lại báo cáo", Description = "Citizen mở lại báo cáo nếu chưa hài lòng. Tối đa 2 lần reopen. Chuyển status Resolved → InProgress.")]
-    [SwaggerResponse(204, "Đã mở lại")]
+    [SwaggerResponse(200, "Đã mở lại", typeof(ApiResponse))]
     [SwaggerResponse(422, "Hết lượt reopen hoặc status không hợp lệ", typeof(ApiResponse))]
     public async Task<IActionResult> ReopenAsync([FromRoute] Guid id, CancellationToken ct)
-        => (await sender.Send(new ReopenReportCommand(id), ct)).ToHttpNoContent();
+        => (await sender.Send(new ReopenReportCommand(id), ct)).ToHttpNoContent("Đã mở lại báo cáo.");
 }
 
 // ── Request DTOs ──

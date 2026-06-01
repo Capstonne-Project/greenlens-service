@@ -53,20 +53,20 @@ public sealed class DepartmentsController(ISender sender) : ControllerBase
     [Authorize(Roles = "Admin")]
     [Tags("⚙️ Admin Dashboard")]
     [SwaggerOperation(Summary = "[Admin] Cập nhật department", Description = "Cập nhật tên department.")]
-    [SwaggerResponse(204, "Đã cập nhật")]
+    [SwaggerResponse(200, "Đã cập nhật", typeof(ApiResponse))]
     [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
     public async Task<IActionResult> UpdateAsync(
         [FromRoute] Guid id, [FromBody] UpdateDepartmentRequest request, CancellationToken ct)
-        => (await sender.Send(new UpdateDepartmentCommand(id, request.Name), ct)).ToHttpNoContent();
+        => (await sender.Send(new UpdateDepartmentCommand(id, request.Name), ct)).ToHttpNoContent("Đã cập nhật department.");
 
     [HttpDelete("{id:guid}")]
     [Authorize(Roles = "Admin")]
     [Tags("⚙️ Admin Dashboard")]
     [SwaggerOperation(Summary = "[Admin] Vô hiệu hóa department", Description = "Soft-delete: chuyển trạng thái IsActive = false. Không xóa dữ liệu.")]
-    [SwaggerResponse(204, "Đã vô hiệu hóa")]
+    [SwaggerResponse(200, "Đã vô hiệu hóa", typeof(ApiResponse))]
     [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
     public async Task<IActionResult> DeactivateAsync([FromRoute] Guid id, CancellationToken ct)
-        => (await sender.Send(new UpdateDepartmentCommand(id, null!), ct)).ToHttpNoContent();
+        => (await sender.Send(new UpdateDepartmentCommand(id, null!), ct)).ToHttpNoContent("Đã vô hiệu hóa department.");
     // Note: Deactivate sẽ cần command riêng — tạm dùng UpdateDepartment
 
     [HttpPut("{id:guid}/officer")]
@@ -76,12 +76,12 @@ public sealed class DepartmentsController(ISender sender) : ControllerBase
         Summary = "[Admin] Gán DEO cho department",
         Description = "Gán 1 user có role DEO làm điều phối viên cho Sở TNMT. " +
             "DEO sẽ tiếp nhận, xác minh và điều phối tất cả báo cáo trong tỉnh.")]
-    [SwaggerResponse(204, "Đã gán")]
+    [SwaggerResponse(200, "Đã gán", typeof(ApiResponse))]
     [SwaggerResponse(404, "Department hoặc User không tồn tại", typeof(ApiResponse))]
     [SwaggerResponse(422, "User không có role DEO", typeof(ApiResponse))]
     public async Task<IActionResult> AssignDeoAsync(
         [FromRoute] Guid id, [FromBody] AssignDeoRequest request, CancellationToken ct)
-        => (await sender.Send(new AssignDeoToDepartmentCommand(id, request.UserId), ct)).ToHttpNoContent();
+        => (await sender.Send(new AssignDeoToDepartmentCommand(id, request.UserId), ct)).ToHttpNoContent("Đã gán DEO cho department.");
 
     /// <summary>Danh sách văn phòng MT cấp xã/phường thuộc department mà officer đang quản lý.</summary>
     [HttpGet("my-offices")]

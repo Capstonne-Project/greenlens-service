@@ -82,10 +82,10 @@ public sealed class TeamsController(ISender sender) : ControllerBase
         Summary = "[Cleaner/Inspector] Chấp nhận task",
         Description = "Team leader chấp nhận task được phân công. TeamId tự động lấy từ token. " +
             "Chuyển Assignment: `Assigned → InProgress`. `StartedAt` được set tại đây.")]
-    [SwaggerResponse(204, "Đã chấp nhận")]
+    [SwaggerResponse(200, "Đã chấp nhận", typeof(ApiResponse))]
     [SwaggerResponse(422, "Không phải leader hoặc assignment không ở trạng thái Assigned", typeof(ApiResponse))]
     public async Task<IActionResult> AcceptTaskAsync([FromRoute] Guid reportId, CancellationToken ct)
-        => (await sender.Send(new AcceptAssignmentCommand(reportId), ct)).ToHttpNoContent();
+        => (await sender.Send(new AcceptAssignmentCommand(reportId), ct)).ToHttpNoContent("Đã chấp nhận task.");
 
     [HttpPut("my-tasks/{reportId:guid}/decline")]
     [Authorize(Roles = "Cleaner,Inspector,Admin")]
@@ -94,12 +94,12 @@ public sealed class TeamsController(ISender sender) : ControllerBase
         Summary = "[Cleaner/Inspector] Từ chối task",
         Description = "Team từ chối task trong vòng 2 giờ sau khi được phân công. Yêu cầu lý do ≥ 20 ký tự. " +
             "Nếu tất cả team đều từ chối → report quay về `Dispatched` để LEO phân công lại.")]
-    [SwaggerResponse(204, "Đã từ chối")]
+    [SwaggerResponse(200, "Đã từ chối", typeof(ApiResponse))]
     [SwaggerResponse(422, "Quá 2h, lý do quá ngắn, hoặc assignment không ở trạng thái Assigned", typeof(ApiResponse))]
     public async Task<IActionResult> DeclineTaskAsync(
         [FromRoute] Guid reportId, [FromBody] DeclineTaskRequest request, CancellationToken ct)
         => (await sender.Send(new DeclineAssignmentCommand(reportId, request.TeamId, request.Reason), ct))
-            .ToHttpNoContent();
+            .ToHttpNoContent("Đã từ chối task.");
 
     [HttpGet("my-progress")]
     [Authorize(Roles = "Cleaner,Inspector,Admin")]
@@ -157,11 +157,11 @@ public sealed class TeamsController(ISender sender) : ControllerBase
     [Authorize(Roles = "Admin,LEO")]
     [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(Summary = "[Admin/LEO] Cập nhật team", Description = "Cập nhật tên team. LEO chỉ cập nhật team trong office của mình.")]
-    [SwaggerResponse(204, "Đã cập nhật")]
+    [SwaggerResponse(200, "Đã cập nhật", typeof(ApiResponse))]
     [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
     public async Task<IActionResult> UpdateAsync(
         [FromRoute] Guid id, [FromBody] UpdateTeamRequest request, CancellationToken ct)
-        => (await sender.Send(new UpdateTeamCommand(id, request.Name), ct)).ToHttpNoContent();
+        => (await sender.Send(new UpdateTeamCommand(id, request.Name), ct)).ToHttpNoContent("Đã cập nhật team.");
 
     // ── Team Members ──
 
@@ -179,11 +179,11 @@ public sealed class TeamsController(ISender sender) : ControllerBase
     [Authorize(Roles = "Admin,LEO")]
     [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(Summary = "[Admin/LEO] Xóa thành viên khỏi team", Description = "Xóa user khỏi đội MT. LEO chỉ quản lý team trong office của mình.")]
-    [SwaggerResponse(204, "Đã xóa")]
+    [SwaggerResponse(200, "Đã xóa", typeof(ApiResponse))]
     [SwaggerResponse(404, "Không tìm thấy thành viên", typeof(ApiResponse))]
     public async Task<IActionResult> RemoveMemberAsync(
         [FromRoute] Guid teamId, [FromRoute] Guid userId, CancellationToken ct)
-        => (await sender.Send(new RemoveTeamMemberCommand(teamId, userId), ct)).ToHttpNoContent();
+        => (await sender.Send(new RemoveTeamMemberCommand(teamId, userId), ct)).ToHttpNoContent("Đã xóa thành viên khỏi team.");
 }
 
 public sealed record UpdateTeamRequest(string Name);
