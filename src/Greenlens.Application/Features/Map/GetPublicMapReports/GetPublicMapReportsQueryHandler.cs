@@ -25,18 +25,6 @@ public sealed class GetPublicMapReportsQueryHandler(
     ILogger<GetPublicMapReportsQueryHandler> logger)
     : IRequestHandler<GetPublicMapReportsQuery, Result<PublicMapReportsResponse>>
 {
-    private static readonly ReportStatus[] PublicStatuses =
-    [
-        ReportStatus.Verified,
-        ReportStatus.Dispatched,
-        ReportStatus.Assigned,
-        ReportStatus.InProgress,
-        ReportStatus.Resolved,
-        ReportStatus.Closed,
-        ReportStatus.PenaltyIssued,
-        ReportStatus.ClosedNoViolation
-    ];
-
     public async Task<Result<PublicMapReportsResponse>> Handle(
         GetPublicMapReportsQuery request,
         CancellationToken cancellationToken)
@@ -61,7 +49,7 @@ public sealed class GetPublicMapReportsQueryHandler(
         var maxLng = request.MaxLng;
 
         var baseQuery = reports.QueryAsNoTracking()
-            .Where(r => PublicStatuses.Contains(r.Status))
+            .Where(r => PublicMapReportStatuses.Visible.Contains(r.Status))
             .Where(r =>
                 r.Latitude >= minLat &&
                 r.Latitude <= maxLat &&
