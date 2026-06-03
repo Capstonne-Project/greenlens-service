@@ -9,7 +9,36 @@ namespace Greenlens.Application.Features.Reports.GetOfficerQueue;
 public sealed record GetOfficerQueueQuery(
     int Page = 1,
     int PageSize = 20,
-    ReportStatus? StatusFilter = null) : IRequest<Result<GetOfficerQueueResponse>>;
+    // ── Filters ──
+    ReportStatus? StatusFilter = null,
+    Severity? SeverityFilter = null,
+    Guid? CategoryId = null,
+    string? WardCode = null,
+    DateTime? FromDate = null,
+    DateTime? ToDate = null,
+    bool? SlaBreached = null,
+    // ── Search ──
+    string? Search = null,
+    // ── Sort ──
+    QueueSortBy SortBy = QueueSortBy.PriorityScore,
+    SortDirection SortDir = SortDirection.Desc) : IRequest<Result<GetOfficerQueueResponse>>;
+
+/// <summary>Sort fields for officer queue.</summary>
+public enum QueueSortBy
+{
+    PriorityScore,
+    CreatedAt,
+    Severity,
+    SlaVerifyDueAt,
+    SlaResolveDueAt
+}
+
+/// <summary>Sort direction.</summary>
+public enum SortDirection
+{
+    Asc,
+    Desc
+}
 
 public sealed record GetOfficerQueueResponse(
     IReadOnlyList<OfficerQueueItem> Items,

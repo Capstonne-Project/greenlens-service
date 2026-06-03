@@ -263,12 +263,33 @@ public sealed class ReportsController(ISender sender) : ControllerBase
     [HttpGet("queue")]
     [Authorize(Roles = "LEO,DEO,Admin")]
     [Tags("🔍 DEO Dashboard")]
-    [SwaggerOperation(Summary = "[LEO/DEO] Xem hàng đợi báo cáo", Description = "Trả về danh sách báo cáo trong phạm vi quản lý, sắp theo điểm ưu tiên giảm dần.")]
+    [SwaggerOperation(
+        Summary = "[LEO/DEO] Xem hàng đợi báo cáo",
+        Description = "Trả về danh sách báo cáo trong phạm vi quản lý. " +
+            "Hỗ trợ search (code, address, category), filter (status, severity, category, ward, date range, SLA breached), " +
+            "và sort (priorityScore, createdAt, severity, slaVerifyDueAt, slaResolveDueAt — asc/desc). " +
+            "Default sort: priorityScore desc.")]
     [SwaggerResponse(200, "Hàng đợi", typeof(ApiResponse<GetOfficerQueueResponse>))]
     public async Task<IActionResult> GetQueueAsync(
-        [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
-        [FromQuery] ReportStatus? status = null, CancellationToken ct = default)
-        => (await sender.Send(new GetOfficerQueueQuery(page, pageSize, status), ct)).ToHttp();
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        // Filters
+        [FromQuery] ReportStatus? status = null,
+        [FromQuery] Severity? severity = null,
+        [FromQuery] Guid? categoryId = null,
+        [FromQuery] string? wardCode = null,
+        [FromQuery] DateTime? fromDate = null,
+        [FromQuery] DateTime? toDate = null,
+        [FromQuery] bool? slaBreached = null,
+        // Search
+        [FromQuery] string? search = null,
+        // Sort
+        [FromQuery] QueueSortBy sortBy = QueueSortBy.PriorityScore,
+        [FromQuery] SortDirection sortDir = SortDirection.Desc,
+        CancellationToken ct = default)
+        => (await sender.Send(new GetOfficerQueueQuery(
+            page, pageSize, status, severity, categoryId, wardCode,
+            fromDate, toDate, slaBreached, search, sortBy, sortDir), ct)).ToHttp();
 
     // ═══════════════════════════════════════════
     // ██  TEAM WORKFLOW

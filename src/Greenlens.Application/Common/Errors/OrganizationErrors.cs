@@ -80,5 +80,35 @@ public static partial class Errors
             "OFFICE_NOT_ONBOARDED",
             "Văn phòng xã/phường chưa được kích hoạt. Không thể điều phối task.",
             ErrorType.BusinessRule);
+
+        public static Error InvalidRoleForRecruit => new(
+            "INVALID_ROLE_FOR_RECRUIT",
+            "Chỉ có thể recruit người dùng có vai trò Citizen.",
+            ErrorType.BusinessRule);
+
+        public static Error UserAlreadyInOffice => new(
+            "USER_ALREADY_IN_OFFICE",
+            "Người dùng đã thuộc một phường/xã khác.",
+            ErrorType.Conflict);
+
+        public static Error UserAlreadyInTeam => new(
+            "USER_ALREADY_IN_TEAM",
+            "Người dùng đã là thành viên của một đội khác.",
+            ErrorType.Conflict);
+
+        public static Error TeamNotInOffice => new(
+            "TEAM_NOT_IN_OFFICE",
+            "Đội không thuộc văn phòng của bạn.",
+            ErrorType.BusinessRule);
+
+        public static Error OfficerNoOffice => new(
+            "OFFICER_NO_OFFICE",
+            "Bạn chưa được gán cho văn phòng nào.",
+            ErrorType.BusinessRule);
+
+        public static Error TransferSameTeam => new(
+            "TRANSFER_SAME_TEAM",
+            "Không thể chuyển thành viên sang chính đội hiện tại.",
+            ErrorType.BusinessRule);
     }
 }

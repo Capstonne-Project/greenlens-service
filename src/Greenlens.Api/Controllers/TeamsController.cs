@@ -6,6 +6,7 @@ using Greenlens.Application.Features.Organization.GetMyTeamProfile;
 using Greenlens.Application.Features.Organization.GetTeamById;
 using Greenlens.Application.Features.Organization.GetTeams;
 using Greenlens.Application.Features.Organization.RemoveTeamMember;
+using Greenlens.Application.Features.Organization.TransferTeamMember;
 using Greenlens.Application.Features.Organization.UpdateTeam;
 using Greenlens.Application.Features.Reports.AcceptAssignment;
 using Greenlens.Application.Features.Reports.DeclineAssignment;
@@ -178,14 +179,33 @@ public sealed class TeamsController(ISender sender) : ControllerBase
     [HttpDelete("{teamId:guid}/members/{userId:guid}")]
     [Authorize(Roles = "Admin,LEO")]
     [Tags("📌 LEO Dashboard")]
-    [SwaggerOperation(Summary = "[Admin/LEO] Xóa thành viên khỏi team", Description = "Xóa user khỏi đội MT. LEO chỉ quản lý team trong office của mình.")]
+    [SwaggerOperation(Summary = "[Admin/LEO] Xóa thành viên khỏi team", Description = "Xóa user khỏi đội MT. LEO chỉ quản lý team trong office của mình. Role không thay đổi — user vẫn thuộc phường.")]
     [SwaggerResponse(200, "Đã xóa", typeof(ApiResponse))]
     [SwaggerResponse(404, "Không tìm thấy thành viên", typeof(ApiResponse))]
     public async Task<IActionResult> RemoveMemberAsync(
         [FromRoute] Guid teamId, [FromRoute] Guid userId, CancellationToken ct)
         => (await sender.Send(new RemoveTeamMemberCommand(teamId, userId), ct)).ToHttpNoContent("Đã xóa thành viên khỏi team.");
+
+    [HttpPut("{teamId:guid}/members/{userId:guid}/transfer")]
+    [Authorize(Roles = "Admin,LEO")]
+    [Tags("📌 LEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[Admin/LEO] Chuyển thành viên sang team khác",
+        Description = "Chuyển user từ team hiện tại sang team mới trong cùng office (atomic). " +
+            "Role không thay đổi. Cả 2 team phải thuộc office của LEO. " +
+            "Role phải khớp TeamType mới (Cleaner→Cleanup, Inspector→Inspection).")]
+    [SwaggerResponse(200, "Đã chuyển", typeof(ApiResponse<TransferTeamMemberResponse>))]
+    [SwaggerResponse(404, "Không tìm thấy team hoặc thành viên", typeof(ApiResponse))]
+    [SwaggerResponse(409, "User đã trong team đích", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Team không thuộc office hoặc role không khớp", typeof(ApiResponse))]
+    public async Task<IActionResult> TransferMemberAsync(
+        [FromRoute] Guid teamId, [FromRoute] Guid userId,
+        [FromBody] TransferMemberRequest request, CancellationToken ct)
+        => (await sender.Send(
+            new TransferTeamMemberCommand(teamId, userId, request.NewTeamId, request.IsLeader), ct)).ToHttp();
 }
 
 public sealed record UpdateTeamRequest(string Name);
 public sealed record AddTeamMemberRequest(Guid UserId, bool IsLeader = false);
 public sealed record DeclineTaskRequest(Guid TeamId, string Reason);
+public sealed record TransferMemberRequest(Guid NewTeamId, bool IsLeader = false);
