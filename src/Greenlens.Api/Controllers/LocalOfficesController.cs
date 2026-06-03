@@ -4,6 +4,9 @@ using Greenlens.Application.Features.Organization.AssignLeoToOffice;
 using Greenlens.Application.Features.Organization.CreateLocalOffice;
 using Greenlens.Application.Features.Organization.GetLocalOfficeById;
 using Greenlens.Application.Features.Organization.GetLocalOffices;
+using Greenlens.Application.Features.Organization.GetOfficeStaff;
+using Greenlens.Application.Features.Organization.LookupCitizenByEmail;
+using Greenlens.Application.Features.Organization.RecruitStaff;
 using Greenlens.Application.Features.Organization.UpdateLocalOffice;
 using Greenlens.Application.Features.Reports.GetOfficeReports;
 using Greenlens.Domain.Enums;
@@ -95,7 +98,62 @@ public sealed class LocalOfficesController(ISender sender) : ControllerBase
         CancellationToken ct = default)
         => (await sender.Send(new GetOfficeReportsQuery(
             page, pageSize, search, status, categoryId, severity, assignmentStatus, sortBy, sortDesc), ct)).ToHttp();
+
+    // ═══════════════════════════════════════════
+    // ██  STAFF MANAGEMENT
+    // ═══════════════════════════════════════════
+
+    [HttpGet("my/staff/lookup")]
+    [Authorize(Roles = "LEO,Admin")]
+    [Tags("📌 LEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO] Tra cứu tài khoản theo email",
+        Description = "Tra cứu thông tin tài khoản Citizen theo email chính xác. " +
+            "Trả về thông tin cơ bản + trạng thái đủ điều kiện recruit (isRecruitEligible). " +
+            "Dùng để FE hiển preview trước khi LEO bấm Tuyển.")]
+    [SwaggerResponse(200, "Thông tin tài khoản", typeof(ApiResponse<CitizenLookupResponse>))]
+    [SwaggerResponse(404, "Không tìm thấy email", typeof(ApiResponse))]
+    public async Task<IActionResult> LookupCitizenAsync(
+        [FromQuery] string email, CancellationToken ct)
+        => (await sender.Send(new LookupCitizenByEmailQuery(email), ct)).ToHttp();
+
+    [HttpPost("my/staff")]
+    [Authorize(Roles = "LEO,Admin")]
+    [Tags("📌 LEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO] Tuyển nhân sự vào phường + team",
+        Description = "Search Citizen theo email → đổi role thành Cleaner/Inspector → gán vào LocalOffice. " +
+            "Nếu truyền teamId → thêm vào team luôn (1 transaction). " +
+            "Chỉ Citizen mới được recruit. User đã thuộc phường khác → reject.")]
+    [SwaggerResponse(201, "Đã tuyển nhân sự", typeof(ApiResponse<RecruitStaffResponse>))]
+    [SwaggerResponse(404, "Không tìm thấy email trong hệ thống", typeof(ApiResponse))]
+    [SwaggerResponse(409, "User đã thuộc phường/team khác", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Role không hợp lệ hoặc chưa gán office", typeof(ApiResponse))]
+    public async Task<IActionResult> RecruitStaffAsync(
+        [FromBody] RecruitStaffRequest request, CancellationToken ct)
+        => (await sender.Send(
+            new RecruitStaffCommand(request.Email, request.TargetRole, request.TeamId, request.IsLeader), ct))
+            .ToHttpCreated();
+
+    [HttpGet("my/staff")]
+    [Authorize(Roles = "LEO,Admin")]
+    [Tags("📌 LEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO] Danh sách nhân sự trong phường",
+        Description = "Trả về danh sách Cleaner/Inspector thuộc LocalOffice mà LEO đang quản lý. " +
+            "Bao gồm thông tin team (nếu có). " +
+            "Hỗ trợ tìm kiếm (tên, email), lọc theo role và trạng thái team (hasTeam=true/false).")]
+    [SwaggerResponse(200, "Danh sách nhân sự", typeof(ApiResponse<GetOfficeStaffResponse>))]
+    [SwaggerResponse(422, "Chưa gán office", typeof(ApiResponse))]
+    public async Task<IActionResult> GetOfficeStaffAsync(
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
+        [FromQuery] string? search = null,
+        [FromQuery] UserRole? role = null,
+        [FromQuery] bool? hasTeam = null,
+        CancellationToken ct = default)
+        => (await sender.Send(new GetOfficeStaffQuery(page, pageSize, search, role, hasTeam), ct)).ToHttp();
 }
 
 public sealed record UpdateLocalOfficeRequest(string Name);
 public sealed record AssignLeoRequest(Guid UserId);
+public sealed record RecruitStaffRequest(string Email, UserRole TargetRole, Guid? TeamId = null, bool IsLeader = false);
