@@ -41,6 +41,16 @@ public sealed class DispatchToCompanyCommandHandler(
         if (!company.IsWithinContractWindow(DateTime.UtcNow))
             return Errors.Reports.CompanyNotActive;
 
+        // BR-CMP-008: company must serve the ward where the report is located
+        if (!string.IsNullOrEmpty(report.WardCode))
+        {
+            var servesWard = await companies.ServesWardAsync(
+                request.CompanyId, report.WardCode, ct).ConfigureAwait(false);
+
+            if (!servesWard)
+                return Errors.Reports.CompanyDoesNotServeWard;
+        }
+
         // Dispatch — report stays Verified, AssignedCompanyId set
         report.DispatchToCompany(request.CompanyId, currentUser.UserId);
 

@@ -11,13 +11,13 @@ namespace Greenlens.Application.Features.Organization.CreateCompanyTeam;
 
 /// <summary>
 /// CompanyManager creates a CleanupTeam under their company.
+/// No LocalOfficeId — company teams go wherever the dispatched task is.
 /// Only Cleanup teams allowed — InspectionTeam is ward-level (LEO-managed).
 /// </summary>
 /// <remarks>Implements: BR-CMP-004.</remarks>
 public sealed class CreateCompanyTeamCommandHandler(
     ICompanyStaffRepository companyStaff,
     IEnvironmentalTeamRepository teams,
-    ILocalOfficeRepository localOffices,
     IUnitOfWork uow,
     ICurrentUser currentUser,
     ILogger<CreateCompanyTeamCommandHandler> logger) : IRequestHandler<CreateCompanyTeamCommand, Result<CreateCompanyTeamResponse>>
@@ -35,26 +35,19 @@ public sealed class CreateCompanyTeamCommandHandler(
 
         var companyId = staff.CompanyId;
 
-        // Verify office exists
-        var office = await localOffices.GetByIdAsync(request.LocalOfficeId, cancellationToken)
-            .ConfigureAwait(false);
-
-        if (office is null)
-            return Errors.Organization.LocalOfficeNotFound;
-
         // Company teams can only be Cleanup (InspectionTeam is ward-level)
         var team = EnvironmentalTeam.CreateCompanyTeam(
-            request.Name, request.LocalOfficeId, TeamType.Cleanup, companyId);
+            request.Name, TeamType.Cleanup, companyId);
 
         teams.Add(team);
 
         await uow.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         logger.LogInformation(
-            "Company team {TeamId} created by CM {UserId} for company {CompanyId} under office {OfficeId}",
-            team.Id, currentUser.UserId, companyId, team.LocalOfficeId);
+            "Company team {TeamId} created by CM {UserId} for company {CompanyId}",
+            team.Id, currentUser.UserId, companyId);
 
         return new CreateCompanyTeamResponse(
-            team.Id, team.Name, team.LocalOfficeId, companyId, team.TeamType.ToString());
+            team.Id, team.Name, companyId, team.TeamType.ToString());
     }
 }

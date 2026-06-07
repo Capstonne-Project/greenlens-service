@@ -256,12 +256,12 @@ public sealed class TeamsController(ISender sender) : ControllerBase
     [Tags("🏢 Company Dashboard")]
     [SwaggerOperation(
         Summary = "[CompanyManager] Tạo team cho công ty",
-        Description = "CompanyManager tạo đội CleanupTeam thuộc công ty mình tại một LocalOffice. " +
+        Description = "CompanyManager tạo đội CleanupTeam thuộc công ty mình. " +
             "CompanyId tự động gắn từ token (không truyền trong body). " +
+            "Team công ty **không gắn cố định LocalOffice** — đi theo task được dispatch. " +
             "**InspectionTeam KHÔNG được phép** — đội xử phạt luôn thuộc phường/xã (LEO quản lý).")]
     [SwaggerResponse(201, "Đã tạo", typeof(ApiResponse<CreateCompanyTeamResponse>))]
     [SwaggerResponse(403, "Không phải CompanyManager", typeof(ApiResponse))]
-    [SwaggerResponse(404, "Office không tồn tại", typeof(ApiResponse))]
     public async Task<IActionResult> CreateCompanyTeamAsync(
         [FromBody] CreateCompanyTeamCommand command, CancellationToken ct)
         => (await sender.Send(command, ct)).ToHttpCreated();

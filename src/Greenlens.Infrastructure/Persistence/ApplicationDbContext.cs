@@ -32,6 +32,7 @@ internal sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext
     public DbSet<InspectionReport> InspectionReports => Set<InspectionReport>();
     public DbSet<EnvironmentalServiceCompany> EnvironmentalServiceCompanies => Set<EnvironmentalServiceCompany>();
     public DbSet<CompanyStaff> CompanyStaff => Set<CompanyStaff>();
+    public DbSet<CompanyServiceArea> CompanyServiceAreas => Set<CompanyServiceArea>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

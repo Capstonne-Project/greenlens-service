@@ -197,7 +197,7 @@ public sealed class ReportsController(ISender sender) : ControllerBase
 
     [HttpPost("{id:guid}/dispatch-to-company")]
     [Authorize(Roles = "LEO,Admin")]
-    [Tags("🏢 Company Dashboard")]
+    [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(
         Summary = "[LEO] Điều phối task đến công ty",
         Description = "LEO điều phối báo cáo đã xác minh đến công ty dịch vụ môi trường. Báo cáo giữ trạng thái Verified, CompanyManager sẽ phân công team sau.")]

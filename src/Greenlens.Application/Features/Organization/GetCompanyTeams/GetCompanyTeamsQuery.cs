@@ -18,5 +18,5 @@ public sealed record GetCompanyTeamsResponse(
     IReadOnlyList<CompanyTeamItem> Items, PaginationMeta Pagination);
 
 public sealed record CompanyTeamItem(
-    Guid Id, string Name, TeamType TeamType, Guid LocalOfficeId,
+    Guid Id, string Name, TeamType TeamType, Guid? LocalOfficeId,
     string? OfficeName, bool IsActive, int MemberCount, DateTime CreatedAt);

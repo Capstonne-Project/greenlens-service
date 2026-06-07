@@ -42,6 +42,7 @@ public sealed class EnvironmentalServiceCompany : AuditableEntity
     // ── Navigation ──
     public Department? Department { get; private set; }
     public ICollection<CompanyStaff> Staff { get; private set; } = [];
+    public ICollection<CompanyServiceArea> ServiceAreas { get; private set; } = [];
 
     // ────────────────────────────────────────────────────
     // Factory

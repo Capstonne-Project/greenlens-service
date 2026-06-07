@@ -160,5 +160,10 @@ public static partial class Errors
             "REPORT_NOT_DISPATCHED_TO_YOUR_COMPANY",
             "Báo cáo không được điều phối đến công ty của bạn.",
             ErrorType.BusinessRule);
+
+        public static Error CompanyDoesNotServeWard => new(
+            "COMPANY_DOES_NOT_SERVE_WARD",
+            "Công ty không phụ trách phường/xã của báo cáo này. Kiểm tra lại vùng phục vụ của công ty.",
+            ErrorType.BusinessRule);
     }
 }

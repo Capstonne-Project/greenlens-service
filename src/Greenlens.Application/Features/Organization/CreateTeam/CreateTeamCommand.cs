@@ -13,4 +13,4 @@ public sealed record CreateTeamCommand(
     Guid LocalOfficeId,
     TeamType TeamType) : IRequest<Result<CreateTeamResponse>>;
 
-public sealed record CreateTeamResponse(Guid Id, string Name, Guid LocalOfficeId, string TeamType);
+public sealed record CreateTeamResponse(Guid Id, string Name, Guid? LocalOfficeId, string TeamType);

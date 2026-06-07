@@ -8,9 +8,9 @@ namespace Greenlens.Domain.Entities;
 /// Dispatch is by NEED (v1.3), not by pollution type.
 /// Cleanup: handles field cleanup for any pollution type.
 /// Inspection: handles penalty enforcement — always ward-level (LEO-managed, BR-INS-001).
-/// Community teams (CompanyId == null): managed by LEO, assigned directly.
+/// Community teams (CompanyId == null): managed by LEO, gắn cố định 1 LocalOffice.
 /// Company teams (CompanyId != null): CRUD + assignment managed by CompanyManager.
-///   LEO chỉ dispatch task sang company, CompanyManager phân công team.
+///   LocalOfficeId == null (team công ty không gắn cố định phường/xã, đi theo task).
 ///   InspectionTeam không thể thuộc company.
 /// </summary>
 /// <remarks>Implements: BR-ORG-003, BR-CLN-001, BR-INS-001.</remarks>
@@ -19,7 +19,8 @@ public sealed class EnvironmentalTeam : AuditableEntity
     private EnvironmentalTeam() { } // EF Core constructor
 
     public string Name { get; private set; } = default!;
-    public Guid LocalOfficeId { get; private set; }
+    /// <summary>Required for community teams, null for company teams (company teams go where the task is).</summary>
+    public Guid? LocalOfficeId { get; private set; }
     public TeamType TeamType { get; private set; }
     public bool IsActive { get; private set; } = true;
 
@@ -48,9 +49,9 @@ public sealed class EnvironmentalTeam : AuditableEntity
         };
     }
 
-    /// <summary>BR-CMP-004: Create a company team (CRUD by CompanyManager). InspectionTeam not allowed.</summary>
+    /// <summary>BR-CMP-004: Create a company team (CRUD by CompanyManager). No LocalOfficeId — company teams go where the task is. InspectionTeam not allowed.</summary>
     public static EnvironmentalTeam CreateCompanyTeam(
-        string name, Guid localOfficeId, TeamType teamType, Guid companyId)
+        string name, TeamType teamType, Guid companyId)
     {
         if (teamType == TeamType.Inspection)
             throw new InvalidOperationException("InspectionTeam là đội xử phạt phường/xã, không thể thuộc công ty.");
@@ -58,7 +59,7 @@ public sealed class EnvironmentalTeam : AuditableEntity
         return new EnvironmentalTeam
         {
             Name = name,
-            LocalOfficeId = localOfficeId,
+            LocalOfficeId = null, // company team: not tied to a specific office
             TeamType = teamType,
             CompanyId = companyId,
             IsActive = true,
