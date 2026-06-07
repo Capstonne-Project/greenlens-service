@@ -51,6 +51,10 @@ public sealed class AssignTeamCommandHandler(
             if (team is null)
                 return Errors.Organization.TeamNotFound;
 
+            // Guard: LEO cannot assign company teams directly — must use dispatch-to-company flow
+            if (team.IsCompanyTeam)
+                return Errors.Reports.CannotAssignCompanyTeamDirectly;
+
             // BR-OFF-013: team can only handle 1 task at a time
             var workload = await assignments.CountInProgressByTeamAsync(item.TeamId, ct).ConfigureAwait(false);
             if (workload >= 1)

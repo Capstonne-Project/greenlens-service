@@ -24,8 +24,9 @@ internal sealed class EnvironmentalServiceCompanyConfiguration
         builder.Property(c => c.ContractNumber).IsRequired().HasMaxLength(50);
         builder.HasIndex(c => c.ContractNumber).IsUnique();
 
-        // ── Status enum as string ──
+        // ── Status & ContractType enums as string ──
         builder.Property(c => c.Status).HasConversion<string>().HasMaxLength(30);
+        builder.Property(c => c.ContractType).HasConversion<string>().HasMaxLength(20);
 
         // ── Activation ──
         builder.Property(c => c.ActivationTokenHash).HasMaxLength(128);

@@ -35,10 +35,10 @@ Citizen → Submit (auto-route GPS→Ward→LocalOffice) → LEO verify & assign
 | Actor | Vai trò trong luồng |
 |---|---|
 | **Citizen** | Gửi báo cáo (có ảnh + GPS), theo dõi trạng thái, đóng báo cáo |
-| **LEO** (Local Environmental Officer) | Xác minh báo cáo, phân công team xử lý (đội cộng đồng hoặc công ty), lập InspectionReport nếu vi phạm |
+| **LEO** (Local Environmental Officer) | Xác minh báo cáo, phân công **đội cộng đồng** trực tiếp, điều phối task sang **công ty**, quản lý InspectionTeam (đội xử phạt phường/xã) |
 | **DEO** (Department Environmental Officer) | Quản lý fallback queue (báo cáo ở phường chưa onboard), quản lý hợp đồng công ty |
-| **Company Manager (CM)** | Nhận task từ LEO, phân công cho đội dọn dẹp của công ty, theo dõi dashboard |
-| **Cleaner** | Thành viên CleanupTeam (cộng đồng), nhận task → accept → cập nhật tiến độ → resolve |
+| **Company Manager (CM)** | Nhận task từ LEO, **CRUD + quản lý team công ty**, phân công team công ty xử lý, theo dõi dashboard |
+| **Cleaner** | Thành viên CleanupTeam (cộng đồng hoặc công ty), nhận task → accept → cập nhật tiến độ → resolve |
 | **Company Staff (CS)** | Nhân viên công ty, luồng xử lý giống Cleaner |
 
 ---
@@ -49,11 +49,18 @@ Citizen → Submit (auto-route GPS→Ward→LocalOffice) → LEO verify & assign
 
 ```
                    ┌─► Rejected   (LEO, reason ≥ 20 chars)
-Submitted ─────────┼─► Verified ──► InProgress ──► Resolved ──┬─► Closed (Citizen confirm OR auto 7d)
-                   └─► Duplicate  (LEO/AI)                     └─► InProgress (re-open, max 2 lần)
+Submitted ─────────┼─► Verified ──┬─► InProgress ──► Resolved ──┬─► Closed (Citizen confirm OR auto 7d)
+                   └─► Duplicate  │  (LEO/AI)                   └─► InProgress (re-open, max 2 lần)
+                                  │
+                                  ├─► [Community team] LEO assign trực tiếp → InProgress
+                                  │
+                                  └─► [Company team] LEO dispatch to Company → Verified (giữ nguyên)
+                                       └─► CM assign company team → InProgress
 ```
 
 **Enum `ReportStatus`:** `Submitted` → `Verified` → `InProgress` → `Resolved` → `Closed` | `Rejected` | `Duplicate`
+
+> **Quan trọng:** Khi LEO dispatch sang company, report **giữ Verified** + set `AssignedCompanyId`. CompanyManager filter bằng `Status == Verified AND AssignedCompanyId == myCompanyId`.
 
 ### 3.2 InspectionReport Lifecycle (Sub-process — Nhánh Xử Phạt)
 
@@ -61,8 +68,6 @@ Submitted ─────────┼─► Verified ──► InProgress ─
 Draft ──► PenaltyIssued ──► (Paid / PartiallyPaid / Overdue) ──► Closed
                                                  └─► Draft → Closed (CloseNoViolation)
 ```
-
-**Enum `InspectionStatus`:** `Draft` → `PenaltyIssued` → `Paid` / `PartiallyPaid` / `Overdue` → `Closed`
 
 ### 3.3 Assignment Lifecycle (Task gán cho Team)
 
@@ -116,7 +121,7 @@ Assigned ──► InProgress ──► Completed
    - Verify: có thể override `severity`, `categoryId`, thêm `wasteTagIds`
    - Reject: yêu cầu reason ≥ 20 ký tự
 
-### Phase 3: LEO Phân Công Team
+### Phase 3A: LEO Phân Công Team Cộng Đồng (Trực Tiếp)
 
 ```
 ┌──────────────┐     GET /v1/teams?isAvailable=true ┌───────────┐
@@ -129,12 +134,34 @@ Assigned ──► InProgress ──► Completed
 └──────────────┘
 ```
 
-1. LEO xem danh sách team rảnh (`/teams?isAvailable=true`)
-2. LEO chọn 1 hoặc nhiều team → assign
-3. **Dispatch by need**: LEO tự quyết loại team (CleanupTeam / InspectionTeam), không ràng buộc bởi category
-4. Report chuyển `Verified → InProgress`
+1. LEO xem danh sách team **cộng đồng** rảnh (team có `CompanyId == null`)
+2. LEO chọn 1 hoặc nhiều team → assign **trực tiếp**
+3. Report chuyển `Verified → InProgress`
 
-> **Lưu ý:** LEO có thể assign team **cộng đồng** (CleanupTeam thuộc LocalOffice) **HOẶC** team **công ty** (thuộc EnvironmentalServiceCompany). Cả hai loại đều dùng cùng endpoint.
+> **Guard:** LEO **KHÔNG THỂ** assign trực tiếp team của công ty qua endpoint này. Nếu team có `CompanyId != null` → trả lỗi `CANNOT_ASSIGN_COMPANY_TEAM_DIRECTLY`.
+
+### Phase 3B: LEO Điều Phối Sang Công Ty → CM Phân Công
+
+```
+┌──────────────┐     POST /v1/reports/{id}/dispatch-to-company
+│     LEO      │───────────────────────────────────► Report: AssignedCompanyId set
+│              │     body: { companyId, note? }       Status: vẫn Verified
+└──────────────┘
+
+┌──────────────┐     GET /v1/reports/company-queue
+│  Company     │───────────────────────────────────► Danh sách reports chờ phân công
+│  Manager     │     (Status==Verified + AssignedCompanyId==myCompanyId)
+│              │
+│              │     POST /v1/reports/{id}/assign-company-team
+│              │───────────────────────────────────► Status: Verified → InProgress
+│              │     body: { teams: [{teamId, note}] }
+└──────────────┘
+```
+
+1. LEO chọn công ty (trực thuộc hoặc đấu thầu) → dispatch task
+2. Report **giữ Verified**, `AssignedCompanyId` được set
+3. CompanyManager thấy task trên **company-queue**
+4. CM chọn team của công ty → assign → Report chuyển `Verified → InProgress`
 
 ### Phase 4: Team Xử Lý (Cleaner / Company Staff)
 
@@ -172,56 +199,47 @@ Assigned ──► InProgress ──► Completed
 
 ---
 
-## 5. Company Manager Dashboard (Mới v1.3)
+## 5. Company Module (v1.3)
 
-### 5.1 Luồng Company Manager
+### 5.1 Loại Công Ty
 
-CompanyManager (CM) quản lý đội dọn dẹp thuộc công ty dịch vụ môi trường. Luồng:
+| ContractType | Mô tả |
+|---|---|
+| `Subsidiary` | Công ty **trực thuộc** (thuộc sở hữu/quản lý trực tiếp của Sở TNMT) |
+| `Bidding` | Công ty **đấu thầu** (ký hợp đồng thông qua đấu thầu công khai) |
 
-```
-┌──────────────┐
-│ DEO tạo      │─── POST /v1/companies ──────────► Company created (PendingActivation)
-│ Company      │─── POST /v1/companies/{id}/token ► Generate activation token
-└──────────────┘
-
-┌──────────────┐
-│ CM nhận      │─── POST /v1/companies/activate ──► Company: Active
-│ token, kích  │    (token hash match + not expired)
-│ hoạt         │
-└──────────────┘
-
-┌──────────────┐
-│ CM quản lý   │─── POST /v1/companies/my/staff ──► Thêm nhân viên (Company Staff)
-│ nhân sự      │─── GET  /v1/companies/my/staff ──► Danh sách nhân viên
-│              │─── DELETE /v1/companies/my/staff/{id} ► Xóa nhân viên
-└──────────────┘
-```
-
-### 5.2 CM Nhận Task Từ LEO
-
-Khi LEO assign team **công ty** cho một report, CompanyManager sẽ thấy task trên dashboard:
+### 5.2 Onboarding Company
 
 ```
-┌──────────────┐     GET /v1/teams/my-tasks
-│ Company      │───────────────────────────────────► Tasks assigned to company teams
-│ Manager      │
-│              │     (CM delegate cho Company Staff xử lý thực địa)
-│              │
-│ Company      │     PUT /v1/teams/my-tasks/{id}/accept
-│ Staff        │───────────────────────────────────► Accept & execute task
-│              │     PUT /v1/reports/{id}/update-progress
-│              │     PUT /v1/reports/{id}/resolve
-└──────────────┘
+DEO ─── POST /v1/companies ──────────► Company created (PendingActivation, contractType)
+    ─── POST /v1/companies/{id}/token ► Generate activation token
+
+CM  ─── POST /v1/companies/activate ──► Company: Active
 ```
 
-> **Lưu ý quan trọng:** CompanyManager **KHÔNG** tạo team. Team thuộc LocalOffice, do **LEO** tạo. LEO cũng là người assign team cho report. CompanyManager chỉ quản lý **nhân sự** trong công ty.
+### 5.3 CM Quản Lý Nhân Sự & Team
 
-### 5.3 Contract-Window Authorization
+```
+CM ─── POST /v1/companies/my/staff ───► Thêm nhân viên
+   ─── GET  /v1/companies/my/staff ───► Danh sách nhân viên
+```
 
-Mọi request từ CompanyManager / CompanyStaff chỉ được chấp nhận khi:
+### 5.4 Luồng Nhận Task (Company Dispatch)
+
+```
+LEO ─── POST /reports/{id}/dispatch-to-company ──► AssignedCompanyId set, vẫn Verified
+CM  ─── GET  /reports/company-queue ─────────────► Danh sách task chờ phân công
+CM  ─── POST /reports/{id}/assign-company-team ──► Verified → InProgress
+CS  ─── (accept → progress → resolve) ──────────► Giống Cleaner
+```
+
+> **Lưu ý:** Team công ty là `EnvironmentalTeam` với `CompanyId != null`. CompanyManager chỉ assign được team thuộc công ty mình.
+
+### 5.5 Contract-Window Authorization
+
+Mọi request từ CM/CS chỉ được chấp nhận khi:
 - `Company.Status == Active`
 - `now ∈ [ContractStartDate, ContractEndDate]`
-- Token chưa hết hạn
 
 ---
 
@@ -253,10 +271,17 @@ Mọi request từ CompanyManager / CompanyStaff chỉ được chấp nhận kh
 | 2.3 | PUT | `/v1/reports/{id}/verify` | LEO | Xác minh (Submitted → Verified) |
 | 2.4 | PUT | `/v1/reports/{id}/reject` | LEO | Từ chối (Submitted → Rejected) |
 | 2.5 | GET | `/v1/teams?isAvailable=true` | LEO | Xem team rảnh |
-| 2.6 | POST | `/v1/reports/{id}/assign` | LEO | Phân công team (Verified → InProgress) |
-| 2.7 | GET | `/v1/reports/progress-board` | LEO | Board tổng quan InProgress |
-| 2.8 | GET | `/v1/reports/{id}/progress` | LEO | Chi tiết tiến trình |
+| 2.6 | POST | `/v1/reports/{id}/assign` | LEO | Phân công **community** team (Verified → InProgress) |
+| 2.7 | POST | `/v1/reports/{id}/dispatch-to-company` | LEO | Điều phối sang công ty (giữ Verified) |
+| 2.8 | GET | `/v1/reports/progress-board` | LEO | Board tổng quan InProgress |
 | 2.9 | PUT | `/v1/reports/{id}/reassign` | LEO | Chuyển team (nếu cần) |
+
+### 🏢 Phase 2.5: Company Manager Phân Công
+
+| # | Method | Endpoint | Actor | Mô tả |
+|---|--------|----------|-------|-------|
+| 2.5.1 | GET | `/v1/reports/company-queue` | CM | Xem task chờ phân công |
+| 2.5.2 | POST | `/v1/reports/{id}/assign-company-team` | CM | Phân công team công ty (Verified → InProgress) |
 
 ### 🔴 Phase 3: Team Xử Lý (Cleaner / Company Staff)
 

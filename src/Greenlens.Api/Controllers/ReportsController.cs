@@ -1,7 +1,10 @@
 using Greenlens.Api.Extensions;
 using Greenlens.Application.Common.Models;
 using Greenlens.Application.Features.Reports.AnalyzeReportImage;
+using Greenlens.Application.Features.Reports.AssignCompanyTeam;
 using Greenlens.Application.Features.Reports.AssignTeam;
+using Greenlens.Application.Features.Reports.DispatchToCompany;
+using Greenlens.Application.Features.Reports.GetCompanyQueue;
 using Greenlens.Application.Features.Reports.CloseReport;
 using Greenlens.Application.Features.Reports.GetMyReports;
 using Greenlens.Application.Features.Reports.GetOfficerQueue;
@@ -189,10 +192,51 @@ public sealed class ReportsController(ISender sender) : ControllerBase
             .ToHttpNoContent("Đã chuyển giao team thành công.");
 
     // ═══════════════════════════════════════════
-    // ██  (DEO DISPATCH — REMOVED in v3.0)
-    // ██  Auto-routing: GPS → WardCode → LocalOffice at submit time.
-    // ██  DEO only handles fallback queue when ward has no onboarded LocalOffice.
+    // ██  COMPANY DISPATCH (v1.3)
     // ═══════════════════════════════════════════
+
+    [HttpPost("{id:guid}/dispatch-to-company")]
+    [Authorize(Roles = "LEO,Admin")]
+    [Tags("🏢 Company Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO] Điều phối task đến công ty",
+        Description = "LEO điều phối báo cáo đã xác minh đến công ty dịch vụ môi trường. Báo cáo giữ trạng thái Verified, CompanyManager sẽ phân công team sau.")]
+    [SwaggerResponse(204, "Đã điều phối")]
+    [SwaggerResponse(422, "Công ty không hoạt động hoặc hết hợp đồng", typeof(ApiResponse))]
+    public async Task<IActionResult> DispatchToCompanyAsync(
+        [FromRoute] Guid id, [FromBody] DispatchToCompanyRequest request, CancellationToken ct)
+        => (await sender.Send(new DispatchToCompanyCommand(id, request.CompanyId, request.Note), ct))
+            .ToHttpNoContent("Đã điều phối task đến công ty thành công.");
+
+    [HttpPost("{id:guid}/assign-company-team")]
+    [Authorize(Roles = "CompanyManager,Admin")]
+    [Tags("🏢 Company Dashboard")]
+    [SwaggerOperation(
+        Summary = "[CompanyManager] Phân công team công ty",
+        Description = "CompanyManager phân công team của công ty mình cho báo cáo đã được LEO điều phối. Chuyển status Verified → InProgress.")]
+    [SwaggerResponse(204, "Đã phân công team")]
+    [SwaggerResponse(422, "Team không thuộc công ty hoặc workload vượt quá", typeof(ApiResponse))]
+    public async Task<IActionResult> AssignCompanyTeamAsync(
+        [FromRoute] Guid id, [FromBody] AssignCompanyTeamRequest request, CancellationToken ct)
+    {
+        var items = request.Teams.Select(t => new TeamAssignmentItem(t.TeamId, t.Note)).ToList();
+        return (await sender.Send(new AssignCompanyTeamCommand(id, items), ct))
+            .ToHttpNoContent("Đã phân công team công ty thành công.");
+    }
+
+    [HttpGet("company-queue")]
+    [Authorize(Roles = "CompanyManager,Admin")]
+    [Tags("🏢 Company Dashboard")]
+    [SwaggerOperation(
+        Summary = "[CompanyManager] Danh sách task chờ phân công",
+        Description = "CompanyManager xem các báo cáo đã được LEO điều phối đến công ty (Status == Verified + AssignedCompanyId).")]
+    [SwaggerResponse(200, "Danh sách task", typeof(ApiResponse<GetCompanyQueueResponse>))]
+    public async Task<IActionResult> GetCompanyQueueAsync(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] Severity? severity = null,
+        CancellationToken ct = default)
+        => (await sender.Send(new GetCompanyQueueQuery(page, pageSize, severity), ct)).ToHttp();
 
     [HttpGet("progress-board")]
     [Authorize(Roles = "LEO,Admin")]
@@ -370,3 +414,5 @@ public sealed record ReassignTeamRequest(Guid OldTeamId, Guid NewTeamId, string 
 public sealed record ResolveReportRequest(List<string> AfterImageUrls);
 public sealed record DeclineAssignmentRequest(Guid TeamId, string Reason);
 public sealed record TagWasteRequest(List<Guid> WasteTagIds);
+public sealed record DispatchToCompanyRequest(Guid CompanyId, string? Note);
+public sealed record AssignCompanyTeamRequest(List<AssignTeamItemRequest> Teams);

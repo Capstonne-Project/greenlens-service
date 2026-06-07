@@ -23,6 +23,14 @@ internal sealed class EnvironmentalTeamConfiguration : IEntityTypeConfiguration<
             .HasForeignKey(t => t.LocalOfficeId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        // ── Company affiliation (nullable = community team) ──
+        builder.HasOne(t => t.Company)
+            .WithMany()
+            .HasForeignKey(t => t.CompanyId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(t => t.CompanyId);
+
         builder.HasMany(t => t.Members)
             .WithOne(m => m.Team)
             .HasForeignKey(m => m.TeamId)

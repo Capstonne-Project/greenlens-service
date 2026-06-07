@@ -53,8 +53,14 @@ public sealed class Report : SoftDeletableEntity
     // ── LEO assignment (set when LEO assigns team) ──
     /// <summary>LEO who verified this report.</summary>
     public Guid? VerifiedBy { get; private set; }
-    /// <summary>LEO who assigned team(s) to this report.</summary>
+    /// <summary>LEO or CM who assigned team(s) to this report.</summary>
     public Guid? AssignedByOfficerId { get; private set; }
+
+    // ── Company dispatch (set when LEO dispatches to company) ──
+    /// <summary>Company assigned by LEO for cleanup. Null = community team handles it.</summary>
+    public Guid? AssignedCompanyId { get; private set; }
+    /// <summary>When LEO dispatched the report to the company.</summary>
+    public DateTime? DispatchedToCompanyAt { get; private set; }
 
     // ── Duplicate tracking ──
     public Guid? ParentReportId { get; private set; }
@@ -90,6 +96,7 @@ public sealed class Report : SoftDeletableEntity
     public User? VerifiedByUser { get; private set; }
     public LocalOffice? AssignedOffice { get; private set; }
     public Department? AssignedDepartment { get; private set; }
+    public EnvironmentalServiceCompany? AssignedCompany { get; private set; }
 
     public ICollection<ReportMedia> Media { get; private set; } = [];
     public ICollection<ReportStatusHistory> StatusHistory { get; private set; } = [];
@@ -192,7 +199,7 @@ public sealed class Report : SoftDeletableEntity
         RejectedReason = reason;
     }
 
-    /// <summary>LEO assigns team(s). Verified → InProgress. BR-OFF-011.</summary>
+    /// <summary>LEO assigns community team(s). Verified → InProgress. BR-OFF-011.</summary>
     public void Assign(Guid leoId)
     {
         EnsureStatus(ReportStatus.Verified);
@@ -200,6 +207,34 @@ public sealed class Report : SoftDeletableEntity
         Status = ReportStatus.InProgress;
         AssignedByOfficerId = leoId;
         // StartedAt is set when the first team accepts (not at assign time)
+    }
+
+    /// <summary>
+    /// LEO dispatches report to a company for cleanup. Report stays Verified.
+    /// CompanyManager will assign specific company teams later.
+    /// </summary>
+    public void DispatchToCompany(Guid companyId, Guid leoId)
+    {
+        EnsureStatus(ReportStatus.Verified);
+
+        AssignedCompanyId = companyId;
+        DispatchedToCompanyAt = DateTime.UtcNow;
+        // Status stays Verified — transitions to InProgress when CM assigns team
+    }
+
+    /// <summary>
+    /// CompanyManager assigns company team(s). Verified → InProgress.
+    /// Only valid when report was dispatched to a company (AssignedCompanyId set).
+    /// </summary>
+    public void AssignByCompanyManager(Guid companyManagerId)
+    {
+        EnsureStatus(ReportStatus.Verified);
+
+        if (!AssignedCompanyId.HasValue)
+            throw new InvalidOperationException("Report must be dispatched to a company before CM can assign teams.");
+
+        Status = ReportStatus.InProgress;
+        AssignedByOfficerId = companyManagerId;
     }
 
     /// <summary>Set StartedAt when first team accepts the assignment.</summary>

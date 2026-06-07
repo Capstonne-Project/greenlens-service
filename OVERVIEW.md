@@ -18,17 +18,17 @@ Hệ thống crowdsourcing cho phép công dân gửi báo cáo ô nhiễm môi 
 
 ### Actors (8 human + AI + Community = 10)
 
-> **Thay đổi v1.2:** tách `Environmental Officer` thành **DEO** (cấp tỉnh/thành) và **LEO** (cấp xã/phường); LEO đảm nhiệm xác minh & điều phối. Thêm 2 vai trò công ty: **Company Manager** và **Company Staff**.
+> **Thay đổi v1.3:** tách `Environmental Officer` thành **DEO** (cấp tỉnh/thành) và **LEO** (cấp xã/phường). Auto-routing GPS→Ward→LocalOffice. LEO xác minh & điều phối (assign community team trực tiếp HOẶC dispatch sang company). CompanyManager CRUD + quản lý team công ty.
 
 | Actor | Vai trò chính |
 |---|---|
 | **Citizen** | Gửi báo cáo, xem map, theo dõi trạng thái, gamification |
-| **DEO** — Department of Environmental Management (tỉnh/thành) | Tạo tài khoản Công ty Dịch vụ Môi trường theo hợp đồng, onboarding LEO, xuất open data cấp tỉnh, cấu hình danh mục cấp tỉnh |
-| **LEO** — Local Environmental Office (xã/phường) | Xác minh & tiếp nhận báo cáo, điều phối dọn dẹp (gán Cleanup), lập InspectionReport khi cần xử phạt, mời Citizen → Cleaner/Inspector |
-| **Company Manager (CM)** | Quản lý hồ sơ Công ty Dịch vụ Môi trường, thêm/bớt Company Staff, phân công đội dọn dẹp, nhận CleanupTask do LEO đẩy sang |
+| **DEO** — Department of Environmental Management (tỉnh/thành) | Tạo tài khoản Công ty DVMT (trực thuộc/đấu thầu), onboarding LEO, fallback queue khi phường chưa onboard, xuất open data cấp tỉnh |
+| **LEO** — Local Environmental Office (xã/phường) | Xác minh báo cáo, phân công **đội cộng đồng** trực tiếp, **điều phối task sang công ty** (dispatch-to-company), quản lý InspectionTeam (đội xử phạt phường/xã), mời Citizen → Cleaner/Inspector |
+| **Company Manager (CM)** | Nhận task từ LEO, **CRUD + quản lý team công ty** (tạo/sửa/xóa team), phân công team xử lý task, quản lý nhân sự công ty |
 | **Company Staff (CS)** | Nhân viên hiện trường thuộc đội công ty: check-in, upload ảnh before/after, đóng task (luồng giống Cleaner) |
-| **Cleaner** (thành viên đội dọn dẹp cộng đồng — CleanupTeam cấp xã/phường) | Nhận task thực địa ở khu vực nông thôn/HTX/Tổ tự quản, check-in, upload ảnh before/after, đóng task. Trong hệ thống, role `Cleaner` đại diện cho thành viên CleanupTeam |
-| **Inspection Team** | Xử lý xử phạt cho **mọi** loại ô nhiễm khi LEO lập InspectionReport (lập biên bản, ra quyết định xử phạt) |
+| **Cleaner** (thành viên CleanupTeam cộng đồng hoặc công ty) | Nhận task thực địa, check-in, upload ảnh before/after, đóng task. Role `Cleaner` đại diện cho thành viên CleanupTeam |
+| **Inspection Team** | Đội xử phạt **cấp phường/xã** (do LEO quản lý, KHÔNG thuộc company). Xử lý xử phạt cho mọi loại ô nhiễm khi LEO lập InspectionReport |
 | **System Administrator** | Quản lý user/role, danh mục, cấu hình, audit |
 | **AI Service** (automated) | Phân loại ảnh, phát hiện trùng, ước lượng severity, anti-fraud |
 | **Community Organization** (optional) | Xem map công khai, xuất open data |
@@ -249,8 +249,9 @@ public sealed class ReportsController : ControllerBase
 ### 4.8. Authentication & Authorization
 
 - JWT Bearer, kèm refresh token rotation. Lưu refresh token (hashed) trong DB.
-- Roles: `Citizen`, `DEO`, `LEO`, `Cleaner`, `CompanyManager`, `CompanyStaff`, `Inspector`, `Admin`. `Cleaner` đại diện thành viên CleanupTeam (đội cộng đồng). Anonymous-allowed endpoints khai báo rõ (BR-AUTH-014).
+- Roles: `Citizen`, `DEO`, `LEO`, `Cleaner`, `CompanyManager`, `CompanyStaff`, `Inspector`, `Admin`. `Cleaner` đại diện thành viên CleanupTeam (cộng đồng hoặc công ty). Anonymous-allowed endpoints khai báo rõ (BR-AUTH-014).
 - **Contract-window authorization (BR-CMP-005/006):** mọi request của `CompanyManager`/`CompanyStaff` chỉ được chấp nhận nếu `now ∈ [ContractStartDate, ContractEndDate]` **VÀ** `Company.Status == Active`. Check trong handler/policy, không chỉ dựa vào role string. Onboarding công ty dùng **activation token một-lần (7 ngày, single-use)** — KHÔNG dùng contract key làm credential dài hạn (BR-CMP-002/003).
+- **Company team CRUD:** CompanyManager chịu trách nhiệm tạo/sửa/xóa team thuộc công ty mình. LEO chỉ dispatch task sang company, KHÔNG quản lý team công ty. InspectionTeam luôn thuộc phường/xã (LEO quản lý).
 - Authorization theo **policy**, không phải role string rải rác:
   ```csharp
   options.AddPolicy(Policies.CanVerifyReport, p => p.RequireRole("LEO", "Admin"));
@@ -471,22 +472,30 @@ public sealed class SubmitReportCommandHandler : IRequestHandler<SubmitReportCom
 
 ### State Machine bắt buộc (BR-REP-020, BR-REP-021)
 
-> **v1.2 — điều phối theo NHU CẦU, không theo loại ô nhiễm.** Khi xác minh, **LEO** quyết định độc lập 2 việc: (a) cần dọn dẹp? → gán `CleanupTask` cho đội **công ty** (đô thị) hoặc đội **cộng đồng** xã/phường (nông thôn); (b) có chủ thể vi phạm cần xử phạt? → LEO lập **InspectionReport** liên kết → Inspection Team xử lý (mọi loại ô nhiễm). Một báo cáo có thể sinh **cả hai**. Báo cáo (umbrella) đi theo vòng đời dọn dẹp; InspectionReport là sub-process chạy song song.
+> **v1.3 — điều phối theo NHU CẦU + phân nhánh Community vs Company.** Khi xác minh, **LEO** quyết định: (a) cần dọn dẹp? → nhánh Community (assign trực tiếp) hoặc nhánh Company (dispatch sang công ty để CM phân công); (b) có chủ thể vi phạm? → LEO lập **InspectionReport** → Inspection Team (phường/xã) xử lý. Một báo cáo có thể sinh cả hai.
 
 **Nhánh dọn dẹp (umbrella):**
 ```
                    ┌─► Rejected   (LEO, reason ≥ 20 chars)
-Submitted ─────────┼─► Verified ──► InProgress ──► Resolved ──┬─► Closed (Citizen confirm OR auto 7d)
-                   └─► Duplicate  (LEO/AI)                     └─► InProgress (re-open, max 2 lần)
+Submitted ─────────┼─► Verified ──┬─► InProgress ──► Resolved ──┬─► Closed (Citizen confirm OR auto 7d)
+                   └─► Duplicate  │  (LEO/AI)                   └─► InProgress (re-open, max 2 lần)
+                                  │
+                                  ├─► [Community] LEO assign trực tiếp → InProgress
+                                  │
+                                  └─► [Company] LEO dispatch-to-company → Verified (giữ nguyên)
+                                       └─► CM assign-company-team → InProgress
 ```
+
+> **Quan trọng:** Khi LEO dispatch sang company, report **giữ Verified** + set `AssignedCompanyId`. CM filter bằng `Status == Verified AND AssignedCompanyId == myCompanyId`. 1 report chỉ dispatch cho 1 company.
 
 **Nhánh xử phạt (InspectionReport liên kết — BR-INS-001, mọi loại ô nhiễm):**
 ```
 Draft ──► PenaltyIssued ──► (Paid / PartiallyPaid / Overdue) ──► Closed
 ```
 
-- Implement trong `Domain/Entities/Report.cs` (umbrella) và `Domain/Entities/InspectionReport.cs` (sub-process) qua method `Verify(leo)`, `Reject(leo, reason)`, `DispatchCleanup(...)`, `RaiseInspectionReport(...)` v.v. — **không** cho phép set `Status` qua public setter.
+- Implement trong `Domain/Entities/Report.cs` (umbrella) và `Domain/Entities/InspectionReport.cs` (sub-process) qua method `Verify(leo)`, `Reject(leo, reason)`, `Assign(officerId)`, `DispatchToCompany(companyId)`, `AssignByCompanyManager(officerId)` v.v. — **không** cho phép set `Status` qua public setter.
 - Mỗi transition raise một `DomainEvent` (`ReportVerifiedEvent`, `InspectionReportRaisedEvent`, …).
+- **InspectionTeam** luôn cấp phường/xã (LEO quản lý), không thể thuộc company.
 
 ### Một số rule cần chú ý đặc biệt
 
@@ -502,10 +511,10 @@ Draft ──► PenaltyIssued ──► (Paid / PartiallyPaid / Overdue) ──�
 | BR-REP-030 | Duplicate detection: PostGIS `ST_DWithin(geom, geom, 50)` AND same category AND within 24h. AI bổ sung pHash (BR-AI-002). |
 | BR-OFF-010 | `Priority = severity*3 + relatedCount*2 + ageInHours/24`. Tính trên DB view hoặc materialized view. |
 | BR-OFF-020 | SLA: Critical 3d / High 5d / Medium 7d / Low 10d kể từ `Verified`. Background job đánh dấu breach. |
-| BR-OFF-005 | Triage theo nhu cầu (v1.2): LEO chọn dọn-dẹp và/hoặc xử-phạt độc lập; lập InspectionReport liên kết khi cần xử phạt. |
-| BR-CLN-001 | CleanupTask gán cho đội **công ty** (urban, do CM phân công) HOẶC đội **cộng đồng** xã/phường (rural). Phân biệt qua `AssigneeType`. |
-| BR-INS-001 | Inspection Team xử phạt cho **mọi** loại ô nhiễm (bỏ phân vùng theo loại của v1.1). |
-| BR-CMP-005/006 | Contract-window check ở handler/policy; `CompanyContractExpiryJob` flip `Status=Expired` cuối hợp đồng, giữ dữ liệu audit. |
+| BR-OFF-005 | Triage theo nhu cầu (v1.3): LEO chọn dọn-dẹp (community hoặc dispatch-to-company) và/hoặc xử-phạt (InspectionReport). |
+| BR-CLN-001 | **Community team** (LEO assign trực tiếp) HOẶC **company team** (LEO dispatch → CM assign). Company team CRUD do CM quản lý. Phân biệt qua `EnvironmentalTeam.CompanyId`. |
+| BR-INS-001 | InspectionTeam = đội xử phạt **phường/xã** (LEO quản lý, KHÔNG thuộc company). Xử phạt mọi loại ô nhiễm. |
+| BR-CMP-005/006 | Contract-window check ở handler/policy; `CompanyContractExpiryJob` flip `Status=Expired` cuối hợp đồng. Company có `ContractType`: `Subsidiary` (trực thuộc) hoặc `Bidding` (đấu thầu). |
 | BR-CMP-002/003 | Activation token một-lần (7 ngày, single-use) gửi email để CM đặt mật khẩu. KHÔNG dùng contract key làm credential. |
 | BR-CLN-002 | Check-in distance ≤ 200m: PostGIS `ST_DWithin`. |
 | BR-CLN-004 | 2 ảnh "after" khác hash: tính perceptual hash (pHash), Hamming distance ≥ ngưỡng. |

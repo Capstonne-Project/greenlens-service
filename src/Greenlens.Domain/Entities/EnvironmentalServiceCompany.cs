@@ -1,4 +1,5 @@
 using Greenlens.Domain.Common;
+using Greenlens.Domain.Enums;
 
 namespace Greenlens.Domain.Entities;
 
@@ -25,6 +26,8 @@ public sealed class EnvironmentalServiceCompany : AuditableEntity
     public string ContractNumber { get; private set; } = default!;
     public DateTime ContractStartDate { get; private set; }
     public DateTime ContractEndDate { get; private set; }
+    /// <summary>Subsidiary = trực thuộc, Bidding = đấu thầu.</summary>
+    public ContractType ContractType { get; private set; }
     public CompanyStatus Status { get; private set; } = CompanyStatus.PendingActivation;
 
     // ── Activation ──
@@ -51,6 +54,7 @@ public sealed class EnvironmentalServiceCompany : AuditableEntity
         string contractNumber,
         DateTime contractStartDate,
         DateTime contractEndDate,
+        ContractType contractType,
         string? taxCode = null,
         string? address = null,
         string? phone = null,
@@ -63,6 +67,7 @@ public sealed class EnvironmentalServiceCompany : AuditableEntity
             ContractNumber = contractNumber,
             ContractStartDate = contractStartDate,
             ContractEndDate = contractEndDate,
+            ContractType = contractType,
             TaxCode = taxCode,
             Address = address,
             Phone = phone,
