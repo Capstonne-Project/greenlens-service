@@ -41,6 +41,73 @@ Hệ thống crowdsourcing cho phép công dân gửi báo cáo ô nhiễm môi 
 - RPO ≤ 24h, RTO ≤ 4h (BR-DAT-004)
 - i18n: vi-VN, en-US (BR-SYS-006)
 
+### 1.1 Domain Knowledge — Vận hành thu gom rác thải tại Việt Nam
+
+> Hệ thống cần thiết kế sát thực tế vận hành, bao phủ từ đô thị lớn đến tỉnh lẻ và nông thôn.
+
+#### A. Phân tầng lực lượng thu gom (3 tầng)
+
+| Tầng | Đơn vị | Phạm vi | Mapping trong GreenLens |
+|---|---|---|---|
+| **Tầng 1 — Trung ương** | CITENCO (TP.HCM), URENCO (Hà Nội) | Trục đường huyết mạch liên quận, trạm trung chuyển, bãi xử lý, chất thải nguy hại/y tế — phủ **toàn thành phố** | `EnvironmentalServiceCompany` + `ContractType.Subsidiary` + ServiceArea = tất cả wards |
+| **Tầng 2 — Quận/Huyện** | 22 Công ty DVCI (TP.HCM), các công ty đấu thầu cấp phường (Hà Nội), Công ty CPMT Đô thị cấp tỉnh | Quét dọn đường vừa/nhỏ, gom rác từ trạm tập kết phường — phụ trách **toàn bộ phường/xã trong quận** | `EnvironmentalServiceCompany` + `ContractType.Subsidiary` hoặc `Bidding` + ServiceArea = các wards trong quận |
+| **Tầng 3 — Dân lập** | HTX vệ sinh môi trường, Tổ tự quản (Hội LHPN, Hội Nông dân, Đoàn Thanh niên) | Thu gom rác hộ gia đình trong hẻm sâu, ngõ nhỏ → chở ra trạm tập kết xã | `EnvironmentalTeam` + `CompanyId == null` = **community team** (LEO quản lý) |
+
+**Lưu ý:** Xử lý cuối nguồn (VWS, Vietstar, Tâm Sinh Nghĩa, Tasco) **không tham gia trực tiếp trên app**.
+
+#### B. Cơ chế đấu thầu dịch vụ công ích
+
+- **Chủ đầu tư:** UBND cấp Quận/Huyện hoặc UBND cấp Phường/Xã (mô hình mới tại Hà Nội).
+- **Tiêu chí trúng thầu:** Năng lực thiết bị (xe ép rác, cơ giới), nhân sự, giá cạnh tranh nhất.
+- **Thời hạn hợp đồng (gói thầu):**
+  - Ngắn hạn (**1 năm**): giai đoạn chuyển tiếp, sáp nhập phường/xã.
+  - Trung hạn (**3–5 năm**): phổ biến nhất, giúp công ty an tâm đầu tư xe cộ.
+- **Mapping:** `EnvironmentalServiceCompany.ContractStartDate / ContractEndDate` + `ContractType.Bidding`.
+
+#### C. TP.HCM — Thị trường mục tiêu chính (168 phường/xã sau sáp nhập)
+
+**CITENCO** (Tầng 1): Không gom rác hẻm. Chịu trách nhiệm trục đường huyết mạch liên quận, hệ thống trạm trung chuyển lớn, bãi chôn lấp (Đa Phước), xử lý chất thải nguy hại/y tế toàn thành phố.
+
+**22 Công ty DVCI** (Tầng 2) — mỗi công ty bao tiêu toàn bộ phường/xã thuộc quận:
+
+| Công ty DVCI | Phường/xã phụ trách (sau sáp nhập) |
+|---|---|
+| DVCI Quận 1 | P. Sài Gòn, P. Tân Định, P. Bến Thành, P. Cầu Ông Lãnh |
+| DVCI Quận 3 | P. Bàn Cờ, P. Xuân Hòa, P. Nhiêu Lộc |
+| DVCI Quận 4 | P. Xóm Chiếu, P. Khánh Hội, P. Vĩnh Hội |
+| DVCI Quận 5 | P. Chợ Quán, P. An Đông, P. Chợ Lớn |
+| DVCI Quận 6 | P. Bình Tây, P. Bình Tiên, P. Bình Phú, P. Phú Lâm |
+| DVCI Quận 10 | P. Diên Hồng, P. Vườn Lài, P. Hòa Hưng |
+| DVCI Quận 11 | P. Minh Phụng, P. Bình Thới, P. Hòa Bình, P. Phú Thọ |
+| DVCI Q7, Q8, Q12, BT, GV, PN, TB, TP, BTân | Toàn bộ phường mới thuộc quận tương ứng |
+| DVCI Bình Chánh, Hóc Môn, Củ Chi, Nhà Bè, Cần Giờ | Toàn bộ xã/thị trấn thuộc huyện |
+
+**TP. Thủ Đức** (trường hợp đặc biệt): 3 công ty DVCI cũ (Q2 + Q9 + Thủ Đức) sáp nhập → 1 thực thể duy nhất phụ trách 34 phường.
+
+**Lực lượng rác dân lập** (Tầng 3): HTX, Tổ tự quản → thu gom rác hộ dân trong hẻm → chở ra trạm tập kết.
+
+#### D. Hà Nội và các TP trực thuộc Trung ương
+
+- **Hà Nội:** URENCO chủ lực quận lõi + nhiều công ty tư nhân đấu thầu ngoại thành. Đấu thầu mạnh ở cấp Phường/Xã.
+- **Đà Nẵng / Cần Thơ / Hải Phòng:** Chủ yếu do Công ty CP Môi trường Đô thị lớn chi phối toàn thành phố.
+
+#### E. Tỉnh lẻ và nông thôn
+
+- **Thành phố/thị xã trung tâm:** Thường 1 Công ty CP Môi trường Đô thị cấp tỉnh duy nhất (VD: CP Đô thị Tân An, CP MT Kon Tum). Ngân sách nhà nước chi trả qua đặt hàng.
+- **Huyện vùng xa / xã nông thôn:** Doanh nghiệp "rút lui" (không có lãi). Thu gom hoàn toàn dựa vào **mô hình tự quản cộng đồng**:
+  - HTX vệ sinh môi trường (người dân tự lập, tự mua xe lôi/xe tải nhỏ).
+  - Tổ tự quản (Hội LHPN, Hội Nông dân, Đoàn Thanh niên xã tổ chức).
+  - **Cơ chế:** Tự đi thu tiền rác hàng tháng từ hộ dân → trả công người thu gom → chở ra điểm tập kết xã.
+  - **Mapping:** `EnvironmentalTeam` + `CompanyId == null` (community team, LEO quản lý).
+
+#### F. Quy tắc vận hành quan trọng cho hệ thống
+
+1. **1 phường có thể có nhiều đơn vị thu gom cùng lúc** (CITENCO trục chính + DVCI đường nhỏ + HTX hẻm).
+2. **Sáp nhập phường không thay đổi ranh giới quận** → DVCI quận nào vẫn bao tiêu quận đó.
+3. **Hợp đồng có thời hạn** → khi hết hạn, công ty khác có thể trúng thầu thay thế.
+4. **Nông thôn thường không có company nào** → chỉ có community team.
+5. **LEO nắm rõ địa bàn** → LEO tự quyết dispatch report đến đúng đơn vị phụ trách.
+
 ---
 
 ## 2. Tech Stack
