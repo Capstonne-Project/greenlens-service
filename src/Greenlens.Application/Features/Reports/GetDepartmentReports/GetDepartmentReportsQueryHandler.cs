@@ -119,7 +119,7 @@ public sealed class GetDepartmentReportsQueryHandler(
                 r.ReopenedCount,
                 r.CreatedAt,
                 r.VerifiedAt,
-                r.DispatchedAt,
+                r.StartedAt,
                 r.ResolvedAt,
                 r.ClosedAt,
                 r.SlaVerifyDueAt,

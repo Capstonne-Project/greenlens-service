@@ -130,7 +130,7 @@ public sealed class GetOfficeReportsQueryHandler(
                     : 0,
                 r.CreatedAt,
                 r.VerifiedAt,
-                r.DispatchedAt,
+                r.StartedAt,
                 r.ResolvedAt,
                 r.ClosedAt,
                 r.SlaResolveDueAt,

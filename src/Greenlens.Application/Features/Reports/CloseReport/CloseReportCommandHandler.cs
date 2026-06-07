@@ -23,8 +23,8 @@ public sealed class CloseReportCommandHandler(
         if (report is null)
             return Errors.Reports.ReportNotFound;
 
-        // Validate status — only Resolved or PenaltyIssued can be closed
-        if (report.Status is not (ReportStatus.Resolved or ReportStatus.PenaltyIssued))
+        // Validate status — only Resolved can be closed
+        if (report.Status != ReportStatus.Resolved)
             return Errors.Reports.InvalidStatusTransition;
 
         var fromStatus = report.Status;

@@ -16,13 +16,19 @@
 
 Hệ thống crowdsourcing cho phép công dân gửi báo cáo ô nhiễm môi trường (có ảnh + GPS), trực quan hóa hotspot trên bản đồ, và theo dõi tiến độ xử lý minh bạch. Backend chịu trách nhiệm xử lý nghiệp vụ cốt lõi: authentication, report lifecycle, geo-queries, gamification, AI integration, notifications, và analytics.
 
-### Actors (6)
+### Actors (8 human + AI + Community = 10)
+
+> **Thay đổi v1.2:** tách `Environmental Officer` thành **DEO** (cấp tỉnh/thành) và **LEO** (cấp xã/phường); LEO đảm nhiệm xác minh & điều phối. Thêm 2 vai trò công ty: **Company Manager** và **Company Staff**.
 
 | Actor | Vai trò chính |
 |---|---|
 | **Citizen** | Gửi báo cáo, xem map, theo dõi trạng thái, gamification |
-| **Environmental Officer** | Xác minh, phân loại, giao việc, quản lý SLA |
-| **Cleanup Team** | Nhận task thực địa, check-in, upload ảnh before/after, đóng task |
+| **DEO** — Department of Environmental Management (tỉnh/thành) | Tạo tài khoản Công ty Dịch vụ Môi trường theo hợp đồng, onboarding LEO, xuất open data cấp tỉnh, cấu hình danh mục cấp tỉnh |
+| **LEO** — Local Environmental Office (xã/phường) | Xác minh & tiếp nhận báo cáo, điều phối dọn dẹp (gán Cleanup), lập InspectionReport khi cần xử phạt, mời Citizen → Cleaner/Inspector |
+| **Company Manager (CM)** | Quản lý hồ sơ Công ty Dịch vụ Môi trường, thêm/bớt Company Staff, phân công đội dọn dẹp, nhận CleanupTask do LEO đẩy sang |
+| **Company Staff (CS)** | Nhân viên hiện trường thuộc đội công ty: check-in, upload ảnh before/after, đóng task (luồng giống Cleaner) |
+| **Cleaner** (thành viên đội dọn dẹp cộng đồng — CleanupTeam cấp xã/phường) | Nhận task thực địa ở khu vực nông thôn/HTX/Tổ tự quản, check-in, upload ảnh before/after, đóng task. Trong hệ thống, role `Cleaner` đại diện cho thành viên CleanupTeam |
+| **Inspection Team** | Xử lý xử phạt cho **mọi** loại ô nhiễm khi LEO lập InspectionReport (lập biên bản, ra quyết định xử phạt) |
 | **System Administrator** | Quản lý user/role, danh mục, cấu hình, audit |
 | **AI Service** (automated) | Phân loại ảnh, phát hiện trùng, ước lượng severity, anti-fraud |
 | **Community Organization** (optional) | Xem map công khai, xuất open data |
@@ -243,10 +249,12 @@ public sealed class ReportsController : ControllerBase
 ### 4.8. Authentication & Authorization
 
 - JWT Bearer, kèm refresh token rotation. Lưu refresh token (hashed) trong DB.
-- Roles: `Citizen`, `Officer`, `CleanupTeam`, `Admin`. Anonymous-allowed endpoints khai báo rõ (BR-AUTH-014).
+- Roles: `Citizen`, `DEO`, `LEO`, `Cleaner`, `CompanyManager`, `CompanyStaff`, `Inspector`, `Admin`. `Cleaner` đại diện thành viên CleanupTeam (đội cộng đồng). Anonymous-allowed endpoints khai báo rõ (BR-AUTH-014).
+- **Contract-window authorization (BR-CMP-005/006):** mọi request của `CompanyManager`/`CompanyStaff` chỉ được chấp nhận nếu `now ∈ [ContractStartDate, ContractEndDate]` **VÀ** `Company.Status == Active`. Check trong handler/policy, không chỉ dựa vào role string. Onboarding công ty dùng **activation token một-lần (7 ngày, single-use)** — KHÔNG dùng contract key làm credential dài hạn (BR-CMP-002/003).
 - Authorization theo **policy**, không phải role string rải rác:
   ```csharp
-  options.AddPolicy(Policies.CanVerifyReport, p => p.RequireRole("Officer", "Admin"));
+  options.AddPolicy(Policies.CanVerifyReport, p => p.RequireRole("LEO", "Admin"));
+  // Cleanup dispatch tới đội công ty cần thêm contract-window check (BR-CMP-005) trong handler.
   ```
 - `ICurrentUser` (Application interface) bọc `IHttpContextAccessor` ở Infrastructure — **không** import `IHttpContextAccessor` trong Application.
 - BR-OFF-004 (segregation of duties) check ngay trong handler, không trong middleware.
@@ -286,6 +294,7 @@ public sealed class ReportsController : ControllerBase
 | `LeaderboardSnapshotJob` | daily/weekly/monthly | BR-GAM-005 |
 | `AuditLogRetentionJob` | weekly | BR-ADM-010, BR-DAT-002 |
 | `AccountHardDeleteJob` | daily | BR-AUTH-022 |
+| `CompanyContractExpiryJob` | daily | BR-CMP-006, BR-CMP-007 (cuối hợp đồng → `Status=Expired`, giữ dữ liệu để audit, từ chối refresh token) |
 
 ### 4.12. Repository & Unit of Work (Strict Pattern)
 
@@ -425,7 +434,7 @@ services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 ## 5. Business Rule Mapping
 
-> **Source of truth:** file `SU26SE049_BusinessRules_v1_0.docx`. Mỗi rule có ID `BR-<MODULE>-<NNN>`.
+> **Source of truth:** file `SU26SE049_BusinessRules_v1_2.docx` (v1.2, 07/06/2026). Mỗi rule có ID `BR-<MODULE>-<NNN>`.
 > **Quy tắc bắt buộc:** mọi handler/validator/job implement business rule **phải** chú thích bằng `///` XML comment kèm ID:
 
 ```csharp
@@ -447,8 +456,11 @@ public sealed class SubmitReportCommandHandler : IRequestHandler<SubmitReportCom
 | Auth & Account | `BR-AUTH-*` | `Application/Features/Auth/*`, `Infrastructure/Identity/*` |
 | Pollution Report | `BR-REP-*` | `Application/Features/Reports/*`, `Domain/Entities/Report.cs` |
 | Map & Location | `BR-MAP-*` | `Application/Features/Map/*`, `Infrastructure/Geo/*` |
-| Officer | `BR-OFF-*` | `Application/Features/Officer/*` |
-| Cleanup Team | `BR-CLN-*` | `Application/Features/Cleanup/*` |
+| Officer (DEO & LEO) | `BR-OFF-*` | `Application/Features/Officer/*` (xác minh, triage, điều phối — chủ yếu LEO) |
+| Org & Routing | `BR-ORG-*` | `Application/Features/Org/*`, `Domain/Entities/AdministrativeUnit.cs` |
+| **Company (ESC)** | `BR-CMP-*` | `Application/Features/Company/*`, `Domain/Entities/EnvironmentalServiceCompany.cs`, `Domain/Entities/CompanyStaff.cs` |
+| Cleanup Team | `BR-CLN-*` | `Application/Features/Cleanup/*` (đội công ty **và** đội cộng đồng) |
+| Inspection Team | `BR-INS-*` | `Application/Features/Inspection/*`, `Domain/Entities/InspectionReport.cs` |
 | Notifications | `BR-NTF-*` | `Application/Features/Notifications/*`, `Infrastructure/Notifications/*` |
 | Comments | `BR-CMT-*` | `Application/Features/Comments/*` |
 | Gamification | `BR-GAM-*` | `Application/Features/Gamification/*` |
@@ -459,14 +471,22 @@ public sealed class SubmitReportCommandHandler : IRequestHandler<SubmitReportCom
 
 ### State Machine bắt buộc (BR-REP-020, BR-REP-021)
 
+> **v1.2 — điều phối theo NHU CẦU, không theo loại ô nhiễm.** Khi xác minh, **LEO** quyết định độc lập 2 việc: (a) cần dọn dẹp? → gán `CleanupTask` cho đội **công ty** (đô thị) hoặc đội **cộng đồng** xã/phường (nông thôn); (b) có chủ thể vi phạm cần xử phạt? → LEO lập **InspectionReport** liên kết → Inspection Team xử lý (mọi loại ô nhiễm). Một báo cáo có thể sinh **cả hai**. Báo cáo (umbrella) đi theo vòng đời dọn dẹp; InspectionReport là sub-process chạy song song.
+
+**Nhánh dọn dẹp (umbrella):**
 ```
-                   ┌─► Rejected   (Officer, reason ≥ 20 chars)
+                   ┌─► Rejected   (LEO, reason ≥ 20 chars)
 Submitted ─────────┼─► Verified ──► InProgress ──► Resolved ──┬─► Closed (Citizen confirm OR auto 7d)
-                   └─► Duplicate  (Officer/AI)                └─► InProgress (re-open, max 2 lần)
+                   └─► Duplicate  (LEO/AI)                     └─► InProgress (re-open, max 2 lần)
 ```
 
-- Implement trong `Domain/Entities/Report.cs` qua method `Verify(officer)`, `Reject(officer, reason)`, v.v. — **không** cho phép set `Status` qua public setter.
-- Mỗi transition raise một `DomainEvent` (`ReportVerifiedEvent`, …).
+**Nhánh xử phạt (InspectionReport liên kết — BR-INS-001, mọi loại ô nhiễm):**
+```
+Draft ──► PenaltyIssued ──► (Paid / PartiallyPaid / Overdue) ──► Closed
+```
+
+- Implement trong `Domain/Entities/Report.cs` (umbrella) và `Domain/Entities/InspectionReport.cs` (sub-process) qua method `Verify(leo)`, `Reject(leo, reason)`, `DispatchCleanup(...)`, `RaiseInspectionReport(...)` v.v. — **không** cho phép set `Status` qua public setter.
+- Mỗi transition raise một `DomainEvent` (`ReportVerifiedEvent`, `InspectionReportRaisedEvent`, …).
 
 ### Một số rule cần chú ý đặc biệt
 
@@ -482,6 +502,11 @@ Submitted ─────────┼─► Verified ──► InProgress ─
 | BR-REP-030 | Duplicate detection: PostGIS `ST_DWithin(geom, geom, 50)` AND same category AND within 24h. AI bổ sung pHash (BR-AI-002). |
 | BR-OFF-010 | `Priority = severity*3 + relatedCount*2 + ageInHours/24`. Tính trên DB view hoặc materialized view. |
 | BR-OFF-020 | SLA: Critical 3d / High 5d / Medium 7d / Low 10d kể từ `Verified`. Background job đánh dấu breach. |
+| BR-OFF-005 | Triage theo nhu cầu (v1.2): LEO chọn dọn-dẹp và/hoặc xử-phạt độc lập; lập InspectionReport liên kết khi cần xử phạt. |
+| BR-CLN-001 | CleanupTask gán cho đội **công ty** (urban, do CM phân công) HOẶC đội **cộng đồng** xã/phường (rural). Phân biệt qua `AssigneeType`. |
+| BR-INS-001 | Inspection Team xử phạt cho **mọi** loại ô nhiễm (bỏ phân vùng theo loại của v1.1). |
+| BR-CMP-005/006 | Contract-window check ở handler/policy; `CompanyContractExpiryJob` flip `Status=Expired` cuối hợp đồng, giữ dữ liệu audit. |
+| BR-CMP-002/003 | Activation token một-lần (7 ngày, single-use) gửi email để CM đặt mật khẩu. KHÔNG dùng contract key làm credential. |
 | BR-CLN-002 | Check-in distance ≤ 200m: PostGIS `ST_DWithin`. |
 | BR-CLN-004 | 2 ảnh "after" khác hash: tính perceptual hash (pHash), Hamming distance ≥ ngưỡng. |
 | BR-NTF-003 | Anti-spam digest: queue notification, gom cuối ngày nếu > 20/loại. |
@@ -1146,9 +1171,10 @@ Capstone scope **không** cần lên Pro plan — Free tier đủ cho 5,000 CCU 
 
 ---
 
-**Phiên bản CLAUDE.md:** 1.2
-**Đồng bộ với:** `SU26SE049_BusinessRules_v1_0.docx` v1.0 (17/04/2026).
+**Phiên bản CLAUDE.md:** 1.3
+**Đồng bộ với:** `SU26SE049_BusinessRules_v1_2.docx` v1.2 (07/06/2026).
 **Changelog:**
+- v1.3 (2026-06-07): Đồng bộ với BR v1.2. Mở rộng phạm vi ra **toàn quốc VN** (HCMC 168 LEO sau sáp nhập). Tách `Officer` → `DEO`/`LEO`; thêm vai trò `CompanyManager`/`CompanyStaff` (Actors 6→8, +AI+Community=10). Thêm nhóm `BR-CMP-*` (Công ty Dịch vụ Môi trường) + `BR-ORG-*`, `BR-INS-*` vào `§5`. Điều phối theo **nhu cầu** thay vì theo loại ô nhiễm: LEO xác minh & lập InspectionReport liên kết cho mọi loại. Thêm `CompanyContractExpiryJob` (`§4.11`), contract-window authorization (`§4.8`), cập nhật state machine (`§5`). **Bỏ loại ô nhiễm Không khí** — danh mục `PollutionType` còn 4 loại chính thức (Rác thải, Nước thải, Hóa chất, Tiếng ồn); cập nhật seed/enum, validator BR-REP-005, bộ lọc map và phân loại AI tương ứng.
 - v1.2 (2026-05-09): Thêm `§4.12 Repository & Unit of Work` (hybrid pattern: aggregate-specific repo + UoW, KHÔNG generic repository thuần). Cập nhật `§3` folder structure: thêm `Common/Interfaces/Persistence/`, `UnitOfWork.cs`.
 - v1.1 (2026-05-09): Thêm `§13 Security` + `§14 Cloudflare Integration`. Đổi AWS S3 → Cloudflare R2.
 - v1.0: Phiên bản đầu.

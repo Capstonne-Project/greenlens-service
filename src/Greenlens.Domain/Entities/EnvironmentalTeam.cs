@@ -5,8 +5,9 @@ namespace Greenlens.Domain.Entities;
 
 /// <summary>
 /// Environmental Team — either Cleanup or Inspection.
-/// Cleanup: handles Rác thải, Nước thải, Hóa chất (dọn dẹp).
-/// Inspection: handles Tiếng ồn, Không khí (xử phạt).
+/// Dispatch is by NEED (v1.3), not by pollution type.
+/// Cleanup: handles field cleanup for any pollution type.
+/// Inspection: handles penalty enforcement for ALL pollution types (BR-INS-001).
 /// </summary>
 /// <remarks>Implements: BR-ORG-003, BR-CLN-001, BR-INS-001.</remarks>
 public sealed class EnvironmentalTeam : AuditableEntity

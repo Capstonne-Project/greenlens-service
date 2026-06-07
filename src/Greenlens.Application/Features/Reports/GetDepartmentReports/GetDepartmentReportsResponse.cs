@@ -33,7 +33,7 @@ public sealed record DepartmentReportItem(
     int ReopenedCount,
     DateTime CreatedAt,
     DateTime? VerifiedAt,
-    DateTime? DispatchedAt,
+    DateTime? StartedAt,
     DateTime? ResolvedAt,
     DateTime? ClosedAt,
     DateTime? SlaVerifyDueAt,

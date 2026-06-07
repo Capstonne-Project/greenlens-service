@@ -28,6 +28,11 @@ internal sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext
     public DbSet<EnvironmentalTeam> EnvironmentalTeams => Set<EnvironmentalTeam>();
     public DbSet<TeamMember> TeamMembers => Set<TeamMember>();
 
+    // ── Inspection & Company module (v1.3) ──
+    public DbSet<InspectionReport> InspectionReports => Set<InspectionReport>();
+    public DbSet<EnvironmentalServiceCompany> EnvironmentalServiceCompanies => Set<EnvironmentalServiceCompany>();
+    public DbSet<CompanyStaff> CompanyStaff => Set<CompanyStaff>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);

@@ -8,12 +8,8 @@ public static class PublicMapReportStatuses
     public static readonly ReportStatus[] Visible =
     [
         ReportStatus.Verified,
-        ReportStatus.Dispatched,
-        ReportStatus.Assigned,
         ReportStatus.InProgress,
         ReportStatus.Resolved,
-        ReportStatus.Closed,
-        ReportStatus.PenaltyIssued,
-        ReportStatus.ClosedNoViolation
+        ReportStatus.Closed
     ];
 }

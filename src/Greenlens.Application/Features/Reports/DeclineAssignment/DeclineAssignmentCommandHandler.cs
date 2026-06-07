@@ -11,7 +11,7 @@ namespace Greenlens.Application.Features.Reports.DeclineAssignment;
 
 /// <summary>
 /// Team declines within 2h window. BR-CLN-007, BR-INS-003.
-/// If ALL assignments are declined → report reverts to Dispatched so LEO can re-assign.
+/// If ALL assignments are declined → report reverts to Verified so LEO can re-assign.
 /// </summary>
 public sealed class DeclineAssignmentCommandHandler(
     IReportRepository reports,
@@ -49,20 +49,21 @@ public sealed class DeclineAssignmentCommandHandler(
 
         assignment.Decline(request.Reason);
 
-        // DC2: revert if ALL assignments are Assigned or Declined (none accepted yet)
-        var allDeclined = reportAssignments
+        // DC2: revert if ALL assignments are declined → back to Verified for LEO re-assignment
+        var allDeclinedOrPending = reportAssignments
             .All(a => a.TeamId == request.TeamId
                 ? true  // current one just declined
                 : a.Status is AssignmentStatus.Assigned or AssignmentStatus.Declined);
 
-        if (allDeclined)
+        if (allDeclinedOrPending)
         {
-            report.RevertToDispatched();
+            // Revert InProgress → Verified (LEO can re-assign teams)
+            report.ForceStatus(ReportStatus.Verified);
 
             var history = ReportStatusHistory.Create(
                 report.Id,
                 ReportStatus.InProgress,
-                ReportStatus.Dispatched,
+                ReportStatus.Verified,
                 currentUser.UserId);
 
             statusHistory.Add(history);
@@ -70,8 +71,8 @@ public sealed class DeclineAssignmentCommandHandler(
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 
-        if (allDeclined)
-            logger.LogWarning("All teams declined report {ReportId} — reverted to Dispatched", report.Id);
+        if (allDeclinedOrPending)
+            logger.LogWarning("All teams declined report {ReportId} — reverted to Verified", report.Id);
         else
             logger.LogInformation("Team {TeamId} declined assignment for report {ReportId}",
                 request.TeamId, report.Id);

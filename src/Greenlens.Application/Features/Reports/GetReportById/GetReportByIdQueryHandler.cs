@@ -52,7 +52,7 @@ public sealed class GetReportByIdQueryHandler(
             r.WardCode, r.ProvinceCode,
             r.PriorityScore, r.ReporterCount, r.ReopenedCount,
             r.AiClassifiedType, r.AiConfidence,
-            r.AssignedOfficerId, r.AssignedByOfficerId, r.AssignedOfficeId,
+            r.VerifiedBy, r.AssignedByOfficerId, r.AssignedOfficeId,
             media, assignments, wasteTagItems,
             r.AiSuggestedWasteTagCodes,
             r.CreatedAt, r.VerifiedAt, r.StartedAt,

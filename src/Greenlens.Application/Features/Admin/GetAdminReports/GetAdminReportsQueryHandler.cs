@@ -46,7 +46,7 @@ public sealed class GetAdminReportsQueryHandler(
                 r.Latitude, r.Longitude, r.Address,
                 r.WardCode, r.ProvinceCode,
                 r.ReporterId,
-                r.AssignedOfficerId, r.AssignedByOfficerId, r.Assignments.Count,
+                r.VerifiedBy, r.AssignedByOfficerId, r.Assignments.Count,
                 r.PriorityScore, r.ReporterCount, r.ReopenedCount,
                 r.CreatedAt, r.VerifiedAt, r.ResolvedAt, r.ClosedAt))
             .ToListAsync(ct).ConfigureAwait(false);

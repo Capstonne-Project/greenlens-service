@@ -69,7 +69,7 @@ public sealed class VerifyReportCommandHandler(
         statusHistory.Add(history);
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 
-        logger.LogInformation("Report {ReportId} verified by DEO {UserId}", report.Id, currentUser.UserId);
+        logger.LogInformation("Report {ReportId} verified by LEO {UserId}", report.Id, currentUser.UserId);
 
         return Result.Success();
     }

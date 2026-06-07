@@ -10,29 +10,23 @@ using Microsoft.Extensions.Logging;
 namespace Greenlens.Application.Features.Reports.AssignTeam;
 
 /// <summary>
-/// LEO assigns team(s) to a dispatched report. All teams are equal — no primary/secondary.
-/// Validates team type against pollution category, checks workload limits.
-/// Report transitions Dispatched → InProgress. Each assignment tracks independently.
+/// LEO assigns team(s) to a verified report. All teams are equal — no primary/secondary.
+/// Dispatch is by NEED (v1.3) — LEO chooses team type freely, not constrained by category.
+/// Report transitions Verified → InProgress. Each assignment tracks independently.
 /// Optionally tags waste types during assignment.
-/// BR-OFF-011, BR-OFF-013, BR-ORG-013.
+/// BR-OFF-011, BR-OFF-013.
 /// </summary>
 public sealed class AssignTeamCommandHandler(
     IReportRepository reports,
     IEnvironmentalTeamRepository teams,
     IReportAssignmentRepository assignments,
     IReportStatusHistoryRepository statusHistory,
-    IPollutionCategoryRepository categories,
     IWasteTagRepository wasteTags,
     IReportWasteTagRepository reportWasteTags,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     ILogger<AssignTeamCommandHandler> logger) : IRequestHandler<AssignTeamCommand, Result>
 {
-    // Categories that route to Cleanup Team (BR-ORG-013)
-    private static readonly HashSet<string> CleanupCategories = ["TRASH", "WASTEWATER", "CHEMICAL"];
-    // Categories that route to Inspection Team (BR-ORG-013)
-    private static readonly HashSet<string> InspectionCategories = ["NOISE", "AIR", "SMOKE"];
-
     public async Task<Result> Handle(AssignTeamCommand request, CancellationToken ct)
     {
         if (request.Teams.Count == 0)
@@ -42,23 +36,13 @@ public sealed class AssignTeamCommandHandler(
         if (report is null)
             return Errors.Reports.ReportNotFound;
 
-        if (report.Status != ReportStatus.Dispatched)
+        // v3.0: Verified → InProgress (no more Dispatched step)
+        if (report.Status != ReportStatus.Verified)
         {
             return report.Status == ReportStatus.InProgress
                 ? Errors.Reports.ReportAlreadyAssigned
                 : Errors.Reports.InvalidStatusTransition;
         }
-
-        // Load pollution category to determine expected team type
-        var category = await categories.GetByIdAsync(report.CategoryId, ct).ConfigureAwait(false);
-        if (category is null)
-            return Errors.Reports.CategoryNotFound;
-
-        var expectedTeamType = CleanupCategories.Contains(category.Code.ToUpperInvariant())
-            ? TeamType.Cleanup
-            : InspectionCategories.Contains(category.Code.ToUpperInvariant())
-                ? TeamType.Inspection
-                : (TeamType?)null;
 
         // Validate each team
         foreach (var item in request.Teams)
@@ -66,10 +50,6 @@ public sealed class AssignTeamCommandHandler(
             var team = await teams.GetByIdAsync(item.TeamId, ct).ConfigureAwait(false);
             if (team is null)
                 return Errors.Organization.TeamNotFound;
-
-            // BR-ORG-013: team type must match pollution category
-            if (expectedTeamType.HasValue && team.TeamType != expectedTeamType.Value)
-                return Errors.Reports.TeamTypeMismatch;
 
             // BR-OFF-013: team can only handle 1 task at a time
             var workload = await assignments.CountInProgressByTeamAsync(item.TeamId, ct).ConfigureAwait(false);
@@ -112,12 +92,12 @@ public sealed class AssignTeamCommandHandler(
             assignments.Add(assignment);
         }
 
-        // Transition report: Dispatched → InProgress
+        // Transition report: Verified → InProgress
         report.Assign(currentUser.UserId);
 
         var history = ReportStatusHistory.Create(
             report.Id,
-            ReportStatus.Dispatched,
+            ReportStatus.Verified,
             ReportStatus.InProgress,
             currentUser.UserId);
 
