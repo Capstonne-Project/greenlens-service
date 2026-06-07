@@ -110,5 +110,15 @@ public static partial class Errors
             "TRANSFER_SAME_TEAM",
             "Không thể chuyển thành viên sang chính đội hiện tại.",
             ErrorType.BusinessRule);
+
+        public static Error NotCompanyManager => new(
+            "NOT_COMPANY_MANAGER",
+            "Bạn không phải CompanyManager hoặc chưa được gán cho công ty nào.",
+            ErrorType.Forbidden);
+
+        public static Error TeamNotInCompany => new(
+            "TEAM_NOT_IN_COMPANY",
+            "Đội không thuộc công ty của bạn.",
+            ErrorType.BusinessRule);
     }
 }
