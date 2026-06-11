@@ -60,6 +60,6 @@ public sealed class RefreshTokenCommandHandler(
         return new LoginResponse(
             accessToken,
             newRawToken,
-            new UserDto(user.Id, user.Email, user.FullName, user.Role.ToString(), user.IsEmailVerified));
+            new UserDto(user.Id, user.Email, user.FullName, user.Role.ToString(), user.IsEmailVerified, user.MustChangePassword));
     }
 }

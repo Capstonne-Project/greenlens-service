@@ -1,10 +1,11 @@
 using Greenlens.Api.Extensions;
 using Greenlens.Application.Common.Models;
-using Greenlens.Application.Features.Organization.ActivateCompany;
 using Greenlens.Application.Features.Organization.CreateCompany;
+using Greenlens.Application.Features.Organization.CreateCompanyStaff;
 using Greenlens.Application.Features.Organization.GetCompanies;
 using Greenlens.Application.Features.Organization.GetCompanyById;
 using Greenlens.Application.Features.Organization.GetCompanyServiceAreas;
+using Greenlens.Application.Features.Organization.GetCompanyStaff;
 using Greenlens.Application.Features.Organization.UpdateCompanyServiceAreas;
 using Greenlens.Domain.Entities;
 using MediatR;
@@ -29,12 +30,13 @@ public sealed class CompaniesController(ISender sender) : ControllerBase
     [Authorize(Roles = "DEO,Admin")]
     [Tags("🔍 DEO Dashboard")]
     [SwaggerOperation(
-        Summary = "[DEO/Admin] Tạo công ty DVMT",
-        Description = "Tạo Công ty Dịch vụ Môi trường (trực thuộc/đấu thầu) thuộc department. " +
-            "Trạng thái ban đầu: PendingActivation. DEO activate sau khi CM đặt mật khẩu.")]
-    [SwaggerResponse(201, "Đã tạo công ty", typeof(ApiResponse<CreateCompanyResponse>))]
+        Summary = "[DEO/Admin] Tạo công ty DVMT + tài khoản CM",
+        Description = "Tạo Công ty Dịch vụ Môi trường (trực thuộc/đấu thầu) + tài khoản CompanyManager. " +
+            "Trạng thái ban đầu: PendingActivation. CM đăng nhập bằng MK tạm → đổi MK → công ty tự động Active. " +
+            "⚠️ TempPassword chỉ hiển thị 1 lần — DEO cần gửi cho CM.")]
+    [SwaggerResponse(201, "Đã tạo công ty + tài khoản CM", typeof(ApiResponse<CreateCompanyResponse>))]
     [SwaggerResponse(404, "Department không tồn tại", typeof(ApiResponse))]
-    [SwaggerResponse(409, "Số hợp đồng đã tồn tại", typeof(ApiResponse))]
+    [SwaggerResponse(409, "Số hợp đồng hoặc email CM đã tồn tại", typeof(ApiResponse))]
     [SwaggerResponse(422, "Validation error", typeof(ApiResponse))]
     public async Task<IActionResult> CreateAsync(
         [FromBody] CreateCompanyCommand command, CancellationToken ct)
@@ -68,25 +70,6 @@ public sealed class CompaniesController(ISender sender) : ControllerBase
         => (await sender.Send(new GetCompanyByIdQuery(id), ct)).ToHttp();
 
     // ═══════════════════════════════════════════
-    // ██  ACTIVATION (BR-CMP-003)
-    // ═══════════════════════════════════════════
-
-    [HttpPut("{id:guid}/activate")]
-    [Authorize(Roles = "DEO,Admin")]
-    [Tags("🔍 DEO Dashboard")]
-    [SwaggerOperation(
-        Summary = "[DEO/Admin] Kích hoạt công ty",
-        Description = "Chuyển trạng thái PendingActivation → Active. " +
-            "Thực hiện sau khi CM đã đặt mật khẩu qua cơ chế reset-password chung (BR-CMP-002).")]
-    [SwaggerResponse(204, "Đã kích hoạt")]
-    [SwaggerResponse(404, "Công ty không tồn tại", typeof(ApiResponse))]
-    [SwaggerResponse(422, "Công ty không ở trạng thái chờ kích hoạt", typeof(ApiResponse))]
-    public async Task<IActionResult> ActivateAsync(
-        [FromRoute] Guid id, CancellationToken ct)
-        => (await sender.Send(new ActivateCompanyCommand(id), ct))
-            .ToHttpNoContent("Đã kích hoạt công ty.");
-
-    // ═══════════════════════════════════════════
     // ██  SERVICE AREAS (BR-CMP-008, BR-CMP-014)
     // ═══════════════════════════════════════════
 
@@ -118,6 +101,42 @@ public sealed class CompaniesController(ISender sender) : ControllerBase
         [FromRoute] Guid id, [FromBody] UpdateServiceAreasRequest request, CancellationToken ct)
         => (await sender.Send(new UpdateCompanyServiceAreasCommand(id, request.WardCodes), ct))
             .ToHttpNoContent("Đã cập nhật địa bàn phụ trách.");
+
+    // ═══════════════════════════════════════════
+    // ██  COMPANY STAFF (CM Dashboard - BR-CMP-004)
+    // ═══════════════════════════════════════════
+
+    [HttpPost("my/staff")]
+    [Authorize(Roles = "CompanyManager")]
+    [Tags("🏢 Company Dashboard")]
+    [SwaggerOperation(
+        Summary = "[CM] Tạo tài khoản nhân viên công ty",
+        Description = "CM tạo tài khoản CompanyStaff (email + MK tạm). " +
+            "Staff đăng nhập lần đầu → bắt buộc đổi MK. " +
+            "Có thể gán luôn vào team (nếu truyền teamId). " +
+            "⚠️ TempPassword chỉ hiển thị 1 lần.")]
+    [SwaggerResponse(201, "Đã tạo nhân viên", typeof(ApiResponse<CreateCompanyStaffResponse>))]
+    [SwaggerResponse(403, "Không phải CompanyManager", typeof(ApiResponse))]
+    [SwaggerResponse(409, "Email đã tồn tại", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Validation error", typeof(ApiResponse))]
+    public async Task<IActionResult> CreateStaffAsync(
+        [FromBody] CreateCompanyStaffCommand command, CancellationToken ct)
+        => (await sender.Send(command, ct)).ToHttpCreated();
+
+    [HttpGet("my/staff")]
+    [Authorize(Roles = "CompanyManager")]
+    [Tags("🏢 Company Dashboard")]
+    [SwaggerOperation(
+        Summary = "[CM] Danh sách nhân viên công ty",
+        Description = "Trả về danh sách nhân viên thuộc công ty của CM, " +
+            "kèm thông tin team đang tham gia. Hỗ trợ lọc theo trạng thái hoạt động.")]
+    [SwaggerResponse(200, "Danh sách nhân viên", typeof(ApiResponse<GetCompanyStaffResponse>))]
+    [SwaggerResponse(403, "Không phải CompanyManager", typeof(ApiResponse))]
+    public async Task<IActionResult> GetStaffAsync(
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
+        [FromQuery] bool? isActive = null,
+        CancellationToken ct = default)
+        => (await sender.Send(new GetCompanyStaffQuery(page, pageSize, isActive), ct)).ToHttp();
 }
 
 // ── Request DTOs ──

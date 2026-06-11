@@ -131,9 +131,9 @@ public static partial class Errors
             "Số hợp đồng đã tồn tại trong hệ thống.",
             ErrorType.Conflict);
 
-        public static Error CompanyNotPendingActivation => new(
-            "COMPANY_NOT_PENDING_ACTIVATION",
-            "Công ty không ở trạng thái chờ kích hoạt.",
-            ErrorType.BusinessRule);
+        public static Error ManagerEmailAlreadyExists => new(
+            "MANAGER_EMAIL_ALREADY_EXISTS",
+            "Email này đã được sử dụng cho tài khoản khác.",
+            ErrorType.Conflict);
     }
 }

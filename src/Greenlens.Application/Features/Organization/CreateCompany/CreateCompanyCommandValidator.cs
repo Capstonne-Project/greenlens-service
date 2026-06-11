@@ -24,6 +24,10 @@ public sealed class CreateCompanyCommandValidator : AbstractValidator<CreateComp
             .When(x => x.ContractType == ContractType.Bidding)
             .WithMessage("Hợp đồng đấu thầu (Bidding) bắt buộc có ngày kết thúc.");
 
+        // ── Manager account ──
+        RuleFor(x => x.ManagerEmail).NotEmpty().EmailAddress().MaximumLength(200);
+        RuleFor(x => x.ManagerFullName).NotEmpty().MaximumLength(200);
+
         RuleFor(x => x.TaxCode).MaximumLength(20);
         RuleFor(x => x.Address).MaximumLength(500);
         RuleFor(x => x.Phone).MaximumLength(20);

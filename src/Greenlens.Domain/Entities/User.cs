@@ -26,6 +26,7 @@ public sealed class User : SoftDeletableEntity
     public UserRole Role { get; private set; }
     public bool IsEmailVerified { get; private set; }
     public bool IsPhoneVerified { get; private set; }
+    public bool MustChangePassword { get; private set; }
     public int FailedLoginAttempts { get; private set; }
     public DateTime? LockoutEnd { get; private set; }
     public string? GoogleId { get; private set; }
@@ -63,6 +64,26 @@ public sealed class User : SoftDeletableEntity
             FullName = fullName,
             Role = role,
             IsEmailVerified = true, // admin-created → skip email verification
+            FailedLoginAttempts = 0
+        };
+
+        return user;
+    }
+
+    /// <summary>
+    /// Creates an account with a temporary password that must be changed on first login.
+    /// Used by DEO (creating CompanyManager) and CM (creating CompanyStaff).
+    /// </summary>
+    public static User CreateWithTempPassword(string email, string passwordHash, string fullName, UserRole role)
+    {
+        var user = new User
+        {
+            Email = email.ToLowerInvariant(),
+            PasswordHash = passwordHash,
+            FullName = fullName,
+            Role = role,
+            IsEmailVerified = true, // manager-created → skip email verification
+            MustChangePassword = true, // force password change on first login
             FailedLoginAttempts = 0
         };
 
@@ -120,6 +141,8 @@ public sealed class User : SoftDeletableEntity
     public void ChangePassword(string newPasswordHash)
     {
         PasswordHash = newPasswordHash;
+        if (MustChangePassword)
+            MustChangePassword = false;
     }
 
     public void LinkGoogleAccount(string googleId)
