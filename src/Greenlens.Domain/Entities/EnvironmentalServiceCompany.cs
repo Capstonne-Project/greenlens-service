@@ -9,8 +9,9 @@ namespace Greenlens.Domain.Entities;
 /// </summary>
 /// <remarks>
 /// Implements: BR-CMP-001 → BR-CMP-007.
-/// Contract-window authorization: requests only accepted when
-/// now ∈ [ContractStartDate, ContractEndDate] AND Status == Active.
+/// Hiệu lực tác nghiệp chỉ dựa Company.Status == Active (BR-CMP-005).
+/// ContractStartDate/EndDate là metadata (hiển thị + job expire). Subsidiary vô thời hạn (EndDate null).
+/// Onboarding: CM đặt mật khẩu lần đầu qua cơ chế reset-password chung (BR-CMP-002).
 /// </remarks>
 public sealed class EnvironmentalServiceCompany : AuditableEntity
 {
@@ -25,15 +26,13 @@ public sealed class EnvironmentalServiceCompany : AuditableEntity
     // ── Contract ──
     public string ContractNumber { get; private set; } = default!;
     public DateTime ContractStartDate { get; private set; }
-    public DateTime ContractEndDate { get; private set; }
+    /// <summary>Null = vô thời hạn (Subsidiary). Chỉ Bidding có giá trị.</summary>
+    public DateTime? ContractEndDate { get; private set; }
     /// <summary>Subsidiary = trực thuộc, Bidding = đấu thầu.</summary>
     public ContractType ContractType { get; private set; }
     public CompanyStatus Status { get; private set; } = CompanyStatus.PendingActivation;
 
-    // ── Activation ──
-    /// <summary>One-time activation token (hashed). 7 days, single-use. BR-CMP-002/003.</summary>
-    public string? ActivationTokenHash { get; private set; }
-    public DateTime? ActivationTokenExpiresAt { get; private set; }
+    /// <summary>Timestamp khi công ty được kích hoạt (DEO approve).</summary>
     public DateTime? ActivatedAt { get; private set; }
 
     // ── Organization ──
@@ -54,7 +53,7 @@ public sealed class EnvironmentalServiceCompany : AuditableEntity
         Guid departmentId,
         string contractNumber,
         DateTime contractStartDate,
-        DateTime contractEndDate,
+        DateTime? contractEndDate,
         ContractType contractType,
         string? taxCode = null,
         string? address = null,
@@ -82,14 +81,7 @@ public sealed class EnvironmentalServiceCompany : AuditableEntity
     // State transitions
     // ────────────────────────────────────────────────────
 
-    /// <summary>BR-CMP-002: Set activation token for company onboarding.</summary>
-    public void SetActivationToken(string tokenHash, DateTime expiresAt)
-    {
-        ActivationTokenHash = tokenHash;
-        ActivationTokenExpiresAt = expiresAt;
-    }
-
-    /// <summary>BR-CMP-003: Company Manager activates the company via token.</summary>
+    /// <summary>BR-CMP-003: DEO activates the company after CM sets password via reset-password flow.</summary>
     public void Activate()
     {
         if (Status != CompanyStatus.PendingActivation)
@@ -98,8 +90,6 @@ public sealed class EnvironmentalServiceCompany : AuditableEntity
 
         Status = CompanyStatus.Active;
         ActivatedAt = DateTime.UtcNow;
-        ActivationTokenHash = null; // single-use
-        ActivationTokenExpiresAt = null;
     }
 
     /// <summary>BR-CMP-006: Suspend company (e.g. contract violation).</summary>
@@ -131,11 +121,8 @@ public sealed class EnvironmentalServiceCompany : AuditableEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    /// <summary>BR-CMP-005: Check if company is within active contract window.</summary>
-    public bool IsWithinContractWindow(DateTime now) =>
-        Status == CompanyStatus.Active &&
-        now >= ContractStartDate &&
-        now <= ContractEndDate;
+    /// <summary>BR-CMP-005: Hiệu lực tác nghiệp chỉ dựa Status (KHÔNG dùng cửa sổ hợp đồng khóa routing).</summary>
+    public bool IsActive => Status == CompanyStatus.Active;
 
     public void UpdateProfile(
         string? name = null,

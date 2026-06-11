@@ -111,6 +111,11 @@ public static partial class Errors
             "Không thể chuyển thành viên sang chính đội hiện tại.",
             ErrorType.BusinessRule);
 
+        public static Error CompanyNotFound => new(
+            "COMPANY_NOT_FOUND",
+            "Không tìm thấy công ty dịch vụ môi trường.",
+            ErrorType.NotFound);
+
         public static Error NotCompanyManager => new(
             "NOT_COMPANY_MANAGER",
             "Bạn không phải CompanyManager hoặc chưa được gán cho công ty nào.",
@@ -119,6 +124,16 @@ public static partial class Errors
         public static Error TeamNotInCompany => new(
             "TEAM_NOT_IN_COMPANY",
             "Đội không thuộc công ty của bạn.",
+            ErrorType.BusinessRule);
+
+        public static Error CompanyContractNumberExists => new(
+            "COMPANY_CONTRACT_NUMBER_EXISTS",
+            "Số hợp đồng đã tồn tại trong hệ thống.",
+            ErrorType.Conflict);
+
+        public static Error CompanyNotPendingActivation => new(
+            "COMPANY_NOT_PENDING_ACTIVATION",
+            "Công ty không ở trạng thái chờ kích hoạt.",
             ErrorType.BusinessRule);
     }
 }

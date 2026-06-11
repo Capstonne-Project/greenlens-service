@@ -57,6 +57,7 @@ public static class DependencyInjection
         // ── Company module (v1.3) ──
         services.AddScoped<IEnvironmentalServiceCompanyRepository, EnvironmentalServiceCompanyRepository>();
         services.AddScoped<ICompanyStaffRepository, CompanyStaffRepository>();
+        services.AddScoped<ICompanyServiceAreaRepository, CompanyServiceAreaRepository>();
 
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 

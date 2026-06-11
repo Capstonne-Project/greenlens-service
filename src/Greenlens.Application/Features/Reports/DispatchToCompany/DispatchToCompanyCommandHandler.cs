@@ -37,8 +37,8 @@ public sealed class DispatchToCompanyCommandHandler(
         if (company is null)
             return Errors.Reports.CompanyNotFound;
 
-        // BR-CMP-005: company must be active and within contract window
-        if (!company.IsWithinContractWindow(DateTime.UtcNow))
+        // BR-CMP-005: company must be active (contract dates are metadata only, not routing gate)
+        if (!company.IsActive)
             return Errors.Reports.CompanyNotActive;
 
         // BR-CMP-008: company must serve the ward where the report is located
