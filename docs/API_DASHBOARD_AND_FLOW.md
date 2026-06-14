@@ -2,7 +2,7 @@
 
 > Tổng hợp tất cả API endpoints theo vai trò (role) và luồng xử lý báo cáo ô nhiễm.
 >
-> **Cập nhật:** 2026-06-11 · **Version:** v1.5
+> **Cập nhật:** 2026-06-12 · **Version:** v1.6
 
 ---
 
@@ -81,14 +81,13 @@
 | 3 | `GET` | `/v1/departments/my-offices` | DS văn phòng MT trong tỉnh |
 | 4 | `GET` | `/v1/departments/my/reports` | Tất cả báo cáo trong department |
 | | | **━━ Công ty DVMT ━━** | |
-| 5 | `POST` | `/v1/companies` | Tạo công ty DVMT |
+| 5 | `POST` | `/v1/companies` | Tạo công ty DVMT + tài khoản CM (MK tạm, auto-activate khi CM đổi MK) |
 | 6 | `GET` | `/v1/companies` | Danh sách công ty (tìm kiếm, lọc, sắp xếp) |
 | 7 | `GET` | `/v1/companies/{id}` | Chi tiết công ty + service areas + nhân sự |
-| 8 | `PUT` | `/v1/companies/{id}/activate` | Kích hoạt công ty (sau khi CM đặt MK) |
-| 9 | `GET` | `/v1/companies/{id}/service-areas` | Xem danh sách phường do công ty phụ trách |
-| 10 | `PUT` | `/v1/companies/{id}/service-areas` | Cập nhật địa bàn phụ trách (thay thế toàn bộ) |
+| 8 | `GET` | `/v1/companies/{id}/service-areas` | Xem danh sách phường do công ty phụ trách |
+| 9 | `PUT` | `/v1/companies/{id}/service-areas` | Cập nhật địa bàn phụ trách (thay thế toàn bộ) |
 | | | **━━ Officer Queue ━━** | |
-| 11 | `GET` | `/v1/reports/queue` | Hàng đợi báo cáo (fallback DEO) |
+| 10 | `GET` | `/v1/reports/queue` | Hàng đợi báo cáo (fallback DEO) |
 
 ---
 
@@ -126,7 +125,8 @@
 
 ### 🏢 Company Manager (CM) — Quản lý Công ty DVMT
 
-> Nhận task từ LEO, quản lý team công ty, phân công xử lý.
+> Nhận task từ LEO, quản lý team công ty, quản lý nhân sự, phân công xử lý.
+> CM đăng nhập lần đầu bằng MK tạm → bắt buộc đổi MK → công ty tự động Active.
 
 | # | Method | Endpoint | Mô tả |
 |---|---|---|---|
@@ -139,6 +139,9 @@
 | 5 | `GET` | `/v1/teams/company-teams` | Danh sách teams của công ty |
 | 6 | `POST` | `/v1/teams/company-teams` | Tạo team cho công ty |
 | 7 | `GET` | `/v1/teams/{id}` | Chi tiết team |
+| | | **━━ Nhân sự công ty ━━** | |
+| 8 | `POST` | `/v1/companies/my/staff` | Tạo tài khoản CompanyStaff (MK tạm, optional gán team) |
+| 9 | `GET` | `/v1/companies/my/staff` | Danh sách nhân viên công ty (kèm team) |
 
 ---
 
@@ -358,11 +361,11 @@ flowchart LR
 | CatalogController | `/v1/catalog` | 3 |
 | UsersController | `/v1/users` | 4 |
 | ReportsController | `/v1/reports` | 22 |
-| CompaniesController | `/v1/companies` | 6 |
+| CompaniesController | `/v1/companies` | 7 |
 | DepartmentsController | `/v1/departments` | 7 |
 | LocalOfficesController | `/v1/offices` | 8 |
 | TeamsController | `/v1/teams` | 14 |
 | AdminController | `/v1/admin` | 14 |
 | MapController | `/v1/map` | 2 |
 | MediaController | `/v1/media` | 1 |
-| **Tổng** | | **90** |
+| **Tổng** | | **91** |
