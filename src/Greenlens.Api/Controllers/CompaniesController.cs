@@ -6,6 +6,8 @@ using Greenlens.Application.Features.Organization.GetCompanies;
 using Greenlens.Application.Features.Organization.GetCompanyById;
 using Greenlens.Application.Features.Organization.GetCompanyServiceAreas;
 using Greenlens.Application.Features.Organization.GetCompanyStaff;
+using Greenlens.Application.Features.Organization.GetMyCompany;
+using Greenlens.Application.Features.Organization.ToggleCompanyStaffStatus;
 using Greenlens.Application.Features.Organization.UpdateCompanyServiceAreas;
 using Greenlens.Domain.Entities;
 using MediatR;
@@ -137,7 +139,39 @@ public sealed class CompaniesController(ISender sender) : ControllerBase
         [FromQuery] bool? isActive = null,
         CancellationToken ct = default)
         => (await sender.Send(new GetCompanyStaffQuery(page, pageSize, isActive), ct)).ToHttp();
+
+    [HttpPut("my/staff/{userId:guid}/status")]
+    [Authorize(Roles = "CompanyManager")]
+    [Tags("🏢 Company Dashboard")]
+    [SwaggerOperation(
+        Summary = "[CM] Vô hiệu hóa / kích hoạt lại nhân viên",
+        Description = "CM toggle trạng thái IsActive của nhân viên. " +
+            "Nhân viên bị deactivate không thể nhận task mới nhưng vẫn giữ record.")]
+    [SwaggerResponse(200, "Đã cập nhật trạng thái", typeof(ApiResponse))]
+    [SwaggerResponse(403, "Không phải CompanyManager", typeof(ApiResponse))]
+    [SwaggerResponse(404, "Không tìm thấy nhân viên trong công ty", typeof(ApiResponse))]
+    public async Task<IActionResult> ToggleStaffStatusAsync(
+        [FromRoute] Guid userId, [FromBody] ToggleStaffStatusRequest request, CancellationToken ct)
+        => (await sender.Send(new ToggleCompanyStaffStatusCommand(userId, request.IsActive), ct))
+            .ToHttpNoContent("Đã cập nhật trạng thái nhân viên.");
+
+    // ═══════════════════════════════════════════
+    // ██  MY COMPANY PROFILE (CM Dashboard)
+    // ═══════════════════════════════════════════
+
+    [HttpGet("my")]
+    [Authorize(Roles = "CompanyManager")]
+    [Tags("🏢 Company Dashboard")]
+    [SwaggerOperation(
+        Summary = "[CM] Thông tin công ty của tôi",
+        Description = "CompanyManager xem profile công ty mình đang quản lý (1 CM = 1 Company). " +
+            "Trả về thông tin công ty, hợp đồng, dịch vụ area, số nhân sự.")]
+    [SwaggerResponse(200, "Thông tin công ty", typeof(ApiResponse<CompanyDetailResponse>))]
+    [SwaggerResponse(403, "Không phải CompanyManager", typeof(ApiResponse))]
+    public async Task<IActionResult> GetMyCompanyAsync(CancellationToken ct)
+        => (await sender.Send(new GetMyCompanyQuery(), ct)).ToHttp();
 }
 
 // ── Request DTOs ──
 public sealed record UpdateServiceAreasRequest(List<string> WardCodes);
+public sealed record ToggleStaffStatusRequest(bool IsActive);

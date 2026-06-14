@@ -1,14 +1,18 @@
 using Greenlens.Api.Extensions;
 using Greenlens.Application.Common.Models;
+using Greenlens.Application.Features.Organization.AddCompanyTeamMember;
 using Greenlens.Application.Features.Organization.AddTeamMember;
 using Greenlens.Application.Features.Organization.CreateCompanyTeam;
 using Greenlens.Application.Features.Organization.CreateTeam;
+using Greenlens.Application.Features.Organization.DeleteCompanyTeam;
 using Greenlens.Application.Features.Organization.GetCompanyTeams;
 using Greenlens.Application.Features.Organization.GetMyTeamProfile;
 using Greenlens.Application.Features.Organization.GetTeamById;
 using Greenlens.Application.Features.Organization.GetTeams;
+using Greenlens.Application.Features.Organization.RemoveCompanyTeamMember;
 using Greenlens.Application.Features.Organization.RemoveTeamMember;
 using Greenlens.Application.Features.Organization.TransferTeamMember;
+using Greenlens.Application.Features.Organization.UpdateCompanyTeam;
 using Greenlens.Application.Features.Organization.UpdateTeam;
 using Greenlens.Application.Features.Reports.AcceptAssignment;
 using Greenlens.Application.Features.Reports.DeclineAssignment;
@@ -265,9 +269,73 @@ public sealed class TeamsController(ISender sender) : ControllerBase
     public async Task<IActionResult> CreateCompanyTeamAsync(
         [FromBody] CreateCompanyTeamCommand command, CancellationToken ct)
         => (await sender.Send(command, ct)).ToHttpCreated();
+
+    [HttpPut("company-teams/{id:guid}")]
+    [Authorize(Roles = "CompanyManager,Admin")]
+    [Tags("🏢 Company Dashboard")]
+    [SwaggerOperation(
+        Summary = "[CompanyManager] Đổi tên team công ty",
+        Description = "CM đổi tên team thuộc công ty mình. Chỉ team có CompanyId trùng công ty của CM mới được sửa.")]
+    [SwaggerResponse(200, "Đã cập nhật", typeof(ApiResponse))]
+    [SwaggerResponse(404, "Không tìm thấy team", typeof(ApiResponse))]
+    [SwaggerResponse(403, "Team không thuộc công ty của bạn", typeof(ApiResponse))]
+    public async Task<IActionResult> UpdateCompanyTeamAsync(
+        [FromRoute] Guid id, [FromBody] UpdateCompanyTeamRequest request, CancellationToken ct)
+        => (await sender.Send(new UpdateCompanyTeamCommand(id, request.Name), ct))
+            .ToHttpNoContent("Đã cập nhật team.");
+
+    [HttpDelete("company-teams/{id:guid}")]
+    [Authorize(Roles = "CompanyManager,Admin")]
+    [Tags("🏢 Company Dashboard")]
+    [SwaggerOperation(
+        Summary = "[CompanyManager] Vô hiệu hóa team công ty",
+        Description = "CM deactivate (soft-delete) team thuộc công ty mình. " +
+            "Team không bị xóa khỏi DB — chỉ set IsActive = false. " +
+            "Team đã deactivate không thể nhận task mới.")]
+    [SwaggerResponse(200, "Đã vô hiệu hóa", typeof(ApiResponse))]
+    [SwaggerResponse(404, "Không tìm thấy team", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Team đã bị vô hiệu hóa trước đó", typeof(ApiResponse))]
+    public async Task<IActionResult> DeleteCompanyTeamAsync(
+        [FromRoute] Guid id, CancellationToken ct)
+        => (await sender.Send(new DeleteCompanyTeamCommand(id), ct))
+            .ToHttpNoContent("Đã vô hiệu hóa team.");
+
+    // ── Company Team Members (CM) ──
+
+    [HttpPost("company-teams/{teamId:guid}/members")]
+    [Authorize(Roles = "CompanyManager,Admin")]
+    [Tags("🏢 Company Dashboard")]
+    [SwaggerOperation(
+        Summary = "[CompanyManager] Thêm nhân viên vào team công ty",
+        Description = "CM thêm CompanyStaff (thuộc cùng công ty) vào team. " +
+            "User phải có role CompanyStaff và thuộc cùng công ty của CM. " +
+            "Có thể gán làm leader.")]
+    [SwaggerResponse(201, "Đã thêm", typeof(ApiResponse<AddCompanyTeamMemberResponse>))]
+    [SwaggerResponse(404, "Team hoặc user không tồn tại", typeof(ApiResponse))]
+    [SwaggerResponse(409, "User đã trong team", typeof(ApiResponse))]
+    [SwaggerResponse(422, "User không thuộc công ty hoặc sai role", typeof(ApiResponse))]
+    public async Task<IActionResult> AddCompanyTeamMemberAsync(
+        [FromRoute] Guid teamId, [FromBody] AddCompanyTeamMemberRequest request, CancellationToken ct)
+        => (await sender.Send(new AddCompanyTeamMemberCommand(teamId, request.UserId, request.IsLeader), ct)).ToHttpCreated();
+
+    [HttpDelete("company-teams/{teamId:guid}/members/{userId:guid}")]
+    [Authorize(Roles = "CompanyManager,Admin")]
+    [Tags("🏢 Company Dashboard")]
+    [SwaggerOperation(
+        Summary = "[CompanyManager] Xóa nhân viên khỏi team công ty",
+        Description = "CM xóa CompanyStaff khỏi team. " +
+            "User vẫn thuộc công ty (CompanyStaff record không thay đổi), chỉ rời team.")]
+    [SwaggerResponse(200, "Đã xóa", typeof(ApiResponse))]
+    [SwaggerResponse(404, "Không tìm thấy thành viên hoặc team", typeof(ApiResponse))]
+    public async Task<IActionResult> RemoveCompanyTeamMemberAsync(
+        [FromRoute] Guid teamId, [FromRoute] Guid userId, CancellationToken ct)
+        => (await sender.Send(new RemoveCompanyTeamMemberCommand(teamId, userId), ct))
+            .ToHttpNoContent("Đã xóa nhân viên khỏi team.");
 }
 
 public sealed record UpdateTeamRequest(string Name);
 public sealed record AddTeamMemberRequest(Guid UserId, bool IsLeader = false);
 public sealed record DeclineTaskRequest(Guid TeamId, string Reason);
 public sealed record TransferMemberRequest(Guid NewTeamId, bool IsLeader = false);
+public sealed record UpdateCompanyTeamRequest(string Name);
+public sealed record AddCompanyTeamMemberRequest(Guid UserId, bool IsLeader = false);

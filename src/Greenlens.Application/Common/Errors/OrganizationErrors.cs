@@ -135,5 +135,20 @@ public static partial class Errors
             "MANAGER_EMAIL_ALREADY_EXISTS",
             "Email này đã được sử dụng cho tài khoản khác.",
             ErrorType.Conflict);
+
+        public static Error StaffNotFound => new(
+            "STAFF_NOT_FOUND",
+            "Không tìm thấy nhân viên trong công ty.",
+            ErrorType.NotFound);
+
+        public static Error StaffNotInCompany => new(
+            "STAFF_NOT_IN_COMPANY",
+            "Nhân viên không thuộc công ty của bạn.",
+            ErrorType.BusinessRule);
+
+        public static Error TeamAlreadyDeactivated => new(
+            "TEAM_ALREADY_DEACTIVATED",
+            "Đội đã bị vô hiệu hóa trước đó.",
+            ErrorType.BusinessRule);
     }
 }
