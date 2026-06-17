@@ -2,7 +2,7 @@
 
 > Tổng hợp tất cả API endpoints theo vai trò (role) và luồng xử lý báo cáo ô nhiễm.
 >
-> **Cập nhật:** 2026-06-12 · **Version:** v1.6
+> **Cập nhật:** 2026-06-17 · **Version:** v1.7
 
 ---
 
@@ -78,8 +78,8 @@
 | | | **━━ Department ━━** | |
 | 1 | `GET` | `/v1/departments` | Danh sách departments |
 | 2 | `GET` | `/v1/departments/{id}` | Chi tiết department |
-| 3 | `GET` | `/v1/departments/my-offices` | DS văn phòng MT trong tỉnh |
-| 4 | `GET` | `/v1/departments/my/reports` | Tất cả báo cáo trong department |
+| 3 | `GET` | `/v1/departments/my-offices` | DS văn phòng MT trong tỉnh (search, filter, sort) |
+| 4 | `GET` | `/v1/departments/my/reports` | Tất cả báo cáo trong department (search, filter, sort) |
 | | | **━━ Công ty DVMT ━━** | |
 | 5 | `POST` | `/v1/companies` | Tạo công ty DVMT + tài khoản CM (MK tạm, auto-activate khi CM đổi MK) |
 | 6 | `GET` | `/v1/companies` | Danh sách công ty (tìm kiếm, lọc, sắp xếp) |
@@ -98,8 +98,8 @@
 | # | Method | Endpoint | Mô tả |
 |---|---|---|---|
 | | | **━━ Xác minh & Điều phối ━━** | |
-| 1 | `GET` | `/v1/offices/my/reports` | Tất cả báo cáo trong phường (kèm tiến độ) |
-| 2 | `GET` | `/v1/reports/queue` | Hàng đợi báo cáo chờ xử lý |
+| 1 | `GET` | `/v1/offices/my/reports` | Tất cả báo cáo trong phường (kèm tiến độ, filter, sort) |
+| 2 | `GET` | `/v1/reports/queue` | Hàng đợi báo cáo chờ xử lý (search, filter, sort) |
 | 3 | `PUT` | `/v1/reports/{id}/verify` | Xác minh báo cáo (override severity/category) |
 | 4 | `PUT` | `/v1/reports/{id}/reject` | Từ chối báo cáo (lý do ≥ 20 ký tự) |
 | 5 | `POST` | `/v1/reports/{id}/assign` | Phân công team cộng đồng xử lý |
@@ -130,18 +130,26 @@
 
 | # | Method | Endpoint | Mô tả |
 |---|---|---|---|
+| | | **━━ Công ty của tôi ━━** | |
+| 1 | `GET` | `/v1/companies/my` | Thông tin công ty của CM (1 CM = 1 Company) |
 | | | **━━ Task Management ━━** | |
-| 1 | `GET` | `/v1/reports/company-queue` | Danh sách task chờ phân công |
-| 2 | `POST` | `/v1/reports/{id}/assign-company-team` | Phân công team công ty xử lý |
-| 3 | `GET` | `/v1/reports/progress-board` | Board tiến độ tất cả task |
-| 4 | `GET` | `/v1/reports/{id}/progress` | Tiến trình xử lý chi tiết |
+| 2 | `GET` | `/v1/reports/company-queue` | Danh sách task chờ phân công |
+| 3 | `POST` | `/v1/reports/{id}/assign-company-team` | Phân công team công ty xử lý |
+| 4 | `GET` | `/v1/reports/progress-board` | Board tiến độ tất cả task |
+| 5 | `GET` | `/v1/reports/{id}/progress` | Tiến trình xử lý chi tiết |
 | | | **━━ Team CRUD ━━** | |
-| 5 | `GET` | `/v1/teams/company-teams` | Danh sách teams của công ty |
-| 6 | `POST` | `/v1/teams/company-teams` | Tạo team cho công ty |
-| 7 | `GET` | `/v1/teams/{id}` | Chi tiết team |
+| 6 | `GET` | `/v1/teams/company-teams` | Danh sách teams của công ty |
+| 7 | `POST` | `/v1/teams/company-teams` | Tạo team cho công ty |
+| 8 | `PUT` | `/v1/teams/company-teams/{id}` | Đổi tên team công ty |
+| 9 | `DELETE` | `/v1/teams/company-teams/{id}` | Vô hiệu hóa team (soft-delete) |
+| 10 | `GET` | `/v1/teams/{id}` | Chi tiết team |
+| | | **━━ Team Members ━━** | |
+| 11 | `POST` | `/v1/teams/company-teams/{teamId}/members` | Thêm nhân viên vào team |
+| 12 | `DELETE` | `/v1/teams/company-teams/{teamId}/members/{userId}` | Xóa nhân viên khỏi team |
 | | | **━━ Nhân sự công ty ━━** | |
-| 8 | `POST` | `/v1/companies/my/staff` | Tạo tài khoản CompanyStaff (MK tạm, optional gán team) |
-| 9 | `GET` | `/v1/companies/my/staff` | Danh sách nhân viên công ty (kèm team) |
+| 13 | `POST` | `/v1/companies/my/staff` | Tạo tài khoản CompanyStaff (MK tạm, optional gán team) |
+| 14 | `GET` | `/v1/companies/my/staff` | Danh sách nhân viên công ty (kèm team, filter isActive) |
+| 15 | `PUT` | `/v1/companies/my/staff/{userId}/status` | Vô hiệu hóa / kích hoạt lại nhân viên |
 
 ---
 
@@ -177,16 +185,16 @@
 | 6 | `DELETE` | `/v1/admin/users/{id}` | Xóa user (soft delete) |
 | 7 | `PUT` | `/v1/admin/users/{id}/role` | Đổi role user |
 | | | **━━ Report Management ━━** | |
-| 8 | `GET` | `/v1/admin/reports` | Tất cả báo cáo (admin view) |
+| 8 | `GET` | `/v1/admin/reports` | Tất cả báo cáo (admin view, search, filter) |
 | 9 | `GET` | `/v1/admin/reports/{id}` | Chi tiết báo cáo |
 | 10 | `PUT` | `/v1/admin/reports/{id}/status` | Force đổi status (emergency) |
 | | | **━━ Pollution Categories ━━** | |
 | 11 | `POST` | `/v1/admin/pollution-categories` | Tạo loại ô nhiễm |
 | 12 | `PUT` | `/v1/admin/pollution-categories/{id}` | Cập nhật |
-| 13 | `DELETE` | `/v1/admin/pollution-categories/{id}` | Xóa |
-| 14 | `PUT` | `/v1/admin/pollution-categories/{id}/archive` | Lưu trữ |
+| 13 | `DELETE` | `/v1/admin/pollution-categories/{id}` | Xóa (deactivate) |
+| 14 | `PUT` | `/v1/admin/pollution-categories/{id}/archive` | Archive/Unarchive |
 | | | **━━ Waste Tags ━━** | |
-| 15 | `GET` | `/v1/admin/waste-tags` | Danh sách loại rác (admin) |
+| 15 | `GET` | `/v1/admin/waste-tags` | Danh sách loại rác (phân trang, search, filter, sort) |
 | 16 | `POST` | `/v1/admin/waste-tags` | Tạo loại rác |
 | 17 | `PUT` | `/v1/admin/waste-tags/{id}` | Cập nhật |
 | 18 | `PATCH` | `/v1/admin/waste-tags/{id}/toggle` | Bật/tắt |
@@ -196,7 +204,7 @@
 | | | **━━ Organization ━━** | |
 | 21 | `POST` | `/v1/departments` | Tạo department (Sở TNMT) |
 | 22 | `PUT` | `/v1/departments/{id}` | Cập nhật department |
-| 23 | `DELETE` | `/v1/departments/{id}` | Xóa department |
+| 23 | `DELETE` | `/v1/departments/{id}` | Vô hiệu hóa department |
 | 24 | `PUT` | `/v1/departments/{id}/officer` | Gán DEO cho department |
 | 25 | `POST` | `/v1/offices` | Tạo office (văn phòng MT phường) |
 | 26 | `PUT` | `/v1/offices/{id}` | Cập nhật office |
@@ -361,11 +369,11 @@ flowchart LR
 | CatalogController | `/v1/catalog` | 3 |
 | UsersController | `/v1/users` | 4 |
 | ReportsController | `/v1/reports` | 22 |
-| CompaniesController | `/v1/companies` | 7 |
-| DepartmentsController | `/v1/departments` | 7 |
-| LocalOfficesController | `/v1/offices` | 8 |
-| TeamsController | `/v1/teams` | 14 |
-| AdminController | `/v1/admin` | 14 |
+| CompaniesController | `/v1/companies` | 9 |
+| DepartmentsController | `/v1/departments` | 8 |
+| LocalOfficesController | `/v1/offices` | 9 |
+| TeamsController | `/v1/teams` | 19 |
+| AdminController | `/v1/admin` | 20 |
 | MapController | `/v1/map` | 2 |
 | MediaController | `/v1/media` | 1 |
-| **Tổng** | | **91** |
+| **Tổng** | | **106** |

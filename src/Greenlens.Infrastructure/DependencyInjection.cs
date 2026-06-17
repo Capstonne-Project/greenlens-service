@@ -59,6 +59,9 @@ public static class DependencyInjection
         services.AddScoped<ICompanyStaffRepository, CompanyStaffRepository>();
         services.AddScoped<ICompanyServiceAreaRepository, CompanyServiceAreaRepository>();
 
+        // ── Inspection module (v3.0) ──
+        services.AddScoped<IInspectionReportRepository, InspectionReportRepository>();
+
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         // ── Identity & Auth ──────────────────────────────
