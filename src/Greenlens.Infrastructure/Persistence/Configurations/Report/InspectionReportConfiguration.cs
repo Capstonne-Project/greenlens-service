@@ -14,6 +14,7 @@ internal sealed class InspectionReportConfiguration : IEntityTypeConfiguration<I
 
         // ── Enums as string ──
         builder.Property(ir => ir.Status).HasConversion<string>().HasMaxLength(20);
+        builder.Property(ir => ir.ViolationLevel).HasConversion<string>().HasMaxLength(20);
 
         // ── Violation details ──
         builder.Property(ir => ir.ViolationDescription).HasMaxLength(2000);
@@ -25,6 +26,7 @@ internal sealed class InspectionReportConfiguration : IEntityTypeConfiguration<I
         builder.Property(ir => ir.PenaltyAmount).HasPrecision(18, 2);
         builder.Property(ir => ir.PenaltyDecisionNumber).HasMaxLength(50);
         builder.Property(ir => ir.PaidAmount).HasPrecision(18, 2);
+        builder.Property(ir => ir.AdditionalPenaltyMeasures).HasMaxLength(1000);
 
         // ── Close ──
         builder.Property(ir => ir.ClosedReason).HasMaxLength(2000);
@@ -45,9 +47,16 @@ internal sealed class InspectionReportConfiguration : IEntityTypeConfiguration<I
             .HasForeignKey(ir => ir.IssuedByInspectorId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        builder.HasOne(ir => ir.AssignedTeam)
+            .WithMany()
+            .HasForeignKey(ir => ir.AssignedTeamId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         // ── Indexes ──
         builder.HasIndex(ir => ir.ReportId);
         builder.HasIndex(ir => ir.Status);
         builder.HasIndex(ir => ir.CreatedByOfficerId);
+        builder.HasIndex(ir => ir.AssignedTeamId);
+        builder.HasIndex(ir => ir.ViolatorIdentity);
     }
 }

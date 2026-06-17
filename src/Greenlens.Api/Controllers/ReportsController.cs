@@ -22,6 +22,8 @@ using Greenlens.Application.Features.Reports.SubmitPollutionReport;
 using Greenlens.Application.Features.Reports.TagReportWaste;
 using Greenlens.Application.Features.Reports.UpdateProgress;
 using Greenlens.Application.Features.Reports.VerifyReport;
+using Greenlens.Application.Features.Inspection.CreateInspectionReport;
+using Greenlens.Application.Features.Inspection.GetInspectionsByReport;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -403,6 +405,46 @@ public sealed class ReportsController(ISender sender) : ControllerBase
     [SwaggerResponse(422, "Hết lượt reopen hoặc status không hợp lệ", typeof(ApiResponse))]
     public async Task<IActionResult> ReopenAsync([FromRoute] Guid id, CancellationToken ct)
         => (await sender.Send(new ReopenReportCommand(id), ct)).ToHttpNoContent("Đã mở lại báo cáo.");
+
+    // ═══════════════════════════════════════════
+    // ██  INSPECTION (nested resource)
+    // ═══════════════════════════════════════════
+
+    [HttpPost("{id:guid}/inspections")]
+    [Authorize(Roles = "LEO,Admin")]
+    [Tags("🔍 Inspection Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO] Lập hồ sơ xử phạt cho báo cáo",
+        Description = "LEO lập InspectionReport (Draft) liên kết với Report đã Verified (BR-INS-001, BR-OFF-005). " +
+            "Có thể gán Inspection Team ngay hoặc gán sau.")]
+    [SwaggerResponse(201, "Đã tạo hồ sơ xử phạt", typeof(ApiResponse<Guid>))]
+    [SwaggerResponse(404, "Không tìm thấy báo cáo", typeof(ApiResponse))]
+    [SwaggerResponse(409, "Đã có hồ sơ xử phạt đang hoạt động", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Báo cáo chưa Verified hoặc team không hợp lệ", typeof(ApiResponse))]
+    public async Task<IActionResult> CreateInspectionAsync(
+        [FromRoute] Guid id,
+        [FromBody] CreateInspectionRequest request,
+        CancellationToken ct)
+        => (await sender.Send(new CreateInspectionReportCommand(
+            id,
+            request.AssignedTeamId,
+            request.ViolationDescription,
+            request.ViolatorName,
+            request.ViolatorAddress,
+            request.ViolatorIdentity), ct))
+            .ToHttpCreated();
+
+    [HttpGet("{id:guid}/inspections")]
+    [Authorize(Roles = "LEO,Inspector,Admin")]
+    [Tags("🔍 Inspection Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO/Inspector] Danh sách hồ sơ xử phạt của báo cáo",
+        Description = "Trả về tất cả InspectionReport liên kết với Report này.")]
+    [SwaggerResponse(200, "Danh sách hồ sơ", typeof(ApiResponse<GetInspectionsByReportResponse>))]
+    [SwaggerResponse(404, "Không tìm thấy báo cáo", typeof(ApiResponse))]
+    public async Task<IActionResult> GetInspectionsAsync(
+        [FromRoute] Guid id, CancellationToken ct)
+        => (await sender.Send(new GetInspectionsByReportQuery(id), ct)).ToHttp();
 }
 
 // ── Request DTOs ──
@@ -416,3 +458,10 @@ public sealed record DeclineAssignmentRequest(Guid TeamId, string Reason);
 public sealed record TagWasteRequest(List<Guid> WasteTagIds);
 public sealed record DispatchToCompanyRequest(Guid CompanyId, string? Note);
 public sealed record AssignCompanyTeamRequest(List<AssignTeamItemRequest> Teams);
+
+public sealed record CreateInspectionRequest(
+    Guid? AssignedTeamId,
+    string? ViolationDescription,
+    string? ViolatorName,
+    string? ViolatorAddress,
+    string? ViolatorIdentity);
