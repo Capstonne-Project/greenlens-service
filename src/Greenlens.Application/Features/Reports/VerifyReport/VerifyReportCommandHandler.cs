@@ -11,11 +11,12 @@ namespace Greenlens.Application.Features.Reports.VerifyReport;
 
 /// <summary>
 /// Officer verifies a submitted report. Checks conflict of interest (BR-OFF-004).
-/// Optionally tags waste types during verification.
+/// Optionally overrides severity/category and tags waste types during verification.
 /// </summary>
 public sealed class VerifyReportCommandHandler(
     IReportRepository reports,
     IReportStatusHistoryRepository statusHistory,
+    IPollutionCategoryRepository pollutionCategories,
     IWasteTagRepository wasteTags,
     IReportWasteTagRepository reportWasteTags,
     ICurrentUser currentUser,
@@ -34,6 +35,17 @@ public sealed class VerifyReportCommandHandler(
         // BR-OFF-004: conflict of interest
         if (report.ReporterId == currentUser.UserId)
             return Errors.Reports.ConflictOfInterest;
+
+        // Validate overrideCategoryId if provided
+        if (request.OverrideCategoryId.HasValue)
+        {
+            var categoryExists = await pollutionCategories
+                .ExistsActiveAsync(request.OverrideCategoryId.Value, ct)
+                .ConfigureAwait(false);
+
+            if (!categoryExists)
+                return Errors.Reports.CategoryNotFound;
+        }
 
         // Validate and persist waste tags if provided
         if (request.WasteTagIds is { Count: > 0 })
@@ -74,3 +86,4 @@ public sealed class VerifyReportCommandHandler(
         return Result.Success();
     }
 }
+
