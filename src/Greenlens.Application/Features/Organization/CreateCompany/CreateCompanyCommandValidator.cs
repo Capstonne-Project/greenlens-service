@@ -24,9 +24,31 @@ public sealed class CreateCompanyCommandValidator : AbstractValidator<CreateComp
             .When(x => x.ContractType == ContractType.Bidding)
             .WithMessage("Hợp đồng đấu thầu (Bidding) bắt buộc có ngày kết thúc.");
 
-        // ── Manager account ──
-        RuleFor(x => x.ManagerEmail).NotEmpty().EmailAddress().MaximumLength(200);
-        RuleFor(x => x.ManagerFullName).NotEmpty().MaximumLength(200);
+        // ── Manager account (optional — both must be provided together or neither) ──
+        RuleFor(x => x.ManagerEmail)
+            .NotEmpty().EmailAddress().MaximumLength(200)
+            .When(x => x.ManagerEmail is not null);
+
+        RuleFor(x => x.ManagerFullName)
+            .NotEmpty().MaximumLength(200)
+            .When(x => x.ManagerFullName is not null);
+
+        // If either field is provided, the other must be too
+        RuleFor(x => x.ManagerFullName)
+            .NotEmpty()
+            .When(x => !string.IsNullOrEmpty(x.ManagerEmail))
+            .WithMessage("ManagerFullName bắt buộc khi cung cấp ManagerEmail.");
+
+        RuleFor(x => x.ManagerEmail)
+            .NotEmpty()
+            .When(x => !string.IsNullOrEmpty(x.ManagerFullName))
+            .WithMessage("ManagerEmail bắt buộc khi cung cấp ManagerFullName.");
+
+        // ── WardCodes (optional) ──
+        RuleForEach(x => x.WardCodes)
+            .NotEmpty()
+            .MaximumLength(20)
+            .When(x => x.WardCodes is { Count: > 0 });
 
         RuleFor(x => x.TaxCode).MaximumLength(20);
         RuleFor(x => x.Address).MaximumLength(500);

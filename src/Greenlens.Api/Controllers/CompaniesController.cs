@@ -1,7 +1,9 @@
 using Greenlens.Api.Extensions;
 using Greenlens.Application.Common.Models;
 using Greenlens.Application.Features.Organization.CreateCompany;
+using Greenlens.Application.Features.Organization.CreateCompanyManager;
 using Greenlens.Application.Features.Organization.CreateCompanyStaff;
+using Greenlens.Application.Features.Organization.ResetCompanyManagerPassword;
 using Greenlens.Application.Features.Organization.GetCompanies;
 using Greenlens.Application.Features.Organization.GetCompanyById;
 using Greenlens.Application.Features.Organization.GetCompanyServiceAreas;
@@ -32,17 +34,50 @@ public sealed class CompaniesController(ISender sender) : ControllerBase
     [Authorize(Roles = "DEO,Admin")]
     [Tags("🔍 DEO Dashboard")]
     [SwaggerOperation(
-        Summary = "[DEO/Admin] Tạo công ty DVMT + tài khoản CM",
-        Description = "Tạo Công ty Dịch vụ Môi trường (trực thuộc/đấu thầu) + tài khoản CompanyManager. " +
-            "Trạng thái ban đầu: PendingActivation. CM đăng nhập bằng MK tạm → đổi MK → công ty tự động Active. " +
+        Summary = "[DEO/Admin] Tạo công ty DVMT",
+        Description = "Tạo Công ty Dịch vụ Môi trường (trực thuộc/đấu thầu). " +
+            "Có thể truyền WardCodes để gán phường/xã phụ trách ngay khi tạo. " +
+            "ManagerEmail + ManagerFullName là tuỳ chọn — bỏ trống để tạo công ty trước, tạo CM sau qua POST /{id}/manager. " +
+            "Nếu có CM: trạng thái ban đầu PendingActivation; CM đăng nhập bằng MK tạm → đổi MK → công ty tự động Active. " +
             "⚠️ TempPassword chỉ hiển thị 1 lần — DEO cần gửi cho CM.")]
-    [SwaggerResponse(201, "Đã tạo công ty + tài khoản CM", typeof(ApiResponse<CreateCompanyResponse>))]
-    [SwaggerResponse(404, "Department không tồn tại", typeof(ApiResponse))]
+    [SwaggerResponse(201, "Đã tạo công ty", typeof(ApiResponse<CreateCompanyResponse>))]
+    [SwaggerResponse(404, "Department hoặc WardCode không tồn tại", typeof(ApiResponse))]
     [SwaggerResponse(409, "Số hợp đồng hoặc email CM đã tồn tại", typeof(ApiResponse))]
     [SwaggerResponse(422, "Validation error", typeof(ApiResponse))]
     public async Task<IActionResult> CreateAsync(
         [FromBody] CreateCompanyCommand command, CancellationToken ct)
         => (await sender.Send(command, ct)).ToHttpCreated();
+
+    [HttpPost("{id:guid}/manager")]
+    [Authorize(Roles = "DEO,Admin")]
+    [Tags("🔍 DEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[DEO/Admin] Tạo tài khoản CM cho công ty",
+        Description = "Tạo tài khoản CompanyManager cho công ty đã tồn tại. " +
+            "Dùng khi công ty được tạo trước mà chưa có CM, hoặc muốn thêm CM. " +
+            "CM đăng nhập bằng MK tạm → đổi MK → công ty tự động Active. " +
+            "⚠️ TempPassword chỉ hiển thị 1 lần — DEO cần gửi cho CM.")]
+    [SwaggerResponse(201, "Đã tạo tài khoản CM", typeof(ApiResponse<CreateCompanyManagerResponse>))]
+    [SwaggerResponse(404, "Công ty không tồn tại", typeof(ApiResponse))]
+    [SwaggerResponse(409, "Email CM đã tồn tại", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Validation error", typeof(ApiResponse))]
+    public async Task<IActionResult> CreateManagerAsync(
+        [FromRoute] Guid id, [FromBody] CreateCompanyManagerRequest request, CancellationToken ct)
+        => (await sender.Send(new CreateCompanyManagerCommand(id, request.ManagerEmail, request.ManagerFullName), ct))
+            .ToHttpCreated();
+
+    [HttpPost("{id:guid}/manager/{userId:guid}/reset-password")]
+    [Authorize(Roles = "DEO,Admin")]
+    [Tags("🔍 DEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[DEO/Admin] Reset mật khẩu CM",
+        Description = "Tạo mật khẩu tạm mới cho CompanyManager khi DEO thất lạc TempPassword ban đầu. " +
+            "CM bắt buộc đổi MK khi đăng nhập lần tiếp. ⚠️ TempPassword chỉ hiển thị 1 lần.")]
+    [SwaggerResponse(200, "Mật khẩu tạm mới", typeof(ApiResponse<ResetCompanyManagerPasswordResponse>))]
+    [SwaggerResponse(404, "Công ty hoặc CM không tồn tại", typeof(ApiResponse))]
+    public async Task<IActionResult> ResetManagerPasswordAsync(
+        [FromRoute] Guid id, [FromRoute] Guid userId, CancellationToken ct)
+        => (await sender.Send(new ResetCompanyManagerPasswordCommand(id, userId), ct)).ToHttp();
 
     [HttpGet]
     [Authorize(Roles = "DEO,Admin")]
@@ -175,3 +210,4 @@ public sealed class CompaniesController(ISender sender) : ControllerBase
 // ── Request DTOs ──
 public sealed record UpdateServiceAreasRequest(List<string> WardCodes);
 public sealed record ToggleStaffStatusRequest(bool IsActive);
+public sealed record CreateCompanyManagerRequest(string ManagerEmail, string ManagerFullName);

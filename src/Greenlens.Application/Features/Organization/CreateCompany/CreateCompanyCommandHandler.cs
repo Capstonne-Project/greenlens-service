@@ -4,13 +4,15 @@ using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Organization.CreateCompany;
 
 /// <summary>
-/// DEO creates a new Environmental Service Company + CM account with temporary password.
-/// Company starts as PendingActivation. CM must change password on first login → company auto-activates.
+/// DEO creates a new Environmental Service Company.
+/// Optionally creates a CM account and/or assigns ward service areas at the same time.
+/// Company starts as PendingActivation. If CM is created, they must change password on first login → company auto-activates.
 /// </summary>
 /// <remarks>Implements: BR-CMP-001, BR-CMP-002.</remarks>
 public sealed class CreateCompanyCommandHandler(
@@ -18,6 +20,8 @@ public sealed class CreateCompanyCommandHandler(
     IDepartmentRepository departments,
     IUserRepository users,
     ICompanyStaffRepository companyStaff,
+    ICompanyServiceAreaRepository serviceAreas,
+    IWardRepository wards,
     IUnitOfWork uow,
     IPasswordHasher passwordHasher,
     ILogger<CreateCompanyCommandHandler> logger)
@@ -42,15 +46,29 @@ public sealed class CreateCompanyCommandHandler(
         if (contractExists)
             return Errors.Organization.CompanyContractNumberExists;
 
-        // ── 3. Check manager email uniqueness ──
-        var emailExists = await users.ExistsAsync(
-            u => u.Email == request.ManagerEmail.ToLowerInvariant(), ct)
-            .ConfigureAwait(false);
+        // ── 3. Check manager email uniqueness (only if CM is being created) ──
+        if (!string.IsNullOrEmpty(request.ManagerEmail))
+        {
+            var emailExists = await users.ExistsAsync(
+                u => u.Email == request.ManagerEmail.ToLowerInvariant(), ct)
+                .ConfigureAwait(false);
 
-        if (emailExists)
-            return Errors.Organization.ManagerEmailAlreadyExists;
+            if (emailExists)
+                return Errors.Organization.ManagerEmailAlreadyExists;
+        }
 
-        // ── 4. Create company entity ──
+        // ── 4. Validate ward codes (only if WardCodes is provided) ──
+        if (request.WardCodes is { Count: > 0 })
+        {
+            var existingWardCount = await wards.QueryAsNoTracking()
+                .CountAsync(w => request.WardCodes.Contains(w.Code), ct)
+                .ConfigureAwait(false);
+
+            if (existingWardCount != request.WardCodes.Count)
+                return Errors.Organization.WardNotFound;
+        }
+
+        // ── 5. Create company entity ──
         var company = EnvironmentalServiceCompany.Create(
             request.Name,
             request.DepartmentId,
@@ -65,27 +83,42 @@ public sealed class CreateCompanyCommandHandler(
 
         companies.Add(company);
 
-        // ── 5. Create CM user with temporary password ──
-        var tempPassword = GenerateTempPassword();
-        var hashedPassword = passwordHasher.Hash(tempPassword);
+        // ── 6. Assign ward service areas (if provided) ──
+        if (request.WardCodes is { Count: > 0 })
+        {
+            var newAreas = request.WardCodes
+                .Select(wc => CompanyServiceArea.Create(company.Id, wc));
+            serviceAreas.AddRange(newAreas);
+        }
 
-        var managerUser = User.CreateWithTempPassword(
-            request.ManagerEmail,
-            hashedPassword,
-            request.ManagerFullName,
-            Domain.Enums.UserRole.CompanyManager);
+        // ── 7. Create CM user with temporary password (optional) ──
+        User? managerUser = null;
+        string? tempPassword = null;
 
-        users.Add(managerUser);
+        if (!string.IsNullOrEmpty(request.ManagerEmail))
+        {
+            tempPassword = GenerateTempPassword();
+            var hashedPassword = passwordHasher.Hash(tempPassword);
 
-        // ── 6. Link CM to company via CompanyStaff ──
-        var staffLink = CompanyStaff.Create(managerUser.Id, company.Id, "Manager");
-        companyStaff.Add(staffLink);
+            managerUser = User.CreateWithTempPassword(
+                request.ManagerEmail,
+                hashedPassword,
+                request.ManagerFullName!,
+                Domain.Enums.UserRole.CompanyManager);
+
+            users.Add(managerUser);
+
+            // ── 8. Link CM to company via CompanyStaff ──
+            var staffLink = CompanyStaff.Create(managerUser.Id, company.Id, "Manager");
+            companyStaff.Add(staffLink);
+        }
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 
         logger.LogInformation(
-            "Company {CompanyId} '{Name}' created with CM {ManagerEmail} under department {DeptId}",
-            company.Id, company.Name, request.ManagerEmail, company.DepartmentId);
+            "Company {CompanyId} '{Name}' created under department {DeptId}. CM: {HasCM}. Wards: {WardCount}",
+            company.Id, company.Name, company.DepartmentId,
+            managerUser is not null, request.WardCodes?.Count ?? 0);
 
         return new CreateCompanyResponse(
             company.Id,
@@ -93,8 +126,8 @@ public sealed class CreateCompanyCommandHandler(
             company.ContractNumber,
             company.ContractType.ToString(),
             company.Status.ToString(),
-            managerUser.Id,
-            managerUser.Email,
+            managerUser?.Id,
+            managerUser?.Email,
             tempPassword);
     }
 

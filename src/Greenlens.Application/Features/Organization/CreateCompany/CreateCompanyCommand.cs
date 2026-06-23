@@ -5,9 +5,14 @@ using MediatR;
 namespace Greenlens.Application.Features.Organization.CreateCompany;
 
 /// <summary>
-/// DEO creates a new Environmental Service Company with contract info + manager account.
+/// DEO creates a new Environmental Service Company with optional manager account and optional ward assignments.
 /// </summary>
-/// <remarks>Implements: BR-CMP-001, BR-CMP-002.</remarks>
+/// <remarks>
+/// Implements: BR-CMP-001, BR-CMP-002.
+/// ManagerEmail and ManagerFullName are optional — company can be created without a CM account.
+/// Use POST /v1/companies/{id}/manager to create the CM account later.
+/// WardCodes (optional) assigns the ward service areas immediately at creation time.
+/// </remarks>
 public sealed record CreateCompanyCommand(
     string Name,
     Guid DepartmentId,
@@ -15,12 +20,13 @@ public sealed record CreateCompanyCommand(
     DateTime ContractStartDate,
     DateTime? ContractEndDate,
     ContractType ContractType,
-    string ManagerEmail,
-    string ManagerFullName,
     string? TaxCode = null,
     string? Address = null,
     string? Phone = null,
-    string? Email = null) : IRequest<Result<CreateCompanyResponse>>;
+    string? Email = null,
+    string? ManagerEmail = null,
+    string? ManagerFullName = null,
+    List<string>? WardCodes = null) : IRequest<Result<CreateCompanyResponse>>;
 
 public sealed record CreateCompanyResponse(
     Guid CompanyId,
@@ -28,6 +34,6 @@ public sealed record CreateCompanyResponse(
     string ContractNumber,
     string ContractType,
     string Status,
-    Guid ManagerUserId,
-    string ManagerEmail,
-    string TempPassword);
+    Guid? ManagerUserId,
+    string? ManagerEmail,
+    string? TempPassword);

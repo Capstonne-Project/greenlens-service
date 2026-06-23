@@ -145,6 +145,14 @@ public sealed class User : SoftDeletableEntity
             MustChangePassword = false;
     }
 
+    /// <summary>DEO/Admin resets user password to a new temporary password, forcing change on next login.</summary>
+    public void ResetToTempPassword(string newPasswordHash)
+    {
+        PasswordHash = newPasswordHash;
+        MustChangePassword = true;
+        ResetFailedLoginAttempts();
+    }
+
     public void LinkGoogleAccount(string googleId)
     {
         GoogleId = googleId;
