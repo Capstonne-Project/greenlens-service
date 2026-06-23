@@ -5,6 +5,8 @@ using Greenlens.Application.Features.Reports.AssignCompanyTeam;
 using Greenlens.Application.Features.Reports.AssignTeam;
 using Greenlens.Application.Features.Reports.DispatchToCompany;
 using Greenlens.Application.Features.Reports.GetCompanyQueue;
+using Greenlens.Application.Features.Reports.GetCompanyAssignments;
+using Greenlens.Application.Features.Reports.GetCompanyReportDetail;
 using Greenlens.Application.Features.Reports.CloseReport;
 using Greenlens.Application.Features.Reports.GetMyReports;
 using Greenlens.Application.Features.Reports.GetOfficerQueue;
@@ -239,6 +241,38 @@ public sealed class ReportsController(ISender sender) : ControllerBase
         [FromQuery] Severity? severity = null,
         CancellationToken ct = default)
         => (await sender.Send(new GetCompanyQueueQuery(page, pageSize, severity), ct)).ToHttp();
+
+    [HttpGet("company-assignments")]
+    [Authorize(Roles = "CompanyManager,Admin")]
+    [Tags("🏢 Company Dashboard")]
+    [SwaggerOperation(
+        Summary = "[CompanyManager] Theo dõi task đã phân công",
+        Description = "Xem toàn bộ task đã phân công cho team của công ty: team nào → báo cáo nào, " +
+            "tiến độ (%), trạng thái assignment (Assigned/InProgress/Completed/Declined), " +
+            "SLA deadline, và thông tin người phân công. " +
+            "Lọc theo: assignmentStatus, reportStatus, search (mã báo cáo, địa chỉ, tên team).")]
+    [SwaggerResponse(200, "Danh sách assignment", typeof(ApiResponse<GetCompanyAssignmentsResponse>))]
+    public async Task<IActionResult> GetCompanyAssignmentsAsync(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] AssignmentStatus? status = null,
+        [FromQuery] ReportStatus? reportStatus = null,
+        [FromQuery] string? search = null,
+        CancellationToken ct = default)
+        => (await sender.Send(new GetCompanyAssignmentsQuery(page, pageSize, status, reportStatus, search), ct)).ToHttp();
+
+    [HttpGet("company-assignments/{reportId:guid}")]
+    [Authorize(Roles = "CompanyManager,Admin")]
+    [Tags("🏢 Company Dashboard")]
+    [SwaggerOperation(
+        Summary = "[CompanyManager] Chi tiết tiến độ xử lý báo cáo",
+        Description = "Xem chi tiết 1 báo cáo: thông tin báo cáo, danh sách team được phân công (kèm thành viên, team leader), " +
+            "tiến độ từng team (%), timeline chuyển trạng thái, ảnh/video, và waste tags.")]
+    [SwaggerResponse(200, "Chi tiết tiến độ báo cáo", typeof(ApiResponse<CompanyReportDetailResponse>))]
+    [SwaggerResponse(404, "Báo cáo không tồn tại hoặc không thuộc công ty của bạn", typeof(ApiResponse))]
+    public async Task<IActionResult> GetCompanyReportDetailAsync(
+        [FromRoute] Guid reportId, CancellationToken ct)
+        => (await sender.Send(new GetCompanyReportDetailQuery(reportId), ct)).ToHttp();
 
     [HttpGet("progress-board")]
     [Authorize(Roles = "LEO,Admin")]
