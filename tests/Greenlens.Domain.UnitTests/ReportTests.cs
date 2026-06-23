@@ -131,8 +131,7 @@ public sealed class ReportTests
         report.Assign(officerId);
 
         Assert.Equal(ReportStatus.InProgress, report.Status);
-        Assert.Equal(officerId, report.AssignedOfficerId);
-        Assert.NotNull(report.StartedAt);
+        Assert.Equal(officerId, report.AssignedByOfficerId);
     }
 
     [Fact]

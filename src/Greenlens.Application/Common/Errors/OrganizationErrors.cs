@@ -110,5 +110,45 @@ public static partial class Errors
             "TRANSFER_SAME_TEAM",
             "Không thể chuyển thành viên sang chính đội hiện tại.",
             ErrorType.BusinessRule);
+
+        public static Error CompanyNotFound => new(
+            "COMPANY_NOT_FOUND",
+            "Không tìm thấy công ty dịch vụ môi trường.",
+            ErrorType.NotFound);
+
+        public static Error NotCompanyManager => new(
+            "NOT_COMPANY_MANAGER",
+            "Bạn không phải CompanyManager hoặc chưa được gán cho công ty nào.",
+            ErrorType.Forbidden);
+
+        public static Error TeamNotInCompany => new(
+            "TEAM_NOT_IN_COMPANY",
+            "Đội không thuộc công ty của bạn.",
+            ErrorType.BusinessRule);
+
+        public static Error CompanyContractNumberExists => new(
+            "COMPANY_CONTRACT_NUMBER_EXISTS",
+            "Số hợp đồng đã tồn tại trong hệ thống.",
+            ErrorType.Conflict);
+
+        public static Error ManagerEmailAlreadyExists => new(
+            "MANAGER_EMAIL_ALREADY_EXISTS",
+            "Email này đã được sử dụng cho tài khoản khác.",
+            ErrorType.Conflict);
+
+        public static Error StaffNotFound => new(
+            "STAFF_NOT_FOUND",
+            "Không tìm thấy nhân viên trong công ty.",
+            ErrorType.NotFound);
+
+        public static Error StaffNotInCompany => new(
+            "STAFF_NOT_IN_COMPANY",
+            "Nhân viên không thuộc công ty của bạn.",
+            ErrorType.BusinessRule);
+
+        public static Error TeamAlreadyDeactivated => new(
+            "TEAM_ALREADY_DEACTIVATED",
+            "Đội đã bị vô hiệu hóa trước đó.",
+            ErrorType.BusinessRule);
     }
 }

@@ -5,6 +5,7 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.SubmitPollutionReport;
@@ -13,12 +14,15 @@ namespace Greenlens.Application.Features.Reports.SubmitPollutionReport;
 /// Submit a new pollution report — supports two image flows:
 ///   AI flow:     TempImageId provided → lookup temp store → upload R2 → create Report (AiPending = false, status from AI)
 ///   Manual flow: Images[] provided   → persist URLs as-is → create Report (AiPending = true, background job retries AI)
+///
+/// Auto-routing: report is assigned directly to LocalOffice by WardCode.
+/// Fallback: if ward has no onboarded LocalOffice → routes to Department queue (DEO handles manually).
 /// </summary>
 /// <remarks>
 /// Implements: BR-REP-001 (≥1 photo), BR-REP-003 (GPS bounds — validator),
 /// BR-REP-005 (category), BR-REP-013 (initial Submitted state),
 /// BR-AI-001 (AI decision on AI flow), BR-AI-006 (AiPending on manual flow),
-/// BR-ORG-010, BR-ORG-011 (auto-routing).
+/// BR-ORG-010, BR-ORG-011 (auto-routing to LocalOffice by GPS).
 /// </remarks>
 public sealed class SubmitPollutionReportCommandHandler(
     IPollutionCategoryRepository categories,
@@ -29,6 +33,7 @@ public sealed class SubmitPollutionReportCommandHandler(
     IReportWasteTagRepository reportWasteTags,
     IWardRepository wards,
     IDepartmentRepository departments,
+    ILocalOfficeRepository localOffices,
     IUnitOfWork unitOfWork,
     ICurrentUser currentUser,
     ITempImageStore tempStore,
@@ -121,17 +126,30 @@ public sealed class SubmitPollutionReportCommandHandler(
 
         reports.Add(report);
 
-        // ── Auto-routing: all reports go to Department queue (DEO dispatches later) ──
-        if (!string.IsNullOrEmpty(provinceCode))
+        // ── Auto-routing: report goes directly to LocalOffice by WardCode ──
+        if (!string.IsNullOrEmpty(wardCode))
         {
-            var dept = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
+            var office = await localOffices.QueryAsNoTracking()
                 .FirstOrDefaultAsync(
-                    departments.QueryAsNoTracking(),
+                    o => o.WardCode == wardCode && o.IsOnboarded, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (office is not null)
+            {
+                report.RouteToLocalOffice(office.Id, office.DepartmentId);
+            }
+        }
+
+        // Fallback: route to Department queue if no LocalOffice matched
+        if (report.AssignedOfficeId is null && !string.IsNullOrEmpty(provinceCode))
+        {
+            var dept = await departments.QueryAsNoTracking()
+                .FirstOrDefaultAsync(
                     d => d.ProvinceCode == provinceCode, cancellationToken)
                 .ConfigureAwait(false);
 
             if (dept is not null)
-                report.RouteToDepartmentQueue(dept.Id);
+                report.RouteToDepartment(dept.Id);
         }
 
         // ── Persist primary image ───────────────────────────────────────────
@@ -183,8 +201,9 @@ public sealed class SubmitPollutionReportCommandHandler(
 
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-        logger.LogInformation("Report {ReportCode} submitted by {ReporterId}, routed to department {DepartmentId}",
-            report.Code, reporterId, report.AssignedDepartmentId);
+        logger.LogInformation(
+            "Report {ReportCode} submitted by {ReporterId}, routed to office {OfficeId} / department {DepartmentId}",
+            report.Code, reporterId, report.AssignedOfficeId, report.AssignedDepartmentId);
 
         // ── Cleanup temp after successful save (AI flow only) ───────────────
         if (resolvedImage.IsAiFlow)

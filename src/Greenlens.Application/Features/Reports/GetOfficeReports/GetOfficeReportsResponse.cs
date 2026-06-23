@@ -34,7 +34,7 @@ public sealed record OfficeReportItem(
     int OverallProgressPercent,
     DateTime CreatedAt,
     DateTime? VerifiedAt,
-    DateTime? DispatchedAt,
+    DateTime? StartedAt,
     DateTime? ResolvedAt,
     DateTime? ClosedAt,
     DateTime? SlaResolveDueAt,

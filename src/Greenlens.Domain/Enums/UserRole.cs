@@ -1,9 +1,13 @@
 namespace Greenlens.Domain.Enums;
 
 /// <summary>
-/// System roles per BR-ADM-002 (v2.0): 6 internal roles with two-tier dispatch model.
-/// DEO = Department Environmental Officer — Điều phối viên cấp Tỉnh: tiếp nhận, xác minh, lập task, điều phối xuống phường/xã.
-/// LEO = Local Environmental Officer — Giám sát viên cấp Phường/Xã: nhận task từ tỉnh, phân công và quản lý team.
+/// System roles per OVERVIEW v1.3: 8 human roles.
+/// DEO = Department Environmental Officer — quản lý cấp Tỉnh: onboarding LEO, xuất data, cấu hình danh mục.
+/// LEO = Local Environmental Officer — xác minh báo cáo, điều phối dọn dẹp &amp; xử phạt cấp Phường/Xã.
+/// Cleaner = Thành viên đội dọn dẹp cộng đồng (CleanupTeam) cấp xã/phường — check-in, upload ảnh, đóng task.
+/// CompanyManager = Quản lý Công ty Dịch vụ Môi trường (nhận task từ LEO, phân công Company Staff).
+/// CompanyStaff = Nhân viên hiện trường thuộc công ty (check-in, upload ảnh, đóng task — luồng giống Cleaner).
+/// Inspector = Thành viên Inspection Team, xử phạt cho mọi loại ô nhiễm.
 /// </summary>
 public enum UserRole
 {
@@ -11,6 +15,8 @@ public enum UserRole
     DEO,
     LEO,
     Cleaner,
+    CompanyManager,
+    CompanyStaff,
     Inspector,
     Admin
 }

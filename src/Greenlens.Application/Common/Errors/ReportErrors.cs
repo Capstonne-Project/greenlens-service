@@ -135,5 +135,35 @@ public static partial class Errors
             "DISPATCH_OUTSIDE_PROVINCE",
             "Chỉ có thể điều phối task đến xã/phường trong phạm vi tỉnh của bạn.",
             ErrorType.BusinessRule);
+
+        public static Error CannotAssignCompanyTeamDirectly => new(
+            "CANNOT_ASSIGN_COMPANY_TEAM_DIRECTLY",
+            "Không thể phân công trực tiếp team của công ty. Hãy điều phối task đến công ty trước, sau đó CompanyManager sẽ phân công team.",
+            ErrorType.BusinessRule);
+
+        public static Error CompanyNotFound => new(
+            "COMPANY_NOT_FOUND",
+            "Không tìm thấy công ty dịch vụ môi trường.",
+            ErrorType.NotFound);
+
+        public static Error CompanyNotActive => new(
+            "COMPANY_NOT_ACTIVE",
+            "Công ty chưa kích hoạt hoặc hợp đồng đã hết hạn.",
+            ErrorType.BusinessRule);
+
+        public static Error ReportAlreadyDispatchedToCompany => new(
+            "REPORT_ALREADY_DISPATCHED",
+            "Báo cáo đã được điều phối đến công ty.",
+            ErrorType.Conflict);
+
+        public static Error ReportNotDispatchedToYourCompany => new(
+            "REPORT_NOT_DISPATCHED_TO_YOUR_COMPANY",
+            "Báo cáo không được điều phối đến công ty của bạn.",
+            ErrorType.BusinessRule);
+
+        public static Error CompanyDoesNotServeWard => new(
+            "COMPANY_DOES_NOT_SERVE_WARD",
+            "Công ty không phụ trách phường/xã của báo cáo này. Kiểm tra lại vùng phục vụ của công ty.",
+            ErrorType.BusinessRule);
     }
 }

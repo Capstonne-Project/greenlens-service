@@ -15,7 +15,7 @@ public sealed record ReportDetailResponse(
     string? WardCode, string? ProvinceCode,
     decimal PriorityScore, int ReporterCount, int ReopenedCount,
     string? AiClassifiedType, decimal? AiConfidence,
-    Guid? AssignedOfficerId, Guid? AssignedByOfficerId, Guid? AssignedOfficeId,
+    Guid? VerifiedBy, Guid? AssignedByOfficerId, Guid? AssignedOfficeId,
     IReadOnlyList<ReportMediaItem> Media,
     IReadOnlyList<ReportAssignmentItem> Assignments,
     IReadOnlyList<ReportWasteTagItem> WasteTags,

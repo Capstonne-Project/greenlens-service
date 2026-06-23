@@ -12,8 +12,8 @@ namespace Greenlens.Application.Features.Reports.GetOfficerQueue;
 
 /// <summary>
 /// Returns paginated queue of reports for the current officer's area.
-/// DEO sees all reports in their department (Submitted/Verified — needs verify or dispatch).
-/// LEO sees only Dispatched reports for their office (needs team assignment).
+/// DEO sees reports in their department that have no LocalOffice assigned (fallback queue — needs manual routing).
+/// LEO sees Submitted + Verified reports for their office (needs verification or team assignment).
 /// Supports search, filter, and sort (BR-OFF-010).
 /// </summary>
 public sealed class GetOfficerQueueQueryHandler(
@@ -37,15 +37,17 @@ public sealed class GetOfficerQueueQueryHandler(
         // ── Role-based scope filtering ──
         if (user.Role == UserRole.DEO && user.DepartmentId.HasValue)
         {
-            // DEO sees all reports in their department queue (province level)
-            query = query.Where(r => r.AssignedDepartmentId == user.DepartmentId.Value);
+            // DEO sees reports that fell into department queue (no LocalOffice assigned)
+            query = query.Where(r =>
+                r.AssignedDepartmentId == user.DepartmentId.Value &&
+                r.AssignedOfficeId == null);
         }
         else if (user.Role == UserRole.LEO && user.LocalOfficeId.HasValue)
         {
-            // LEO sees only Dispatched reports assigned to their office
+            // LEO sees Submitted (needs verify) + Verified (needs team assignment) in their office
             query = query.Where(r =>
                 r.AssignedOfficeId == user.LocalOfficeId.Value &&
-                r.Status == ReportStatus.Dispatched);
+                (r.Status == ReportStatus.Submitted || r.Status == ReportStatus.Verified));
         }
 
         // ── Filters ──

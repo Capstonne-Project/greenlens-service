@@ -16,13 +16,19 @@
 
 Hệ thống crowdsourcing cho phép công dân gửi báo cáo ô nhiễm môi trường (có ảnh + GPS), trực quan hóa hotspot trên bản đồ, và theo dõi tiến độ xử lý minh bạch. Backend chịu trách nhiệm xử lý nghiệp vụ cốt lõi: authentication, report lifecycle, geo-queries, gamification, AI integration, notifications, và analytics.
 
-### Actors (6)
+### Actors (8 human + AI + Community = 10)
+
+> **Thay đổi v1.3:** tách `Environmental Officer` thành **DEO** (cấp tỉnh/thành) và **LEO** (cấp xã/phường). Auto-routing GPS→Ward→LocalOffice. LEO xác minh & điều phối (assign community team trực tiếp HOẶC dispatch sang company). CompanyManager CRUD + quản lý team công ty.
 
 | Actor | Vai trò chính |
 |---|---|
 | **Citizen** | Gửi báo cáo, xem map, theo dõi trạng thái, gamification |
-| **Environmental Officer** | Xác minh, phân loại, giao việc, quản lý SLA |
-| **Cleanup Team** | Nhận task thực địa, check-in, upload ảnh before/after, đóng task |
+| **DEO** — Department of Environmental Management (tỉnh/thành) | Tạo tài khoản Công ty DVMT (trực thuộc/đấu thầu), onboarding LEO, fallback queue khi phường chưa onboard, xuất open data cấp tỉnh |
+| **LEO** — Local Environmental Office (xã/phường) | Xác minh báo cáo, phân công **đội cộng đồng** trực tiếp, **điều phối task sang công ty** (dispatch-to-company), quản lý InspectionTeam (đội xử phạt phường/xã), mời Citizen → Cleaner/Inspector |
+| **Company Manager (CM)** | Nhận task từ LEO, **CRUD + quản lý team công ty** (tạo/sửa/xóa team), phân công team xử lý task, quản lý nhân sự công ty |
+| **Company Staff (CS)** | Nhân viên hiện trường thuộc đội công ty: check-in, upload ảnh before/after, đóng task (luồng giống Cleaner) |
+| **Cleaner** (thành viên CleanupTeam cộng đồng hoặc công ty) | Nhận task thực địa, check-in, upload ảnh before/after, đóng task. Role `Cleaner` đại diện cho thành viên CleanupTeam |
+| **Inspection Team** | Đội xử phạt **cấp phường/xã** (do LEO quản lý, KHÔNG thuộc company). Xử lý xử phạt cho mọi loại ô nhiễm khi LEO lập InspectionReport |
 | **System Administrator** | Quản lý user/role, danh mục, cấu hình, audit |
 | **AI Service** (automated) | Phân loại ảnh, phát hiện trùng, ước lượng severity, anti-fraud |
 | **Community Organization** (optional) | Xem map công khai, xuất open data |
@@ -34,6 +40,79 @@ Hệ thống crowdsourcing cho phép công dân gửi báo cáo ô nhiễm môi 
 - Uptime ≥ 99.5%/tháng (BR-SYS-003)
 - RPO ≤ 24h, RTO ≤ 4h (BR-DAT-004)
 - i18n: vi-VN, en-US (BR-SYS-006)
+
+### 1.1 Domain Knowledge — Vận hành thu gom rác thải tại Việt Nam
+
+> Hệ thống cần thiết kế sát thực tế vận hành, bao phủ từ đô thị lớn đến tỉnh lẻ và nông thôn.
+
+#### A. Phân tầng lực lượng thu gom (3 tầng)
+
+| Tầng | Đơn vị | Phạm vi | Mapping trong GreenLens |
+|---|---|---|---|
+| **Tầng 1 — Cấp Thành phố** | CITENCO (TP.HCM), URENCO (Hà Nội) | Trục đường huyết mạch, chất thải nguy hại/y tế — phủ nhiều phường | `EnvironmentalServiceCompany` + `ContractType.Subsidiary`; báo cáo trên **tuyến cấp TP** (cờ) → escalate DEO |
+| **Tầng 2 — Công ty đầu mối phường** | Các công ty DVCI cũ, công ty đấu thầu, Công ty CPMT Đô thị cấp tỉnh | Quét dọn, gom rác trong phường | `EnvironmentalServiceCompany` (`Subsidiary`/`Bidding`); `CompanyServiceArea` = các phường công ty phục vụ; LEO điều phối |
+| **Tầng 3 — Dân lập** | HTX vệ sinh môi trường, Tổ tự quản (Hội LHPN, Hội Nông dân, Đoàn Thanh niên) | Thu gom rác hộ gia đình trong hẻm sâu, ngõ nhỏ → chở ra trạm tập kết xã | `EnvironmentalTeam` + `CompanyId == null` = **community team** (LEO quản lý) |
+
+**Lưu ý:** Xử lý cuối nguồn (VWS, Vietstar, Tâm Sinh Nghĩa, Tasco) **không tham gia trực tiếp trên app**.
+
+> **Loại công ty (tên chuẩn, dùng nhất quán toàn hệ thống):** `ContractType.Subsidiary` (trực thuộc chủ lực, **vô thời hạn**) và `ContractType.Bidding` (đấu thầu, **có thời hạn**).
+>
+> **Phạm vi mô hình hóa (quan trọng):** GreenLens chạy trên cơ cấu hành chính **2 cấp** (Tỉnh/TP + Xã/Phường) theo Luật Tổ chức CQĐP 2025 — KHÔNG còn cấp Quận/Huyện. Hệ thống chỉ mô hình hóa **định tuyến** (đưa báo cáo tới đúng đơn vị) ở mức phường + cờ "tuyến cấp TP"; **KHÔNG** mô hình hóa cơ chế hợp đồng/đấu thầu/khối lượng/nghiệm thu của dịch vụ công ích. Danh mục đơn vị & địa bàn do DEO/phường cấu hình theo thực tế, **không hardcode**.
+
+#### B. Cơ chế đấu thầu dịch vụ công ích
+
+- **Chủ đầu tư:** UBND cấp Quận/Huyện hoặc UBND cấp Phường/Xã (mô hình mới tại Hà Nội).
+- **Tiêu chí trúng thầu:** Năng lực thiết bị (xe ép rác, cơ giới), nhân sự, giá cạnh tranh nhất.
+- **Thời hạn hợp đồng (gói thầu):**
+  - Ngắn hạn (**1 năm**): giai đoạn chuyển tiếp, sáp nhập phường/xã.
+  - Trung hạn (**3–5 năm**): phổ biến nhất, giúp công ty an tâm đầu tư xe cộ.
+- **Mapping:** `EnvironmentalServiceCompany.ContractStartDate / ContractEndDate` + `ContractType.Bidding`.
+
+#### C. TP.HCM — Thị trường mục tiêu chính (168 phường/xã sau sáp nhập)
+
+**CITENCO** (Tầng 1): Không gom rác hẻm. Chịu trách nhiệm trục đường huyết mạch liên quận, hệ thống trạm trung chuyển lớn, bãi chôn lấp (Đa Phước), xử lý chất thải nguy hại/y tế toàn thành phố.
+
+**Các công ty DVCI** (Tầng 2) — _bảng dưới là bối cảnh tham khảo trước 1/7/2025; từ 1/7/2025 bỏ cấp quận, hợp đồng chuyển về cấp xã/phường nên hệ thống KHÔNG hardcode mapping này:_
+
+| Công ty DVCI | Phường/xã phụ trách (sau sáp nhập) |
+|---|---|
+| DVCI Quận 1 | P. Sài Gòn, P. Tân Định, P. Bến Thành, P. Cầu Ông Lãnh |
+| DVCI Quận 3 | P. Bàn Cờ, P. Xuân Hòa, P. Nhiêu Lộc |
+| DVCI Quận 4 | P. Xóm Chiếu, P. Khánh Hội, P. Vĩnh Hội |
+| DVCI Quận 5 | P. Chợ Quán, P. An Đông, P. Chợ Lớn |
+| DVCI Quận 6 | P. Bình Tây, P. Bình Tiên, P. Bình Phú, P. Phú Lâm |
+| DVCI Quận 10 | P. Diên Hồng, P. Vườn Lài, P. Hòa Hưng |
+| DVCI Quận 11 | P. Minh Phụng, P. Bình Thới, P. Hòa Bình, P. Phú Thọ |
+| DVCI Q7, Q8, Q12, BT, GV, PN, TB, TP, BTân | Toàn bộ phường mới thuộc quận tương ứng |
+| DVCI Bình Chánh, Hóc Môn, Củ Chi, Nhà Bè, Cần Giờ | Toàn bộ xã/thị trấn thuộc huyện |
+
+**TP. Thủ Đức** (trường hợp đặc biệt): 3 công ty DVCI cũ (Q2 + Q9 + Thủ Đức) sáp nhập → 1 thực thể duy nhất phụ trách 34 phường.
+
+**Lực lượng rác dân lập** (Tầng 3): HTX, Tổ tự quản → thu gom rác hộ dân trong hẻm → chở ra trạm tập kết.
+
+#### D. Hà Nội và các TP trực thuộc Trung ương
+
+- **Hà Nội:** URENCO chủ lực quận lõi + nhiều công ty tư nhân đấu thầu ngoại thành. Đấu thầu mạnh ở cấp Phường/Xã.
+- **Đà Nẵng / Cần Thơ / Hải Phòng:** Chủ yếu do Công ty CP Môi trường Đô thị lớn chi phối toàn thành phố.
+
+#### E. Tỉnh lẻ và nông thôn
+
+- **Thành phố/thị xã trung tâm:** Thường 1 Công ty CP Môi trường Đô thị cấp tỉnh duy nhất (VD: CP Đô thị Tân An, CP MT Kon Tum). Ngân sách nhà nước chi trả qua đặt hàng.
+- **Huyện vùng xa / xã nông thôn:** Doanh nghiệp "rút lui" (không có lãi). Thu gom hoàn toàn dựa vào **mô hình tự quản cộng đồng**:
+  - HTX vệ sinh môi trường (người dân tự lập, tự mua xe lôi/xe tải nhỏ).
+  - Tổ tự quản (Hội LHPN, Hội Nông dân, Đoàn Thanh niên xã tổ chức).
+  - **Cơ chế:** Tự đi thu tiền rác hàng tháng từ hộ dân → trả công người thu gom → chở ra điểm tập kết xã.
+  - **Mapping:** `EnvironmentalTeam` + `CompanyId == null` (community team, LEO quản lý).
+
+#### F. Quy tắc vận hành quan trọng cho hệ thống
+
+1. **1 phường có thể có nhiều đơn vị thu gom cùng lúc** (CITENCO trục chính + DVCI đường nhỏ + HTX hẻm).
+2. **Từ 1/7/2025 bỏ cấp quận/huyện** (chính quyền 2 cấp) → hợp đồng dịch vụ công ích chuyển về **cấp xã/phường** làm chủ thể; công ty cũ tiếp tục theo hợp đồng hiện hữu trong giai đoạn chuyển tiếp.
+3. **Hợp đồng có thời hạn** → khi hết hạn, công ty khác có thể trúng thầu thay thế.
+4. **Nông thôn thường không có company nào** → chỉ có community team.
+5. **LEO nắm rõ địa bàn** → LEO tự quyết dispatch report đến đúng đơn vị phụ trách.
+6. **Quan hệ Company ↔ Ward là N–N** (1 công ty phủ nhiều phường; 1 phường có nhiều đơn vị — bình thường). GreenLens chỉ cần **danh sách đơn vị khả dụng trong phường** + **cờ tuyến cấp TP**; LEO điều phối, KHÔNG mô hình hóa độc quyền theo tuyến/mét (BR-CMP-014, BR-ORG-016).
+7. **Hỗ trợ toàn quốc** ở mức tối giản: mỗi tỉnh/thành chỉ cần bật/tắt **tầng cấp Thành phố** (TP.HCM/Hà Nội có CITENCO/URENCO → bật; tỉnh lẻ/nông thôn → tắt, chỉ có công ty phường + đội cộng đồng).
 
 ---
 
@@ -208,7 +287,7 @@ public sealed class ReportsController : ControllerBase
     }
     
     [HttpPost]
-    [AllowAnonymous] // BR-AUTH-014
+    [Authorize] // BR-AUTH-017: gửi báo cáo bắt buộc đăng nhập (bỏ ẩn danh)
     public async Task<IActionResult> SubmitAsync([FromBody] SubmitReportCommand cmd)
         => (await _sender.Send(cmd)).ToHttp();
     
@@ -243,10 +322,14 @@ public sealed class ReportsController : ControllerBase
 ### 4.8. Authentication & Authorization
 
 - JWT Bearer, kèm refresh token rotation. Lưu refresh token (hashed) trong DB.
-- Roles: `Citizen`, `Officer`, `CleanupTeam`, `Admin`. Anonymous-allowed endpoints khai báo rõ (BR-AUTH-014).
+- Roles: `Citizen`, `DEO`, `LEO`, `CompanyManager`, `CompanyStaff`, `CleanupTeam`, `Inspector`, `Admin`. **Chỉ** các endpoint xem dữ liệu công khai (map, public report view) là `[AllowAnonymous]`; **mọi endpoint ghi/tương tác** (gửi báo cáo, bình luận, theo dõi, gamification…) bắt buộc `[Authorize]` — bỏ truy cập ẩn danh (BR-AUTH-017).
+- **Hiệu lực tài khoản công ty (BR-CMP-005):** request của `CompanyManager`/`CompanyStaff` chỉ chấp nhận khi `Company.Status == Active`. **KHÔNG** dùng cửa sổ hợp đồng để khóa định tuyến/tác nghiệp — `ContractStartDate/EndDate` chỉ là metadata (hiển thị + để job đặt `Status`). Check trong handler/policy, không chỉ dựa role string.
+- **Onboarding công ty (BR-CMP-002):** DEO tạo tài khoản công ty → CM **đặt mật khẩu lần đầu qua email token, dùng chung cơ chế reset-password** (token ngẫu nhiên, lưu hash + hạn, single-use). Không có module "activation" riêng; không dùng contract key làm credential.
+- **Company team CRUD:** CompanyManager chịu trách nhiệm tạo/sửa/xóa team thuộc công ty mình. LEO chỉ dispatch task sang company, KHÔNG quản lý team công ty. InspectionTeam luôn thuộc phường/xã (LEO quản lý).
 - Authorization theo **policy**, không phải role string rải rác:
   ```csharp
-  options.AddPolicy(Policies.CanVerifyReport, p => p.RequireRole("Officer", "Admin"));
+  options.AddPolicy(Policies.CanVerifyReport, p => p.RequireRole("LEO", "Admin"));
+  // Cleanup dispatch tới đội công ty cần thêm contract-window check (BR-CMP-005) trong handler.
   ```
 - `ICurrentUser` (Application interface) bọc `IHttpContextAccessor` ở Infrastructure — **không** import `IHttpContextAccessor` trong Application.
 - BR-OFF-004 (segregation of duties) check ngay trong handler, không trong middleware.
@@ -286,6 +369,7 @@ public sealed class ReportsController : ControllerBase
 | `LeaderboardSnapshotJob` | daily/weekly/monthly | BR-GAM-005 |
 | `AuditLogRetentionJob` | weekly | BR-ADM-010, BR-DAT-002 |
 | `AccountHardDeleteJob` | daily | BR-AUTH-022 |
+| `CompanyContractExpiryJob` | daily | BR-CMP-007 — **chỉ** `Bidding` có `ContractEndDate`: cuối hợp đồng → `Status=Expired` (chặn đăng nhập tác nghiệp, giữ dữ liệu audit). `Subsidiary` vô thời hạn → bỏ qua. |
 
 ### 4.12. Repository & Unit of Work (Strict Pattern)
 
@@ -425,7 +509,7 @@ services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 ## 5. Business Rule Mapping
 
-> **Source of truth:** file `SU26SE049_BusinessRules_v1_0.docx`. Mỗi rule có ID `BR-<MODULE>-<NNN>`.
+> **Source of truth:** file `SU26SE049_BusinessRules_v1_2.docx` (v1.2, 07/06/2026). Mỗi rule có ID `BR-<MODULE>-<NNN>`.
 > **Quy tắc bắt buộc:** mọi handler/validator/job implement business rule **phải** chú thích bằng `///` XML comment kèm ID:
 
 ```csharp
@@ -447,8 +531,11 @@ public sealed class SubmitReportCommandHandler : IRequestHandler<SubmitReportCom
 | Auth & Account | `BR-AUTH-*` | `Application/Features/Auth/*`, `Infrastructure/Identity/*` |
 | Pollution Report | `BR-REP-*` | `Application/Features/Reports/*`, `Domain/Entities/Report.cs` |
 | Map & Location | `BR-MAP-*` | `Application/Features/Map/*`, `Infrastructure/Geo/*` |
-| Officer | `BR-OFF-*` | `Application/Features/Officer/*` |
-| Cleanup Team | `BR-CLN-*` | `Application/Features/Cleanup/*` |
+| Officer (DEO & LEO) | `BR-OFF-*` | `Application/Features/Officer/*` (xác minh, triage, điều phối — chủ yếu LEO) |
+| Org & Routing | `BR-ORG-*` | `Application/Features/Org/*`, `Domain/Entities/AdministrativeUnit.cs` |
+| **Company (ESC)** | `BR-CMP-*` | `Application/Features/Company/*`, `Domain/Entities/EnvironmentalServiceCompany.cs` (có `ContractType {Subsidiary, Bidding}`; `ContractEndDate` nullable — null = `Subsidiary` vô thời hạn), `Domain/Entities/CompanyStaff.cs`, bảng `CompanyServiceArea` (**N–N** company ↔ ward: công ty phục vụ những phường nào; **không** ràng buộc độc quyền theo tuyến/mét — BR-CMP-014) |
+| Cleanup Team | `BR-CLN-*` | `Application/Features/Cleanup/*` (đội công ty **và** đội cộng đồng) |
+| Inspection Team | `BR-INS-*` | `Application/Features/Inspection/*`, `Domain/Entities/InspectionReport.cs` |
 | Notifications | `BR-NTF-*` | `Application/Features/Notifications/*`, `Infrastructure/Notifications/*` |
 | Comments | `BR-CMT-*` | `Application/Features/Comments/*` |
 | Gamification | `BR-GAM-*` | `Application/Features/Gamification/*` |
@@ -459,14 +546,30 @@ public sealed class SubmitReportCommandHandler : IRequestHandler<SubmitReportCom
 
 ### State Machine bắt buộc (BR-REP-020, BR-REP-021)
 
+> **v1.3 — điều phối theo NHU CẦU + phân nhánh Community vs Company.** Khi xác minh, **LEO** quyết định: (a) cần dọn dẹp? → nhánh Community (assign trực tiếp) hoặc nhánh Company (dispatch sang công ty để CM phân công); (b) có chủ thể vi phạm? → LEO lập **InspectionReport** → Inspection Team (phường/xã) xử lý. Một báo cáo có thể sinh cả hai.
+
+**Nhánh dọn dẹp (umbrella):**
 ```
-                   ┌─► Rejected   (Officer, reason ≥ 20 chars)
-Submitted ─────────┼─► Verified ──► InProgress ──► Resolved ──┬─► Closed (Citizen confirm OR auto 7d)
-                   └─► Duplicate  (Officer/AI)                └─► InProgress (re-open, max 2 lần)
+                   ┌─► Rejected   (LEO, reason ≥ 20 chars)
+Submitted ─────────┼─► Verified ──┬─► InProgress ──► Resolved ──┬─► Closed (Citizen confirm OR auto 7d)
+                   └─► Duplicate  │  (LEO/AI)                   └─► InProgress (re-open, max 2 lần)
+                                  │
+                                  ├─► [Community] LEO assign trực tiếp → InProgress
+                                  │
+                                  └─► [Company] LEO dispatch-to-company → Verified (giữ nguyên)
+                                       └─► CM assign-company-team → InProgress
 ```
 
-- Implement trong `Domain/Entities/Report.cs` qua method `Verify(officer)`, `Reject(officer, reason)`, v.v. — **không** cho phép set `Status` qua public setter.
-- Mỗi transition raise một `DomainEvent` (`ReportVerifiedEvent`, …).
+> **Quan trọng:** Khi LEO dispatch sang company, report **giữ Verified** + set `AssignedCompanyId`. CM filter bằng `Status == Verified AND AssignedCompanyId == myCompanyId`. 1 report chỉ dispatch cho 1 company.
+
+**Nhánh xử phạt (InspectionReport liên kết — BR-INS-001, mọi loại ô nhiễm):**
+```
+Draft ──► PenaltyIssued ──► (Paid / PartiallyPaid / Overdue) ──► Closed
+```
+
+- Implement trong `Domain/Entities/Report.cs` (umbrella) và `Domain/Entities/InspectionReport.cs` (sub-process) qua method `Verify(leo)`, `Reject(leo, reason)`, `Assign(officerId)`, `DispatchToCompany(companyId)`, `AssignByCompanyManager(officerId)` v.v. — **không** cho phép set `Status` qua public setter.
+- Mỗi transition raise một `DomainEvent` (`ReportVerifiedEvent`, `InspectionReportRaisedEvent`, …).
+- **InspectionTeam** luôn cấp phường/xã (LEO quản lý), không thể thuộc company.
 
 ### Một số rule cần chú ý đặc biệt
 
@@ -482,6 +585,13 @@ Submitted ─────────┼─► Verified ──► InProgress ─
 | BR-REP-030 | Duplicate detection: PostGIS `ST_DWithin(geom, geom, 50)` AND same category AND within 24h. AI bổ sung pHash (BR-AI-002). |
 | BR-OFF-010 | `Priority = severity*3 + relatedCount*2 + ageInHours/24`. Tính trên DB view hoặc materialized view. |
 | BR-OFF-020 | SLA: Critical 3d / High 5d / Medium 7d / Low 10d kể từ `Verified`. Background job đánh dấu breach. |
+| BR-OFF-005 | Triage theo nhu cầu (v1.3): LEO chọn dọn-dẹp (community hoặc dispatch-to-company) và/hoặc xử-phạt (InspectionReport). |
+| BR-ORG-010/016 | **Định tuyến 2 bước:** (1) point-in-polygon → LEO phường tiếp nhận & xác minh; (2) LEO điều phối — app **gợi ý** đơn vị khả dụng trong phường (công ty / HTX / rác dân lập), LEO chọn. Báo cáo trên **tuyến cấp TP** (cờ do Admin/DEO cấu hình) → escalate **DEO** thay vì LEO. KHÔNG phân lớp mặt tiền/hẻm bằng GIS. |
+| BR-CLN-001 | **Community team** (LEO assign trực tiếp) HOẶC **company team** (LEO dispatch → CM assign). Company team CRUD do CM quản lý. Phân biệt qua `EnvironmentalTeam.CompanyId`. |
+| BR-INS-001 | InspectionTeam = đội xử phạt **phường/xã** (LEO quản lý, KHÔNG thuộc company). Xử phạt mọi loại ô nhiễm. |
+| BR-CMP-005/007 | Hiệu lực tác nghiệp chỉ dựa `Company.Status == Active` (KHÔNG dùng cửa sổ hợp đồng khóa routing). Job đặt `Status=Expired` khi `Bidding` hết `ContractEndDate` (metadata). |
+| BR-CMP-014 | **Company ↔ Ward là N–N** (1 công ty nhiều phường; 1 phường nhiều đơn vị — bình thường, không ràng buộc độc quyền theo tuyến/mét). HTX/Tổ tự quản/rác dân lập = `EnvironmentalTeam` với `CompanyId == null`, **ngang hàng** công ty trong danh sách đơn vị của phường. |
+| BR-CMP-002 | CM **đặt mật khẩu lần đầu qua email token, dùng chung cơ chế reset-password** (token ngẫu nhiên, lưu hash + hạn, single-use). Không có module activation riêng; không dùng contract key làm credential. |
 | BR-CLN-002 | Check-in distance ≤ 200m: PostGIS `ST_DWithin`. |
 | BR-CLN-004 | 2 ảnh "after" khác hash: tính perceptual hash (pHash), Hamming distance ≥ ngưỡng. |
 | BR-NTF-003 | Anti-spam digest: queue notification, gom cuối ngày nếu > 20/loại. |
@@ -1002,7 +1112,7 @@ services.AddSingleton<IAmazonS3>(sp =>
 **Khi nào trigger:** từ lần login sai thứ 3 (BR-AUTH-011). Cũng khuyến nghị bật cho:
 - Đăng ký tài khoản (BR-AUTH-001)
 - Quên mật khẩu (BR-AUTH-015)
-- Submit báo cáo ẩn danh (BR-AUTH-014) — tránh lạm dụng
+- Submit báo cáo (sau đăng nhập, BR-AUTH-017) — chống bot/spam ngay cả với tài khoản (BR-REP-010)
 
 **Setup:**
 1. Tạo Turnstile widget ở Cloudflare dashboard → lấy **site key** (public, FE) + **secret key** (private, BE).
@@ -1146,9 +1256,12 @@ Capstone scope **không** cần lên Pro plan — Free tier đủ cho 5,000 CCU 
 
 ---
 
-**Phiên bản CLAUDE.md:** 1.2
-**Đồng bộ với:** `SU26SE049_BusinessRules_v1_0.docx` v1.0 (17/04/2026).
+**Phiên bản CLAUDE.md:** 1.5
+**Đồng bộ với:** `SU26SE049_BusinessRules_v1_2.docx` v1.2 (07/06/2026).
 **Changelog:**
+- v1.5 (2026-06-11): **Tinh gọn cho phạm vi capstone.** Bỏ **Tiếng Ồn** → `PollutionType` còn **3 loại** (Rác thải, Nước thải, Hóa chất); mọi báo cáo đều có thể sinh task dọn, xử phạt (InspectionReport) là nhánh tùy chọn. Chuẩn hóa tên loại công ty thành `ContractType {Subsidiary, Bidding}` (bỏ alias StateAffiliated/PrivateContractor). **Đơn giản hóa định tuyến** (BR-ORG-016): còn 2 bước (LEO tiếp nhận → LEO điều phối, app gợi ý; tuyến cấp TP → escalate DEO); bỏ phân lớp GIS mặt tiền/hẻm, micro-zone, segment, precedence đa cấp. **BR-CMP-014**: N–N nhưng bỏ ràng buộc độc quyền theo (ward×scope×tuyến); HTX/rác dân lập là `EnvironmentalTeam.CompanyId==null` ngang hàng công ty. **Contract-window KHÔNG khóa routing** — chỉ giữ `Company.Status`. **Onboarding**: CM đặt mật khẩu lần đầu qua cơ chế reset-password (bỏ module activation token riêng). Cập nhật theo **chính quyền 2 cấp** (bỏ cấp Quận/Huyện): `ManagedBy` còn 2 mức City/Ward; không hardcode danh mục công ty/địa bàn. Toàn quốc ở mức tối giản (bật/tắt tầng cấp TP).
+- v1.4 (2026-06-09): **Sửa quan hệ Company ↔ Ward thành N–N** (trước đó mô hình sai "1 phường = 1 công ty"). Một phường có nhiều đơn vị song song (CityArterial/CITENCO + WardInternal/DVCI + đội hẻm dân lập + chuyên trách). `CompanyServiceArea` mang `ServiceScope {CityArterial, WardInternal}` + tuyến/micro-zone; **unique theo (WardId × ServiceScope × ZoneRef)** thay vì theo ward (BR-CMP-014 sửa lại). Thêm **định tuyến đa lớp** (BR-ORG-010/016): ward → cấp tuyến đường (trục huyết mạch → cấp TP, ngoài quyền LEO) → mặt tiền/hẻm → loại rác (y tế/nguy hại/xà bần tách luồng, BR-ORG-013). Thêm khái niệm Micro-zone. Ghi chú alias `Subsidiary`≡`StateAffiliated`, `Bidding`≡`PrivateContractor`.
+- v1.3 (2026-06-07): Đồng bộ với BR v1.2. Mở rộng phạm vi ra **toàn quốc VN** (HCMC 168 LEO sau sáp nhập). Tách `Officer` → `DEO`/`LEO`; thêm vai trò `CompanyManager`/`CompanyStaff` (Actors 6→8, +AI+Community=10). Thêm nhóm `BR-CMP-*` (Công ty Dịch vụ Môi trường) + `BR-ORG-*`, `BR-INS-*` vào `§5`. Điều phối theo **nhu cầu** thay vì theo loại ô nhiễm: LEO xác minh & lập InspectionReport liên kết cho mọi loại. Thêm `CompanyContractExpiryJob` (`§4.11`), contract-window authorization (`§4.8`), cập nhật state machine (`§5`). **Thời hạn HĐ theo loại công ty:** chỉ `PrivateContractor` có thời hạn & auto-expire; `StateAffiliated` vô thời hạn (`ContractEndDate` nullable). **Độc quyền địa bàn (BR-CMP-014):** 1 xã/phường ↔ 1 công ty (bảng `CompanyServiceArea` unique theo ward), đội cộng đồng HTX/Tổ tự quản vẫn là `CleanupTeam` riêng trong cùng ward. **Bỏ loại ô nhiễm Không khí** — danh mục `PollutionType` còn 4 loại chính thức (Rác thải, Nước thải, Hóa chất, Tiếng ồn); cập nhật seed/enum, validator BR-REP-005, bộ lọc map và phân loại AI tương ứng. **Bỏ truy cập ẩn danh:** khách chưa đăng nhập chỉ xem map + thông tin công khai (read-only); gửi báo cáo/bình luận/mọi tính năng ghi đều bắt buộc đăng nhập (`SubmitAsync` đổi `[AllowAnonymous]`→`[Authorize]`, BR-AUTH-017). "Ẩn danh" còn lại chỉ là tùy chọn ẩn tên hiển thị của tài khoản đã đăng nhập (BR-REP-012).
 - v1.2 (2026-05-09): Thêm `§4.12 Repository & Unit of Work` (hybrid pattern: aggregate-specific repo + UoW, KHÔNG generic repository thuần). Cập nhật `§3` folder structure: thêm `Common/Interfaces/Persistence/`, `UnitOfWork.cs`.
 - v1.1 (2026-05-09): Thêm `§13 Security` + `§14 Cloudflare Integration`. Đổi AWS S3 → Cloudflare R2.
 - v1.0: Phiên bản đầu.

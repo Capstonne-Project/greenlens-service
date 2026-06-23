@@ -5,17 +5,18 @@ namespace Greenlens.Domain.Entities;
 
 /// <summary>
 /// Aggregate root for pollution reports. Manages the full lifecycle from
-/// submission through verification, dispatch, team assignment, and closure.
+/// submission through verification, team assignment, and closure.
 /// </summary>
 /// <remarks>
 /// Implements: BR-REP-001 → BR-REP-033.
-/// Two-tier dispatch model (v2.0):
-///   DEO flow:     SUBMITTED → VERIFIED → DISPATCHED (DEO sends to ward/commune)
-///   LEO flow:     DISPATCHED → IN_PROGRESS (LEO assigns team) → RESOLVED → CLOSED
-///   Reject:       SUBMITTED → REJECTED
-///   Decline path: IN_PROGRESS → DISPATCHED (all teams decline — LEO re-assigns)
-///   Re-dispatch:  DISPATCHED → DISPATCHED (DEO re-routes to different ward)
-///   Reopen:       RESOLVED → IN_PROGRESS (max 2)
+/// LEO direct verification model (v3.0):
+///   Submit:   SUBMITTED (auto-routed to LocalOffice by GPS, fallback Department queue)
+///   LEO:      SUBMITTED → VERIFIED → IN_PROGRESS → RESOLVED → CLOSED
+///   Reject:   SUBMITTED → REJECTED (LEO, reason ≥ 20 chars)
+///   Duplicate: SUBMITTED/VERIFIED → DUPLICATE
+///   Reopen:   RESOLVED → IN_PROGRESS (max 2 times)
+///
+/// InspectionReport runs as a parallel sub-process (BR-INS-001).
 /// </remarks>
 public sealed class Report : SoftDeletableEntity
 {
@@ -40,21 +41,26 @@ public sealed class Report : SoftDeletableEntity
     public string? WardCode { get; private set; }
     public string? ProvinceCode { get; private set; }
 
-    // ── Status & Assignment ──
+    // ── Status ──
     public ReportStatus Status { get; private set; } = ReportStatus.Submitted;
-    /// <summary>LEO phụ trách khu vực — set lúc DEO dispatch xuống LocalOffice.</summary>
-    public Guid? AssignedOfficerId { get; private set; }
-    /// <summary>LEO đã bấm Assign team — set lúc LEO gọi /assign (BR-OFF-011).</summary>
-    public Guid? AssignedByOfficerId { get; private set; }
-    /// <summary>Office (xã/phường) được DEO dispatch xuống. Null cho đến khi dispatch.</summary>
+
+    // ── Auto-routing (set at submit time) ──
+    /// <summary>LocalOffice (xã/phường) auto-assigned by WardCode at submit. Null if ward not onboarded.</summary>
     public Guid? AssignedOfficeId { get; private set; }
-    /// <summary>Department (tỉnh) — set lúc submit theo ProvinceCode. All reports start here.</summary>
+    /// <summary>Department (tỉnh) auto-assigned by ProvinceCode at submit.</summary>
     public Guid? AssignedDepartmentId { get; private set; }
 
-    // ── Dispatch tracking ──
-    /// <summary>DEO đã dispatch task xuống xã/phường.</summary>
-    public Guid? DispatchedById { get; private set; }
-    public DateTime? DispatchedAt { get; private set; }
+    // ── LEO assignment (set when LEO assigns team) ──
+    /// <summary>LEO who verified this report.</summary>
+    public Guid? VerifiedBy { get; private set; }
+    /// <summary>LEO or CM who assigned team(s) to this report.</summary>
+    public Guid? AssignedByOfficerId { get; private set; }
+
+    // ── Company dispatch (set when LEO dispatches to company) ──
+    /// <summary>Company assigned by LEO for cleanup. Null = community team handles it.</summary>
+    public Guid? AssignedCompanyId { get; private set; }
+    /// <summary>When LEO dispatched the report to the company.</summary>
+    public DateTime? DispatchedToCompanyAt { get; private set; }
 
     // ── Duplicate tracking ──
     public Guid? ParentReportId { get; private set; }
@@ -73,7 +79,6 @@ public sealed class Report : SoftDeletableEntity
 
     // ── Lifecycle timestamps ──
     public DateTime? VerifiedAt { get; private set; }
-    public Guid? VerifiedBy { get; private set; }
     public string? RejectedReason { get; private set; }
     public DateTime? StartedAt { get; private set; }
     public DateTime? ResolvedAt { get; private set; }
@@ -89,9 +94,9 @@ public sealed class Report : SoftDeletableEntity
     public PollutionCategory Category { get; private set; } = default!;
     public Report? ParentReport { get; private set; }
     public User? VerifiedByUser { get; private set; }
-    public User? DispatchedByUser { get; private set; }
     public LocalOffice? AssignedOffice { get; private set; }
     public Department? AssignedDepartment { get; private set; }
+    public EnvironmentalServiceCompany? AssignedCompany { get; private set; }
 
     public ICollection<ReportMedia> Media { get; private set; } = [];
     public ICollection<ReportStatusHistory> StatusHistory { get; private set; } = [];
@@ -143,17 +148,35 @@ public sealed class Report : SoftDeletableEntity
     }
 
     // ────────────────────────────────────────────────────
+    // Auto-routing (called at submit time)
+    // ────────────────────────────────────────────────────
+
+    /// <summary>BR-ORG-011: Route report directly to LocalOffice by WardCode.</summary>
+    public void RouteToLocalOffice(Guid officeId, Guid departmentId)
+    {
+        AssignedOfficeId = officeId;
+        AssignedDepartmentId = departmentId;
+    }
+
+    /// <summary>Fallback: route to Department queue when ward has no onboarded LocalOffice.</summary>
+    public void RouteToDepartment(Guid departmentId)
+    {
+        AssignedDepartmentId = departmentId;
+        // AssignedOfficeId stays null — DEO will handle manually
+    }
+
+    // ────────────────────────────────────────────────────
     // State machine transitions
     // ────────────────────────────────────────────────────
 
-    /// <summary>DEO verifies the report. Submitted → Verified. BR-REP-020, 021.</summary>
-    public void Verify(Guid officerId, Severity? overrideSeverity = null, Guid? overrideCategoryId = null)
+    /// <summary>LEO verifies the report. Submitted → Verified. BR-REP-020, 021.</summary>
+    public void Verify(Guid leoId, Severity? overrideSeverity = null, Guid? overrideCategoryId = null)
     {
         EnsureStatus(ReportStatus.Submitted);
 
         Status = ReportStatus.Verified;
         VerifiedAt = DateTime.UtcNow;
-        VerifiedBy = officerId;
+        VerifiedBy = leoId;
 
         if (overrideSeverity.HasValue)
         {
@@ -167,34 +190,7 @@ public sealed class Report : SoftDeletableEntity
         SlaResolveDueAt = ComputeSlaResolveDue(Severity);
     }
 
-    /// <summary>DEO dispatches verified report to a ward/commune LocalOffice. Verified → Dispatched.</summary>
-    public void Dispatch(Guid deoId, Guid targetOfficeId, Guid? targetOfficerId = null)
-    {
-        EnsureStatus(ReportStatus.Verified);
-
-        Status = ReportStatus.Dispatched;
-        DispatchedById = deoId;
-        DispatchedAt = DateTime.UtcNow;
-        AssignedOfficeId = targetOfficeId;
-
-        if (targetOfficerId.HasValue)
-            AssignedOfficerId = targetOfficerId;
-    }
-
-    /// <summary>DEO re-dispatches to a different ward. Dispatched → Dispatched.</summary>
-    public void ReDispatch(Guid deoId, Guid newOfficeId, Guid? newOfficerId = null)
-    {
-        EnsureStatus(ReportStatus.Dispatched);
-
-        DispatchedById = deoId;
-        DispatchedAt = DateTime.UtcNow;
-        AssignedOfficeId = newOfficeId;
-        AssignedOfficerId = newOfficerId;
-        // Reset any prior assignments when re-dispatching
-        AssignedByOfficerId = null;
-    }
-
-    /// <summary>Officer rejects the report. BR-REP-022.</summary>
+    /// <summary>LEO rejects the report. Submitted → Rejected. BR-REP-022 (reason ≥ 20 chars).</summary>
     public void Reject(string reason)
     {
         EnsureStatus(ReportStatus.Submitted);
@@ -203,26 +199,42 @@ public sealed class Report : SoftDeletableEntity
         RejectedReason = reason;
     }
 
-    /// <summary>LEO assigns team(s). DISPATCHED → INPROGRESS. BR-OFF-011.</summary>
+    /// <summary>LEO assigns community team(s). Verified → InProgress. BR-OFF-011.</summary>
     public void Assign(Guid leoId)
     {
-        EnsureStatus(ReportStatus.Dispatched);
+        EnsureStatus(ReportStatus.Verified);
 
         Status = ReportStatus.InProgress;
         AssignedByOfficerId = leoId;
         // StartedAt is set when the first team accepts (not at assign time)
     }
 
-    /// <summary>All teams declined — revert to Dispatched so LEO can re-assign. BR-CLN-007.</summary>
-    public void RevertToDispatched()
+    /// <summary>
+    /// LEO dispatches report to a company for cleanup. Report stays Verified.
+    /// CompanyManager will assign specific company teams later.
+    /// </summary>
+    public void DispatchToCompany(Guid companyId, Guid leoId)
     {
-        if (Status != ReportStatus.InProgress)
-            throw new InvalidOperationException(
-                $"Cannot revert to Dispatched from status {Status}.");
+        EnsureStatus(ReportStatus.Verified);
 
-        Status = ReportStatus.Dispatched;
-        AssignedByOfficerId = null;
-        StartedAt = null;
+        AssignedCompanyId = companyId;
+        DispatchedToCompanyAt = DateTime.UtcNow;
+        // Status stays Verified — transitions to InProgress when CM assigns team
+    }
+
+    /// <summary>
+    /// CompanyManager assigns company team(s). Verified → InProgress.
+    /// Only valid when report was dispatched to a company (AssignedCompanyId set).
+    /// </summary>
+    public void AssignByCompanyManager(Guid companyManagerId)
+    {
+        EnsureStatus(ReportStatus.Verified);
+
+        if (!AssignedCompanyId.HasValue)
+            throw new InvalidOperationException("Report must be dispatched to a company before CM can assign teams.");
+
+        Status = ReportStatus.InProgress;
+        AssignedByOfficerId = companyManagerId;
     }
 
     /// <summary>Set StartedAt when first team accepts the assignment.</summary>
@@ -231,13 +243,7 @@ public sealed class Report : SoftDeletableEntity
         StartedAt ??= DateTime.UtcNow;
     }
 
-    /// <summary>BR-ORG-011: Route all reports to department queue on submit. DEO dispatches from here.</summary>
-    public void RouteToDepartmentQueue(Guid departmentId)
-    {
-        AssignedDepartmentId = departmentId;
-    }
-
-    /// <summary>Cleanup team resolves the report. BR-REP-014, 023.</summary>
+    /// <summary>Cleanup team resolves the report. InProgress → Resolved. BR-REP-014, 023.</summary>
     public void Resolve()
     {
         EnsureStatus(ReportStatus.InProgress);
@@ -246,36 +252,16 @@ public sealed class Report : SoftDeletableEntity
         ResolvedAt = DateTime.UtcNow;
     }
 
-    /// <summary>Auto-close or citizen confirms satisfaction. BR-REP-016.</summary>
+    /// <summary>Auto-close or citizen confirms satisfaction. Resolved → Closed. BR-REP-016.</summary>
     public void Close()
     {
-        if (Status is not (ReportStatus.Resolved or ReportStatus.PenaltyIssued))
-            throw new InvalidOperationException(
-                $"Cannot close from status {Status}. Must be Resolved or PenaltyIssued.");
+        EnsureStatus(ReportStatus.Resolved);
 
         Status = ReportStatus.Closed;
         ClosedAt = DateTime.UtcNow;
     }
 
-    /// <summary>Inspection Team issues penalty decision. IN_PROGRESS → PENALTY_ISSUED. BR-INS-012.</summary>
-    public void IssuePenalty()
-    {
-        EnsureStatus(ReportStatus.InProgress);
-
-        Status = ReportStatus.PenaltyIssued;
-        ResolvedAt = DateTime.UtcNow;
-    }
-
-    /// <summary>No violation found. IN_PROGRESS → CLOSED_NO_VIOLATION. BR-INS-013.</summary>
-    public void CloseNoViolation()
-    {
-        EnsureStatus(ReportStatus.InProgress);
-
-        Status = ReportStatus.ClosedNoViolation;
-        ClosedAt = DateTime.UtcNow;
-    }
-
-    /// <summary>Citizen not satisfied — reopen. Max 2 times. BR-REP-015.</summary>
+    /// <summary>Citizen not satisfied — reopen. Max 2 times. Resolved → InProgress. BR-REP-015.</summary>
     public bool TryReopen()
     {
         if (Status != ReportStatus.Resolved || ReopenedCount >= 2)
@@ -290,7 +276,7 @@ public sealed class Report : SoftDeletableEntity
     /// <summary>Mark as duplicate of another report. BR-REP-030.</summary>
     public void MarkDuplicate(Guid primaryReportId)
     {
-        if (Status is not (ReportStatus.Submitted or ReportStatus.Verified or ReportStatus.Assigned))
+        if (Status is not (ReportStatus.Submitted or ReportStatus.Verified))
             throw new InvalidOperationException($"Cannot mark as duplicate from status {Status}.");
 
         Status = ReportStatus.Duplicate;
