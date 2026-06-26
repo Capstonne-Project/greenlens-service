@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using Greenlens.Api.Middlewares;
 using Greenlens.Infrastructure;
 using Greenlens.Infrastructure.Seeders.Administrator;
+using Hangfire;
 using Microsoft.AspNetCore.HttpOverrides;
 using Serilog;
 
@@ -157,6 +158,13 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");
+
+// ── Hangfire Dashboard (admin only in production) ──
+app.UseHangfireDashboard("/hangfire", new Hangfire.DashboardOptions
+{
+    Authorization = [] // TODO: add admin-only auth filter for production
+});
+app.UseRecurringJobs();
 
 app.Run();
 

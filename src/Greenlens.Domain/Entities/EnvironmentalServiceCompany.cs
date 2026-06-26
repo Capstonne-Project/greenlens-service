@@ -121,6 +121,17 @@ public sealed class EnvironmentalServiceCompany : AuditableEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
+    /// <summary>BR-CMP-004: Chấm dứt hợp đồng sớm (DEO/Admin quyết định).</summary>
+    public void Terminate()
+    {
+        if (Status is CompanyStatus.Terminated or CompanyStatus.PendingActivation)
+            throw new InvalidOperationException(
+                $"Cannot terminate company from status {Status}.");
+
+        Status = CompanyStatus.Terminated;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
     /// <summary>BR-CMP-005: Hiệu lực tác nghiệp chỉ dựa Status (KHÔNG dùng cửa sổ hợp đồng khóa routing).</summary>
     public bool IsActive => Status == CompanyStatus.Active;
 
@@ -140,11 +151,14 @@ public sealed class EnvironmentalServiceCompany : AuditableEntity
     }
 }
 
-/// <summary>Status of an Environmental Service Company.</summary>
+/// <summary>Status of an Environmental Service Company (BR-CMP-004).</summary>
 public enum CompanyStatus
 {
     PendingActivation,
     Active,
     Suspended,
-    Expired
+    Expired,
+
+    /// <summary>Chấm dứt hợp đồng sớm (DEO/Admin quyết định). Khác Expired (hết hạn tự nhiên).</summary>
+    Terminated
 }

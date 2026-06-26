@@ -34,6 +34,12 @@ internal sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext
     public DbSet<CompanyStaff> CompanyStaff => Set<CompanyStaff>();
     public DbSet<CompanyServiceArea> CompanyServiceAreas => Set<CompanyServiceArea>();
 
+    // ── Gamification module (v1.2) ──
+    public DbSet<UserPoints> UserPoints => Set<UserPoints>();
+    public DbSet<PointTransaction> PointTransactions => Set<PointTransaction>();
+    public DbSet<Badge> Badges => Set<Badge>();
+    public DbSet<UserBadge> UserBadges => Set<UserBadge>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
