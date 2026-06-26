@@ -188,6 +188,9 @@ public sealed class Report : SoftDeletableEntity
             CategoryId = overrideCategoryId.Value;
 
         SlaResolveDueAt = ComputeSlaResolveDue(Severity);
+
+        if (ReporterId.HasValue)
+            AddDomainEvent(new ReportVerifiedEvent(Id, ReporterId.Value));
     }
 
     /// <summary>LEO rejects the report. Submitted → Rejected. BR-REP-022 (reason ≥ 20 chars).</summary>
@@ -197,6 +200,9 @@ public sealed class Report : SoftDeletableEntity
 
         Status = ReportStatus.Rejected;
         RejectedReason = reason;
+
+        if (ReporterId.HasValue)
+            AddDomainEvent(new ReportRejectedEvent(Id, ReporterId.Value));
     }
 
     /// <summary>LEO assigns community team(s). Verified → InProgress. BR-OFF-011.</summary>
@@ -250,6 +256,9 @@ public sealed class Report : SoftDeletableEntity
 
         Status = ReportStatus.Resolved;
         ResolvedAt = DateTime.UtcNow;
+
+        if (ReporterId.HasValue)
+            AddDomainEvent(new ReportResolvedEvent(Id, ReporterId.Value));
     }
 
     /// <summary>Auto-close or citizen confirms satisfaction. Resolved → Closed. BR-REP-016.</summary>
