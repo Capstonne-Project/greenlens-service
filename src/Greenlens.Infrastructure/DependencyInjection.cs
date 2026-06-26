@@ -11,9 +11,13 @@ using Greenlens.Infrastructure.Identity;
 using Greenlens.Infrastructure.Persistence;
 using Greenlens.Infrastructure.Persistence.Repositories;
 using Greenlens.Infrastructure.Persistence.Repositories.Location;
+using Greenlens.Infrastructure.BackgroundJobs;
+using Hangfire;
+using Hangfire.PostgreSql;
 
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -61,6 +65,11 @@ public static class DependencyInjection
 
         // ── Inspection module (v3.0) ──
         services.AddScoped<IInspectionReportRepository, InspectionReportRepository>();
+
+        // ── Gamification module (v1.2) ──
+        services.AddScoped<IUserPointsRepository, UserPointsRepository>();
+        services.AddScoped<IBadgeRepository, BadgeRepository>();
+        services.AddScoped<IUserBadgeRepository, UserBadgeRepository>();
 
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
@@ -209,6 +218,31 @@ public static class DependencyInjection
 
         services.AddAuthorization();
 
+        // ── Hangfire Background Jobs ───────────────
+        services.AddHangfire(config => config
+            .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+            .UseSimpleAssemblyNameTypeSerializer()
+            .UseRecommendedSerializerSettings()
+            .UsePostgreSqlStorage(opts =>
+                opts.UseNpgsqlConnection(
+                    configuration.GetConnectionString("DefaultConnection"))));
+
+        services.AddHangfireServer(options =>
+        {
+            options.WorkerCount = 2;
+            options.Queues = ["default", "gamification"];
+        });
+
         return services;
+    }
+
+    /// <summary>Register recurring Hangfire jobs. Call from Program.cs after app.Build().</summary>
+    public static void UseRecurringJobs(this IApplicationBuilder _)
+    {
+        // BR-GAM-005: Leaderboard snapshot daily at 00:05 UTC
+        RecurringJob.AddOrUpdate<LeaderboardSnapshotJob>(
+            "leaderboard-snapshot",
+            job => job.ExecuteAsync(),
+            "5 0 * * *"); // 00:05 UTC daily
     }
 }
