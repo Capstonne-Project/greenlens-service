@@ -22,6 +22,111 @@ namespace Greenlens.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Greenlens.Domain.Entities.Badge", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("IconUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("icon_url");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("NameEn")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name_en");
+
+                    b.Property<string>("NameVi")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name_vi");
+
+                    b.Property<int?>("RequiredPoints")
+                        .HasColumnType("integer")
+                        .HasColumnName("required_points");
+
+                    b.Property<int?>("RequiredReportCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("required_report_count");
+
+                    b.HasKey("Id")
+                        .HasName("pk_badges");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("ix_badges_code");
+
+                    b.ToTable("badges", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("a1000001-0000-0000-0000-000000000001"),
+                            Code = "first_report",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Gửi báo cáo ô nhiễm đầu tiên",
+                            IsActive = true,
+                            NameEn = "First Report",
+                            NameVi = "Người khởi đầu",
+                            RequiredReportCount = 1
+                        },
+                        new
+                        {
+                            Id = new Guid("a1000001-0000-0000-0000-000000000002"),
+                            Code = "eco_warrior",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Gửi 10 báo cáo ô nhiễm được xác minh",
+                            IsActive = true,
+                            NameEn = "Eco Warrior",
+                            NameVi = "Chiến binh Xanh",
+                            RequiredReportCount = 10
+                        },
+                        new
+                        {
+                            Id = new Guid("a1000001-0000-0000-0000-000000000003"),
+                            Code = "hotspot_hunter",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Gửi 3 báo cáo trong vùng hotspot",
+                            IsActive = true,
+                            NameEn = "Hotspot Hunter",
+                            NameVi = "Thợ săn điểm nóng"
+                        },
+                        new
+                        {
+                            Id = new Guid("a1000001-0000-0000-0000-000000000004"),
+                            Code = "streak_7d",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Gửi báo cáo 7 ngày liên tiếp",
+                            IsActive = true,
+                            NameEn = "7-Day Streak",
+                            NameVi = "7 ngày liên tiếp"
+                        });
+                });
+
             modelBuilder.Entity("Greenlens.Domain.Entities.CompanyServiceArea", b =>
                 {
                     b.Property<Guid>("Id")
@@ -724,6 +829,49 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasDatabaseName("ix_otp_codes_phone_number_purpose_expires_at");
 
                     b.ToTable("otp_codes", (string)null);
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.PointTransaction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("Points")
+                        .HasColumnType("integer")
+                        .HasColumnName("points");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("reason");
+
+                    b.Property<Guid?>("ReportId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("report_id");
+
+                    b.Property<Guid>("UserPointsId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_points_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_point_transactions");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_point_tx_created");
+
+                    b.HasIndex("UserPointsId", "ReportId", "Reason")
+                        .IsUnique()
+                        .HasDatabaseName("ix_point_tx_idempotent")
+                        .HasFilter("\"report_id\" IS NOT NULL");
+
+                    b.ToTable("point_transactions", (string)null);
                 });
 
             modelBuilder.Entity("Greenlens.Domain.Entities.PollutionCategory", b =>
@@ -1602,6 +1750,91 @@ namespace Greenlens.Infrastructure.Migrations
                     b.ToTable("users", (string)null);
                 });
 
+            modelBuilder.Entity("Greenlens.Domain.Entities.UserBadge", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("AwardedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("awarded_at");
+
+                    b.Property<Guid>("BadgeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("badge_id");
+
+                    b.Property<Guid?>("ReportId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("report_id");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_user_badges");
+
+                    b.HasIndex("BadgeId")
+                        .HasDatabaseName("ix_user_badges_badge_id");
+
+                    b.HasIndex("UserId", "BadgeId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_user_badge_unique");
+
+                    b.ToTable("user_badges", (string)null);
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.UserPoints", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("IsLocked")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_locked");
+
+                    b.Property<string>("LockedReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("locked_reason");
+
+                    b.Property<DateTime?>("LockedUntil")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("locked_until");
+
+                    b.Property<int>("TotalPoints")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("total_points");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_user_points");
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_user_points_user_id");
+
+                    b.HasIndex("IsLocked", "TotalPoints")
+                        .HasDatabaseName("ix_user_points_leaderboard");
+
+                    b.ToTable("user_points", (string)null);
+                });
+
             modelBuilder.Entity("Greenlens.Domain.Entities.WasteTag", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1990,6 +2223,18 @@ namespace Greenlens.Infrastructure.Migrations
                     b.Navigation("Province");
                 });
 
+            modelBuilder.Entity("Greenlens.Domain.Entities.PointTransaction", b =>
+                {
+                    b.HasOne("Greenlens.Domain.Entities.UserPoints", "UserPointsAggregate")
+                        .WithMany("Transactions")
+                        .HasForeignKey("UserPointsId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_point_transactions_user_points_user_points_id");
+
+                    b.Navigation("UserPointsAggregate");
+                });
+
             modelBuilder.Entity("Greenlens.Domain.Entities.Report", b =>
                 {
                     b.HasOne("Greenlens.Domain.Entities.EnvironmentalServiceCompany", "AssignedCompany")
@@ -2244,6 +2489,39 @@ namespace Greenlens.Infrastructure.Migrations
                     b.Navigation("LocalOffice");
                 });
 
+            modelBuilder.Entity("Greenlens.Domain.Entities.UserBadge", b =>
+                {
+                    b.HasOne("Greenlens.Domain.Entities.Badge", "Badge")
+                        .WithMany()
+                        .HasForeignKey("BadgeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_user_badges_badges_badge_id");
+
+                    b.HasOne("Greenlens.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_user_badges_users_user_id");
+
+                    b.Navigation("Badge");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.UserPoints", b =>
+                {
+                    b.HasOne("Greenlens.Domain.Entities.User", "User")
+                        .WithOne()
+                        .HasForeignKey("Greenlens.Domain.Entities.UserPoints", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_user_points_users_user_id");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Greenlens.Domain.Entities.Department", b =>
                 {
                     b.Navigation("LocalOffices");
@@ -2301,6 +2579,11 @@ namespace Greenlens.Infrastructure.Migrations
                     b.Navigation("StatusHistory");
 
                     b.Navigation("WasteTags");
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.UserPoints", b =>
+                {
+                    b.Navigation("Transactions");
                 });
 
             modelBuilder.Entity("Greenlens.Domain.Entities.WasteTag", b =>
