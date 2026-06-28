@@ -4,6 +4,7 @@ using Greenlens.Application.Features.Organization.AssignLeoToOffice;
 using Greenlens.Application.Features.Organization.CreateLocalOffice;
 using Greenlens.Application.Features.Organization.GetLocalOfficeById;
 using Greenlens.Application.Features.Organization.GetLocalOffices;
+using Greenlens.Application.Features.Organization.GetOfficeCompanies;
 using Greenlens.Application.Features.Organization.GetOfficeStaff;
 using Greenlens.Application.Features.Organization.LookupCitizenByEmail;
 using Greenlens.Application.Features.Organization.RecruitStaff;
@@ -152,6 +153,18 @@ public sealed class LocalOfficesController(ISender sender) : ControllerBase
         [FromQuery] bool? hasTeam = null,
         CancellationToken ct = default)
         => (await sender.Send(new GetOfficeStaffQuery(page, pageSize, search, role, hasTeam), ct)).ToHttp();
+
+    [HttpGet("{id:guid}/companies")]
+    [Authorize(Roles = "LEO,Admin,DEO")]
+    [Tags("📌 LEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO] Công ty phục vụ phường/xã",
+        Description = "Trả về danh sách công ty đang hoạt động (Active) có vùng phục vụ bao gồm phường/xã của văn phòng này. LEO dùng để xem công ty khả dụng và điều phối task.")]
+    [SwaggerResponse(200, "Danh sách công ty", typeof(ApiResponse<GetOfficeCompaniesResponse>))]
+    [SwaggerResponse(404, "Office không tồn tại", typeof(ApiResponse))]
+    public async Task<IActionResult> GetOfficeCompaniesAsync(
+        [FromRoute] Guid id, CancellationToken ct)
+        => (await sender.Send(new GetOfficeCompaniesQuery(id), ct)).ToHttp();
 }
 
 public sealed record UpdateLocalOfficeRequest(string Name);

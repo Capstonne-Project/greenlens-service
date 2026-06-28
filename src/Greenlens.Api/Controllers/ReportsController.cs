@@ -4,7 +4,6 @@ using Greenlens.Application.Features.Reports.AnalyzeReportImage;
 using Greenlens.Application.Features.Reports.AssignCompanyTeam;
 using Greenlens.Application.Features.Reports.AssignTeam;
 using Greenlens.Application.Features.Reports.DispatchToCompany;
-using Greenlens.Application.Features.Reports.GetDispatchableCompanies;
 using Greenlens.Application.Features.Reports.GetCompanyQueue;
 using Greenlens.Application.Features.Reports.GetCompanyAssignments;
 using Greenlens.Application.Features.Reports.GetCompanyReportDetail;
@@ -199,17 +198,6 @@ public sealed class ReportsController(ISender sender) : ControllerBase
     // ═══════════════════════════════════════════
     // ██  COMPANY DISPATCH (v1.3)
     // ═══════════════════════════════════════════
-
-    [HttpGet("{id:guid}/dispatchable-companies")]
-    [Authorize(Roles = "LEO,Admin")]
-    [Tags("📌 LEO Dashboard")]
-    [SwaggerOperation(
-        Summary = "[LEO] Lấy danh sách công ty khả dụng để điều phối",
-        Description = "Trả về các công ty đang hoạt động (Active) có vùng phục vụ bao gồm phường/xã của báo cáo. LEO dùng danh sách này để chọn công ty khi dispatch.")]
-    [SwaggerResponse(200, "Danh sách công ty khả dụng", typeof(ApiResponse<GetDispatchableCompaniesResponse>))]
-    public async Task<IActionResult> GetDispatchableCompaniesAsync(
-        [FromRoute] Guid id, CancellationToken ct)
-        => (await sender.Send(new GetDispatchableCompaniesQuery(id), ct)).ToHttp();
 
     [HttpPost("{id:guid}/dispatch-to-company")]
     [Authorize(Roles = "LEO,Admin")]
