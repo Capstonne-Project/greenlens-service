@@ -236,8 +236,23 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 
 ## B.9–B.14 Chưa implement hoàn toàn
 
-### ❌ Notifications (`BR-NTF-001..004`)
-Chưa có feature module. Infra chỉ có `SmtpEmailSender.cs`. Thiếu FCM push.
+### ✅ Notifications (`BR-NTF-001..004`) — ĐÃ IMPLEMENT
+
+- BR-NTF-001 (Kênh): ✅ Push (FCM) + Email. User cấu hình bật/tắt per-type via `PUT v1/notifications/preferences`
+- BR-NTF-002 (Events): ✅ ReportStatusChanged (Verified/Rejected/Resolved → notify reporter)
+- BR-NTF-003 (Anti-spam): ✅ Max 20/type/ngày. Digest cuối ngày chưa có (P2)
+- BR-NTF-004 (i18n): ⚠️ Hardcode vi-VN. Resource files cho en-US chưa có (P2)
+
+**Files mới:**
+- `Notification.cs`, `NotificationPreference.cs` — Domain entities
+- `NotificationType.cs`, `NotificationChannel.cs` — Enums
+- `INotificationService.cs`, `IPushNotificationSender.cs` — Application interfaces
+- `NotificationService.cs` — Orchestrate preference → anti-spam → persist → dispatch
+- `FcmPushNotificationSender.cs` — Firebase Cloud Messaging
+- `ReportStatusNotificationHandler.cs` — Domain event → notification (decoupled)
+- 5 feature slices: GetMyNotifications, MarkNotificationRead, MarkAllRead, GetNotificationPreferences, UpdateNotificationPreferences, UpdateDeviceToken
+- `NotificationsController.cs` — 6 API endpoints
+- Migration: `202606280900_AddNotificationsAndSlaBreachFields`
 
 ### ❌ Comments (`BR-CMT-001..004`)
 Chưa có feature module. Thiếu entity Comment.
@@ -287,19 +302,21 @@ Chưa có feature module. Thiếu entity Comment.
 
 | Job | BR | Mô tả |
 |---|---|---|
-| `AutoCloseResolvedReportJob` | BR-REP-016 | Resolved → Closed sau 7 ngày |
-| `SlaBreachVerificationJob` | BR-OFF-002 | Submitted > 24h → escalate DEO |
-| `SlaBreachResolutionJob` | BR-OFF-020 | In Progress > SLA → cảnh báo |
-| `OverdueReportNotificationJob` | BR-REP-008/009 | Pending > 72h, Verified > 24h |
-| `AiRetryJob` | BR-AI-006 | ai_pending retry trong 1h |
-| `DraftCleanupJob` | BR-REP-019 | Draft > 7 ngày → xóa |
-| `CompanyContractExpiryJob` | BR-CMP-007 | Bidding hết hạn → Expired |
-| `LeaderboardSnapshotJob` | BR-GAM-005 | Tuần/tháng/năm snapshot |
-| `AuditLogRetentionJob` | BR-ADM-010 | Xóa log > 12 tháng |
-| `AccountHardDeleteJob` | BR-AUTH-021 | Soft delete > 90d → hard delete |
+| `AutoCloseResolvedReportJob` | BR-REP-016 | ✅ Resolved → Closed sau 7 ngày (hourly, batch 100) |
+| `SlaBreachVerificationJob` | BR-OFF-002 | ✅ Submitted > 24h → flag breached (every 15') |
+| `SlaBreachResolutionJob` | BR-OFF-020 | ✅ InProgress > SLA → flag breached (every 30') |
+| `OverdueReportNotificationJob` | BR-REP-008/009 | ❌ Pending > 72h, Verified > 24h |
+| `AiRetryJob` | BR-AI-006 | ❌ ai_pending retry trong 1h |
+| `DraftCleanupJob` | BR-REP-019 | ❌ Draft > 7 ngày → xóa |
+| `CompanyContractExpiryJob` | BR-CMP-007 | ❌ Bidding hết hạn → Expired |
+| `LeaderboardSnapshotJob` | BR-GAM-005 | ✅ Daily snapshot 00:05 UTC |
+| `AuditLogRetentionJob` | BR-ADM-010 | ❌ Xóa log > 12 tháng |
+| `AccountHardDeleteJob` | BR-AUTH-021 | ❌ Soft delete > 90d → hard delete |
 
-> [!WARNING]
-> Hangfire được nêu trong tech stack nhưng **chưa có DI registration hay job class nào** trong codebase.
+> [!NOTE]
+> Hangfire đã setup đầy đủ: DI, PostgreSql storage, Dashboard `/hangfire`.
+> `TransactionBehavior` (MediatR pipeline) đã thêm — wrap mọi Command trong DB transaction.
+> `LeaderboardSnapshotJob` + `AutoCloseResolvedReportJob` + `SlaBreachVerificationJob` + `SlaBreachResolutionJob` đã đăng ký.
 
 ---
 
@@ -307,31 +324,32 @@ Chưa có feature module. Thiếu entity Comment.
 
 | Entity | Có | Thiếu |
 |---|---|---|
-| `CompanyStatus` enum | ✅ 4 values | ❌ Thiếu `Terminated` (BR-CMP-004 yêu cầu 5) |
+| `CompanyStatus` enum | ✅ 5 values (incl. Terminated) | — |
 | `PollutionCategory` | ✅ Configurable | ⚠️ Seed data cần đúng 3 loại (v1.2 bỏ Không khí, Tiếng ồn) |
 | `Invitation` entity | ❌ | BR-ORG-021: token, expiry 7d, single-use |
 | `Comment` entity | ❌ | BR-CMT-001..004 |
-| `Badge`, `UserPoints` | ❌ | BR-GAM-001..006 |
+| `Badge`, `UserPoints` | ✅ ĐÃ IMPLEMENT | BR-GAM-001..006 |
+| `Notification`, `NotificationPreference` | ✅ ĐÃ IMPLEMENT | BR-NTF-001..004 |
 | `ReportDraft` | ✅ | Thiếu max 3 check + cleanup job |
 
 ---
 
 # Phần C — Đề xuất thứ tự ưu tiên
 
-## P0 — Blocking (phải làm trước, nhiều BR phụ thuộc)
+## P0 — Blocking ✅ HOÀN THÀNH
 
-| # | Task | BRs |
-|---|---|---|
-| 1 | **Hangfire setup** + `AutoCloseResolvedReportJob` | BR-REP-016 |
-| 2 | **`CompanyStatus.Terminated`** thêm vào enum + entity transition | BR-CMP-004 |
-| 3 | **`TransactionBehavior`** (MediatR pipeline) | Mọi Command |
-| 4 | **SLA jobs** (Verification 24h + Resolution theo severity) | BR-OFF-002, BR-OFF-020 |
+| # | Task | BRs | Status |
+|---|---|---|:---:|
+| 1 | **Hangfire setup** + `AutoCloseResolvedReportJob` | BR-REP-016 | ✅ |
+| 2 | **`CompanyStatus.Terminated`** thêm vào enum + entity transition | BR-CMP-004 | ✅ |
+| 3 | **`TransactionBehavior`** (MediatR pipeline) | Mọi Command | ✅ |
+| 4 | **SLA jobs** (Verification 24h + Resolution theo severity) | BR-OFF-002, BR-OFF-020 | ✅ |
 
 ## P1 — Core Business Value
 
-| # | Task | BRs |
-|---|---|---|
-| 5 | **Notifications** (FCM + Email templates + preferences) | BR-NTF-001..004 |
+| # | Task | BRs | Status |
+|---|---|---|:---:|
+| 5 | **Notifications** (FCM + Email templates + preferences) | BR-NTF-001..004 | ✅ |
 | 6 | **Comments** (entity + CRUD + moderation) | BR-CMT-001..004 |
 | 7 | **Brute-force protection** (sliding window + Turnstile) | BR-AUTH-014 |
 | 8 | **Rate limiting** (Redis + ASP.NET middleware) | BR-SYS-004, BR-REP-010 |

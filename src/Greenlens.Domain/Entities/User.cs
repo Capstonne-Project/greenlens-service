@@ -31,6 +31,12 @@ public sealed class User : SoftDeletableEntity
     public DateTime? LockoutEnd { get; private set; }
     public string? GoogleId { get; private set; }
 
+    // ── Notifications (BR-NTF-001) ──
+    /// <summary>Firebase Cloud Messaging device token for push notifications.</summary>
+    public string? FcmDeviceToken { get; private set; }
+    /// <summary>Preferred language for notifications (BR-NTF-004). Default: vi-VN.</summary>
+    public string Language { get; private set; } = "vi-VN";
+
     // ── Organization assignment (v1.1) ──
     public Guid? DepartmentId { get; private set; }
     public Guid? LocalOfficeId { get; private set; }
@@ -199,5 +205,19 @@ public sealed class User : SoftDeletableEntity
     public void ChangeRole(UserRole newRole)
     {
         Role = newRole;
+    }
+
+    /// <summary>BR-NTF-001: Update FCM device token for push notifications.</summary>
+    public void UpdateFcmToken(string? token)
+    {
+        FcmDeviceToken = token;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>BR-NTF-004: Update preferred language for notifications.</summary>
+    public void UpdateLanguage(string language)
+    {
+        Language = language;
+        UpdatedAt = DateTime.UtcNow;
     }
 }

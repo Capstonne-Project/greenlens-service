@@ -88,6 +88,8 @@ public sealed class Report : SoftDeletableEntity
     // ── SLA ──
     public DateTime? SlaVerifyDueAt { get; private set; }
     public DateTime? SlaResolveDueAt { get; private set; }
+    public bool SlaVerifyBreached { get; private set; }
+    public bool SlaResolveBreached { get; private set; }
 
     // ── Navigation properties ──
     public User? Reporter { get; private set; }
@@ -314,6 +316,12 @@ public sealed class Report : SoftDeletableEntity
     }
 
     public void UpdatePriorityScore(decimal score) => PriorityScore = score;
+
+    /// <summary>BR-OFF-002: Flag SLA verification breach (Submitted > 24h).</summary>
+    public void MarkSlaVerifyBreached() => SlaVerifyBreached = true;
+
+    /// <summary>BR-OFF-020: Flag SLA resolution breach (InProgress > severity deadline).</summary>
+    public void MarkSlaResolveBreached() => SlaResolveBreached = true;
 
     /// <summary>AI service sets suggested waste tag codes after image analysis.</summary>
     public void SetAiSuggestedWasteTagCodes(string? codes) => AiSuggestedWasteTagCodes = codes;
