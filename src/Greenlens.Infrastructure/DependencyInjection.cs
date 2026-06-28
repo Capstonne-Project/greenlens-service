@@ -12,6 +12,7 @@ using Greenlens.Infrastructure.Persistence;
 using Greenlens.Infrastructure.Persistence.Repositories;
 using Greenlens.Infrastructure.Persistence.Repositories.Location;
 using Greenlens.Infrastructure.BackgroundJobs;
+using Greenlens.Infrastructure.Notifications;
 using Hangfire;
 using Hangfire.PostgreSql;
 
@@ -71,7 +72,12 @@ public static class DependencyInjection
         services.AddScoped<IBadgeRepository, BadgeRepository>();
         services.AddScoped<IUserBadgeRepository, UserBadgeRepository>();
 
+        // ── Notification module (BR-NTF-001..004) ──
+        services.AddScoped<INotificationRepository, NotificationRepository>();
+        services.AddScoped<INotificationPreferenceRepository, NotificationPreferenceRepository>();
+
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddScoped<ITransactionManager, TransactionManager>();
 
         // ── Identity & Auth ──────────────────────────────
         services.AddScoped<ICurrentUser, CurrentUser>();
@@ -80,8 +86,12 @@ public static class DependencyInjection
         services.AddScoped<IPasswordHasher, BcryptPasswordHasher>();
         services.AddScoped<IGoogleAuthService, GoogleAuthService>();
 
-        // ── Email ────────────────────────────────────────
+        // ── Email ────────────────────────────────────────────
         services.AddScoped<IEmailSender, SmtpEmailSender>();
+
+        // ── Notifications (BR-NTF-001..004) ───────────────
+        services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<IPushNotificationSender, FcmPushNotificationSender>();
 
         // ── Firebase Phone Auth ──────────────────────────
         services.AddScoped<IFirebasePhoneAuthService, FirebasePhoneAuthService>();
@@ -110,6 +120,7 @@ public static class DependencyInjection
             cfg.RegisterServicesFromAssembly(
                 typeof(Application.Common.Errors).Assembly);
             cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+            cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(TransactionBehavior<,>));
             cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
         });
 
@@ -244,5 +255,23 @@ public static class DependencyInjection
             "leaderboard-snapshot",
             job => job.ExecuteAsync(),
             "5 0 * * *"); // 00:05 UTC daily
+
+        // BR-REP-016: Auto-close reports Resolved > 7 days
+        RecurringJob.AddOrUpdate<AutoCloseResolvedReportJob>(
+            "auto-close-resolved-reports",
+            job => job.ExecuteAsync(),
+            "0 * * * *"); // every hour
+
+        // BR-OFF-002: Flag SLA verification breach (Submitted > 24h)
+        RecurringJob.AddOrUpdate<SlaBreachVerificationJob>(
+            "sla-breach-verification",
+            job => job.ExecuteAsync(),
+            "*/15 * * * *"); // every 15 minutes
+
+        // BR-OFF-020: Flag SLA resolution breach (InProgress > severity deadline)
+        RecurringJob.AddOrUpdate<SlaBreachResolutionJob>(
+            "sla-breach-resolution",
+            job => job.ExecuteAsync(),
+            "*/30 * * * *"); // every 30 minutes
     }
 }
