@@ -5,6 +5,7 @@ using Greenlens.Application.Features.Organization.CreateCompanyManager;
 using Greenlens.Application.Features.Organization.CreateCompanyStaff;
 using Greenlens.Application.Features.Organization.ResetCompanyManagerPassword;
 using Greenlens.Application.Features.Organization.GetCompanies;
+using Greenlens.Application.Features.Organization.GetOfficeCompanies;
 using Greenlens.Application.Features.Organization.GetCompanyById;
 using Greenlens.Application.Features.Organization.GetCompanyServiceAreas;
 using Greenlens.Application.Features.Organization.GetCompanyStaff;
@@ -78,6 +79,16 @@ public sealed class CompaniesController(ISender sender) : ControllerBase
     public async Task<IActionResult> ResetManagerPasswordAsync(
         [FromRoute] Guid id, [FromRoute] Guid userId, CancellationToken ct)
         => (await sender.Send(new ResetCompanyManagerPasswordCommand(id, userId), ct)).ToHttp();
+
+    [HttpGet("my-ward")]
+    [Authorize(Roles = "LEO")]
+    [Tags("📌 LEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO] Công ty phục vụ phường/xã của tôi",
+        Description = "Trả về danh sách công ty đang hoạt động (Active) có vùng phục vụ bao gồm phường/xã mà LEO đang quản lý. Tự động xác định office từ tài khoản LEO đang đăng nhập.")]
+    [SwaggerResponse(200, "Danh sách công ty", typeof(ApiResponse<GetOfficeCompaniesResponse>))]
+    public async Task<IActionResult> GetMyWardCompaniesAsync(CancellationToken ct)
+        => (await sender.Send(new GetOfficeCompaniesQuery(), ct)).ToHttp();
 
     [HttpGet]
     [Authorize(Roles = "DEO,Admin")]

@@ -1,4 +1,5 @@
 using Greenlens.Application.Common;
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
@@ -8,11 +9,13 @@ using Microsoft.EntityFrameworkCore;
 namespace Greenlens.Application.Features.Organization.GetOfficeCompanies;
 
 /// <summary>
-/// Returns active companies whose service area includes the office's ward.
-/// Used by LEO dashboard to see which companies operate in their ward.
+/// Resolves LEO's local office by ICurrentUser, then returns active companies
+/// whose service area matches the office's ward.
+/// Used on LEO dashboard to see which companies operate in their ward.
 /// </summary>
 /// <remarks>Implements: BR-CMP-005 (active check), BR-CMP-008 (service area match).</remarks>
 public sealed class GetOfficeCompaniesQueryHandler(
+    ICurrentUser currentUser,
     ILocalOfficeRepository offices,
     IEnvironmentalServiceCompanyRepository companies)
     : IRequestHandler<GetOfficeCompaniesQuery, Result<GetOfficeCompaniesResponse>>
@@ -20,8 +23,11 @@ public sealed class GetOfficeCompaniesQueryHandler(
     public async Task<Result<GetOfficeCompaniesResponse>> Handle(
         GetOfficeCompaniesQuery request, CancellationToken ct)
     {
-        // 1. Load office to get WardCode
-        var office = await offices.GetByIdAsync(request.OfficeId, ct).ConfigureAwait(false);
+        // 1. Find LEO's assigned office
+        var office = await offices.QueryAsNoTracking()
+            .FirstOrDefaultAsync(o => o.OfficerId == currentUser.UserId, ct)
+            .ConfigureAwait(false);
+
         if (office is null)
             return Errors.Organization.OfficeNotFound;
 
