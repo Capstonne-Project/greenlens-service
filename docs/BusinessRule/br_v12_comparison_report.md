@@ -78,19 +78,19 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 | BR-AUTH-006 | Confirm password                           |   ✅   | `Register/` validator                                                    |
 | BR-AUTH-007 | OTP 10 phút                                |   ✅   | `RequestOtp/`, `VerifyOtp/`                                              |
 | BR-AUTH-008 | Default role Citizen                       |   ✅   | `Register/` handler                                                      |
-| BR-AUTH-009 | Phân cấp quyền tạo role (Admin/DEO/LEO/CM) |   ⚠️   | `UpdateUserRole/` có, nhưng phân cấp DEO→CM chưa rõ                      |
+| BR-AUTH-009 | Phân cấp quyền tạo role (Admin/DEO/LEO/CM) |   ✅   | `UpdateUserRole/` handler — Admin only, DEO/LEO/CM dùng flow riêng       |
 | BR-AUTH-010 | Required fields                            |   ✅   | `Register/` validator                                                    |
-| BR-AUTH-011 | Tên 2-50 ký tự tiếng Việt                  |   ⚠️   | Cần verify regex                                                         |
-| BR-AUTH-012 | Accept Terms                               |   ❌   | Chưa thấy consent field                                                  |
+| BR-AUTH-011 | Tên 2-50 ký tự tiếng Việt                  |   ✅   | `Register/` validator — regex `[\p{L}\s]` 2-50 chars                     |
+| BR-AUTH-012 | Accept Terms                               |   ✅   | `RegisterCommand.AcceptTerms` + validator `.Equal(true)`                 |
 | BR-AUTH-013 | Login email/SĐT                            |   ✅   | `Login/` feature                                                         |
 | BR-AUTH-014 | Brute-force lock 30' + CAPTCHA lần 3       |   ❌   | Chưa có sliding window + Turnstile                                       |
-| BR-AUTH-015 | Block Inactive/Banned + Expired company    |   ⚠️   | Login handler cần verify company status check                            |
+| BR-AUTH-015 | Block Inactive/Banned + Expired company    |   ✅   | Login check `IsBanned`, `IsDeleted`, company `Expired` + `ToggleBanUser` |
 | BR-AUTH-016 | JWT 24h + Refresh 30d                      |   ✅   | `RefreshToken/`, `JwtService.cs`                                         |
 | BR-AUTH-017 | Guest read-only (bỏ anonymous submit)      |   ✅   | `[Authorize]` trên submit endpoints                                      |
 | BR-AUTH-018 | Forgot/Reset password                      |   ✅   | `ForgotPassword/`, `ResetPassword/`                                      |
 | BR-AUTH-019 | Update profile                             |   ✅   | `Users/UpdateUserProfile/`                                               |
-| BR-AUTH-020 | Change password (không trùng 3 MK cũ)      |   ⚠️   | `ChangePassword/` có, chưa rõ history check                              |
-| BR-AUTH-021 | Xóa tài khoản soft delete 90d              |   ⚠️   | `DeleteUser/` + `SoftDeletableEntity` có, chưa có `AccountHardDeleteJob` |
+| BR-AUTH-020 | Change password (không trùng 3 MK cũ)      |   ✅   | `ChangePassword/` + `PasswordHistory` entity, check last 3 hashes        |
+| BR-AUTH-021 | Xóa tài khoản soft delete 90d              |   ✅   | `RequestAccountDeletion/`, `RestoreAccount/`, `AccountHardDeleteJob`     |
 
 ---
 

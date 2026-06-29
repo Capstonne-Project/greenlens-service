@@ -18,8 +18,14 @@ public sealed class RegisterCommandValidator : AbstractValidator<RegisterCommand
             .Matches(@"\d").WithMessage("Password must contain at least one digit.")
             .Matches(@"[\W_]").WithMessage("Password must contain at least one special character.");
 
+        /// BR-AUTH-011: Họ tên 2–50 ký tự, chỉ chữ cái (kể cả dấu tiếng Việt) và khoảng trắng.
         RuleFor(x => x.FullName)
-            .NotEmpty().WithMessage("Full name is required.")
-            .MaximumLength(200).WithMessage("Full name must not exceed 200 characters.");
+            .NotEmpty().WithMessage("Họ tên là bắt buộc.")
+            .Length(2, 50).WithMessage("Họ tên từ 2-50 ký tự.")
+            .Matches(@"^[\p{L}\s]+$").WithMessage("Họ tên không hợp lệ (không chứa ký tự đặc biệt).");
+
+        /// BR-AUTH-012: Phải đồng ý điều khoản sử dụng trước khi đăng ký.
+        RuleFor(x => x.AcceptTerms)
+            .Equal(true).WithMessage("Bạn phải đồng ý với điều khoản để đăng ký.");
     }
 }

@@ -70,5 +70,35 @@ public static partial class Errors
             "INCORRECT_CURRENT_PASSWORD",
             "Mật khẩu hiện tại không đúng.",
             ErrorType.Validation);
+
+        /// <summary>BR-AUTH-015: User bị ban bởi Admin.</summary>
+        public static Error AccountBanned => new(
+            "ACCOUNT_BANNED",
+            "Tài khoản của bạn đã bị cấm. Liên hệ Admin.",
+            ErrorType.Forbidden);
+
+        /// <summary>BR-AUTH-015: User đã soft-deleted.</summary>
+        public static Error AccountDeactivated => new(
+            "ACCOUNT_DEACTIVATED",
+            "Tài khoản của bạn đã bị vô hiệu hóa.",
+            ErrorType.Forbidden);
+
+        /// <summary>BR-AUTH-015: Company hết hạn hợp đồng.</summary>
+        public static Error CompanyExpired => new(
+            "COMPANY_EXPIRED",
+            "Công ty của bạn đã hết hạn hợp đồng. Liên hệ DEO.",
+            ErrorType.Forbidden);
+
+        /// <summary>BR-AUTH-020: Mật khẩu mới trùng 3 MK gần nhất.</summary>
+        public static Error PasswordRecentlyUsed => new(
+            "PASSWORD_RECENTLY_USED",
+            "Mật khẩu mới không được trùng với 3 mật khẩu đã sử dụng gần nhất.",
+            ErrorType.Validation);
+
+        /// <summary>BR-AUTH-009: Không được phép gán role này.</summary>
+        public static Error RoleAssignmentNotAllowed => new(
+            "ROLE_ASSIGNMENT_NOT_ALLOWED",
+            "Bạn không có quyền gán vai trò này.",
+            ErrorType.Forbidden);
     }
 }
