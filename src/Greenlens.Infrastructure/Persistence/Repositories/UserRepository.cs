@@ -20,4 +20,10 @@ internal sealed class UserRepository(ApplicationDbContext context)
         predicate is null
             ? await DbSet.CountAsync(ct).ConfigureAwait(false)
             : await DbSet.CountAsync(predicate, ct).ConfigureAwait(false);
+
+    /// <summary>BR-AUTH-021: Find soft-deleted user by email (bypasses global query filter).</summary>
+    public async Task<User?> GetDeletedByEmailAsync(string email, CancellationToken ct = default) =>
+        await DbSet.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(u => u.Email == email.ToLowerInvariant() && u.DeletedAt != null, ct)
+            .ConfigureAwait(false);
 }

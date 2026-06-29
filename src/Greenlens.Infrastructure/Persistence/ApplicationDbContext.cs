@@ -48,6 +48,9 @@ internal sealed class ApplicationDbContext(
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();
 
+    // ── Password History (BR-AUTH-020) ──
+    public DbSet<PasswordHistory> PasswordHistories => Set<PasswordHistory>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
