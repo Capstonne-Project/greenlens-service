@@ -19,6 +19,8 @@ public sealed class ReportMedia : BaseEntity
     public long SizeBytes { get; private set; }
     public int? Width { get; private set; }
     public int? Height { get; private set; }
+    /// <summary>Video duration in seconds. Null for images.</summary>
+    public int? DurationSeconds { get; private set; }
     public string? PHash { get; private set; }
     public string? ExifData { get; private set; }
     public Guid? UploadedBy { get; private set; }
@@ -38,6 +40,7 @@ public sealed class ReportMedia : BaseEntity
         string? thumbnailUrl = null,
         int? width = null,
         int? height = null,
+        int? durationSeconds = null,
         string? pHash = null,
         string? exifData = null)
     {
@@ -51,6 +54,7 @@ public sealed class ReportMedia : BaseEntity
             SizeBytes = sizeBytes,
             Width = width,
             Height = height,
+            DurationSeconds = durationSeconds,
             PHash = pHash,
             ExifData = exifData,
             UploadedBy = uploadedBy,

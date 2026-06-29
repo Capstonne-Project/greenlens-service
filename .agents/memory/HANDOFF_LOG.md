@@ -6,3 +6,4 @@
 - 2026-06-14 — Loại bỏ NotificationEmail/SendAccountCredentials feature (không gửi email TK/MK), cleanup code + validators + handlers
 - 2026-06-14 — Company Management Phase 2: Remove MailKit, CM team CRUD (update/delete), add/remove company team member, toggle staff IsActive, GET /v1/companies/my, 3 error codes mới — 12 files mới + 4 files sửa, build 0 errors
 - 2026-06-28 08:41 — Session v8: Tổng hợp tiến độ Gamification module (BR-GAM-001..006) hoàn thành, DomainEvent infra, Hangfire setup. 23 files mới, 77/77 tests pass.
+- 2026-06-29 14:30 — Session v9: P0 Blocking (TransactionBehavior + 3 SLA jobs) + Notification module (6 endpoints) + LEO company dispatch API (GET /v1/companies/my-ward). All merged to develop.

@@ -99,6 +99,9 @@ public static class DependencyInjection
         // ── File Storage (R2 Cloudflare) ────────────────
         services.AddSingleton<IFileStorageService, Storage.R2FileStorageService>();
 
+        // ── Video Transcoding (FFmpeg) — BR-REP-002 ──
+        services.AddScoped<IVideoTranscoder, Video.FFmpegVideoTranscoder>();
+
         // ── AI Classification ─────────────────────────
         services.AddOptions<AiOptions>()
             .Bind(configuration.GetSection("Ai"))

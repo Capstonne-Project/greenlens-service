@@ -20,7 +20,8 @@ public sealed class UploadReportImageCommandHandler(
         "image/jpeg",
         "image/png",
         "image/webp",
-        "image/heic"
+        "image/heic",
+        "image/jpg"
     };
 
     public async Task<Result<UploadReportImageResponse>> Handle(
