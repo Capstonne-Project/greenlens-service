@@ -51,6 +51,9 @@ internal sealed class ApplicationDbContext(
     // ── Password History (BR-AUTH-020) ──
     public DbSet<PasswordHistory> PasswordHistories => Set<PasswordHistory>();
 
+    // ── Staff Invitation (BR-ORG-021) ──
+    public DbSet<StaffInvitation> StaffInvitations => Set<StaffInvitation>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);

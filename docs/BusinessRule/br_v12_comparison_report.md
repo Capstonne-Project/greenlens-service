@@ -107,11 +107,11 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 | BR-ORG-011 | Department Common Queue                                     |   ✅   | `SubmitPollutionReport/` handler: ward chưa onboard → `RouteToDepartment(dept.Id)`                       |
 | BR-ORG-012 | Conflict of interest (LEO ≠ reporter + ward scope)          |   ✅   | `VerifyReport/`: `ConflictOfInterest` (self) + `OutsideJurisdiction` (ngoài phường)                      |
 | BR-ORG-013 | Quyết định xử lý khi xác minh (dọn dẹp + xử phạt song song) |   ✅   | `VerifyReport/` → verify, `AssignTeam/` → cleanup, `CreateInspectionReport/` → xử phạt (2 nhánh độc lập) |
-| BR-ORG-014 | SLA tiếp nhận 24h → escalate DEO                            |   ❌   | Chưa có job                                                                                              |
-| BR-ORG-015 | Re-assign khi LEO reject                                    |   ⚠️   | Có `RejectReport/` nhưng chưa đẩy về queue                                                               |
-| BR-ORG-016 | Escalation tuyến cấp TP (cờ)                                |   ❌   | Chưa có cờ "tuyến cấp TP"                                                                                |
-| BR-ORG-020 | Mời thành viên đội (LEO mời qua email)                      |   ✅   | `RecruitStaff/`, `LookupCitizenByEmail/`                                                                 |
-| BR-ORG-021 | Hiệu lực lời mời 7 ngày                                     |   ❌   | Chưa có invitation entity/expiry                                                                         |
+| BR-ORG-014 | SLA tiếp nhận 24h → escalate DEO                            |   ✅   | `SlaBreachVerificationJob`: flag `SlaVerifyBreached` + `EscalateToDepartment()` (clear AssignedOfficeId → DEO queue) |
+| BR-ORG-015 | Re-assign khi LEO reject                                    |   ✅   | `RejectReport/`: reason ≥ 20 chars, status stays Submitted, AssignedOfficeId cleared → Department queue  |
+| BR-ORG-016 | Escalation tuyến cấp TP                                     |   ✅   | `EscalateReport/`: LEO manually escalate Verified/InProgress → DEO queue (clear AssignedOfficeId). Endpoint `POST reports/{id}/escalate` |
+| BR-ORG-020 | Mời thành viên đội (LEO mời qua email)                      |   ✅   | `RecruitStaff/` (invitation flow), `LookupCitizenByEmail/`, `AcceptInvitation/`, `DeclineInvitation/`    |
+| BR-ORG-021 | Hiệu lực lời mời 7 ngày                                     |   ✅   | `StaffInvitation` entity (7d expiry, single-use), `GetMyInvitations/`, `ReleaseStaff/`                   |
 
 ---
 

@@ -79,6 +79,9 @@ public static class DependencyInjection
         // ── Password History (BR-AUTH-020) ──
         services.AddScoped<IPasswordHistoryRepository, PasswordHistoryRepository>();
 
+        // ── Staff Invitation (BR-ORG-021) ──
+        services.AddScoped<IStaffInvitationRepository, StaffInvitationRepository>();
+
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<ITransactionManager, TransactionManager>();
 
