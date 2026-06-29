@@ -94,7 +94,7 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 
 ---
 
-## B.2 Organization & Routing (`BR-ORG-001..021`) — ✅ 8/12 rules
+## B.2 Organization & Routing (`BR-ORG-001..021`) — ✅ 11/12 rules
 
 | BR | Mô tả | Status | Evidence |
 |---|---|:---:|---|
@@ -104,9 +104,9 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 | BR-ORG-004 | Ward polygon geo routing | ✅ | `Ward.cs`, PostGIS |
 | BR-ORG-005 | Đa đơn vị trong 1 phường | ✅ | N-N model `CompanyServiceArea` |
 | BR-ORG-010 | GPS → Ward → LEO routing | ✅ | `SubmitPollutionReport/` handler |
-| BR-ORG-011 | Department Common Queue | ❌ | Chưa có feature rõ ràng |
-| BR-ORG-012 | Conflict of interest (LEO ≠ reporter) | ⚠️ | Cần verify trong handler |
-| BR-ORG-013 | Quyết định xử lý khi xác minh (dọn dẹp + xử phạt song song) | ⚠️ | Có `VerifyReport/` + `CreateInspectionReport/` nhưng chưa enforce "ít nhất 1 nhánh" |
+| BR-ORG-011 | Department Common Queue | ✅ | `SubmitPollutionReport/` handler: ward chưa onboard → `RouteToDepartment(dept.Id)` |
+| BR-ORG-012 | Conflict of interest (LEO ≠ reporter + ward scope) | ✅ | `VerifyReport/`: `ConflictOfInterest` (self) + `OutsideJurisdiction` (ngoài phường) |
+| BR-ORG-013 | Quyết định xử lý khi xác minh (dọn dẹp + xử phạt song song) | ✅ | `VerifyReport/` → verify, `AssignTeam/` → cleanup, `CreateInspectionReport/` → xử phạt (2 nhánh độc lập) |
 | BR-ORG-014 | SLA tiếp nhận 24h → escalate DEO | ❌ | Chưa có job |
 | BR-ORG-015 | Re-assign khi LEO reject | ⚠️ | Có `RejectReport/` nhưng chưa đẩy về queue |
 | BR-ORG-016 | Escalation tuyến cấp TP (cờ) | ❌ | Chưa có cờ "tuyến cấp TP" |

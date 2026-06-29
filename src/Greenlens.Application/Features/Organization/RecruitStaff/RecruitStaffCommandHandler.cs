@@ -96,7 +96,7 @@ public sealed class RecruitStaffCommandHandler(
             if (alreadyInTeam)
                 return Errors.Organization.UserAlreadyInTeam;
 
-            var member = TeamMember.Create(team.Id, targetUser.Id, request.IsLeader);
+            var member = TeamMember.Create(team.Id, targetUser.Id, request.IsLeader ?? false);
             teamMembers.Add(member);
             teamMemberId = member.Id;
             assignedTeamId = team.Id;

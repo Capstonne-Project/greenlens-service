@@ -41,6 +41,12 @@ public static partial class Errors
             "Không thể xử lý báo cáo do bạn tạo.",
             ErrorType.BusinessRule);
 
+        /// <summary>BR-ORG-012: LEO cannot verify reports outside their assigned ward.</summary>
+        public static Error OutsideJurisdiction => new(
+            "OUTSIDE_JURISDICTION",
+            "Bạn không có quyền tiếp nhận báo cáo ngoài khu vực.",
+            ErrorType.Forbidden);
+
         public static Error TeamTypeMismatch => new(
             "TEAM_TYPE_MISMATCH",
             "Loại Team không phù hợp với loại ô nhiễm.",

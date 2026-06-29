@@ -5,20 +5,27 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.VerifyReport;
 
 /// <summary>
-/// Officer verifies a submitted report. Checks conflict of interest (BR-OFF-004).
+/// Officer verifies a submitted report.
+/// Checks conflict of interest (BR-OFF-004, BR-ORG-012).
 /// Optionally overrides severity/category and tags waste types during verification.
 /// </summary>
+/// <remarks>
+/// Implements: BR-OFF-004 (self-report conflict), BR-ORG-012 (ward scope check),
+/// BR-ORG-013 (verify step — dispatch to cleanup/inspection happens in separate commands).
+/// </remarks>
 public sealed class VerifyReportCommandHandler(
     IReportRepository reports,
     IReportStatusHistoryRepository statusHistory,
     IPollutionCategoryRepository pollutionCategories,
     IWasteTagRepository wasteTags,
     IReportWasteTagRepository reportWasteTags,
+    ILocalOfficeRepository localOffices,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     ILogger<VerifyReportCommandHandler> logger) : IRequestHandler<VerifyReportCommand, Result>
@@ -32,9 +39,21 @@ public sealed class VerifyReportCommandHandler(
         if (report.Status != ReportStatus.Submitted)
             return Errors.Reports.InvalidStatusTransition;
 
-        // BR-OFF-004: conflict of interest
+        // BR-OFF-004: conflict of interest — LEO cannot verify own report
         if (report.ReporterId == currentUser.UserId)
             return Errors.Reports.ConflictOfInterest;
+
+        // BR-ORG-012: LEO cannot verify reports outside their assigned ward
+        // (unless report is in Department queue with no AssignedOfficeId — DEO/Admin handles)
+        if (report.AssignedOfficeId.HasValue)
+        {
+            var leoOffice = await localOffices.QueryAsNoTracking()
+                .FirstOrDefaultAsync(o => o.OfficerId == currentUser.UserId, ct)
+                .ConfigureAwait(false);
+
+            if (leoOffice is null || leoOffice.Id != report.AssignedOfficeId)
+                return Errors.Reports.OutsideJurisdiction;
+        }
 
         // Validate overrideCategoryId if provided
         if (request.OverrideCategoryId.HasValue)
@@ -86,4 +105,5 @@ public sealed class VerifyReportCommandHandler(
         return Result.Success();
     }
 }
+
 
