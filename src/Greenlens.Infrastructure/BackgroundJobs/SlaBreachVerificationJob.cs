@@ -39,6 +39,9 @@ internal sealed class SlaBreachVerificationJob(
         foreach (var report in breachedReports)
         {
             report.MarkSlaVerifyBreached();
+
+            // BR-ORG-014: Escalate to Department queue — DEO takes over
+            report.EscalateToDepartment();
         }
 
         await db.SaveChangesAsync().ConfigureAwait(false);

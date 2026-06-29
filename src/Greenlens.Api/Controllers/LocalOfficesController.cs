@@ -7,6 +7,7 @@ using Greenlens.Application.Features.Organization.GetLocalOffices;
 using Greenlens.Application.Features.Organization.GetOfficeStaff;
 using Greenlens.Application.Features.Organization.LookupCitizenByEmail;
 using Greenlens.Application.Features.Organization.RecruitStaff;
+using Greenlens.Application.Features.Organization.ReleaseStaff;
 using Greenlens.Application.Features.Organization.UpdateLocalOffice;
 using Greenlens.Application.Features.Reports.GetOfficeReports;
 using Greenlens.Domain.Enums;
@@ -121,19 +122,34 @@ public sealed class LocalOfficesController(ISender sender) : ControllerBase
     [Authorize(Roles = "LEO,Admin")]
     [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(
-        Summary = "[LEO] Tuyển nhân sự vào phường + team",
-        Description = "Search Citizen theo email → đổi role thành Cleaner/Inspector → gán vào LocalOffice. " +
-            "Nếu truyền teamId → thêm vào team luôn (1 transaction). " +
-            "Chỉ Citizen mới được recruit. User đã thuộc phường khác → reject.")]
-    [SwaggerResponse(201, "Đã tuyển nhân sự", typeof(ApiResponse<RecruitStaffResponse>))]
+        Summary = "[LEO] Gửi lời mời tuyển nhân sự (BR-ORG-020/021)",
+        Description = "Search Citizen theo email → tạo StaffInvitation (7 ngày). " +
+            "Citizen phải Accept trước khi role đổi. " +
+            "Nếu truyền teamId → sẽ thêm vào team khi Citizen accept. " +
+            "Chỉ Citizen mới được mời. User đã thuộc phường khác → reject.")]
+    [SwaggerResponse(201, "Đã gửi lời mời", typeof(ApiResponse<RecruitStaffResponse>))]
     [SwaggerResponse(404, "Không tìm thấy email trong hệ thống", typeof(ApiResponse))]
-    [SwaggerResponse(409, "User đã thuộc phường/team khác", typeof(ApiResponse))]
+    [SwaggerResponse(409, "User đã thuộc phường/team khác hoặc đã có invitation pending", typeof(ApiResponse))]
     [SwaggerResponse(422, "Role không hợp lệ hoặc chưa gán office", typeof(ApiResponse))]
     public async Task<IActionResult> RecruitStaffAsync(
         [FromBody] RecruitStaffRequest request, CancellationToken ct)
         => (await sender.Send(
             new RecruitStaffCommand(request.Email, request.TargetRole, request.TeamId, request.IsLeader), ct))
             .ToHttpCreated();
+
+    [HttpDelete("my/staff/{userId:guid}")]
+    [Authorize(Roles = "LEO,Admin")]
+    [Tags("📌 LEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO] Release nhân sự về Citizen",
+        Description = "Gỡ Cleaner/Inspector khỏi phường: revert role về Citizen, xoá khỏi tất cả team, " +
+            "clear LocalOfficeId. Dùng khi LEO add nhầm hoặc nhân sự nghỉ.")]
+    [SwaggerResponse(200, "Đã release nhân sự", typeof(ApiResponse))]
+    [SwaggerResponse(404, "Không tìm thấy user", typeof(ApiResponse))]
+    [SwaggerResponse(403, "User không thuộc phường của bạn", typeof(ApiResponse))]
+    public async Task<IActionResult> ReleaseStaffAsync(
+        Guid userId, CancellationToken ct)
+        => (await sender.Send(new ReleaseStaffCommand(userId), ct)).ToHttpNoContent();
 
     [HttpGet("my/staff")]
     [Authorize(Roles = "LEO,Admin")]
@@ -157,3 +173,4 @@ public sealed class LocalOfficesController(ISender sender) : ControllerBase
 public sealed record UpdateLocalOfficeRequest(string Name);
 public sealed record AssignLeoRequest(Guid UserId);
 public sealed record RecruitStaffRequest(string Email, UserRole TargetRole, Guid? TeamId = null, bool IsLeader = false);
+

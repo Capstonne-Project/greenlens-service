@@ -204,6 +204,13 @@ public sealed class User : SoftDeletableEntity
         DepartmentId = null;
     }
 
+    /// <summary>Release staff: clear office + department assignment.</summary>
+    public void ClearOfficeAssignment()
+    {
+        LocalOfficeId = null;
+        DepartmentId = null;
+    }
+
     /// <summary>Admin: explicit role change.</summary>
     public void ChangeRole(UserRole newRole)
     {

@@ -100,5 +100,11 @@ public static partial class Errors
             "ROLE_ASSIGNMENT_NOT_ALLOWED",
             "Bạn không có quyền gán vai trò này.",
             ErrorType.Forbidden);
+
+        /// <summary>Generic authorization failure.</summary>
+        public static Error Forbidden => new(
+            "FORBIDDEN",
+            "Bạn không có quyền thực hiện hành động này.",
+            ErrorType.Forbidden);
     }
 }

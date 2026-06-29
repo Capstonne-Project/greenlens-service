@@ -195,13 +195,20 @@ public sealed class Report : SoftDeletableEntity
             AddDomainEvent(new ReportVerifiedEvent(Id, ReporterId.Value));
     }
 
-    /// <summary>LEO rejects the report. Submitted → Rejected. BR-REP-022 (reason ≥ 20 chars).</summary>
+    /// <summary>
+    /// BR-ORG-015: LEO rejects the report. Report stays Submitted and is re-queued
+    /// to the Department Common Queue for DEO to re-assign.
+    /// BR-REP-022: reason ≥ 20 chars.
+    /// </summary>
     public void Reject(string reason)
     {
         EnsureStatus(ReportStatus.Submitted);
 
-        Status = ReportStatus.Rejected;
         RejectedReason = reason;
+        // Status stays Submitted — report goes back to Department queue
+        // Clear office assignment so DEO sees it in the common queue
+        AssignedOfficeId = null;
+        // AssignedDepartmentId is kept — DEO of the same province handles it
 
         if (ReporterId.HasValue)
             AddDomainEvent(new ReportRejectedEvent(Id, ReporterId.Value));
@@ -319,6 +326,16 @@ public sealed class Report : SoftDeletableEntity
 
     /// <summary>BR-OFF-002: Flag SLA verification breach (Submitted > 24h).</summary>
     public void MarkSlaVerifyBreached() => SlaVerifyBreached = true;
+
+    /// <summary>
+    /// BR-ORG-014: Escalate report to Department queue when SLA verification breached.
+    /// Clears LocalOffice assignment so DEO sees it in common queue.
+    /// </summary>
+    public void EscalateToDepartment()
+    {
+        AssignedOfficeId = null;
+        // AssignedDepartmentId preserved — report stays in same province
+    }
 
     /// <summary>BR-OFF-020: Flag SLA resolution breach (InProgress > severity deadline).</summary>
     public void MarkSlaResolveBreached() => SlaResolveBreached = true;

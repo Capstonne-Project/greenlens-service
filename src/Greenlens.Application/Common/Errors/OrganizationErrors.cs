@@ -150,5 +150,39 @@ public static partial class Errors
             "TEAM_ALREADY_DEACTIVATED",
             "Đội đã bị vô hiệu hóa trước đó.",
             ErrorType.BusinessRule);
+
+        // ── Invitation (BR-ORG-021) ──
+
+        public static Error InvitationNotFound => new(
+            "INVITATION_NOT_FOUND",
+            "Không tìm thấy lời mời.",
+            ErrorType.NotFound);
+
+        public static Error InvitationExpired => new(
+            "INVITATION_EXPIRED",
+            "Lời mời đã hết hạn hoặc đã được sử dụng.",
+            ErrorType.BusinessRule);
+
+        public static Error InvitationAlreadyResponded => new(
+            "INVITATION_ALREADY_RESPONDED",
+            "Lời mời đã được trả lời trước đó.",
+            ErrorType.BusinessRule);
+
+        public static Error DuplicateInvitation => new(
+            "DUPLICATE_INVITATION",
+            "Người dùng này đã có lời mời đang chờ xử lý.",
+            ErrorType.Conflict);
+
+        // ── Release Staff ──
+
+        public static Error CannotReleaseCitizen => new(
+            "CANNOT_RELEASE_CITIZEN",
+            "Người dùng đã là Citizen, không cần release.",
+            ErrorType.BusinessRule);
+
+        public static Error UserNotInYourOffice => new(
+            "USER_NOT_IN_YOUR_OFFICE",
+            "Người dùng không thuộc phường/xã bạn quản lý.",
+            ErrorType.Forbidden);
     }
 }
