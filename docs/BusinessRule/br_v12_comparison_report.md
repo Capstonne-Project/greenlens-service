@@ -115,12 +115,12 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 
 ---
 
-## B.3 Report (`BR-REP-001..033`) — ✅ 14/23 rules
+## B.3 Report (`BR-REP-001..033`) — ✅ 15/23 rules
 
 | BR | Mô tả | Status | Evidence |
 |---|---|:---:|---|
 | BR-REP-001 | Ảnh 1-5, ≤ 10MB | ✅ | Validator + `UploadReportImage/` |
-| BR-REP-002 | Video 1, mp4/mov | ❌ | Chưa hỗ trợ |
+| BR-REP-002 | Video 1, mp4/mov | ✅ | `UploadReportVideo/` + `FFmpegVideoTranscoder` (H.264 720p CRF 28, max 100MB/60s) |
 | BR-REP-003 | GPS Vietnam bounds | ✅ | Validator |
 | BR-REP-004 | Mô tả: filter tục tĩu | ❌ | Chưa có word filter |
 | BR-REP-005 | **3 loại** ô nhiễm (Rác, Nước, Hóa chất) | ⚠️ | `PollutionCategory` là configurable, cần seed đúng 3 loại |
