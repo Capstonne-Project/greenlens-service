@@ -163,15 +163,15 @@ public sealed class TeamsController(ISender sender) : ControllerBase
         => (await sender.Send(new GetTeamByIdQuery(id), ct)).ToHttp();
 
     [HttpPost]
-    [Authorize(Roles = "Admin,LEO")]
+    [Authorize(Roles = "LEO")]
     [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(
-        Summary = "[Admin/LEO] Tạo team cộng đồng",
-        Description = "Tạo đội Cleaner (dọn dẹp) hoặc Inspection (thanh tra) thuộc 1 LocalOffice. " +
-            "LEO chỉ tạo team cho office của mình. " +
+        Summary = "[LEO] Tạo team cộng đồng",
+        Description = "Tạo đội Cleaner (dọn dẹp) hoặc Inspection (thanh tra). " +
+            "LocalOfficeId tự resolve từ token — chỉ cần truyền name + teamType. " +
             "Để tạo team **công ty** → dùng `POST /v1/teams/company-teams` (CompanyManager).")]
     [SwaggerResponse(201, "Đã tạo", typeof(ApiResponse<CreateTeamResponse>))]
-    [SwaggerResponse(404, "Office không tồn tại", typeof(ApiResponse))]
+    [SwaggerResponse(404, "LEO chưa được gán office", typeof(ApiResponse))]
     public async Task<IActionResult> CreateAsync(
         [FromBody] CreateTeamCommand command, CancellationToken ct)
         => (await sender.Send(command, ct)).ToHttpCreated();

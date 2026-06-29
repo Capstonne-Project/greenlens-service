@@ -15,6 +15,28 @@ public static partial class Errors
             "IMAGE_TOO_LARGE",
             "Ảnh quá lớn. Kích thước tối đa là 10MB.",
             ErrorType.Validation);
+
+        // ── Video errors (BR-REP-002) ──
+
+        public static Error InvalidVideoType => new(
+            "INVALID_VIDEO_TYPE",
+            "Loại video không hợp lệ. Chỉ chấp nhận mp4, mov.",
+            ErrorType.Validation);
+
+        public static Error VideoTooLarge => new(
+            "VIDEO_TOO_LARGE",
+            "Video quá lớn. Kích thước tối đa là 100MB.",
+            ErrorType.Validation);
+
+        public static Error VideoDurationExceeded => new(
+            "VIDEO_DURATION_EXCEEDED",
+            "Video quá dài. Thời lượng tối đa là 60 giây.",
+            ErrorType.Validation);
+
+        public static Error VideoTranscodeFailed => new(
+            "VIDEO_TRANSCODE_FAILED",
+            "Không thể xử lý video. Vui lòng thử lại với file khác.",
+            ErrorType.Unexpected);
     }
 
     public static class Catalog
