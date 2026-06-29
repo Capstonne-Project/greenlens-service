@@ -9,6 +9,7 @@
 ## 1. Tổng quan
 
 Module Gamification khuyến khích Citizen tích cực báo cáo ô nhiễm bằng hệ thống:
+
 - **Điểm thưởng** (Points) — cộng/trừ tự động khi báo cáo thay đổi trạng thái
 - **Cấp độ** (Levels L1–L5) — tính từ tổng điểm
 - **Huy hiệu** (Badges) — trao tự động khi đạt điều kiện
@@ -19,29 +20,30 @@ Module Gamification khuyến khích Citizen tích cực báo cáo ô nhiễm b�
 
 ## 2. Công thức điểm (BR-GAM-001)
 
-| Sự kiện | Điểm | PointReason Enum |
-|---|:---:|---|
-| Report được LEO **xác minh** (Submitted → Verified) | +10 | `ReportVerified` |
-| Report **giải quyết xong** (InProgress → Resolved) | +20 | `ReportResolved` |
-| Biên bản phạt được lập (InspectionReport) | +20 | `PenaltyIssued` |
-| Report trùng lặp được merge | +5 | `DuplicateReport` |
-| Report bị **từ chối** (Submitted → Rejected) | -5 | `ReportRejected` |
-| Gian lận — Admin khóa tài khoản | -ALL | `FraudPenalty` |
+| Sự kiện                                             | Điểm | PointReason Enum  |
+| --------------------------------------------------- | :--: | ----------------- |
+| Report được LEO **xác minh** (Submitted → Verified) | +10  | `ReportVerified`  |
+| Report **giải quyết xong** (InProgress → Resolved)  | +20  | `ReportResolved`  |
+| Biên bản phạt được lập (InspectionReport)           | +20  | `PenaltyIssued`   |
+| Report trùng lặp được merge                         |  +5  | `DuplicateReport` |
+| Report bị **từ chối** (Submitted → Rejected)        |  -5  | `ReportRejected`  |
+| Gian lận — Admin khóa tài khoản                     | -ALL | `FraudPenalty`    |
 
 ### Idempotency
+
 Mỗi cặp `(ReportId, PointReason)` chỉ được tính **một lần**. Nếu hệ thống retry hoặc event phát lại, điểm không bị cộng đôi.
 
 ---
 
 ## 3. Cấp độ (BR-GAM-003)
 
-| Level | Tổng điểm |
-|:---:|---|
-| L1 | 0 – 99 |
-| L2 | 100 – 499 |
-| L3 | 500 – 1,499 |
-| L4 | 1,500 – 4,999 |
-| L5 | ≥ 5,000 |
+| Level | Tổng điểm     |
+| :---: | ------------- |
+|  L1   | 0 – 99        |
+|  L2   | 100 – 499     |
+|  L3   | 500 – 1,499   |
+|  L4   | 1,500 – 4,999 |
+|  L5   | ≥ 5,000       |
 
 Khi level tăng, hệ thống raise `LevelUpEvent` (có thể dùng cho push notification sau này).
 
@@ -49,13 +51,13 @@ Khi level tăng, hệ thống raise `LevelUpEvent` (có thể dùng cho push not
 
 ## 4. Huy hiệu (BR-GAM-004)
 
-| Code | Tên (VI) | Điều kiện | Trạng thái |
-|---|---|---|---|
-| `first_report` | Người khởi đầu | ≥ 1 report verified | ✅ Auto-award |
-| `eco_warrior` | Chiến binh Xanh | ≥ 10 reports verified | ✅ Auto-award |
-| `hotspot_hunter` | Thợ săn điểm nóng | 3 reports trong vùng hotspot | ⚠️ Chờ BR-MAP-010 |
-| `streak_7d` | 7 ngày liên tiếp | Gửi report 7 ngày liền | ⚠️ Chưa implement |
-| `verified_citizen` | Công dân xác thực | KYC hoàn tất | ❌ Chờ KYC module |
+| Code               | Tên (VI)          | Điều kiện                    | Trạng thái        |
+| ------------------ | ----------------- | ---------------------------- | ----------------- |
+| `first_report`     | Người khởi đầu    | ≥ 1 report verified          | ✅ Auto-award     |
+| `eco_warrior`      | Chiến binh Xanh   | ≥ 10 reports verified        | ✅ Auto-award     |
+| `hotspot_hunter`   | Thợ săn điểm nóng | 3 reports trong vùng hotspot | ⚠️ Chờ BR-MAP-010 |
+| `streak_7d`        | 7 ngày liên tiếp  | Gửi report 7 ngày liền       | ⚠️ Chưa implement |
+| `verified_citizen` | Công dân xác thực | KYC hoàn tất                 | ❌ Chờ KYC module |
 
 Badges được kiểm tra tự động sau mỗi lần cộng điểm (`CheckBadgesCommand`).
 
@@ -64,6 +66,7 @@ Badges được kiểm tra tự động sau mỗi lần cộng điểm (`CheckBa
 ## 5. API Endpoints
 
 ### 5.1 `GET /v1/gamification/my-points`
+
 **Auth:** Citizen (Bearer token)
 
 **Query params:**
@@ -73,6 +76,7 @@ Badges được kiểm tra tự động sau mỗi lần cộng điểm (`CheckBa
 | `pageSize` | int | 20 |
 
 **Response:**
+
 ```json
 {
   "code": "SUCCESS",
@@ -99,9 +103,11 @@ Badges được kiểm tra tự động sau mỗi lần cộng điểm (`CheckBa
 ---
 
 ### 5.2 `GET /v1/gamification/my-badges`
+
 **Auth:** Citizen (Bearer token)
 
 **Response:**
+
 ```json
 {
   "code": "SUCCESS",
@@ -122,6 +128,7 @@ Badges được kiểm tra tự động sau mỗi lần cộng điểm (`CheckBa
 ---
 
 ### 5.3 `GET /v1/gamification/leaderboard`
+
 **Auth:** Public (không cần token)
 
 **Query params:**
@@ -131,6 +138,7 @@ Badges được kiểm tra tự động sau mỗi lần cộng điểm (`CheckBa
 | `top` | int | 10 | 1–100 |
 
 **Response:**
+
 ```json
 {
   "code": "SUCCESS",
@@ -155,9 +163,11 @@ Badges được kiểm tra tự động sau mỗi lần cộng điểm (`CheckBa
 ---
 
 ### 5.4 `POST /v1/gamification/{userId}/lock`
+
 **Auth:** Admin only
 
 **Request body:**
+
 ```json
 {
   "reason": "Phát hiện gửi báo cáo giả để farm điểm",
@@ -166,6 +176,7 @@ Badges được kiểm tra tự động sau mỗi lần cộng điểm (`CheckBa
 ```
 
 **Response:**
+
 ```json
 {
   "code": "SUCCESS",
@@ -238,8 +249,8 @@ user_badges (N:N join)
 
 ### 6.3 Background Job (Hangfire)
 
-| Job | Cron | Mô tả |
-|---|---|---|
+| Job                    | Cron                          | Mô tả                                      |
+| ---------------------- | ----------------------------- | ------------------------------------------ |
 | `leaderboard-snapshot` | `5 0 * * *` (00:05 UTC daily) | Snapshot top-100 leaderboard cho 3 periods |
 
 Dashboard: `/hangfire` (cần auth filter cho production).
@@ -248,12 +259,12 @@ Dashboard: `/hangfire` (cần auth filter cho production).
 
 ## 7. Deferred / TODO
 
-| Item | Phụ thuộc |
-|---|---|
-| Badge `hotspot_hunter` auto-award | BR-MAP-010 hotspot detection |
-| Badge `streak_7d` auto-award | Consecutive-day tracking logic |
-| Badge `verified_citizen` | KYC module |
-| BR-GAM-002 Anonymous opt-out | Privacy settings trên User |
+| Item                                 | Phụ thuộc                                  |
+| ------------------------------------ | ------------------------------------------ |
+| Badge `hotspot_hunter` auto-award    | BR-MAP-010 hotspot detection               |
+| Badge `streak_7d` auto-award         | Consecutive-day tracking logic             |
+| Badge `verified_citizen`             | KYC module                                 |
+| BR-GAM-002 Anonymous opt-out         | Privacy settings trên User                 |
 | Leaderboard materialized cache table | Performance optimization khi user base lớn |
-| Hangfire dashboard production auth | `IDashboardAuthorizationFilter` |
-| Push notification khi level up | BR-NTF-001 Notification module |
+| Hangfire dashboard production auth   | `IDashboardAuthorizationFilter`            |
+| Push notification khi level up       | BR-NTF-001 Notification module             |

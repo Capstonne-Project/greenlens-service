@@ -6,12 +6,12 @@ Tài liệu mô tả cách frontend và backend phối hợp để đạt UX: **
 
 ## 1. Mục tiêu UX
 
-| Thành phần | Hành vi mong muốn |
-|------------|-------------------|
-| Select Tỉnh / TP | Load danh sách tỉnh; khi chọn (vd. Vĩnh Long) → map zoom/highlight **polygon ranh giới tỉnh**. |
-| Select Phường / Xã | Sau khi có tỉnh → load phường thuộc tỉnh; khi chọn → map hiển thị **ranh giới phường** (thường thay hoặc chồng lên ranh giới tỉnh tùy design). |
-| Input địa chỉ | Text tự do: số nhà, tên đường (không thay thế mã hành chính). |
-| Map (Goong) | Không tự “biết” mã tỉnh; cần **GeoJSON** (polygon). BE lưu URL tới file GeoJSON (`BoundaryUrl`). FE **fetch GeoJSON** → đưa vào `ShapeSource` / layer polygon. |
+| Thành phần         | Hành vi mong muốn                                                                                                                                              |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Select Tỉnh / TP   | Load danh sách tỉnh; khi chọn (vd. Vĩnh Long) → map zoom/highlight **polygon ranh giới tỉnh**.                                                                 |
+| Select Phường / Xã | Sau khi có tỉnh → load phường thuộc tỉnh; khi chọn → map hiển thị **ranh giới phường** (thường thay hoặc chồng lên ranh giới tỉnh tùy design).                 |
+| Input địa chỉ      | Text tự do: số nhà, tên đường (không thay thế mã hành chính).                                                                                                  |
+| Map (Goong)        | Không tự “biết” mã tỉnh; cần **GeoJSON** (polygon). BE lưu URL tới file GeoJSON (`BoundaryUrl`). FE **fetch GeoJSON** → đưa vào `ShapeSource` / layer polygon. |
 
 ---
 
@@ -52,10 +52,10 @@ Tài liệu mô tả cách frontend và backend phối hợp để đạt UX: **
 
 ### 4.1 Catalog — đã có
 
-| Method | Endpoint | Mục đích |
-|--------|----------|----------|
-| GET | `/v1/catalog/provinces` | `items[]`: `code`, `name`, `boundaryUrl` (nullable — URL GeoJSON) |
-| GET | `/v1/catalog/provinces/{provinceCode}/wards` | `items[]`: `code`, `name`, `unitAbbreviation`, `boundaryUrl` (nullable) |
+| Method | Endpoint                                     | Mục đích                                                                |
+| ------ | -------------------------------------------- | ----------------------------------------------------------------------- |
+| GET    | `/v1/catalog/provinces`                      | `items[]`: `code`, `name`, `boundaryUrl` (nullable — URL GeoJSON)       |
+| GET    | `/v1/catalog/provinces/{provinceCode}/wards` | `items[]`: `code`, `name`, `unitAbbreviation`, `boundaryUrl` (nullable) |
 
 - Public (`AllowAnonymous`), envelope chuẩn `{ code, message, status, data }`.
 
@@ -113,12 +113,12 @@ Tài liệu mô tả cách frontend và backend phối hợp để đạt UX: **
 
 ## 6. Checklist tích hợp
 
-| Bước | BE | FE |
-|------|----|-----|
-| Danh sách tỉnh | ✅ `/v1/catalog/provinces` | Bind select; optional load map sau khi có `boundaryUrl` |
-| Danh sách phường | ✅ `.../provinces/{code}/wards` | Bind select phụ thuộc tỉnh |
-| Ranh giới trên map | ✅ Trả `boundaryUrl` trong catalog | Fetch GeoJSON → layer polygon |
-| Submit | `provinceCode`, `wardCode`, `address`, GPS | Form POST pollution-report |
+| Bước               | BE                                         | FE                                                      |
+| ------------------ | ------------------------------------------ | ------------------------------------------------------- |
+| Danh sách tỉnh     | ✅ `/v1/catalog/provinces`                 | Bind select; optional load map sau khi có `boundaryUrl` |
+| Danh sách phường   | ✅ `.../provinces/{code}/wards`            | Bind select phụ thuộc tỉnh                              |
+| Ranh giới trên map | ✅ Trả `boundaryUrl` trong catalog         | Fetch GeoJSON → layer polygon                           |
+| Submit             | `provinceCode`, `wardCode`, `address`, GPS | Form POST pollution-report                              |
 
 ---
 
@@ -130,4 +130,4 @@ Tài liệu mô tả cách frontend và backend phối hợp để đạt UX: **
 
 ---
 
-*Backend: catalog expose `boundaryUrl`; submit report validate cặp mã tỉnh/phường với bảng `wards`.*
+_Backend: catalog expose `boundaryUrl`; submit report validate cặp mã tỉnh/phường với bảng `wards`._

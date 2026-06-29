@@ -325,30 +325,30 @@ Response: ReportProgressResponse
 
 ## Ánh xạ UI → API field
 
-| Thành phần UI | Field trong Response |
-|---|---|
-| `RPT-260520-A3F9K2` | `code` |
-| Badge trạng thái `🔵 ĐANG XỬ LÝ` | `status` |
-| `🗑️ Rác thải sinh hoạt` | `categoryName` |
-| `🔴 CAO` | `severity` |
-| Địa chỉ | `address` |
-| Hạn xử lý | `sla.resolveDueAt` |
-| `Còn 14 giờ 32 phút` / `Quá hạn Xh` | `sla.hoursRemaining` (tính phía frontend) |
-| Màu đỏ/vàng/xanh SLA | `sla.isBreached` |
-| Progress bar tổng `67%` | `summary.overallProgressPercent` |
-| `2 / 3 teams` | `summary.completedTeams / summary.totalTeams` |
-| 4 ô thống kê teams | `summary.*Teams` |
-| Badge `✅ / 🔄 / ⏳ / ❌` của team | `assignments[].status` |
-| Tên team | `assignments[].teamName` |
-| `Leader: Nguyễn Văn A` | `assignments[].teamLeaderName` |
-| Thời gian nhận / hoàn thành | `assignments[].assignedAt / completedAt` |
-| Progress bar per team | `assignments[].progressPercent` |
-| Ghi chú tiến độ | `assignments[].progressNote` |
-| Ảnh tiến trình | `assignments[].progressImages[]` |
-| Ảnh nghiệm thu | `assignments[].afterImages[]` |
-| Cảnh báo 2h còn lại | tính từ `assignments[].assignedAt + 2h` |
-| Lý do từ chối | `assignments[].declineReason` |
-| Dòng lịch sử | `statusHistory[]` |
+| Thành phần UI                       | Field trong Response                          |
+| ----------------------------------- | --------------------------------------------- |
+| `RPT-260520-A3F9K2`                 | `code`                                        |
+| Badge trạng thái `🔵 ĐANG XỬ LÝ`    | `status`                                      |
+| `🗑️ Rác thải sinh hoạt`             | `categoryName`                                |
+| `🔴 CAO`                            | `severity`                                    |
+| Địa chỉ                             | `address`                                     |
+| Hạn xử lý                           | `sla.resolveDueAt`                            |
+| `Còn 14 giờ 32 phút` / `Quá hạn Xh` | `sla.hoursRemaining` (tính phía frontend)     |
+| Màu đỏ/vàng/xanh SLA                | `sla.isBreached`                              |
+| Progress bar tổng `67%`             | `summary.overallProgressPercent`              |
+| `2 / 3 teams`                       | `summary.completedTeams / summary.totalTeams` |
+| 4 ô thống kê teams                  | `summary.*Teams`                              |
+| Badge `✅ / 🔄 / ⏳ / ❌` của team  | `assignments[].status`                        |
+| Tên team                            | `assignments[].teamName`                      |
+| `Leader: Nguyễn Văn A`              | `assignments[].teamLeaderName`                |
+| Thời gian nhận / hoàn thành         | `assignments[].assignedAt / completedAt`      |
+| Progress bar per team               | `assignments[].progressPercent`               |
+| Ghi chú tiến độ                     | `assignments[].progressNote`                  |
+| Ảnh tiến trình                      | `assignments[].progressImages[]`              |
+| Ảnh nghiệm thu                      | `assignments[].afterImages[]`                 |
+| Cảnh báo 2h còn lại                 | tính từ `assignments[].assignedAt + 2h`       |
+| Lý do từ chối                       | `assignments[].declineReason`                 |
+| Dòng lịch sử                        | `statusHistory[]`                             |
 
 ---
 
@@ -372,5 +372,5 @@ ResolveReportCommandHandler.cs
 
 ---
 
-*Tài liệu này mô tả UI và API response cho LEO xem tiến trình báo cáo.*
-*Endpoint: `GET /v1/reports/{id}/progress` | Query: `GetReportProgressQuery`*
+_Tài liệu này mô tả UI và API response cho LEO xem tiến trình báo cáo._
+_Endpoint: `GET /v1/reports/{id}/progress` | Query: `GetReportProgressQuery`_

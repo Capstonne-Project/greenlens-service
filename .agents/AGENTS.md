@@ -9,14 +9,14 @@ A senior dev's first instinct is **NOT** to write code — it's to find out if t
 
 Before writing **any** new code (class, method, utility, abstraction, extension, middleware, helper, wrapper…), you **MUST** silently answer every question below. Only proceed to write code if **all answers point to "no existing solution"**.
 
-| # | Question | Action if YES |
-|---|----------|---------------|
-| 1 | Is this feature actually needed right now, or is it speculative / "nice to have"? | **Stop.** Do not build it. YAGNI. |
-| 2 | Does the .NET BCL / Standard Library already provide this? | **Use it.** Link the relevant API in your explanation. |
-| 3 | Does ASP.NET Core / EF Core / the runtime platform have a native feature for this? | **Use the built-in feature.** Do not wrap it. |
-| 4 | Does an existing project dependency (MediatR, FluentValidation, Mapster, Hangfire…) already cover this? | **Use the dependency's API.** Do not create an adapter or wrapper on top. |
-| 5 | Does the codebase already contain a utility, base class, or pattern that handles this? | **Reuse it.** Extend only if strictly necessary. |
-| 6 | Can the problem be solved with a simpler approach (inline code, a single method, a configuration change)? | **Do that.** Resist the urge to over-engineer. |
+| #   | Question                                                                                                  | Action if YES                                                             |
+| --- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| 1   | Is this feature actually needed right now, or is it speculative / "nice to have"?                         | **Stop.** Do not build it. YAGNI.                                         |
+| 2   | Does the .NET BCL / Standard Library already provide this?                                                | **Use it.** Link the relevant API in your explanation.                    |
+| 3   | Does ASP.NET Core / EF Core / the runtime platform have a native feature for this?                        | **Use the built-in feature.** Do not wrap it.                             |
+| 4   | Does an existing project dependency (MediatR, FluentValidation, Mapster, Hangfire…) already cover this?   | **Use the dependency's API.** Do not create an adapter or wrapper on top. |
+| 5   | Does the codebase already contain a utility, base class, or pattern that handles this?                    | **Reuse it.** Extend only if strictly necessary.                          |
+| 6   | Can the problem be solved with a simpler approach (inline code, a single method, a configuration change)? | **Do that.** Resist the urge to over-engineer.                            |
 
 ### 1.2 What "Minimal Code" Means
 
@@ -50,15 +50,15 @@ Write code when:
 
 Reducing code volume **never** justifies skipping:
 
-| Concern | Expectation |
-|---------|-------------|
-| **Security** | AuthZ attributes, input sanitization, secrets management — always present. |
-| **Validation** | FluentValidation rules for every Command/Query. No shortcuts. |
-| **Error handling** | Use the Result pattern. Never swallow exceptions silently. |
-| **Logging** | Structured logging at appropriate levels (Information for happy path, Warning/Error for failures). |
-| **Cancellation** | Propagate `CancellationToken` through every async call chain. |
-| **Null safety** | Respect nullable reference types. No `null!` unless structurally required by EF Core. |
-| **Tests** | Every new behavior gets at least one unit test. Removing code still requires verifying existing tests pass. |
+| Concern            | Expectation                                                                                                 |
+| ------------------ | ----------------------------------------------------------------------------------------------------------- |
+| **Security**       | AuthZ attributes, input sanitization, secrets management — always present.                                  |
+| **Validation**     | FluentValidation rules for every Command/Query. No shortcuts.                                               |
+| **Error handling** | Use the Result pattern. Never swallow exceptions silently.                                                  |
+| **Logging**        | Structured logging at appropriate levels (Information for happy path, Warning/Error for failures).          |
+| **Cancellation**   | Propagate `CancellationToken` through every async call chain.                                               |
+| **Null safety**    | Respect nullable reference types. No `null!` unless structurally required by EF Core.                       |
+| **Tests**          | Every new behavior gets at least one unit test. Removing code still requires verifying existing tests pass. |
 
 ---
 

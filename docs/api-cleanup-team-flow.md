@@ -31,10 +31,10 @@ GET /v1/reports/my-assignments
 
 **Query params:**
 
-| Param | Type | Mô tả |
-|---|---|---|
-| `page` | int | Trang hiện tại (default: 1) |
-| `pageSize` | int | Số item mỗi trang (default: 20) |
+| Param              | Type   | Mô tả                                                  |
+| ------------------ | ------ | ------------------------------------------------------ |
+| `page`             | int    | Trang hiện tại (default: 1)                            |
+| `pageSize`         | int    | Số item mỗi trang (default: 20)                        |
 | `assignmentStatus` | string | Lọc theo status: `InProgress`, `Completed`, `Declined` |
 
 **Response 200:**
@@ -79,12 +79,12 @@ GET /v1/reports/my-assignments
 
 **Lưu ý field quan trọng:**
 
-| Field | Ý nghĩa |
-|---|---|
-| `canDecline` | `true` nếu còn trong 2h kể từ `assignedAt` — dùng để hiện/ẩn nút Từ chối |
-| `progressPercent` | % tiến độ lần cập nhật gần nhất (0 nếu chưa cập nhật) |
-| `progressNote` | Ghi chú tiến độ lần gần nhất |
-| `slaResolveDueAt` | Deadline hoàn thành — dùng để hiển thị countdown |
+| Field             | Ý nghĩa                                                                  |
+| ----------------- | ------------------------------------------------------------------------ |
+| `canDecline`      | `true` nếu còn trong 2h kể từ `assignedAt` — dùng để hiện/ẩn nút Từ chối |
+| `progressPercent` | % tiến độ lần cập nhật gần nhất (0 nếu chưa cập nhật)                    |
+| `progressNote`    | Ghi chú tiến độ lần gần nhất                                             |
+| `slaResolveDueAt` | Deadline hoàn thành — dùng để hiển thị countdown                         |
 
 ---
 
@@ -100,7 +100,7 @@ GET /v1/reports/{id}
 
 ---
 
-## 3. Từ chối task *(chỉ trong 2h đầu)*
+## 3. Từ chối task _(chỉ trong 2h đầu)_
 
 ```
 PUT /v1/reports/{id}/decline
@@ -117,28 +117,29 @@ PUT /v1/reports/{id}/decline
 }
 ```
 
-| Field | Bắt buộc | Validation |
-|---|---|---|
-| `teamId` | ✓ | uuid — teamId của team đang login |
-| `reason` | ✓ | Tối thiểu 20 ký tự |
+| Field    | Bắt buộc | Validation                        |
+| -------- | -------- | --------------------------------- |
+| `teamId` | ✓        | uuid — teamId của team đang login |
+| `reason` | ✓        | Tối thiểu 20 ký tự                |
 
 **Responses:**
 
-| Code | Mô tả |
-|---|---|
-| 204 | Từ chối thành công |
+| Code                            | Mô tả                                    |
+| ------------------------------- | ---------------------------------------- |
+| 204                             | Từ chối thành công                       |
 | 422 `INVALID_STATUS_TRANSITION` | Assignment không ở trạng thái InProgress |
-| 422 `DECLINE_WINDOW_EXPIRED` | Đã quá 2h kể từ khi được giao |
-| 422 `REASON_TOO_SHORT` | Lý do ít hơn 20 ký tự |
-| 404 `ASSIGNMENT_NOT_FOUND` | Không tìm thấy assignment của team này |
+| 422 `DECLINE_WINDOW_EXPIRED`    | Đã quá 2h kể từ khi được giao            |
+| 422 `REASON_TOO_SHORT`          | Lý do ít hơn 20 ký tự                    |
+| 404 `ASSIGNMENT_NOT_FOUND`      | Không tìm thấy assignment của team này   |
 
 **Sau khi decline:**
+
 - Nếu **tất cả** team đều decline → report quay về `Verified`, officer sẽ assign lại.
 - Nếu còn team khác đang làm → chỉ assignment của team này bị `Declined`, report vẫn `InProgress`.
 
 ---
 
-## 4. Cập nhật tiến độ *(tuỳ chọn, nhiều lần)*
+## 4. Cập nhật tiến độ _(tuỳ chọn, nhiều lần)_
 
 ```
 PUT /v1/reports/{id}/progress
@@ -156,25 +157,25 @@ PUT /v1/reports/{id}/progress
 }
 ```
 
-| Field | Bắt buộc | Validation |
-|---|---|---|
-| `teamId` | ✓ | uuid |
-| `progressPercent` | ✓ | 0 – 100 |
-| `progressNote` | Không | Ghi chú tự do |
+| Field             | Bắt buộc | Validation    |
+| ----------------- | -------- | ------------- |
+| `teamId`          | ✓        | uuid          |
+| `progressPercent` | ✓        | 0 – 100       |
+| `progressNote`    | Không    | Ghi chú tự do |
 
 **Responses:**
 
-| Code | Mô tả |
-|---|---|
-| 204 | Cập nhật thành công |
+| Code                            | Mô tả                                    |
+| ------------------------------- | ---------------------------------------- |
+| 204                             | Cập nhật thành công                      |
 | 422 `INVALID_STATUS_TRANSITION` | Assignment không ở trạng thái InProgress |
-| 422 `INVALID_PROGRESS_PERCENT` | Percent ngoài khoảng 0–100 |
+| 422 `INVALID_PROGRESS_PERCENT`  | Percent ngoài khoảng 0–100               |
 
 **Lưu ý:** Chỉ update `progress_percent`, `progress_note` trong bảng `report_assignments`. Status không đổi.
 
 ---
 
-## 5. Upload ảnh tiến độ *(tuỳ chọn)*
+## 5. Upload ảnh tiến độ _(tuỳ chọn)_
 
 ```
 POST /v1/reports/{id}/progress/images
@@ -185,10 +186,10 @@ Content-Type: multipart/form-data
 
 **Form fields:**
 
-| Field | Type | Bắt buộc |
-|---|---|---|
-| `teamId` | uuid | ✓ |
-| `image` | file | ✓ |
+| Field    | Type | Bắt buộc |
+| -------- | ---- | -------- |
+| `teamId` | uuid | ✓        |
+| `image`  | file | ✓        |
 
 **Giới hạn file:** tối đa 20MB, định dạng ảnh (jpg, png, webp).
 
@@ -208,11 +209,11 @@ Content-Type: multipart/form-data
 
 **Responses:**
 
-| Code | Mô tả |
-|---|---|
-| 200 | Upload thành công, trả về URL |
-| 413 `FILE_TOO_LARGE` | File > 20MB |
-| 422 `INVALID_STATUS_TRANSITION` | Assignment không InProgress |
+| Code                            | Mô tả                         |
+| ------------------------------- | ----------------------------- |
+| 200                             | Upload thành công, trả về URL |
+| 413 `FILE_TOO_LARGE`            | File > 20MB                   |
+| 422 `INVALID_STATUS_TRANSITION` | Assignment không InProgress   |
 
 ---
 
@@ -229,28 +230,26 @@ PUT /v1/reports/{id}/resolve
 ```json
 {
   "teamId": "4c951a07-8d5f-4036-8bee-89a65c1c21f5",
-  "afterImageUrls": [
-    "https://cdn.example.com/after/img1.jpg",
-    "https://cdn.example.com/after/img2.jpg"
-  ]
+  "afterImageUrls": ["https://cdn.example.com/after/img1.jpg", "https://cdn.example.com/after/img2.jpg"]
 }
 ```
 
-| Field | Bắt buộc | Validation |
-|---|---|---|
-| `teamId` | ✓ | uuid |
-| `afterImageUrls` | ✓ | Tối thiểu **2 URL** ảnh after |
+| Field            | Bắt buộc | Validation                    |
+| ---------------- | -------- | ----------------------------- |
+| `teamId`         | ✓        | uuid                          |
+| `afterImageUrls` | ✓        | Tối thiểu **2 URL** ảnh after |
 
 **Responses:**
 
-| Code | Mô tả |
-|---|---|
-| 204 | Hoàn thành thành công |
-| 422 `INSUFFICIENT_AFTER_IMAGES` | Thiếu ảnh after (cần ≥ 2) |
+| Code                            | Mô tả                                    |
+| ------------------------------- | ---------------------------------------- |
+| 204                             | Hoàn thành thành công                    |
+| 422 `INSUFFICIENT_AFTER_IMAGES` | Thiếu ảnh after (cần ≥ 2)                |
 | 422 `INVALID_STATUS_TRANSITION` | Assignment không ở trạng thái InProgress |
-| 404 `ASSIGNMENT_NOT_FOUND` | Không tìm thấy assignment của team này |
+| 404 `ASSIGNMENT_NOT_FOUND`      | Không tìm thấy assignment của team này   |
 
 **Sau khi resolve:**
+
 - Assignment của team này → `Completed`
 - Nếu **tất cả** team đều `Completed` → report chuyển `InProgress → Resolved`
 - Nếu còn team khác chưa xong → report vẫn `InProgress`
@@ -277,30 +276,32 @@ PUT /v1/reports/{id}/resolve
 ## Tóm tắt trạng thái
 
 ### Report status
-| Status | Ý nghĩa với Cleanup |
-|---|---|
-| `InProgress` | Đang được giao cho team xử lý |
-| `Resolved` | Tất cả team đã hoàn thành |
-| `Verified` | Tất cả team đã decline, chờ officer assign lại |
+
+| Status       | Ý nghĩa với Cleanup                            |
+| ------------ | ---------------------------------------------- |
+| `InProgress` | Đang được giao cho team xử lý                  |
+| `Resolved`   | Tất cả team đã hoàn thành                      |
+| `Verified`   | Tất cả team đã decline, chờ officer assign lại |
 
 ### Assignment status
-| Status | Ý nghĩa |
-|---|---|
+
+| Status       | Ý nghĩa                                    |
+| ------------ | ------------------------------------------ |
 | `InProgress` | Đang xử lý (trạng thái ngay khi được giao) |
-| `Completed` | Team đã hoàn thành phần việc |
-| `Declined` | Team từ chối trong 2h đầu |
+| `Completed`  | Team đã hoàn thành phần việc               |
+| `Declined`   | Team từ chối trong 2h đầu                  |
 
 ---
 
 ## Error codes tổng hợp
 
-| Code | HTTP | Mô tả |
-|---|---|---|
-| `REPORT_NOT_FOUND` | 404 | Không tìm thấy report |
-| `ASSIGNMENT_NOT_FOUND` | 404 | Không tìm thấy assignment của team |
-| `INVALID_STATUS_TRANSITION` | 422 | Sai trạng thái để thực hiện hành động |
-| `DECLINE_WINDOW_EXPIRED` | 422 | Quá 2h kể từ khi được giao |
-| `REASON_TOO_SHORT` | 422 | Lý do từ chối < 20 ký tự |
-| `INSUFFICIENT_AFTER_IMAGES` | 422 | Ảnh after < 2 tấm |
-| `INVALID_PROGRESS_PERCENT` | 422 | Percent không nằm trong 0–100 |
-| `FILE_TOO_LARGE` | 413 | File upload > 20MB |
+| Code                        | HTTP | Mô tả                                 |
+| --------------------------- | ---- | ------------------------------------- |
+| `REPORT_NOT_FOUND`          | 404  | Không tìm thấy report                 |
+| `ASSIGNMENT_NOT_FOUND`      | 404  | Không tìm thấy assignment của team    |
+| `INVALID_STATUS_TRANSITION` | 422  | Sai trạng thái để thực hiện hành động |
+| `DECLINE_WINDOW_EXPIRED`    | 422  | Quá 2h kể từ khi được giao            |
+| `REASON_TOO_SHORT`          | 422  | Lý do từ chối < 20 ký tự              |
+| `INSUFFICIENT_AFTER_IMAGES` | 422  | Ảnh after < 2 tấm                     |
+| `INVALID_PROGRESS_PERCENT`  | 422  | Percent không nằm trong 0–100         |
+| `FILE_TOO_LARGE`            | 413  | File upload > 20MB                    |

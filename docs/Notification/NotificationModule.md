@@ -13,12 +13,12 @@ User có thể cấu hình bật/tắt từng kênh cho từng loại thông bá
 
 ### Business Rules Implemented
 
-| BR ID | Mô tả | Status |
-|---|---|:---:|
-| BR-NTF-001 | Kênh: Push (FCM) + Email. User cấu hình bật/tắt per-type | ✅ |
-| BR-NTF-002 | Events: report status change, badge, SLA breach, etc. | ✅ |
-| BR-NTF-003 | Anti-spam: max 20/ngày/loại | ✅ |
-| BR-NTF-004 | i18n: vi-VN mặc định | ⚠️ Hardcode vi-VN, en-US chờ P2 |
+| BR ID      | Mô tả                                                    |             Status              |
+| ---------- | -------------------------------------------------------- | :-----------------------------: |
+| BR-NTF-001 | Kênh: Push (FCM) + Email. User cấu hình bật/tắt per-type |               ✅                |
+| BR-NTF-002 | Events: report status change, badge, SLA breach, etc.    |               ✅                |
+| BR-NTF-003 | Anti-spam: max 20/ngày/loại                              |               ✅                |
+| BR-NTF-004 | i18n: vi-VN mặc định                                     | ⚠️ Hardcode vi-VN, en-US chờ P2 |
 
 ---
 
@@ -62,28 +62,28 @@ User có thể cấu hình bật/tắt từng kênh cho từng loại thông bá
 
 ### 3.1 Notification
 
-| Field | Type | Mô tả |
-|---|---|---|
-| `Id` | Guid | PK |
-| `RecipientId` | Guid | FK → User |
-| `Type` | NotificationType (enum) | Loại thông báo |
-| `Title` | string (200) | Tiêu đề |
-| `Message` | string (2000) | Nội dung |
-| `ReferenceId` | Guid? | Optional reference (ReportId, BadgeId, etc.) |
-| `Channel` | NotificationChannel | Push / Email / Both |
-| `IsRead` | bool | Đã đọc? |
-| `ReadAt` | DateTime? | Thời điểm đọc |
-| `CreatedAt` | DateTime | Thời điểm tạo |
+| Field         | Type                    | Mô tả                                        |
+| ------------- | ----------------------- | -------------------------------------------- |
+| `Id`          | Guid                    | PK                                           |
+| `RecipientId` | Guid                    | FK → User                                    |
+| `Type`        | NotificationType (enum) | Loại thông báo                               |
+| `Title`       | string (200)            | Tiêu đề                                      |
+| `Message`     | string (2000)           | Nội dung                                     |
+| `ReferenceId` | Guid?                   | Optional reference (ReportId, BadgeId, etc.) |
+| `Channel`     | NotificationChannel     | Push / Email / Both                          |
+| `IsRead`      | bool                    | Đã đọc?                                      |
+| `ReadAt`      | DateTime?               | Thời điểm đọc                                |
+| `CreatedAt`   | DateTime                | Thời điểm tạo                                |
 
 ### 3.2 NotificationPreference
 
-| Field | Type | Mô tả |
-|---|---|---|
-| `Id` | Guid | PK |
-| `UserId` | Guid | FK → User |
-| `Type` | NotificationType | Loại thông báo |
-| `PushEnabled` | bool | Bật push? (default: true) |
-| `EmailEnabled` | bool | Bật email? (default: true) |
+| Field          | Type             | Mô tả                      |
+| -------------- | ---------------- | -------------------------- |
+| `Id`           | Guid             | PK                         |
+| `UserId`       | Guid             | FK → User                  |
+| `Type`         | NotificationType | Loại thông báo             |
+| `PushEnabled`  | bool             | Bật push? (default: true)  |
+| `EmailEnabled` | bool             | Bật email? (default: true) |
 
 **Unique constraint:** `(UserId, Type)` — 1 preference per user per type.
 
@@ -105,23 +105,25 @@ SlaBreachWarning, NearbyReport, PenaltyIssued, ContractExpiry
 
 Base URL: `/v1/notifications`
 
-| Method | Path | Mô tả | Auth |
-|---|---|---|:---:|
-| `GET` | `/v1/notifications` | Danh sách thông báo (phân trang, filter isRead) | ✅ |
-| `PUT` | `/v1/notifications/{id}/read` | Đánh dấu 1 thông báo đã đọc | ✅ |
-| `PUT` | `/v1/notifications/read-all` | Đánh dấu tất cả đã đọc | ✅ |
-| `GET` | `/v1/notifications/preferences` | Lấy cài đặt thông báo | ✅ |
-| `PUT` | `/v1/notifications/preferences` | Cập nhật cài đặt thông báo | ✅ |
-| `PUT` | `/v1/notifications/device-token` | Đăng ký/cập nhật FCM device token | ✅ |
+| Method | Path                             | Mô tả                                           | Auth |
+| ------ | -------------------------------- | ----------------------------------------------- | :--: |
+| `GET`  | `/v1/notifications`              | Danh sách thông báo (phân trang, filter isRead) |  ✅  |
+| `PUT`  | `/v1/notifications/{id}/read`    | Đánh dấu 1 thông báo đã đọc                     |  ✅  |
+| `PUT`  | `/v1/notifications/read-all`     | Đánh dấu tất cả đã đọc                          |  ✅  |
+| `GET`  | `/v1/notifications/preferences`  | Lấy cài đặt thông báo                           |  ✅  |
+| `PUT`  | `/v1/notifications/preferences`  | Cập nhật cài đặt thông báo                      |  ✅  |
+| `PUT`  | `/v1/notifications/device-token` | Đăng ký/cập nhật FCM device token               |  ✅  |
 
 ### 4.1 GET /v1/notifications
 
 **Query parameters:**
+
 - `page` (int, default 1)
 - `pageSize` (int, default 20)
 - `isRead` (bool?, optional) — filter đã đọc / chưa đọc
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -153,6 +155,7 @@ Base URL: `/v1/notifications`
 Đánh dấu tất cả thông báo chưa đọc → đã đọc.
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -165,6 +168,7 @@ Base URL: `/v1/notifications`
 Trả về preferences cho tất cả notification types. Types chưa customize → default `true`.
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -179,6 +183,7 @@ Trả về preferences cho tất cả notification types. Types chưa customize 
 ### 4.5 PUT /v1/notifications/preferences
 
 **Request body:**
+
 ```json
 {
   "preferences": [
@@ -191,6 +196,7 @@ Trả về preferences cho tất cả notification types. Types chưa customize 
 ### 4.6 PUT /v1/notifications/device-token
 
 **Request body:**
+
 ```json
 {
   "deviceToken": "fcm-token-from-firebase-sdk"
@@ -213,13 +219,14 @@ Gọi khi app khởi động hoặc khi token refresh. Gửi `null` để xóa t
 
 Notifications được trigger bởi Domain Events, cùng pattern với Gamification:
 
-| Domain Event | Notification Type | Message |
-|---|---|---|
-| `ReportVerifiedEvent` | ReportStatusChanged | "Báo cáo đã được xác minh" |
-| `ReportRejectedEvent` | ReportStatusChanged | "Báo cáo bị từ chối" |
+| Domain Event          | Notification Type   | Message                      |
+| --------------------- | ------------------- | ---------------------------- |
+| `ReportVerifiedEvent` | ReportStatusChanged | "Báo cáo đã được xác minh"   |
+| `ReportRejectedEvent` | ReportStatusChanged | "Báo cáo bị từ chối"         |
 | `ReportResolvedEvent` | ReportStatusChanged | "Báo cáo đã được giải quyết" |
 
 **Mở rộng:** Để thêm notification cho event mới, chỉ cần:
+
 1. Tạo thêm `INotificationHandler<NewEvent>` trong `EventHandlers/`
 2. Gọi `INotificationService.SendAsync(...)` — không cần sửa handler gốc
 
@@ -228,12 +235,14 @@ Notifications được trigger bởi Domain Events, cùng pattern với Gamifica
 ## 7. FCM Push Notifications
 
 ### Setup cần thiết (FE / Mobile)
+
 1. Thêm Firebase SDK vào app (Android/iOS/Flutter)
 2. Khi user cho phép quyền notification → nhận FCM token từ Firebase
 3. Gọi `PUT /v1/notifications/device-token` gửi token lên backend
 4. Backend lưu token trong `User.FcmDeviceToken`
 
 ### Push payload
+
 ```json
 {
   "notification": {
@@ -259,23 +268,28 @@ Notifications được trigger bởi Domain Events, cùng pattern với Gamifica
 ## 8. Database
 
 ### Tables mới
+
 - `notifications` — lưu trữ mọi notification đã gửi
 - `notification_preferences` — per-user per-type channel toggles
 
 ### Indexes
+
 - `ix_notifications_recipient_read_created` — query listing (sorted by date, filter read)
 - `ix_notifications_recipient_type_created` — anti-spam count query
 - `ix_notification_preferences_user_type` — unique constraint
 
 ### User columns mới
+
 - `fcm_device_token` (varchar, nullable)
 - `language` (varchar, default "vi-VN")
 
 ### Report columns mới (SLA breach tracking)
+
 - `sla_verify_breached` (bool, default false)
 - `sla_resolve_breached` (bool, default false)
 
 ### Migration
+
 - `202606280900_AddNotificationsAndSlaBreachFields`
 
 ---
@@ -283,41 +297,43 @@ Notifications được trigger bởi Domain Events, cùng pattern với Gamifica
 ## 9. Files Created/Modified
 
 ### New Files
-| File | Layer | Mô tả |
-|---|---|---|
-| `Notification.cs` | Domain | Entity |
-| `NotificationPreference.cs` | Domain | Entity |
-| `NotificationType.cs` | Domain | Enum |
-| `NotificationChannel.cs` | Domain | Enum |
-| `INotificationService.cs` | Application | Interface |
-| `IPushNotificationSender.cs` | Application | Interface |
-| `INotificationRepository.cs` | Application | Repo interface |
-| `INotificationPreferenceRepository.cs` | Application | Repo interface |
-| `NotificationErrors.cs` | Application | Error constants |
-| `GetMyNotificationsQuery.cs` + Handler | Application | Feature slice |
-| `MarkNotificationReadCommand.cs` | Application | Feature slice |
-| `MarkAllReadCommand.cs` | Application | Feature slice |
-| `GetNotificationPreferencesQuery.cs` | Application | Feature slice |
-| `UpdateNotificationPreferencesCommand.cs` | Application | Feature slice |
-| `UpdateDeviceTokenCommand.cs` | Application | Feature slice |
-| `ReportStatusNotificationHandler.cs` | Application | Event handlers |
-| `NotificationService.cs` | Infrastructure | Core service |
-| `FcmPushNotificationSender.cs` | Infrastructure | FCM push |
-| `NotificationRepository.cs` | Infrastructure | Repo impl |
-| `NotificationPreferenceRepository.cs` | Infrastructure | Repo impl |
-| `NotificationConfiguration.cs` | Infrastructure | EF config |
-| `NotificationPreferenceConfiguration.cs` | Infrastructure | EF config |
-| `NotificationsController.cs` | API | Controller |
+
+| File                                      | Layer          | Mô tả           |
+| ----------------------------------------- | -------------- | --------------- |
+| `Notification.cs`                         | Domain         | Entity          |
+| `NotificationPreference.cs`               | Domain         | Entity          |
+| `NotificationType.cs`                     | Domain         | Enum            |
+| `NotificationChannel.cs`                  | Domain         | Enum            |
+| `INotificationService.cs`                 | Application    | Interface       |
+| `IPushNotificationSender.cs`              | Application    | Interface       |
+| `INotificationRepository.cs`              | Application    | Repo interface  |
+| `INotificationPreferenceRepository.cs`    | Application    | Repo interface  |
+| `NotificationErrors.cs`                   | Application    | Error constants |
+| `GetMyNotificationsQuery.cs` + Handler    | Application    | Feature slice   |
+| `MarkNotificationReadCommand.cs`          | Application    | Feature slice   |
+| `MarkAllReadCommand.cs`                   | Application    | Feature slice   |
+| `GetNotificationPreferencesQuery.cs`      | Application    | Feature slice   |
+| `UpdateNotificationPreferencesCommand.cs` | Application    | Feature slice   |
+| `UpdateDeviceTokenCommand.cs`             | Application    | Feature slice   |
+| `ReportStatusNotificationHandler.cs`      | Application    | Event handlers  |
+| `NotificationService.cs`                  | Infrastructure | Core service    |
+| `FcmPushNotificationSender.cs`            | Infrastructure | FCM push        |
+| `NotificationRepository.cs`               | Infrastructure | Repo impl       |
+| `NotificationPreferenceRepository.cs`     | Infrastructure | Repo impl       |
+| `NotificationConfiguration.cs`            | Infrastructure | EF config       |
+| `NotificationPreferenceConfiguration.cs`  | Infrastructure | EF config       |
+| `NotificationsController.cs`              | API            | Controller      |
 
 ### Modified Files
-| File | Thay đổi |
-|---|---|
-| `User.cs` | `+FcmDeviceToken`, `+Language`, `+UpdateFcmToken()`, `+UpdateLanguage()` |
-| `Report.cs` | `+SlaVerifyBreached`, `+SlaResolveBreached`, `+MarkSlaVerifyBreached()`, `+MarkSlaResolveBreached()` |
-| `IEmailSender.cs` | `+SendNotificationEmailAsync()` |
-| `SmtpEmailSender.cs` | Implement `SendNotificationEmailAsync()` |
-| `ApplicationDbContext.cs` | `+Notifications`, `+NotificationPreferences` DbSets |
-| `DependencyInjection.cs` | Register repos, services, TransactionBehavior, recurring jobs |
+
+| File                      | Thay đổi                                                                                             |
+| ------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `User.cs`                 | `+FcmDeviceToken`, `+Language`, `+UpdateFcmToken()`, `+UpdateLanguage()`                             |
+| `Report.cs`               | `+SlaVerifyBreached`, `+SlaResolveBreached`, `+MarkSlaVerifyBreached()`, `+MarkSlaResolveBreached()` |
+| `IEmailSender.cs`         | `+SendNotificationEmailAsync()`                                                                      |
+| `SmtpEmailSender.cs`      | Implement `SendNotificationEmailAsync()`                                                             |
+| `ApplicationDbContext.cs` | `+Notifications`, `+NotificationPreferences` DbSets                                                  |
+| `DependencyInjection.cs`  | Register repos, services, TransactionBehavior, recurring jobs                                        |
 
 ---
 

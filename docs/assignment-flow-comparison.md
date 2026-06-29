@@ -8,6 +8,7 @@
 ## 1. Mục tiêu
 
 Chuyển từ flow cũ (Assignment bắt đầu `InProgress` ngay khi assign) sang flow mới yêu cầu team **Accept trước khi làm việc**, đồng thời:
+
 - Gộp upload ảnh vào API cập nhật tiến độ
 - Tự resolve `teamId` từ JWT token (không cần client truyền)
 - Lưu audit ai cập nhật tiến độ
@@ -54,26 +55,26 @@ PUT /penalty                        PUT /penalty                      chỉ bloc
 
 ### 3.1 Domain — `ReportAssignment.cs`
 
-| # | Thay đổi | Chi tiết |
-|---|---|---|
-| D1 | `Create()`: `Status = Assigned`, `StartedAt = null` | Bỏ `StartedAt = DateTime.UtcNow`, đổi default status |
-| D2 | Thêm method `Accept()` | `Assigned → InProgress`, set `StartedAt = DateTime.UtcNow` |
-| D3 | `Decline()`: check `Status == Assigned` | Thay vì `InProgress` |
-| D4 | `UpdateProgress()`: thêm param `updatedByUserId` | Lưu thêm `ProgressUpdatedByUserId` |
-| D5 | Thêm field `ProgressUpdatedByUserId` (Guid?) | Audit ai cập nhật lần cuối |
+| #   | Thay đổi                                            | Chi tiết                                                   |
+| --- | --------------------------------------------------- | ---------------------------------------------------------- |
+| D1  | `Create()`: `Status = Assigned`, `StartedAt = null` | Bỏ `StartedAt = DateTime.UtcNow`, đổi default status       |
+| D2  | Thêm method `Accept()`                              | `Assigned → InProgress`, set `StartedAt = DateTime.UtcNow` |
+| D3  | `Decline()`: check `Status == Assigned`             | Thay vì `InProgress`                                       |
+| D4  | `UpdateProgress()`: thêm param `updatedByUserId`    | Lưu thêm `ProgressUpdatedByUserId`                         |
+| D5  | Thêm field `ProgressUpdatedByUserId` (Guid?)        | Audit ai cập nhật lần cuối                                 |
 
 ### 3.2 Domain — `Report.cs`
 
-| # | Thay đổi | Chi tiết |
-|---|---|---|
-| D6 | `Assign()`: bỏ `StartedAt = DateTime.UtcNow` | StartedAt chỉ set khi team Accept |
-| D7 | `RevertToVerified()`: bỏ `EnsureStatus(InProgress)` | Revert condition: tất cả `Assigned` hoặc `Declined` (không cần check report status cứng) |
+| #   | Thay đổi                                            | Chi tiết                                                                                 |
+| --- | --------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| D6  | `Assign()`: bỏ `StartedAt = DateTime.UtcNow`        | StartedAt chỉ set khi team Accept                                                        |
+| D7  | `RevertToVerified()`: bỏ `EnsureStatus(InProgress)` | Revert condition: tất cả `Assigned` hoặc `Declined` (không cần check report status cứng) |
 
 ### 3.3 Infrastructure — Migration
 
-| # | Thay đổi | Chi tiết |
-|---|---|---|
-| M1 | Thêm cột `progress_updated_by_user_id` (uuid nullable) vào `report_assignments` | Cho field D5 |
+| #   | Thay đổi                                                                        | Chi tiết     |
+| --- | ------------------------------------------------------------------------------- | ------------ |
+| M1  | Thêm cột `progress_updated_by_user_id` (uuid nullable) vào `report_assignments` | Cho field D5 |
 
 ### 3.4 Application — Slice mới `AcceptAssignment/`
 
@@ -86,6 +87,7 @@ Features/Reports/AcceptAssignment/
 ```
 
 **Logic handler:**
+
 1. Lấy `userId` từ `ICurrentUser`
 2. Gọi `ITeamMemberRepository.GetLeaderByUserIdAsync(userId)` → nếu null → `NOT_TEAM_LEADER`
 3. Tìm `Assignment` của team đó trên report → nếu null → `ASSIGNMENT_NOT_FOUND`
@@ -95,12 +97,13 @@ Features/Reports/AcceptAssignment/
 
 ### 3.5 Application — Sửa `UpdateProgress/`
 
-| # | File | Thay đổi |
-|---|---|---|
-| U1 | `UpdateProgressCommand.cs` | Bỏ field `TeamId`. Thêm `ImageFiles` (danh sách bytes+filename+contentType) |
-| U2 | `UpdateProgressCommandHandler.cs` | Resolve `teamId` từ `ICurrentUser → GetLeaderByUserIdAsync`. Upload ảnh nếu có (gọi `IFileStorageService`). Truyền `userId` vào `assignment.UpdateProgress()` |
+| #   | File                              | Thay đổi                                                                                                                                                      |
+| --- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| U1  | `UpdateProgressCommand.cs`        | Bỏ field `TeamId`. Thêm `ImageFiles` (danh sách bytes+filename+contentType)                                                                                   |
+| U2  | `UpdateProgressCommandHandler.cs` | Resolve `teamId` từ `ICurrentUser → GetLeaderByUserIdAsync`. Upload ảnh nếu có (gọi `IFileStorageService`). Truyền `userId` vào `assignment.UpdateProgress()` |
 
 **Request từ controller sẽ là `multipart/form-data`:**
+
 - `progressPercent` (int, bắt buộc)
 - `progressNote` (string, optional)
 - `images` (IFormFile[], optional, tối đa 5 file, mỗi file ≤ 20MB)
@@ -118,12 +121,14 @@ Features/Reports/GetMyProgressHistory/
 ```
 
 **Logic handler:**
+
 1. Lấy `userId` từ `ICurrentUser`
 2. Gọi `ITeamMemberRepository.GetLeaderByUserIdAsync(userId)` → lấy `teamId`
 3. Query tất cả `ReportAssignment` của team đó, có filter optional theo `assignmentStatus`
 4. Trả về danh sách kèm thông tin tiến độ
 
 **Response shape mỗi item:**
+
 ```json
 {
   "reportId": "uuid",
@@ -144,25 +149,25 @@ Features/Reports/GetMyProgressHistory/
 
 ### 3.7 Application — Sửa `DeclineAssignment/`
 
-| # | File | Thay đổi |
-|---|---|---|
-| DC1 | `DeclineAssignmentCommandHandler.cs` dòng 41 | Đổi check từ `InProgress` → `Assigned` |
+| #   | File                                            | Thay đổi                                                                    |
+| --- | ----------------------------------------------- | --------------------------------------------------------------------------- |
+| DC1 | `DeclineAssignmentCommandHandler.cs` dòng 41    | Đổi check từ `InProgress` → `Assigned`                                      |
 | DC2 | `DeclineAssignmentCommandHandler.cs` dòng 50-53 | Điều kiện revert: tất cả assignments phải là `Assigned` **hoặc** `Declined` |
 
 ### 3.8 Api — `ReportsController.cs`
 
-| # | Thay đổi | Chi tiết |
-|---|---|---|
-| A1 | Thêm `PUT {id}/accept` | Gọi `AcceptAssignmentCommand`, role `Cleanup,Inspector,Admin` |
-| A2 | Sửa `PUT {id}/progress` | Đổi sang `multipart/form-data`, bỏ `teamId` khỏi body, thêm `images[]` |
-| A3 | Thêm `GET my-progress` | Gọi `GetMyProgressHistoryQuery`, role `Cleanup,Inspector,Admin` |
-| A4 | Xóa `POST {id}/progress/images` | Đã gộp vào `/progress` |
+| #   | Thay đổi                        | Chi tiết                                                               |
+| --- | ------------------------------- | ---------------------------------------------------------------------- |
+| A1  | Thêm `PUT {id}/accept`          | Gọi `AcceptAssignmentCommand`, role `Cleanup,Inspector,Admin`          |
+| A2  | Sửa `PUT {id}/progress`         | Đổi sang `multipart/form-data`, bỏ `teamId` khỏi body, thêm `images[]` |
+| A3  | Thêm `GET my-progress`          | Gọi `GetMyProgressHistoryQuery`, role `Cleanup,Inspector,Admin`        |
+| A4  | Xóa `POST {id}/progress/images` | Đã gộp vào `/progress`                                                 |
 
 ### 3.9 Infrastructure — `ITeamMemberRepository` & `IReportAssignmentRepository`
 
-| # | Interface | Method cần thêm |
-|---|---|---|
-| R1 | `IReportAssignmentRepository` | `GetByTeamIdAsync(Guid teamId, AssignmentStatus? status, int page, int pageSize, CancellationToken ct)` |
+| #   | Interface                     | Method cần thêm                                                                                         |
+| --- | ----------------------------- | ------------------------------------------------------------------------------------------------------- |
+| R1  | `IReportAssignmentRepository` | `GetByTeamIdAsync(Guid teamId, AssignmentStatus? status, int page, int pageSize, CancellationToken ct)` |
 
 ---
 
@@ -200,7 +205,7 @@ Assignment.Status:
 
 ## 6. Error codes mới cần thêm
 
-| Code | HTTP | Mô tả |
-|---|---|---|
-| `NOT_TEAM_LEADER` | 422 | User không phải leader của team nào |
-| `ASSIGNMENT_NOT_ACCEPTED` | 422 | Assignment còn ở trạng thái `Assigned`, chưa Accept |
+| Code                      | HTTP | Mô tả                                               |
+| ------------------------- | ---- | --------------------------------------------------- |
+| `NOT_TEAM_LEADER`         | 422  | User không phải leader của team nào                 |
+| `ASSIGNMENT_NOT_ACCEPTED` | 422  | Assignment còn ở trạng thái `Assigned`, chưa Accept |

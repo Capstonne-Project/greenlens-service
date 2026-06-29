@@ -21,16 +21,16 @@ Backend tự xác định team từ JWT token — **không cần truyền `teamI
 
 ### Headers
 
-| Header | Giá trị |
-|---|---|
-| `Authorization` | `Bearer <access_token>` |
-| `Content-Type` | *(không cần, không có body)* |
+| Header          | Giá trị                      |
+| --------------- | ---------------------------- |
+| `Authorization` | `Bearer <access_token>`      |
+| `Content-Type`  | _(không cần, không có body)_ |
 
 ### Path Parameters
 
-| Param | Type | Mô tả |
-|---|---|---|
-| `id` | `uuid` | ID của report cần accept |
+| Param | Type   | Mô tả                    |
+| ----- | ------ | ------------------------ |
+| `id`  | `uuid` | ID của report cần accept |
 
 ### Body
 
@@ -44,14 +44,14 @@ Không có response body.
 
 ### Lỗi
 
-| HTTP | Error Code | Mô tả |
-|---|---|---|
-| `401` | — | Chưa đăng nhập / token hết hạn |
-| `403` | — | Role không được phép |
-| `422` | `NOT_TEAM_LEADER` | User đang đăng nhập không phải leader của team nào |
-| `422` | `REPORT_NOT_FOUND` | Không tìm thấy report với ID đã cho |
-| `422` | `INVALID_STATUS_TRANSITION` | Report không đang ở trạng thái `Assigned` |
-| `422` | `ASSIGNMENT_NOT_FOUND` | Team của leader không được gán vào report này |
+| HTTP  | Error Code                  | Mô tả                                              |
+| ----- | --------------------------- | -------------------------------------------------- |
+| `401` | —                           | Chưa đăng nhập / token hết hạn                     |
+| `403` | —                           | Role không được phép                               |
+| `422` | `NOT_TEAM_LEADER`           | User đang đăng nhập không phải leader của team nào |
+| `422` | `REPORT_NOT_FOUND`          | Không tìm thấy report với ID đã cho                |
+| `422` | `INVALID_STATUS_TRANSITION` | Report không đang ở trạng thái `Assigned`          |
+| `422` | `ASSIGNMENT_NOT_FOUND`      | Team của leader không được gán vào report này      |
 
 ### Cấu trúc lỗi (RFC 7807)
 
@@ -100,8 +100,8 @@ Assignment: Assigned → InProgress
 
 > Nếu FE đang dùng version cũ có truyền body `{ "teamId": "..." }`, hãy bỏ body đó đi.
 
-| | Cũ | Mới |
-|---|---|---|
-| Body | `{ "teamId": "uuid" }` | *(không có)* |
-| Xác định team | Client truyền `teamId` | Backend tự resolve từ token |
-| Kiểm tra leader | Không có | Bắt buộc — non-leader trả `422` |
+|                 | Cũ                     | Mới                             |
+| --------------- | ---------------------- | ------------------------------- |
+| Body            | `{ "teamId": "uuid" }` | _(không có)_                    |
+| Xác định team   | Client truyền `teamId` | Backend tự resolve từ token     |
+| Kiểm tra leader | Không có               | Bắt buộc — non-leader trả `422` |
