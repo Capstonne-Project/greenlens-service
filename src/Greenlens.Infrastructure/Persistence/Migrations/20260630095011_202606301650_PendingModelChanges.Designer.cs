@@ -3,17 +3,20 @@ using System;
 using Greenlens.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace Greenlens.Infrastructure.Migrations
+namespace Greenlens.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260630095011_202606301650_PendingModelChanges")]
+    partial class _202606301650_PendingModelChanges
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -88,11 +91,10 @@ namespace Greenlens.Infrastructure.Migrations
                             Id = new Guid("a1000001-0000-0000-0000-000000000001"),
                             Code = "first_report",
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Gửi báo cáo ô nhiễm đầu tiên được xác minh",
-                            IconUrl = "badges/icons/first_report.png",
+                            Description = "Gửi báo cáo ô nhiễm đầu tiên",
                             IsActive = true,
-                            NameEn = "First Reporter",
-                            NameVi = "Người Khởi Đầu",
+                            NameEn = "First Report",
+                            NameVi = "Người khởi đầu",
                             RequiredReportCount = 1
                         },
                         new
@@ -101,126 +103,30 @@ namespace Greenlens.Infrastructure.Migrations
                             Code = "eco_warrior",
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Description = "Gửi 10 báo cáo ô nhiễm được xác minh",
-                            IconUrl = "badges/icons/eco_warrior.png",
                             IsActive = true,
                             NameEn = "Eco Warrior",
-                            NameVi = "Chiến Binh Xanh",
+                            NameVi = "Chiến binh Xanh",
                             RequiredReportCount = 10
                         },
                         new
                         {
                             Id = new Guid("a1000001-0000-0000-0000-000000000003"),
-                            Code = "green_champion",
+                            Code = "hotspot_hunter",
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Gửi 50 báo cáo ô nhiễm được xác minh",
-                            IconUrl = "badges/icons/green_champion.png",
+                            Description = "Gửi 3 báo cáo trong vùng hotspot",
                             IsActive = true,
-                            NameEn = "Green Champion",
-                            NameVi = "Nhà Vô Địch Xanh",
-                            RequiredReportCount = 50
+                            NameEn = "Hotspot Hunter",
+                            NameVi = "Thợ săn điểm nóng"
                         },
                         new
                         {
                             Id = new Guid("a1000001-0000-0000-0000-000000000004"),
-                            Code = "earth_guardian",
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Gửi 100 báo cáo ô nhiễm được xác minh",
-                            IconUrl = "badges/icons/earth_guardian.png",
-                            IsActive = true,
-                            NameEn = "Earth Guardian",
-                            NameVi = "Người Bảo Vệ Trái Đất",
-                            RequiredReportCount = 100
-                        },
-                        new
-                        {
-                            Id = new Guid("a1000001-0000-0000-0000-000000000005"),
                             Code = "streak_7d",
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Description = "Gửi báo cáo 7 ngày liên tiếp",
-                            IconUrl = "badges/icons/streak_7d.png",
                             IsActive = true,
                             NameEn = "7-Day Streak",
-                            NameVi = "Bền Bỉ 7 Ngày"
-                        },
-                        new
-                        {
-                            Id = new Guid("a1000001-0000-0000-0000-000000000006"),
-                            Code = "streak_30d",
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Gửi báo cáo 30 ngày liên tiếp",
-                            IconUrl = "badges/icons/streak_30d.png",
-                            IsActive = true,
-                            NameEn = "30-Day Streak",
-                            NameVi = "Kiên Trì 30 Ngày"
-                        },
-                        new
-                        {
-                            Id = new Guid("a1000001-0000-0000-0000-000000000007"),
-                            Code = "hotspot_hunter",
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Gửi 3 báo cáo trong khu vực hotspot ô nhiễm",
-                            IconUrl = "badges/icons/hotspot_hunter.png",
-                            IsActive = true,
-                            NameEn = "Hotspot Hunter",
-                            NameVi = "Thợ Săn Điểm Nóng"
-                        },
-                        new
-                        {
-                            Id = new Guid("a1000001-0000-0000-0000-000000000008"),
-                            Code = "duplicate_finder",
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "5 báo cáo được xác nhận là trùng lặp, hỗ trợ phát hiện ô nhiễm",
-                            IconUrl = "badges/icons/duplicate_finder.png",
-                            IsActive = true,
-                            NameEn = "Duplicate Finder",
-                            NameVi = "Người Phát Hiện Trùng"
-                        },
-                        new
-                        {
-                            Id = new Guid("a1000001-0000-0000-0000-000000000009"),
-                            Code = "community_voice",
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Có báo cáo nhận ≥ 10 lượt xác nhận từ cộng đồng",
-                            IconUrl = "badges/icons/community_voice.png",
-                            IsActive = true,
-                            NameEn = "Community Voice",
-                            NameVi = "Tiếng Nói Cộng Đồng"
-                        },
-                        new
-                        {
-                            Id = new Guid("a1000001-0000-0000-0000-000000000010"),
-                            Code = "rising_star",
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Đạt Level 2 với 100 điểm tích lũy",
-                            IconUrl = "badges/icons/rising_star.png",
-                            IsActive = true,
-                            NameEn = "Rising Star",
-                            NameVi = "Ngôi Sao Đang Lên",
-                            RequiredPoints = 100
-                        },
-                        new
-                        {
-                            Id = new Guid("a1000001-0000-0000-0000-000000000011"),
-                            Code = "eco_expert",
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Đạt Level 4 với 1.500 điểm tích lũy",
-                            IconUrl = "badges/icons/eco_expert.png",
-                            IsActive = true,
-                            NameEn = "Eco Expert",
-                            NameVi = "Chuyên Gia Môi Trường",
-                            RequiredPoints = 1500
-                        },
-                        new
-                        {
-                            Id = new Guid("a1000001-0000-0000-0000-000000000012"),
-                            Code = "green_legend",
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Đạt Level 5 với 5.000 điểm tích lũy — thành tựu cao nhất",
-                            IconUrl = "badges/icons/green_legend.png",
-                            IsActive = true,
-                            NameEn = "Green Legend",
-                            NameVi = "Huyền Thoại Xanh",
-                            RequiredPoints = 5000
+                            NameVi = "7 ngày liên tiếp"
                         });
                 });
 

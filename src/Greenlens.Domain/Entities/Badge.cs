@@ -10,7 +10,11 @@ public sealed class Badge : BaseEntity
 {
     private Badge() { } // EF Core
 
-    /// <summary>Unique code: "first_report", "eco_warrior", "hotspot_hunter", "streak_7d".</summary>
+    /// <summary>
+    /// Unique code. Milestone: "first_report", "eco_warrior", "green_champion", "earth_guardian".
+    /// Streak: "streak_7d", "streak_30d". Community: "hotspot_hunter", "duplicate_finder", "community_voice".
+    /// Level: "rising_star", "eco_expert", "green_legend".
+    /// </summary>
     public string Code { get; private set; } = default!;
     public string NameVi { get; private set; } = default!;
     public string NameEn { get; private set; } = default!;
