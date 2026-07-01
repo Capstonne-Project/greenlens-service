@@ -1,13 +1,13 @@
 # Session Handoff — GreenLens Backend
 
-> **Cập nhật lần cuối:** 2026-06-30 16:47 · **Phiên bản:** 10 · **Agent:** Antigravity
+> **Cập nhật lần cuối:** 2026-07-01 10:08 · **Phiên bản:** 11 · **Agent:** Antigravity
 
 ## 0. TL;DR
-Backend .NET 9 GreenLens. Phiên 10 đã implement **BR-AUTH** batch (009, 011, 012, 015, 020, 021) và **BR-ORG** batch (014, 015, 016, 021) bao gồm: invitation flow thay thế instant recruit, reject re-queue, LEO manual escalate to DEO, và release staff. Tất cả build ✅ 0 errors. **Chưa commit** — cần tạo branch `feature/invitation-flow-and-report-escalation` và commit.
+Backend .NET 9 GreenLens. Phiên 11 tập trung vào **tài liệu kiến trúc hệ thống**: System Architecture Diagram (8 Mermaid diagrams), Conceptual ERD (33 entities), và Activity Diagrams (6 luồng chính với swimlanes). Không có code change — chỉ documentation. Code phiên 10 (BR-AUTH + BR-ORG) vẫn **chưa commit**.
 
 ## 1. Mục tiêu & Bối cảnh
 - **Mục tiêu tổng thể:** Backend .NET 9 cho ứng dụng báo cáo ô nhiễm môi trường (SU26SE049)
-- **Phạm vi phiên 10:** BR-AUTH batch (role assignment, lockout, password history, ban, restore) + BR-ORG batch (SLA escalation, reject re-queue, city-level route, invitation system)
+- **Phạm vi phiên 11:** System Architecture Diagrams, Conceptual ERD, Activity Diagrams
 - **Ngôn ngữ:** Tiếng Việt (giao tiếp + XML doc BR), English (code)
 
 ## 2. Quyết định đã chốt (Locked Decisions)
@@ -29,49 +29,44 @@ Backend .NET 9 GreenLens. Phiên 10 đã implement **BR-AUTH** batch (009, 011, 
 | 13 | BR-AUTH-021: RestoreAccount riêng biệt | Tách khỏi DeleteUser flow | 2026-06-29 |
 | 14 | BR-AUTH-009: Tách riêng, không gộp vào AdminController | Mỗi role-assignment có validation riêng | 2026-06-29 |
 | 15 | BR-ORG-015: LEO reject → status giữ Submitted, clear AssignedOfficeId → re-queue | Không dùng terminal Rejected status | 2026-06-29 |
-| 16 | BR-ORG-016: **LEO manual escalate** thay vì flag `IsCityLevelRoute` trên Ward | Flag trên Ward không chính xác — 1 phường có cả tuyến cấp TP lẫn hẻm. LEO nhìn ảnh + GPS → quyết định escalate | 2026-06-30 |
-| 17 | BR-ORG-021: Invitation flow (7 ngày) + ReleaseStaff | Không instant role change — citizen phải accept. Release = undo sai | 2026-06-29 |
+| 16 | BR-ORG-016: **LEO manual escalate** thay vì flag `IsCityLevelRoute` trên Ward | Flag trên Ward không chính xác — 1 phường có cả tuyến cấp TP lẫn hẻm | 2026-06-30 |
+| 17 | BR-ORG-021: Invitation flow (7 ngày) + ReleaseStaff | Không instant role change — citizen phải accept | 2026-06-29 |
 
 ## 3. Trạng thái hiện tại
 
+### ✅ Đã hoàn thành (phiên 11 — 2026-07-01)
+
+**System Documentation (3 tài liệu lớn):**
+- `docs/architecture-system-diagram.md` — 8 Mermaid diagrams:
+  1. High-Level Architecture (Clients → Gateway → Backend → Data → External)
+  2. Clean Architecture Layers (Api → App → Domain ← Infra)
+  3. Report Lifecycle & Actor Interactions
+  4. Data Model (Core Entities ER)
+  5. Background Jobs Architecture
+  6. Authentication & Authorization Flow (sequence diagram)
+  7. Deployment Architecture (AWS target)
+  8. Module Summary table
+- `docs/conceptual-erd.md` — 33 entities, chỉ Object + Relationship (không attribute), chia 6 nhóm:
+  - Location (4) · Organization (5) · Company (3) · User & Auth (4) · Report (9) · Gamification + Notification (6) · Catalog (2)
+- `docs/activity-diagrams.md` — 6 Activity Diagrams với UML notation + swimlanes:
+  1. Submit & Process Report (4 actors, 6 decisions)
+  2. Authentication (2 actors, 7 decisions)
+  3. Organization & Invitation (4 actors, 5 decisions)
+  4. Company Dispatch (4 actors, 1 decision)
+  5. Inspection (3 actors, 2 decisions)
+  6. Gamification (2 actors, 3 decisions)
+
 ### ✅ Đã hoàn thành (phiên 10 — 2026-06-29/30)
-
-**BR-AUTH batch:**
-- BR-AUTH-009: `AssignRoleCommand` (Admin only, validate role assignment rules)
-- BR-AUTH-011: Account lockout (5 fails / 15min → lock 30min, lưu `FailedLoginCount` + `LockoutEnd`)
-- BR-AUTH-012: Auto-unlock check trong login flow
-- BR-AUTH-015: `IsBanned` flag + `ToggleBanCommand` + login check
-- BR-AUTH-020: `PasswordHistory` entity (3 gần nhất), check trong ChangePassword
-- BR-AUTH-021: `RestoreAccountCommand` (undo soft delete trong 90 ngày)
-
-**BR-ORG batch:**
-- BR-ORG-014: SLA escalation — `SlaBreachVerificationJob` gọi `Report.EscalateToDepartment()` khi breach
-- BR-ORG-015: Reject re-queue — `RejectReportCommandHandler` giữ Submitted, clear office → Department queue
-- BR-ORG-016: ~~IsCityLevelRoute flag~~ → **LEO manual escalate** (`POST /v1/reports/{id}/escalate`)
-- BR-ORG-021: Invitation flow:
-  - `StaffInvitation` entity (7d expiry, Accept/Decline/Cancel)
-  - `RecruitStaff` → tạo invitation thay vì instant role change
-  - `AcceptInvitation` → role change + assign office/team
-  - `DeclineInvitation` → giữ Citizen
-  - `GetMyInvitations` → Citizen xem danh sách
-  - `ReleaseStaff` → revert role → Citizen, clear office, remove teams
-
-**New controllers & endpoints:**
-- `InvitationsController` — 3 endpoints (GET my, POST accept, POST decline)
-- `ReportsController` — +1 endpoint (POST escalate)
-- `LocalOfficesController` — +1 endpoint (DELETE release staff), updated RecruitStaff swagger
-- `DepartmentsController` — removed ToggleCityLevelRoute (replaced by manual escalate)
-
-**Documentation:**
-- `docs/api-invitation-escalation-guide.md` — FE integration guide
-- `docs/BusinessRule/br_v12_comparison_report.md` — cập nhật BR-ORG-014/015/016/020/021
+- BR-AUTH batch: role assignment, lockout, password history, ban/unban, restore
+- BR-ORG batch: invitation flow, reject re-queue, LEO manual escalate, release staff
+- Controllers: InvitationsController, +escalate, +release staff
+- Docs: api-invitation-escalation-guide.md, br_v12_comparison_report.md updated
 
 ### ✅ Đã hoàn thành (phiên trước)
 - Gamification module (BR-GAM-001..006): 23 files, 11 unit tests
 - P0 Blocking (TransactionBehavior + 3 SLA jobs)
 - Notification module (BR-NTF-001..004): 6 endpoints
-- LEO Company Dispatch API (`GET /v1/companies/my-ward`)
-- DomainEvent infrastructure, Hangfire setup
+- LEO Company Dispatch API, DomainEvent infrastructure, Hangfire setup
 - API Documentation v1.7, E2E tests
 
 ### ⚠️ Deferred / Chưa làm
@@ -84,32 +79,29 @@ Backend .NET 9 GreenLens. Phiên 10 đã implement **BR-AUTH** batch (009, 011, 
 
 ## 4. Việc tiếp theo (Next Steps)
 - [ ] **Commit phiên 10**: branch `feature/invitation-flow-and-report-escalation`
+- [ ] Migration cho StaffInvitation + PasswordHistory + IsBanned
+- [ ] Unit tests cho invitation flow, escalate, reject re-queue
 - [ ] Comments module (BR-CMT-001..004)
 - [ ] AI Service: BR-AI-006 fallback retry job
 - [ ] Administration: BR-ADM-004..008, 010, 012
 - [ ] Data Privacy: BR-DAT-002..005
 - [ ] Map module: BR-MAP-001..012 (heatmap, hotspot, nearby)
 - [ ] Cập nhật API Documentation lên v1.8+
-- [ ] Unit tests cho invitation flow, escalate, reject re-queue
 
 ## 5. File & Artefact quan trọng
 
 | Đường dẫn | Vai trò | Trạng thái |
 |---|---|---|
-| `docs/BusinessRule/br_v12_comparison_report.md` | So sánh BR v1.2 vs hệ thống | ✅ Cập nhật ORG batch |
-| `docs/api-invitation-escalation-guide.md` | FE guide invitation + escalation | ✅ Mới tạo |
-| `src/Greenlens.Domain/Entities/StaffInvitation.cs` | Invitation entity (7d, accept/decline/cancel) | ✅ Mới |
-| `src/Greenlens.Domain/Entities/PasswordHistory.cs` | Password history (3 gần nhất) | ✅ Mới |
-| `src/Greenlens.Domain/Entities/User.cs` | +ClearOfficeAssignment, Ban/Unban | ✅ Sửa |
-| `src/Greenlens.Domain/Entities/Report.cs` | +EscalateToDepartment, Reject re-queue | ✅ Sửa |
-| `src/Greenlens.Application/Features/Organization/AcceptInvitation/` | Accept invitation slice | ✅ Mới |
-| `src/Greenlens.Application/Features/Organization/DeclineInvitation/` | Decline invitation slice | ✅ Mới |
-| `src/Greenlens.Application/Features/Organization/GetMyInvitations/` | Get invitations query | ✅ Mới |
-| `src/Greenlens.Application/Features/Organization/ReleaseStaff/` | Release staff to Citizen | ✅ Mới |
-| `src/Greenlens.Application/Features/Reports/EscalateReport/` | LEO escalate to DEO | ✅ Mới |
-| `src/Greenlens.Api/Controllers/InvitationsController.cs` | 3 invitation endpoints | ✅ Mới |
-| `src/Greenlens.Api/Controllers/ReportsController.cs` | +escalate endpoint | ✅ Sửa |
-| `src/Greenlens.Api/Controllers/LocalOfficesController.cs` | +release staff, updated recruit | ✅ Sửa |
+| `docs/architecture-system-diagram.md` | System Architecture (8 Mermaid diagrams) | ✅ Mới tạo |
+| `docs/conceptual-erd.md` | Conceptual ERD (33 entities, no attributes) | ✅ Mới tạo |
+| `docs/activity-diagrams.md` | 6 Activity Diagrams với swimlanes | ✅ Mới tạo |
+| `docs/BusinessRule/br_v12_comparison_report.md` | So sánh BR v1.2 vs hệ thống | ✅ Cập nhật |
+| `docs/api-invitation-escalation-guide.md` | FE guide invitation + escalation | ✅ Ổn định |
+| `src/Greenlens.Domain/Entities/StaffInvitation.cs` | Invitation entity (7d) | ✅ Ổn định |
+| `src/Greenlens.Domain/Entities/PasswordHistory.cs` | Password history (3 gần nhất) | ✅ Ổn định |
+| `src/Greenlens.Application/Features/Reports/EscalateReport/` | LEO escalate to DEO | ✅ Ổn định |
+| `src/Greenlens.Api/Controllers/InvitationsController.cs` | 3 invitation endpoints | ✅ Ổn định |
+| `src/Greenlens.Api/Controllers/ReportsController.cs` | +escalate endpoint | ✅ Ổn định |
 
 ## 6. Kiến thức nền & Quy ước
 - **Tech stack:** .NET 9, ASP.NET Core, EF Core 9, PostgreSQL + PostGIS, Hangfire, MediatR, FluentValidation, Mapster
@@ -122,10 +114,11 @@ Backend .NET 9 GreenLens. Phiên 10 đã implement **BR-AUTH** batch (009, 011, 
 - **Migration:** `dotnet ef migrations add <Name> --project src/Greenlens.Infrastructure --startup-project src/Greenlens.Api --output-dir Persistence/Migrations`
 - **Git:** Conventional Commits, branch `feature/<slug>`, KHÔNG dùng mã BR/P0 trong tên
 - **Non-generic Result uses `ToHttpNoContent()`**, generic `Result<T>` uses `ToHttp()` or `ToHttpCreated()`
-- **Domain layer KHÔNG reference Errors class** (Application layer) — dùng inline `new Error(...)` (xem InspectionReport, StaffInvitation)
+- **Domain layer KHÔNG reference Errors class** (Application layer) — dùng inline `new Error(...)`
 - **Invitation flow replaces instant recruit** — RecruitStaff creates StaffInvitation, citizen must Accept
 - **Reject re-queue:** status stays Submitted, AssignedOfficeId = null → Department queue
 - **LEO escalate:** manual POST, not auto-flag — vì 1 phường có cả tuyến cấp TP lẫn hẻm
+- **Diagrams:** dùng Mermaid trong .md — xem trên GitHub hoặc mermaid.live
 
 ## 7. Câu hỏi mở / Cần xác nhận
 - Module tiếp theo để implement? (Comments? AI retry? Map? Admin?)
@@ -142,6 +135,7 @@ Backend .NET 9 GreenLens. Phiên 10 đã implement **BR-AUTH** batch (009, 011, 
 | BR-ORG-xxx | Business Rule — Organization module |
 | BR-AUTH-xxx | Business Rule — Authentication module |
 | SLA | Service Level Agreement — thời hạn xử lý report theo severity |
+| ERD | Entity Relationship Diagram |
 
 ## 9. Change Log
 - 2026-06-17 — API Documentation v1.7 + E2E test Company Management (20/20 PASS)
@@ -150,4 +144,5 @@ Backend .NET 9 GreenLens. Phiên 10 đã implement **BR-AUTH** batch (009, 011, 
 - 2026-06-28 — P0 Blocking (TransactionBehavior + 3 SLA jobs) + Notification module (6 endpoints) + docs
 - 2026-06-28 — LEO company dispatch: `GET /v1/companies/my-ward`
 - 2026-06-29 — BR-AUTH batch: role assignment, lockout, password history, ban/unban, restore account
-- 2026-06-30 — BR-ORG batch: invitation flow, reject re-queue, LEO manual escalate, release staff. Removed IsCityLevelRoute flag (replaced by manual escalation)
+- 2026-06-30 — BR-ORG batch: invitation flow, reject re-queue, LEO manual escalate, release staff. Removed IsCityLevelRoute flag
+- 2026-07-01 — System Documentation: Architecture Diagram (8 Mermaid), Conceptual ERD (33 entities), Activity Diagrams (6 flows with swimlanes). No code changes.

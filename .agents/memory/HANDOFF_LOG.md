@@ -8,3 +8,4 @@
 - 2026-06-28 08:41 — Session v8: Tổng hợp tiến độ Gamification module (BR-GAM-001..006) hoàn thành, DomainEvent infra, Hangfire setup. 23 files mới, 77/77 tests pass.
 - 2026-06-29 14:30 — Session v9: P0 Blocking (TransactionBehavior + 3 SLA jobs) + Notification module (6 endpoints) + LEO company dispatch API (GET /v1/companies/my-ward). All merged to develop.
 - 2026-06-30 16:47 — Session v10: BR-AUTH batch (009/011/012/015/020/021) + BR-ORG batch (014/015/016/021). Invitation flow replaces instant recruit, reject re-queue, LEO manual escalate to DEO, release staff. Removed IsCityLevelRoute flag. Build ✅ 0 errors. Pending commit.
+- 2026-07-01 10:08 — Session v11: System Documentation — Architecture Diagram (8 Mermaid), Conceptual ERD (33 entities), Activity Diagrams (6 flows with swimlanes). No code changes.

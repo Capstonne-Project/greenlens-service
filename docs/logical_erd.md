@@ -475,16 +475,13 @@
 | FK | ReportId | GUID | NN → Report |
 | | Status | «InspectionStatus» | NN |
 | FK | *AssignedTeamId* | GUID | → EnvironmentalTeam |
+| FK | *ViolatingEntityId* | GUID | → ViolatingEntity |
 | | *ViolationDescription* | String | |
-| | *ViolatorName* | String | |
-| | *ViolatorAddress* | String | |
-| | *ViolatorIdentity* | String | |
 | | *ViolationLevel* | «ViolationLevel» | |
 | | *PenaltyAmount* | Decimal | |
 | | *PenaltyDecisionNumber* | String | |
 | | *PenaltyIssuedAt* | DateTime | |
 | | *PenaltyDueDate* | DateTime | |
-| | *PaidAmount* | Decimal | |
 | | *AdditionalPenaltyMeasures* | String | |
 | | IsRepeatOffender | Boolean | NN |
 | FK | CreatedByOfficerId | GUID | NN → User (LEO) |
@@ -500,6 +497,49 @@
 > **«InspectionStatus»**: Draft, PenaltyIssued, Paid, PartiallyPaid, Overdue, Closed, ClosedNoViolation
 > **«ViolationLevel»**: Minor, Moderate, Severe, Critical
 > **BR-INS-001 (v1.2)**: Xử lý xử phạt cho MỌI loại ô nhiễm khi LEO lập InspectionReport.
+
+---
+
+## ViolatingEntity 🔴 CHƯA IMPLEMENT
+
+| Key | Attribute | Data Type | Constraint |
+|-----|-----------|-----------|------------|
+| PK | Id | GUID | NN |
+| | Name | String | NN |
+| | *Address* | String | |
+| | *TaxCode* | String | UK |
+| | *PhoneNumber* | String | |
+| | Type | «ViolatorType» | NN |
+| | CreatedAt | DateTime | NN |
+| | *CreatedBy* | String | |
+| | *UpdatedAt* | DateTime | |
+| | *UpdatedBy* | String | |
+
+> **«ViolatorType»**: Individual, Business
+> **BR-INS-010**: Thông tin cơ sở vi phạm (tên, địa chỉ, MST/MSDN).
+> **BR-INS-022**: Tái phạm — cùng ViolatingEntity bị lập biên bản ≥ 2 lần / 12 tháng → gắn cờ Repeat Offender. Query bằng `ViolatingEntityId` thay vì string-match.
+> UK trên TaxCode cho phép hệ thống tự detect repeat offender chính xác.
+
+---
+
+## PenaltyPayment 🔴 CHƯA IMPLEMENT
+
+| Key | Attribute | Data Type | Constraint |
+|-----|-----------|-----------|------------|
+| PK | Id | GUID | NN |
+| FK | InspectionReportId | GUID | NN → InspectionReport |
+| | Amount | Decimal | NN |
+| | PaidAt | DateTime | NN |
+| | *PaymentMethod* | String | |
+| | *EvidenceUrl* | String | |
+| | *Note* | String | |
+| FK | RecordedByUserId | GUID | NN → User |
+| | CreatedAt | DateTime | NN |
+| | *CreatedBy* | String | |
+
+> **BR-INS-020**: Ghi nhận nộp phạt — Paid / PartiallyPaid / Overdue. Kèm bằng chứng (ảnh biên lai/chuyển khoản).
+> Partial payment = nhiều record PenaltyPayment. Tổng `SUM(Amount)` so với `InspectionReport.PenaltyAmount` để xác định Paid hay PartiallyPaid.
+> InspectionReport.PaidAmount giữ lại làm computed/cached field = SUM(PenaltyPayment.Amount).
 
 ---
 
