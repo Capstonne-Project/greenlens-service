@@ -31,6 +31,9 @@ public sealed class User : SoftDeletableEntity
     public DateTime? LockoutEnd { get; private set; }
     public string? GoogleId { get; private set; }
 
+    /// <summary>BR-AUTH-015: Admin có thể ban/unban user. User bị ban không thể đăng nhập.</summary>
+    public bool IsBanned { get; private set; }
+
     // ── Notifications (BR-NTF-001) ──
     /// <summary>Firebase Cloud Messaging device token for push notifications.</summary>
     public string? FcmDeviceToken { get; private set; }
@@ -201,6 +204,13 @@ public sealed class User : SoftDeletableEntity
         DepartmentId = null;
     }
 
+    /// <summary>Release staff: clear office + department assignment.</summary>
+    public void ClearOfficeAssignment()
+    {
+        LocalOfficeId = null;
+        DepartmentId = null;
+    }
+
     /// <summary>Admin: explicit role change.</summary>
     public void ChangeRole(UserRole newRole)
     {
@@ -220,4 +230,13 @@ public sealed class User : SoftDeletableEntity
         Language = language;
         UpdatedAt = DateTime.UtcNow;
     }
+
+    /// <summary>BR-AUTH-015: Ban user — prevents login.</summary>
+    public void Ban() => IsBanned = true;
+
+    /// <summary>BR-AUTH-015: Unban user — restores login access.</summary>
+    public void Unban() => IsBanned = false;
+
+    /// <summary>BR-AUTH-015: Toggle ban status.</summary>
+    public void ToggleBan() => IsBanned = !IsBanned;
 }

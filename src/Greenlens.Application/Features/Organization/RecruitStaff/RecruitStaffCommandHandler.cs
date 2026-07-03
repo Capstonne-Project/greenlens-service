@@ -11,16 +11,16 @@ using Microsoft.Extensions.Logging;
 namespace Greenlens.Application.Features.Organization.RecruitStaff;
 
 /// <summary>
-/// Recruits a Citizen user into the LEO's LocalOffice by:
-/// 1. Changing their role to Cleaner/Inspector.
-/// 2. Setting their LocalOfficeId.
-/// 3. Optionally creating a TeamMember record.
-/// All within a single transaction.
+/// LEO sends an invitation to a Citizen user to join their LocalOffice team.
+/// Creates a StaffInvitation (7-day expiry) instead of instant role change.
 /// </summary>
+/// <remarks>
+/// Implements: BR-ORG-020 (invite via email), BR-ORG-021 (7-day expiry, single-use).
+/// </remarks>
 public sealed class RecruitStaffCommandHandler(
     IUserRepository users,
     IEnvironmentalTeamRepository teams,
-    ITeamMemberRepository teamMembers,
+    IStaffInvitationRepository invitations,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     ILogger<RecruitStaffCommandHandler> logger) : IRequestHandler<RecruitStaffCommand, Result<RecruitStaffResponse>>
@@ -58,14 +58,16 @@ public sealed class RecruitStaffCommandHandler(
         if (targetUser.LocalOfficeId.HasValue)
             return Errors.Organization.UserAlreadyInOffice;
 
-        // ── 6. Change role + assign to office ──
-        targetUser.ChangeRole(request.TargetRole);
-        targetUser.AssignToLocalOffice(leoOfficeId);
+        // ── 6. Check no existing pending invitation for this user ──
+        var hasPending = await invitations.ExistsAsync(
+            i => i.InvitedUserId == targetUser.Id && i.Status == InvitationStatus.Pending, ct)
+            .ConfigureAwait(false);
 
-        // ── 7. Optionally add to team ──
-        Guid? teamMemberId = null;
+        if (hasPending)
+            return Errors.Organization.DuplicateInvitation;
+
+        // ── 7. Validate team if provided ──
         Guid? assignedTeamId = null;
-
         if (request.TeamId.HasValue)
         {
             var team = await teams.GetByIdAsync(request.TeamId.Value, ct).ConfigureAwait(false);
@@ -73,11 +75,10 @@ public sealed class RecruitStaffCommandHandler(
             if (team is null)
                 return Errors.Organization.TeamNotFound;
 
-            // Team must belong to the LEO's office
             if (team.LocalOfficeId != leoOfficeId)
                 return Errors.Organization.TeamNotInOffice;
 
-            // Role-TeamType compatibility: Cleaner→Cleanup, Inspector→Inspection
+            // Role-TeamType compatibility
             var roleMatchesTeam = (request.TargetRole, team.TeamType) switch
             {
                 (UserRole.Cleaner, TeamType.Cleanup) => true,
@@ -88,26 +89,24 @@ public sealed class RecruitStaffCommandHandler(
             if (!roleMatchesTeam)
                 return Errors.Organization.InvalidRoleForTeamMember;
 
-            // Check not already in any team
-            var alreadyInTeam = await teamMembers
-                .ExistsAsync(tm => tm.UserId == targetUser.Id, ct)
-                .ConfigureAwait(false);
-
-            if (alreadyInTeam)
-                return Errors.Organization.UserAlreadyInTeam;
-
-            var member = TeamMember.Create(team.Id, targetUser.Id, request.IsLeader);
-            teamMembers.Add(member);
-            teamMemberId = member.Id;
             assignedTeamId = team.Id;
         }
 
-        // ── 8. Persist ──
+        // ── 8. Create invitation instead of instant recruit ──
+        var invitation = StaffInvitation.Create(
+            invitedByUserId: currentUser.UserId,
+            invitedUserId: targetUser.Id,
+            localOfficeId: leoOfficeId,
+            targetRole: request.TargetRole,
+            teamId: assignedTeamId);
+
+        invitations.Add(invitation);
+
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 
         logger.LogInformation(
-            "LEO {LeoId} recruited user {UserId} ({Email}) as {Role} to office {OfficeId}, team={TeamId}",
-            currentUser.UserId, targetUser.Id, targetUser.Email, request.TargetRole, leoOfficeId, assignedTeamId);
+            "LEO {LeoId} sent invitation {InvitationId} to user {UserId} ({Email}) as {Role}",
+            currentUser.UserId, invitation.Id, targetUser.Id, targetUser.Email, request.TargetRole);
 
         return new RecruitStaffResponse(
             targetUser.Id,
@@ -116,6 +115,6 @@ public sealed class RecruitStaffCommandHandler(
             request.TargetRole,
             leoOfficeId,
             assignedTeamId,
-            teamMemberId);
+            null); // No teamMemberId yet — user must accept first
     }
 }

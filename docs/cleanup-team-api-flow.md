@@ -43,13 +43,14 @@
 
 **Query params:**
 
-| Param | Type | Bắt buộc | Mô tả |
-|-------|------|----------|-------|
-| `page` | int | Không | Trang (default: 1) |
-| `pageSize` | int | Không | Số item/trang (default: 20) |
-| `assignmentStatus` | string | Không | Filter: `Assigned` / `InProgress` / `Completed` / `Declined` |
+| Param              | Type   | Bắt buộc | Mô tả                                                        |
+| ------------------ | ------ | -------- | ------------------------------------------------------------ |
+| `page`             | int    | Không    | Trang (default: 1)                                           |
+| `pageSize`         | int    | Không    | Số item/trang (default: 20)                                  |
+| `assignmentStatus` | string | Không    | Filter: `Assigned` / `InProgress` / `Completed` / `Declined` |
 
 **Response `200`:**
+
 ```json
 {
   "status": 200,
@@ -92,6 +93,7 @@
 > Team chấp nhận task. Chuyển `AssignmentStatus: Assigned → InProgress`, `ReportStatus: Assigned → InProgress`.
 
 **Request body:**
+
 ```json
 {
   "teamId": "team-guid-here"
@@ -102,10 +104,10 @@
 
 **Lỗi có thể gặp:**
 
-| HTTP | Code | Mô tả |
-|------|------|-------|
-| 422 | `INVALID_STATUS_TRANSITION` | Report không ở trạng thái `Assigned` |
-| 422 | `ASSIGNMENT_NOT_FOUND` | Team không được gán cho báo cáo này |
+| HTTP | Code                        | Mô tả                                |
+| ---- | --------------------------- | ------------------------------------ |
+| 422  | `INVALID_STATUS_TRANSITION` | Report không ở trạng thái `Assigned` |
+| 422  | `ASSIGNMENT_NOT_FOUND`      | Team không được gán cho báo cáo này  |
 
 ---
 
@@ -117,6 +119,7 @@
 > Nếu tất cả team đều từ chối → `ReportStatus` quay về `Verified`.
 
 **Request body:**
+
 ```json
 {
   "teamId": "team-guid-here",
@@ -130,11 +133,11 @@
 
 **Lỗi có thể gặp:**
 
-| HTTP | Code | Mô tả |
-|------|------|-------|
-| 422 | `DECLINE_WINDOW_EXPIRED` | Đã quá 2 giờ kể từ khi được assign |
-| 422 | `REASON_TOO_SHORT` | Lý do ít hơn 20 ký tự |
-| 422 | `INVALID_STATUS_TRANSITION` | Assignment không ở trạng thái `Assigned` |
+| HTTP | Code                        | Mô tả                                    |
+| ---- | --------------------------- | ---------------------------------------- |
+| 422  | `DECLINE_WINDOW_EXPIRED`    | Đã quá 2 giờ kể từ khi được assign       |
+| 422  | `REASON_TOO_SHORT`          | Lý do ít hơn 20 ký tự                    |
+| 422  | `INVALID_STATUS_TRANSITION` | Assignment không ở trạng thái `Assigned` |
 
 ---
 
@@ -147,12 +150,13 @@
 
 **Request:** `multipart/form-data`
 
-| Field | Type | Bắt buộc | Mô tả |
-|-------|------|----------|-------|
-| `teamId` | guid | Có | ID của team |
-| `image` | file | Có | Ảnh (max 20MB, jpg/png) |
+| Field    | Type | Bắt buộc | Mô tả                   |
+| -------- | ---- | -------- | ----------------------- |
+| `teamId` | guid | Có       | ID của team             |
+| `image`  | file | Có       | Ảnh (max 20MB, jpg/png) |
 
 **Response `200`:**
+
 ```json
 {
   "status": 200,
@@ -164,10 +168,10 @@
 
 **Lỗi có thể gặp:**
 
-| HTTP | Code | Mô tả |
-|------|------|-------|
-| 413 | `FILE_TOO_LARGE` | File > 20MB |
-| 422 | `ASSIGNMENT_NOT_IN_PROGRESS` | Assignment chưa InProgress |
+| HTTP | Code                         | Mô tả                      |
+| ---- | ---------------------------- | -------------------------- |
+| 413  | `FILE_TOO_LARGE`             | File > 20MB                |
+| 422  | `ASSIGNMENT_NOT_IN_PROGRESS` | Assignment chưa InProgress |
 
 ---
 
@@ -179,6 +183,7 @@
 > Có thể gọi nhiều lần trong suốt quá trình làm việc.
 
 **Request body:**
+
 ```json
 {
   "teamId": "team-guid-here",
@@ -194,10 +199,10 @@
 
 **Lỗi có thể gặp:**
 
-| HTTP | Code | Mô tả |
-|------|------|-------|
-| 422 | `ASSIGNMENT_NOT_IN_PROGRESS` | Assignment chưa InProgress |
-| 422 | `INVALID_PROGRESS_PERCENT` | Percent ngoài khoảng 0–100 |
+| HTTP | Code                         | Mô tả                      |
+| ---- | ---------------------------- | -------------------------- |
+| 422  | `ASSIGNMENT_NOT_IN_PROGRESS` | Assignment chưa InProgress |
+| 422  | `INVALID_PROGRESS_PERCENT`   | Percent ngoài khoảng 0–100 |
 
 ---
 
@@ -209,13 +214,11 @@
 > Khi tất cả team được giao đều hoàn thành → `ReportStatus` chuyển sang `Resolved`.
 
 **Request body:**
+
 ```json
 {
   "teamId": "team-guid-here",
-  "afterImageUrls": [
-    "https://cdn.../reports/abc/after/img_001.jpg",
-    "https://cdn.../reports/abc/after/img_002.jpg"
-  ]
+  "afterImageUrls": ["https://cdn.../reports/abc/after/img_001.jpg", "https://cdn.../reports/abc/after/img_002.jpg"]
 }
 ```
 
@@ -226,49 +229,50 @@
 
 **Lỗi có thể gặp:**
 
-| HTTP | Code | Mô tả |
-|------|------|-------|
-| 422 | `INSUFFICIENT_AFTER_IMAGES` | Ít hơn 2 ảnh after |
-| 422 | `INVALID_STATUS_TRANSITION` | Report không ở trạng thái InProgress |
-| 422 | `ASSIGNMENT_NOT_FOUND` | Team không được gán cho báo cáo này |
+| HTTP | Code                        | Mô tả                                |
+| ---- | --------------------------- | ------------------------------------ |
+| 422  | `INSUFFICIENT_AFTER_IMAGES` | Ít hơn 2 ảnh after                   |
+| 422  | `INVALID_STATUS_TRANSITION` | Report không ở trạng thái InProgress |
+| 422  | `ASSIGNMENT_NOT_FOUND`      | Team không được gán cho báo cáo này  |
 
 ---
 
 ## Tóm tắt nhanh
 
-| Thứ tự | API | Method | Endpoint | Kết quả |
-|--------|-----|--------|----------|---------|
-| 1 | Xem task | `GET` | `/v1/reports/my-assignments` | Danh sách task + status |
-| 2 | Chấp nhận | `PUT` | `/v1/reports/{id}/accept` | `Assigned → InProgress` |
-| 3a | Từ chối | `PUT` | `/v1/reports/{id}/decline` | `Assigned → Declined` (report → Verified nếu all declined) |
-| 3b | Upload ảnh tiến độ | `POST` | `/v1/reports/{id}/progress/images` | Trả về `imageUrl` |
-| 3c | Cập nhật % tiến độ | `PUT` | `/v1/reports/{id}/progress` | Lưu %, note — không đổi status |
-| 4 | Hoàn thành | `PUT` | `/v1/reports/{id}/resolve` | `InProgress → Completed` (report → Resolved nếu all done) |
+| Thứ tự | API                | Method | Endpoint                           | Kết quả                                                    |
+| ------ | ------------------ | ------ | ---------------------------------- | ---------------------------------------------------------- |
+| 1      | Xem task           | `GET`  | `/v1/reports/my-assignments`       | Danh sách task + status                                    |
+| 2      | Chấp nhận          | `PUT`  | `/v1/reports/{id}/accept`          | `Assigned → InProgress`                                    |
+| 3a     | Từ chối            | `PUT`  | `/v1/reports/{id}/decline`         | `Assigned → Declined` (report → Verified nếu all declined) |
+| 3b     | Upload ảnh tiến độ | `POST` | `/v1/reports/{id}/progress/images` | Trả về `imageUrl`                                          |
+| 3c     | Cập nhật % tiến độ | `PUT`  | `/v1/reports/{id}/progress`        | Lưu %, note — không đổi status                             |
+| 4      | Hoàn thành         | `PUT`  | `/v1/reports/{id}/resolve`         | `InProgress → Completed` (report → Resolved nếu all done)  |
 
 ---
 
 ## Trạng thái Assignment
 
-| AssignmentStatus | Ý nghĩa |
-|-----------------|---------|
-| `Assigned` | Vừa được giao, chưa phản hồi |
-| `InProgress` | Team đã chấp nhận, đang xử lý |
-| `Completed` | Team đã hoàn thành |
-| `Declined` | Team từ chối trong 2h |
+| AssignmentStatus | Ý nghĩa                       |
+| ---------------- | ----------------------------- |
+| `Assigned`       | Vừa được giao, chưa phản hồi  |
+| `InProgress`     | Team đã chấp nhận, đang xử lý |
+| `Completed`      | Team đã hoàn thành            |
+| `Declined`       | Team từ chối trong 2h         |
 
 ## Trạng thái Report (liên quan Cleanup)
 
-| ReportStatus | Ý nghĩa |
-|-------------|---------|
-| `Verified` | Officer đã xác minh, chờ assign |
-| `Assigned` | Đã giao team, chờ team phản hồi |
-| `InProgress` | Team đang xử lý |
-| `Resolved` | Tất cả team hoàn thành |
-| `Closed` | Citizen xác nhận / auto sau 7 ngày |
+| ReportStatus | Ý nghĩa                            |
+| ------------ | ---------------------------------- |
+| `Verified`   | Officer đã xác minh, chờ assign    |
+| `Assigned`   | Đã giao team, chờ team phản hồi    |
+| `InProgress` | Team đang xử lý                    |
+| `Resolved`   | Tất cả team hoàn thành             |
+| `Closed`     | Citizen xác nhận / auto sau 7 ngày |
 
 ---
 
 > **Lưu ý cho FE:**
+>
 > - Tất cả API đều yêu cầu `Authorization: Bearer <token>` với role `Cleanup`.
 > - `teamId` trong request body là ID của team mà user đang thuộc về — FE nên lưu lại sau khi login.
 > - Bước 3b và 3c có thể lặp lại nhiều lần tùy ý trong khi đang `InProgress`.

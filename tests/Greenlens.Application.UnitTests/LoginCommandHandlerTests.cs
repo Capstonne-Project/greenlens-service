@@ -13,6 +13,7 @@ public sealed class LoginCommandHandlerTests
 {
     private readonly IUserRepository _users = Substitute.For<IUserRepository>();
     private readonly IRefreshTokenRepository _refreshTokens = Substitute.For<IRefreshTokenRepository>();
+    private readonly ICompanyStaffRepository _companyStaff = Substitute.For<ICompanyStaffRepository>();
     private readonly IUnitOfWork _uow = Substitute.For<IUnitOfWork>();
     private readonly IJwtService _jwt = Substitute.For<IJwtService>();
     private readonly IPasswordHasher _hasher = Substitute.For<IPasswordHasher>();
@@ -20,7 +21,7 @@ public sealed class LoginCommandHandlerTests
 
     public LoginCommandHandlerTests()
     {
-        _sut = new LoginCommandHandler(_users, _refreshTokens, _uow, _jwt, _hasher, NullLogger<LoginCommandHandler>.Instance);
+        _sut = new LoginCommandHandler(_users, _refreshTokens, _companyStaff, _uow, _jwt, _hasher, NullLogger<LoginCommandHandler>.Instance);
     }
 
     private static User CreateUser(string email = "test@test.com")

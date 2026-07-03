@@ -16,15 +16,16 @@ Content-Type: multipart/form-data
 
 **Form fields:**
 
-| Field | Kiểu | Bắt buộc | Mô tả |
-|---|---|---|---|
-| `progressPercent` | integer | ✅ | 0–100 |
-| `progressNote` | string | ❌ | Ghi chú tiến độ |
-| `images` | file[] | ❌ | Tối đa 5 ảnh, mỗi ảnh ≤ 20MB |
+| Field             | Kiểu    | Bắt buộc | Mô tả                        |
+| ----------------- | ------- | -------- | ---------------------------- |
+| `progressPercent` | integer | ✅       | 0–100                        |
+| `progressNote`    | string  | ❌       | Ghi chú tiến độ              |
+| `images`          | file[]  | ❌       | Tối đa 5 ảnh, mỗi ảnh ≤ 20MB |
 
 > **Không có** endpoint riêng `POST /reports/{id}/progress/images`. Upload ảnh tiến độ **trong cùng** request multipart `PUT /progress` (field `images`).
 
 **Ví dụ (multipart/form-data):**
+
 ```
 progressPercent = 60
 progressNote    = "Đã dọn xong khu vực A, đang tiếp tục khu B"
@@ -32,19 +33,18 @@ images          = [file1.jpg, file2.jpg]
 ```
 
 **Response 200:**
+
 ```json
 {
   "code": "SUCCESS",
   "data": {
-    "uploadedImageUrls": [
-      "https://cdn.../reports/images/progress1.jpg",
-      "https://cdn.../reports/images/progress2.jpg"
-    ]
+    "uploadedImageUrls": ["https://cdn.../reports/images/progress1.jpg", "https://cdn.../reports/images/progress2.jpg"]
   }
 }
 ```
 
 **Lưu ý:**
+
 - Endpoint này **không thay đổi status** của report hay assignment — chỉ lưu % tiến độ và ảnh
 - Gọi được nhiều lần, mỗi lần ghi đè `progressPercent` mới nhất
 - `progressPercent = 100` không tự hoàn thành — phải gọi endpoint resolve riêng
@@ -60,29 +60,27 @@ Content-Type: application/json
 ```
 
 **Request body:**
+
 ```json
 {
-  "afterImageUrls": [
-    "https://cdn.../after1.jpg",
-    "https://cdn.../after2.jpg"
-  ]
+  "afterImageUrls": ["https://cdn.../after1.jpg", "https://cdn.../after2.jpg"]
 }
 ```
 
-| Field | Kiểu | Bắt buộc | Mô tả |
-|---|---|---|---|
-| `afterImageUrls` | string[] | ✅ | Tối thiểu **2 ảnh** after |
+| Field            | Kiểu     | Bắt buộc | Mô tả                     |
+| ---------------- | -------- | -------- | ------------------------- |
+| `afterImageUrls` | string[] | ✅       | Tối thiểu **2 ảnh** after |
 
 **Response 204** — không có body.
 
 **Lỗi có thể gặp:**
 
-| HTTP | Code | Nguyên nhân |
-|---|---|---|
-| 422 | `INSUFFICIENT_AFTER_IMAGES` | Gửi ít hơn 2 ảnh |
-| 422 | `NOT_TEAM_LEADER` | User không phải leader của team |
-| 422 | `INVALID_STATUS_TRANSITION` | Report không đang ở trạng thái `InProgress` |
-| 404 | `REPORT_NOT_FOUND` | Report không tồn tại |
+| HTTP | Code                        | Nguyên nhân                                 |
+| ---- | --------------------------- | ------------------------------------------- |
+| 422  | `INSUFFICIENT_AFTER_IMAGES` | Gửi ít hơn 2 ảnh                            |
+| 422  | `NOT_TEAM_LEADER`           | User không phải leader của team             |
+| 422  | `INVALID_STATUS_TRANSITION` | Report không đang ở trạng thái `InProgress` |
+| 404  | `REPORT_NOT_FOUND`          | Report không tồn tại                        |
 
 ---
 
@@ -91,24 +89,29 @@ Content-Type: application/json
 `afterImageUrls` là **URL đã upload lên CDN**, không phải file gốc. FE cần:
 
 **Bước 1** — Upload ảnh lên S3 qua presigned URL:
+
 ```
 POST /v1/media/presign
 ```
+
 ```json
 { "fileName": "after_cleanup.jpg", "contentType": "image/jpeg" }
 ```
+
 Response trả về `uploadUrl` (PUT lên S3) và `fileUrl` (URL công khai).
 
 **Bước 2** — PUT file trực tiếp lên S3:
+
 ```js
 await fetch(uploadUrl, {
-  method: 'PUT',
+  method: "PUT",
   body: file,
-  headers: { 'Content-Type': 'image/jpeg' }
-})
+  headers: { "Content-Type": "image/jpeg" },
+});
 ```
 
 **Bước 3** — Gọi resolve với `fileUrl`:
+
 ```json
 {
   "afterImageUrls": ["https://cdn.../after1.jpg", "https://cdn.../after2.jpg"]
@@ -157,9 +160,9 @@ PUT /progress                        │
 
 ## 6. Điều kiện hiển thị nút
 
-| Điều kiện | Hiển thị nút |
-|---|---|
-| User là team leader | ✅ |
-| Assignment status = `InProgress` | Cả 2 nút |
-| Assignment status = `Completed` | Ẩn cả 2, hiện "Đã hoàn thành" |
-| Assignment status = `Assigned` | Ẩn — chưa accept, chưa được update |
+| Điều kiện                        | Hiển thị nút                       |
+| -------------------------------- | ---------------------------------- |
+| User là team leader              | ✅                                 |
+| Assignment status = `InProgress` | Cả 2 nút                           |
+| Assignment status = `Completed`  | Ẩn cả 2, hiện "Đã hoàn thành"      |
+| Assignment status = `Assigned`   | Ẩn — chưa accept, chưa được update |

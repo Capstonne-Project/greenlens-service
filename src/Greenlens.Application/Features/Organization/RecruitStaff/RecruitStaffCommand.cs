@@ -13,7 +13,7 @@ public sealed record RecruitStaffCommand(
     string Email,
     UserRole TargetRole,
     Guid? TeamId = null,
-    bool IsLeader = false) : IRequest<Result<RecruitStaffResponse>>;
+    bool? IsLeader = null) : IRequest<Result<RecruitStaffResponse>>;
 
 public sealed record RecruitStaffResponse(
     Guid UserId,

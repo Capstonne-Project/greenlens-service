@@ -29,7 +29,7 @@ public sealed class RegisterCommandHandlerTests
             .Returns(false);
 
         var result = await _sut.Handle(
-            new RegisterCommand("new@test.com", "Password123!", "New User"),
+            new RegisterCommand("new@test.com", "Password123!", "New User", true),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -46,7 +46,7 @@ public sealed class RegisterCommandHandlerTests
             .Returns(false);
 
         await _sut.Handle(
-            new RegisterCommand("new@test.com", "Pass123!", "Test"),
+            new RegisterCommand("new@test.com", "Pass123!", "Test", true),
             CancellationToken.None);
 
         await _email.Received(1).SendOtpAsync(
@@ -63,7 +63,7 @@ public sealed class RegisterCommandHandlerTests
             .Returns(true);
 
         var result = await _sut.Handle(
-            new RegisterCommand("exists@test.com", "Pass123!", "User"),
+            new RegisterCommand("exists@test.com", "Pass123!", "User", true),
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
@@ -77,7 +77,7 @@ public sealed class RegisterCommandHandlerTests
             .Returns(true);
 
         await _sut.Handle(
-            new RegisterCommand("exists@test.com", "Pass123!", "User"),
+            new RegisterCommand("exists@test.com", "Pass123!", "User", true),
             CancellationToken.None);
 
         _users.DidNotReceive().Add(Arg.Any<User>());

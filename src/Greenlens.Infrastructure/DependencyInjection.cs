@@ -76,6 +76,12 @@ public static class DependencyInjection
         services.AddScoped<INotificationRepository, NotificationRepository>();
         services.AddScoped<INotificationPreferenceRepository, NotificationPreferenceRepository>();
 
+        // ── Password History (BR-AUTH-020) ──
+        services.AddScoped<IPasswordHistoryRepository, PasswordHistoryRepository>();
+
+        // ── Staff Invitation (BR-ORG-021) ──
+        services.AddScoped<IStaffInvitationRepository, StaffInvitationRepository>();
+
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<ITransactionManager, TransactionManager>();
 
@@ -276,5 +282,11 @@ public static class DependencyInjection
             "sla-breach-resolution",
             job => job.ExecuteAsync(),
             "*/30 * * * *"); // every 30 minutes
+
+        // BR-AUTH-021: Permanently delete accounts soft-deleted > 90 days
+        RecurringJob.AddOrUpdate<AccountHardDeleteJob>(
+            "account-hard-delete",
+            job => job.ExecuteAsync(),
+            "0 2 * * *"); // daily at 02:00 UTC
     }
 }

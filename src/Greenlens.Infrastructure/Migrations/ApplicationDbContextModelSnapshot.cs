@@ -88,10 +88,11 @@ namespace Greenlens.Infrastructure.Migrations
                             Id = new Guid("a1000001-0000-0000-0000-000000000001"),
                             Code = "first_report",
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Gửi báo cáo ô nhiễm đầu tiên",
+                            Description = "Gửi báo cáo ô nhiễm đầu tiên được xác minh",
+                            IconUrl = "badges/icons/first_report.png",
                             IsActive = true,
-                            NameEn = "First Report",
-                            NameVi = "Người khởi đầu",
+                            NameEn = "First Reporter",
+                            NameVi = "Người Khởi Đầu",
                             RequiredReportCount = 1
                         },
                         new
@@ -100,30 +101,126 @@ namespace Greenlens.Infrastructure.Migrations
                             Code = "eco_warrior",
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Description = "Gửi 10 báo cáo ô nhiễm được xác minh",
+                            IconUrl = "badges/icons/eco_warrior.png",
                             IsActive = true,
                             NameEn = "Eco Warrior",
-                            NameVi = "Chiến binh Xanh",
+                            NameVi = "Chiến Binh Xanh",
                             RequiredReportCount = 10
                         },
                         new
                         {
                             Id = new Guid("a1000001-0000-0000-0000-000000000003"),
-                            Code = "hotspot_hunter",
+                            Code = "green_champion",
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Gửi 3 báo cáo trong vùng hotspot",
+                            Description = "Gửi 50 báo cáo ô nhiễm được xác minh",
+                            IconUrl = "badges/icons/green_champion.png",
                             IsActive = true,
-                            NameEn = "Hotspot Hunter",
-                            NameVi = "Thợ săn điểm nóng"
+                            NameEn = "Green Champion",
+                            NameVi = "Nhà Vô Địch Xanh",
+                            RequiredReportCount = 50
                         },
                         new
                         {
                             Id = new Guid("a1000001-0000-0000-0000-000000000004"),
+                            Code = "earth_guardian",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Gửi 100 báo cáo ô nhiễm được xác minh",
+                            IconUrl = "badges/icons/earth_guardian.png",
+                            IsActive = true,
+                            NameEn = "Earth Guardian",
+                            NameVi = "Người Bảo Vệ Trái Đất",
+                            RequiredReportCount = 100
+                        },
+                        new
+                        {
+                            Id = new Guid("a1000001-0000-0000-0000-000000000005"),
                             Code = "streak_7d",
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Description = "Gửi báo cáo 7 ngày liên tiếp",
+                            IconUrl = "badges/icons/streak_7d.png",
                             IsActive = true,
                             NameEn = "7-Day Streak",
-                            NameVi = "7 ngày liên tiếp"
+                            NameVi = "Bền Bỉ 7 Ngày"
+                        },
+                        new
+                        {
+                            Id = new Guid("a1000001-0000-0000-0000-000000000006"),
+                            Code = "streak_30d",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Gửi báo cáo 30 ngày liên tiếp",
+                            IconUrl = "badges/icons/streak_30d.png",
+                            IsActive = true,
+                            NameEn = "30-Day Streak",
+                            NameVi = "Kiên Trì 30 Ngày"
+                        },
+                        new
+                        {
+                            Id = new Guid("a1000001-0000-0000-0000-000000000007"),
+                            Code = "hotspot_hunter",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Gửi 3 báo cáo trong khu vực hotspot ô nhiễm",
+                            IconUrl = "badges/icons/hotspot_hunter.png",
+                            IsActive = true,
+                            NameEn = "Hotspot Hunter",
+                            NameVi = "Thợ Săn Điểm Nóng"
+                        },
+                        new
+                        {
+                            Id = new Guid("a1000001-0000-0000-0000-000000000008"),
+                            Code = "duplicate_finder",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "5 báo cáo được xác nhận là trùng lặp, hỗ trợ phát hiện ô nhiễm",
+                            IconUrl = "badges/icons/duplicate_finder.png",
+                            IsActive = true,
+                            NameEn = "Duplicate Finder",
+                            NameVi = "Người Phát Hiện Trùng"
+                        },
+                        new
+                        {
+                            Id = new Guid("a1000001-0000-0000-0000-000000000009"),
+                            Code = "community_voice",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Có báo cáo nhận ≥ 10 lượt xác nhận từ cộng đồng",
+                            IconUrl = "badges/icons/community_voice.png",
+                            IsActive = true,
+                            NameEn = "Community Voice",
+                            NameVi = "Tiếng Nói Cộng Đồng"
+                        },
+                        new
+                        {
+                            Id = new Guid("a1000001-0000-0000-0000-000000000010"),
+                            Code = "rising_star",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Đạt Level 2 với 100 điểm tích lũy",
+                            IconUrl = "badges/icons/rising_star.png",
+                            IsActive = true,
+                            NameEn = "Rising Star",
+                            NameVi = "Ngôi Sao Đang Lên",
+                            RequiredPoints = 100
+                        },
+                        new
+                        {
+                            Id = new Guid("a1000001-0000-0000-0000-000000000011"),
+                            Code = "eco_expert",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Đạt Level 4 với 1.500 điểm tích lũy",
+                            IconUrl = "badges/icons/eco_expert.png",
+                            IsActive = true,
+                            NameEn = "Eco Expert",
+                            NameVi = "Chuyên Gia Môi Trường",
+                            RequiredPoints = 1500
+                        },
+                        new
+                        {
+                            Id = new Guid("a1000001-0000-0000-0000-000000000012"),
+                            Code = "green_legend",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Đạt Level 5 với 5.000 điểm tích lũy — thành tựu cao nhất",
+                            IconUrl = "badges/icons/green_legend.png",
+                            IsActive = true,
+                            NameEn = "Green Legend",
+                            NameVi = "Huyền Thoại Xanh",
+                            RequiredPoints = 5000
                         });
                 });
 
@@ -957,6 +1054,37 @@ namespace Greenlens.Infrastructure.Migrations
                     b.ToTable("otp_codes", (string)null);
                 });
 
+            modelBuilder.Entity("Greenlens.Domain.Entities.PasswordHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("password_hash");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_password_histories");
+
+                    b.HasIndex("UserId", "CreatedAt")
+                        .IsDescending(false, true)
+                        .HasDatabaseName("ix_password_histories_user_id_created_at");
+
+                    b.ToTable("password_histories", (string)null);
+                });
+
             modelBuilder.Entity("Greenlens.Domain.Entities.PointTransaction", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1726,6 +1854,93 @@ namespace Greenlens.Infrastructure.Migrations
                     b.ToTable("report_waste_tags", (string)null);
                 });
 
+            modelBuilder.Entity("Greenlens.Domain.Entities.StaffInvitation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<Guid>("InvitedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("invited_by_user_id");
+
+                    b.Property<Guid>("InvitedUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("invited_user_id");
+
+                    b.Property<Guid>("LocalOfficeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("local_office_id");
+
+                    b.Property<DateTime?>("RespondedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("responded_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("TargetRole")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("target_role");
+
+                    b.Property<Guid?>("TeamId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("team_id");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("token");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_staff_invitations");
+
+                    b.HasIndex("InvitedByUserId")
+                        .HasDatabaseName("ix_staff_invitations_invited_by_user_id");
+
+                    b.HasIndex("TeamId")
+                        .HasDatabaseName("ix_staff_invitations_team_id");
+
+                    b.HasIndex("Token")
+                        .IsUnique()
+                        .HasDatabaseName("ix_staff_invitations_token");
+
+                    b.HasIndex("InvitedUserId", "Status")
+                        .HasDatabaseName("ix_staff_invitations_invited_user_id_status");
+
+                    b.HasIndex("LocalOfficeId", "Status")
+                        .HasDatabaseName("ix_staff_invitations_local_office_id_status");
+
+                    b.ToTable("staff_invitations", (string)null);
+                });
+
             modelBuilder.Entity("Greenlens.Domain.Entities.TeamMember", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1818,6 +2033,10 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)")
                         .HasColumnName("google_id");
+
+                    b.Property<bool>("IsBanned")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_banned");
 
                     b.Property<bool>("IsEmailVerified")
                         .HasColumnType("boolean")
@@ -2394,6 +2613,18 @@ namespace Greenlens.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Greenlens.Domain.Entities.PasswordHistory", b =>
+                {
+                    b.HasOne("Greenlens.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_password_histories_users_user_id");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Greenlens.Domain.Entities.PointTransaction", b =>
                 {
                     b.HasOne("Greenlens.Domain.Entities.UserPoints", "UserPointsAggregate")
@@ -2618,6 +2849,44 @@ namespace Greenlens.Infrastructure.Migrations
                     b.Navigation("TaggedByUser");
 
                     b.Navigation("WasteTag");
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.StaffInvitation", b =>
+                {
+                    b.HasOne("Greenlens.Domain.Entities.User", "InvitedByUser")
+                        .WithMany()
+                        .HasForeignKey("InvitedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_staff_invitations_users_invited_by_user_id");
+
+                    b.HasOne("Greenlens.Domain.Entities.User", "InvitedUser")
+                        .WithMany()
+                        .HasForeignKey("InvitedUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_staff_invitations_users_invited_user_id");
+
+                    b.HasOne("Greenlens.Domain.Entities.LocalOffice", "LocalOffice")
+                        .WithMany()
+                        .HasForeignKey("LocalOfficeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_staff_invitations_local_offices_local_office_id");
+
+                    b.HasOne("Greenlens.Domain.Entities.EnvironmentalTeam", "Team")
+                        .WithMany()
+                        .HasForeignKey("TeamId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_staff_invitations_environmental_teams_team_id");
+
+                    b.Navigation("InvitedByUser");
+
+                    b.Navigation("InvitedUser");
+
+                    b.Navigation("LocalOffice");
+
+                    b.Navigation("Team");
                 });
 
             modelBuilder.Entity("Greenlens.Domain.Entities.TeamMember", b =>

@@ -1,9 +1,13 @@
+using Greenlens.Application.Common.Interfaces;
+using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace Greenlens.Infrastructure.Persistence;
 
-internal sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+internal sealed class ApplicationDbContext(
+    DbContextOptions<ApplicationDbContext> options,
+    ICurrentUser? currentUser = null)
     : DbContext(options)
 {
     public DbSet<User> Users => Set<User>();
@@ -44,9 +48,48 @@ internal sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();
 
+    // ── Password History (BR-AUTH-020) ──
+    public DbSet<PasswordHistory> PasswordHistories => Set<PasswordHistory>();
+
+    // ── Staff Invitation (BR-ORG-021) ──
+    public DbSet<StaffInvitation> StaffInvitations => Set<StaffInvitation>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
         base.OnModelCreating(modelBuilder);
     }
+
+    /// <summary>
+    /// Automatically sets CreatedAt/UpdatedAt and CreatedBy/UpdatedBy
+    /// on all AuditableEntity descendants before persisting.
+    /// This is the centralized fix — no entity needs to set these manually.
+    /// </summary>
+    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        var now = DateTime.UtcNow;
+        var userId = currentUser is { IsAuthenticated: true }
+            ? currentUser.UserId.ToString()
+            : null;
+
+        foreach (var entry in ChangeTracker.Entries<AuditableEntity>())
+        {
+            switch (entry.State)
+            {
+                case EntityState.Added:
+                    if (entry.Entity.CreatedAt == default)
+                        entry.Entity.CreatedAt = now;
+                    entry.Entity.CreatedBy ??= userId;
+                    break;
+
+                case EntityState.Modified:
+                    entry.Entity.UpdatedAt = now;
+                    entry.Entity.UpdatedBy ??= userId;
+                    break;
+            }
+        }
+
+        return await base.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
 }
+

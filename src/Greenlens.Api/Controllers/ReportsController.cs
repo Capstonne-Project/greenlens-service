@@ -4,6 +4,7 @@ using Greenlens.Application.Features.Reports.AnalyzeReportImage;
 using Greenlens.Application.Features.Reports.AssignCompanyTeam;
 using Greenlens.Application.Features.Reports.AssignTeam;
 using Greenlens.Application.Features.Reports.DispatchToCompany;
+using Greenlens.Application.Features.Reports.EscalateReport;
 using Greenlens.Application.Features.Reports.GetCompanyQueue;
 using Greenlens.Application.Features.Reports.GetCompanyAssignments;
 using Greenlens.Application.Features.Reports.GetCompanyReportDetail;
@@ -194,6 +195,23 @@ public sealed class ReportsController(ISender sender) : ControllerBase
         [FromRoute] Guid id, [FromBody] ReassignTeamRequest request, CancellationToken ct)
         => (await sender.Send(new ReassignTeamCommand(id, request.OldTeamId, request.NewTeamId, request.Reason), ct))
             .ToHttpNoContent("Đã chuyển giao team thành công.");
+
+    [HttpPost("{id:guid}/escalate")]
+    [Authorize(Roles = "LEO,Admin")]
+    [Tags("📌 LEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO] Escalate báo cáo lên DEO (tuyến cấp TP)",
+        Description = "BR-ORG-016: LEO xác minh xong, nhận thấy báo cáo thuộc tuyến đường cấp TP " +
+            "(CITENCO territory) → escalate lên hàng đợi DEO. " +
+            "Report phải ở trạng thái Verified hoặc InProgress. " +
+            "Yêu cầu lý do ≥ 10 ký tự.")]
+    [SwaggerResponse(200, "Đã escalate lên DEO", typeof(ApiResponse))]
+    [SwaggerResponse(404, "Báo cáo không tồn tại", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Trạng thái không hợp lệ hoặc ngoài jurisdiction", typeof(ApiResponse))]
+    public async Task<IActionResult> EscalateAsync(
+        [FromRoute] Guid id, [FromBody] EscalateReportRequest request, CancellationToken ct)
+        => (await sender.Send(new EscalateReportCommand(id, request.Reason), ct))
+            .ToHttpNoContent("Đã chuyển báo cáo lên hàng đợi DEO.");
 
     // ═══════════════════════════════════════════
     // ██  COMPANY DISPATCH (v1.3)
@@ -499,3 +517,5 @@ public sealed record CreateInspectionRequest(
     string? ViolatorName,
     string? ViolatorAddress,
     string? ViolatorIdentity);
+
+public sealed record EscalateReportRequest(string Reason);

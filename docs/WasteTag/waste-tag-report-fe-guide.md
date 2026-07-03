@@ -14,6 +14,7 @@ Authorization: Bearer {token}
 ```
 
 **Response:**
+
 ```json
 {
   "tags": [
@@ -33,20 +34,20 @@ Authorization: Bearer {token}
 
 **12 tag hiện có (theo thứ tự `displayOrder`):**
 
-| displayOrder | code | nameVi |
-|---|---|---|
-| 1 | `HOUSEHOLD` | Rác sinh hoạt |
-| 2 | `FOOD_ORGANIC` | Thực phẩm & Hữu cơ |
-| 3 | `RECYCLABLE` | Tái chế |
-| 4 | `MEDICAL` | Rác y tế |
-| 5 | `ELECTRONIC` | Rác điện tử |
-| 6 | `HAZARDOUS` | Nguy hại |
-| 7 | `CONSTRUCTION` | Phế thải xây dựng |
-| 8 | `BULKY` | Đồ cồng kềnh |
-| 9 | `TIRE` | Lốp xe |
-| 10 | `ANIMAL_CARCASS` | Xác động vật |
-| 11 | `TEXTILE` | Vải, quần áo |
-| 12 | `VEGETATION` | Cây cỏ, lá |
+| displayOrder | code             | nameVi             |
+| ------------ | ---------------- | ------------------ |
+| 1            | `HOUSEHOLD`      | Rác sinh hoạt      |
+| 2            | `FOOD_ORGANIC`   | Thực phẩm & Hữu cơ |
+| 3            | `RECYCLABLE`     | Tái chế            |
+| 4            | `MEDICAL`        | Rác y tế           |
+| 5            | `ELECTRONIC`     | Rác điện tử        |
+| 6            | `HAZARDOUS`      | Nguy hại           |
+| 7            | `CONSTRUCTION`   | Phế thải xây dựng  |
+| 8            | `BULKY`          | Đồ cồng kềnh       |
+| 9            | `TIRE`           | Lốp xe             |
+| 10           | `ANIMAL_CARCASS` | Xác động vật       |
+| 11           | `TEXTILE`        | Vải, quần áo       |
+| 12           | `VEGETATION`     | Cây cỏ, lá         |
 
 > Dùng `iconUrl` nếu có để hiển thị icon. Dùng `nameVi` làm label chính.
 
@@ -61,6 +62,7 @@ Content-Type: application/json
 ```
 
 **Request body:**
+
 ```json
 {
   "categoryId": "uuid",
@@ -72,10 +74,7 @@ Content-Type: application/json
   "wardCode": "00004",
   "provinceCode": "01",
   "tempImageId": "temp_abc123",
-  "wasteTagIds": [
-    "uuid-of-HOUSEHOLD-tag",
-    "uuid-of-RECYCLABLE-tag"
-  ]
+  "wasteTagIds": ["uuid-of-HOUSEHOLD-tag", "uuid-of-RECYCLABLE-tag"]
 }
 ```
 
@@ -85,11 +84,11 @@ Content-Type: application/json
 
 ## 3. Validation rules (FE cần tự check trước khi submit)
 
-| Rule | Chi tiết |
-|---|---|
-| Số lượng tag | Tối đa **10 tag**, tối thiểu **0** (không bắt buộc) |
-| Không trùng | Mỗi tag chỉ được chọn 1 lần |
-| `wasteTagIds` rỗng | Bỏ qua hoặc gửi `[]` đều được — BE xử lý như nhau |
+| Rule               | Chi tiết                                            |
+| ------------------ | --------------------------------------------------- |
+| Số lượng tag       | Tối đa **10 tag**, tối thiểu **0** (không bắt buộc) |
+| Không trùng        | Mỗi tag chỉ được chọn 1 lần                         |
+| `wasteTagIds` rỗng | Bỏ qua hoặc gửi `[]` đều được — BE xử lý như nhau   |
 
 ---
 
@@ -111,6 +110,7 @@ Content-Type: application/json
 ```
 
 ### Logic:
+
 - Tap vào tag → toggle selected/unselected
 - Đã chọn 10 tag → disable các tag chưa chọn, hiện thông báo "Đã đạt giới hạn 10 loại"
 - Khi submit → lấy `id` của các tag đang selected, đưa vào `wasteTagIds`

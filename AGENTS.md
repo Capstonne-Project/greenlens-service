@@ -18,14 +18,14 @@ Hệ thống crowdsourcing cho phép công dân gửi báo cáo ô nhiễm môi 
 
 ### Actors (6)
 
-| Actor | Vai trò chính |
-|---|---|
-| **Citizen** | Gửi báo cáo, xem map, theo dõi trạng thái, gamification |
-| **Environmental Officer** | Xác minh, phân loại, giao việc, quản lý SLA |
-| **Cleanup Team** | Nhận task thực địa, check-in, upload ảnh before/after, đóng task |
-| **System Administrator** | Quản lý user/role, danh mục, cấu hình, audit |
-| **AI Service** (automated) | Phân loại ảnh, phát hiện trùng, ước lượng severity, anti-fraud |
-| **Community Organization** (optional) | Xem map công khai, xuất open data |
+| Actor                                 | Vai trò chính                                                    |
+| ------------------------------------- | ---------------------------------------------------------------- |
+| **Citizen**                           | Gửi báo cáo, xem map, theo dõi trạng thái, gamification          |
+| **Environmental Officer**             | Xác minh, phân loại, giao việc, quản lý SLA                      |
+| **Cleanup Team**                      | Nhận task thực địa, check-in, upload ảnh before/after, đóng task |
+| **System Administrator**              | Quản lý user/role, danh mục, cấu hình, audit                     |
+| **AI Service** (automated)            | Phân loại ảnh, phát hiện trùng, ước lượng severity, anti-fraud   |
+| **Community Organization** (optional) | Xem map công khai, xuất open data                                |
 
 ### Non-functional targets
 
@@ -39,23 +39,23 @@ Hệ thống crowdsourcing cho phép công dân gửi báo cáo ô nhiễm môi 
 
 ## 2. Tech Stack
 
-| Layer | Tech |
-|---|---|
-| Runtime | **.NET 9** (LTS sẵn-có gần nhất tính đến 2026-05) |
-| Web API | ASP.NET Core 9, Controller-based (xem `§4.4`) |
-| ORM | Entity Framework Core 9 |
-| Database | PostgreSQL 18 + **PostGIS** (cho geo-queries `BR-MAP-*`, `BR-REP-030`) |
-| Cache | Redis (rate limit, session, map cache 10' theo `BR-MAP-012`) |
-| Object Storage | AWS S3 (ảnh, video — `BR-SYS-002`) |
-| Message Queue | RabbitMQ hoặc MassTransit + InMemory cho dev |
-| Background Jobs | Hangfire (auto-close, SLA breach, AI retry) |
-| Auth | ASP.NET Core Identity + JWT (access 24h, refresh 30d — `BR-AUTH-013`) |
-| Validation | FluentValidation  |
-| Mapping | Mapster (ưu tiên hơn AutoMapper vì nhanh hơn, source-gen) |
-| Logging | Serilog → Seq/ELK |
-| Observability | OpenTelemetry → Jaeger/Tempo |
-| API Docs | Swashbuckle (OpenAPI 3.0) hoặc NSwag |
-| Testing | xUnit + FluentAssertions + Testcontainers (Postgres) + NSubstitute |
+| Layer           | Tech                                                                   |
+| --------------- | ---------------------------------------------------------------------- |
+| Runtime         | **.NET 9** (LTS sẵn-có gần nhất tính đến 2026-05)                      |
+| Web API         | ASP.NET Core 9, Controller-based (xem `§4.4`)                          |
+| ORM             | Entity Framework Core 9                                                |
+| Database        | PostgreSQL 18 + **PostGIS** (cho geo-queries `BR-MAP-*`, `BR-REP-030`) |
+| Cache           | Redis (rate limit, session, map cache 10' theo `BR-MAP-012`)           |
+| Object Storage  | AWS S3 (ảnh, video — `BR-SYS-002`)                                     |
+| Message Queue   | RabbitMQ hoặc MassTransit + InMemory cho dev                           |
+| Background Jobs | Hangfire (auto-close, SLA breach, AI retry)                            |
+| Auth            | ASP.NET Core Identity + JWT (access 24h, refresh 30d — `BR-AUTH-013`)  |
+| Validation      | FluentValidation                                                       |
+| Mapping         | Mapster (ưu tiên hơn AutoMapper vì nhanh hơn, source-gen)              |
+| Logging         | Serilog → Seq/ELK                                                      |
+| Observability   | OpenTelemetry → Jaeger/Tempo                                           |
+| API Docs        | Swashbuckle (OpenAPI 3.0) hoặc NSwag                                   |
+| Testing         | xUnit + FluentAssertions + Testcontainers (Postgres) + NSubstitute     |
 
 > **Quy tắc:** Trước khi thêm package mới, hỏi user. Không tự ý đưa thêm dependency lớn (Serilog sinks, MediatR alternatives, v.v.).
 
@@ -191,17 +191,17 @@ public sealed record Error(string Code, string Message, ErrorType Type);
 public sealed class ReportsController : ControllerBase
 {
     private readonly ISender _sender;
-    
+
     public ReportsController(ISender sender)
     {
         _sender = sender;
     }
-    
+
     [HttpPost]
     [AllowAnonymous] // BR-AUTH-014
     public async Task<IActionResult> SubmitAsync([FromBody] SubmitReportCommand cmd)
         => (await _sender.Send(cmd)).ToHttp();
-    
+
     [HttpGet("/nearby")]
     public async Task<IActionResult> GetNearbyAsync([FromQuery] GetNearbyReportsQuery query)
         => (await _sender.Send(query)).ToHttp();
@@ -254,17 +254,17 @@ public sealed class ReportsController : ControllerBase
 
 ### 4.11. Background jobs (xem mapping ở §5)
 
-| Job | Lịch | BR liên quan |
-|---|---|---|
-| `AutoCloseResolvedReportJob` | hourly | BR-REP-016, BR-REP-025 |
-| `SlaBreachVerificationJob` | every 15' | BR-OFF-002 |
-| `SlaBreachResolutionJob` | every 30' | BR-OFF-020 |
-| `OverdueReportJob` | hourly | BR-REP-008, BR-REP-009 |
-| `AiRetryJob` | every 5' | BR-AI-006 |
-| `DraftCleanupJob` | daily | BR-REP-019 |
-| `LeaderboardSnapshotJob` | daily/weekly/monthly | BR-GAM-005 |
-| `AuditLogRetentionJob` | weekly | BR-ADM-010, BR-DAT-002 |
-| `AccountHardDeleteJob` | daily | BR-AUTH-022 |
+| Job                          | Lịch                 | BR liên quan           |
+| ---------------------------- | -------------------- | ---------------------- |
+| `AutoCloseResolvedReportJob` | hourly               | BR-REP-016, BR-REP-025 |
+| `SlaBreachVerificationJob`   | every 15'            | BR-OFF-002             |
+| `SlaBreachResolutionJob`     | every 30'            | BR-OFF-020             |
+| `OverdueReportJob`           | hourly               | BR-REP-008, BR-REP-009 |
+| `AiRetryJob`                 | every 5'             | BR-AI-006              |
+| `DraftCleanupJob`            | daily                | BR-REP-019             |
+| `LeaderboardSnapshotJob`     | daily/weekly/monthly | BR-GAM-005             |
+| `AuditLogRetentionJob`       | weekly               | BR-ADM-010, BR-DAT-002 |
+| `AccountHardDeleteJob`       | daily                | BR-AUTH-022            |
 
 ---
 
@@ -287,20 +287,20 @@ public sealed class SubmitReportCommandHandler : IRequestHandler<SubmitReportCom
 
 ### Bảng tra cứu nhanh
 
-| Module | Prefix | Khu vực code chính |
-|---|---|---|
-| Auth & Account | `BR-AUTH-*` | `Application/Features/Auth/*`, `Infrastructure/Identity/*` |
-| Pollution Report | `BR-REP-*` | `Application/Features/Reports/*`, `Domain/Entities/Report.cs` |
-| Map & Location | `BR-MAP-*` | `Application/Features/Map/*`, `Infrastructure/Geo/*` |
-| Officer | `BR-OFF-*` | `Application/Features/Officer/*` |
-| Cleanup Team | `BR-CLN-*` | `Application/Features/Cleanup/*` |
-| Notifications | `BR-NTF-*` | `Application/Features/Notifications/*`, `Infrastructure/Notifications/*` |
-| Comments | `BR-CMT-*` | `Application/Features/Comments/*` |
-| Gamification | `BR-GAM-*` | `Application/Features/Gamification/*` |
-| AI Service | `BR-AI-*` | `Infrastructure/Ai/*`, `Application/Features/Reports/Ai/*` |
-| Administration | `BR-ADM-*` | `Application/Features/Admin/*` |
-| Data & Privacy | `BR-DAT-*` | xuyên suốt, infra-level |
-| Non-functional | `BR-SYS-*` | infra-level, hosting |
+| Module           | Prefix      | Khu vực code chính                                                       |
+| ---------------- | ----------- | ------------------------------------------------------------------------ |
+| Auth & Account   | `BR-AUTH-*` | `Application/Features/Auth/*`, `Infrastructure/Identity/*`               |
+| Pollution Report | `BR-REP-*`  | `Application/Features/Reports/*`, `Domain/Entities/Report.cs`            |
+| Map & Location   | `BR-MAP-*`  | `Application/Features/Map/*`, `Infrastructure/Geo/*`                     |
+| Officer          | `BR-OFF-*`  | `Application/Features/Officer/*`                                         |
+| Cleanup Team     | `BR-CLN-*`  | `Application/Features/Cleanup/*`                                         |
+| Notifications    | `BR-NTF-*`  | `Application/Features/Notifications/*`, `Infrastructure/Notifications/*` |
+| Comments         | `BR-CMT-*`  | `Application/Features/Comments/*`                                        |
+| Gamification     | `BR-GAM-*`  | `Application/Features/Gamification/*`                                    |
+| AI Service       | `BR-AI-*`   | `Infrastructure/Ai/*`, `Application/Features/Reports/Ai/*`               |
+| Administration   | `BR-ADM-*`  | `Application/Features/Admin/*`                                           |
+| Data & Privacy   | `BR-DAT-*`  | xuyên suốt, infra-level                                                  |
+| Non-functional   | `BR-SYS-*`  | infra-level, hosting                                                     |
 
 ### State Machine bắt buộc (BR-REP-020, BR-REP-021)
 
@@ -315,26 +315,26 @@ Submitted ─────────┼─► Verified ──► InProgress ─
 
 ### Một số rule cần chú ý đặc biệt
 
-| BR | Implementation note |
-|---|---|
-| BR-AUTH-005 | Password strength: regex + bcrypt cost ≥ 12 (BR-DAT-001). |
-| BR-AUTH-011 | Sai password 5 lần / 15' → lock 30'. CAPTCHA từ lần 3. Lưu attempt count + lockout_until trong User. |
-| BR-AUTH-013 | JWT 24h + refresh 30d. Web inactivity 30' → đăng xuất (FE timer + BE refresh denial nếu refresh > 30d). |
-| BR-AUTH-022 | Soft delete 90 ngày → `AccountHardDeleteJob` xoá vĩnh viễn. Báo cáo của user → `Anonymized`. |
-| BR-REP-003 | Lat 8.0–24.0; Lng 102.0–110.0. Validate trong validator + DB check constraint. |
-| BR-REP-010 | Sliding window rate limit: 5/h, 20/24h. Dùng Redis sorted set. |
-| BR-REP-020/021 | State machine ở Domain entity, **không** ở handler. |
-| BR-REP-030 | Duplicate detection: PostGIS `ST_DWithin(geom, geom, 50)` AND same category AND within 24h. AI bổ sung pHash (BR-AI-002). |
-| BR-OFF-010 | `Priority = severity*3 + relatedCount*2 + ageInHours/24`. Tính trên DB view hoặc materialized view. |
-| BR-OFF-020 | SLA: Critical 3d / High 5d / Medium 7d / Low 10d kể từ `Verified`. Background job đánh dấu breach. |
-| BR-CLN-002 | Check-in distance ≤ 200m: PostGIS `ST_DWithin`. |
-| BR-CLN-004 | 2 ảnh "after" khác hash: tính perceptual hash (pHash), Hamming distance ≥ ngưỡng. |
-| BR-NTF-003 | Anti-spam digest: queue notification, gom cuối ngày nếu > 20/loại. |
-| BR-MAP-004 | Round GPS to 10m precision khi public — `Math.Round(lat, 4)` (≈11m, đủ). |
-| BR-MAP-012 | Cache map data 10' ở Redis, key theo bbox + filters. |
-| BR-AI-006 | Timeout 5s → tag `ai_pending`, fallback queue retry trong 1h. |
-| BR-DAT-001 | bcrypt ≥ 12 rounds; AES-256 at-rest cho secrets (dùng Data Protection API hoặc Vault). |
-| BR-SYS-004 | Rate limit công khai 60 rpm/IP anon, 300 rpm/user authed — dùng `RateLimiterMiddleware` của ASP.NET Core 9. |
+| BR             | Implementation note                                                                                                       |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| BR-AUTH-005    | Password strength: regex + bcrypt cost ≥ 12 (BR-DAT-001).                                                                 |
+| BR-AUTH-011    | Sai password 5 lần / 15' → lock 30'. CAPTCHA từ lần 3. Lưu attempt count + lockout_until trong User.                      |
+| BR-AUTH-013    | JWT 24h + refresh 30d. Web inactivity 30' → đăng xuất (FE timer + BE refresh denial nếu refresh > 30d).                   |
+| BR-AUTH-022    | Soft delete 90 ngày → `AccountHardDeleteJob` xoá vĩnh viễn. Báo cáo của user → `Anonymized`.                              |
+| BR-REP-003     | Lat 8.0–24.0; Lng 102.0–110.0. Validate trong validator + DB check constraint.                                            |
+| BR-REP-010     | Sliding window rate limit: 5/h, 20/24h. Dùng Redis sorted set.                                                            |
+| BR-REP-020/021 | State machine ở Domain entity, **không** ở handler.                                                                       |
+| BR-REP-030     | Duplicate detection: PostGIS `ST_DWithin(geom, geom, 50)` AND same category AND within 24h. AI bổ sung pHash (BR-AI-002). |
+| BR-OFF-010     | `Priority = severity*3 + relatedCount*2 + ageInHours/24`. Tính trên DB view hoặc materialized view.                       |
+| BR-OFF-020     | SLA: Critical 3d / High 5d / Medium 7d / Low 10d kể từ `Verified`. Background job đánh dấu breach.                        |
+| BR-CLN-002     | Check-in distance ≤ 200m: PostGIS `ST_DWithin`.                                                                           |
+| BR-CLN-004     | 2 ảnh "after" khác hash: tính perceptual hash (pHash), Hamming distance ≥ ngưỡng.                                         |
+| BR-NTF-003     | Anti-spam digest: queue notification, gom cuối ngày nếu > 20/loại.                                                        |
+| BR-MAP-004     | Round GPS to 10m precision khi public — `Math.Round(lat, 4)` (≈11m, đủ).                                                  |
+| BR-MAP-012     | Cache map data 10' ở Redis, key theo bbox + filters.                                                                      |
+| BR-AI-006      | Timeout 5s → tag `ai_pending`, fallback queue retry trong 1h.                                                             |
+| BR-DAT-001     | bcrypt ≥ 12 rounds; AES-256 at-rest cho secrets (dùng Data Protection API hoặc Vault).                                    |
+| BR-SYS-004     | Rate limit công khai 60 rpm/IP anon, 300 rpm/user authed — dùng `RateLimiterMiddleware` của ASP.NET Core 9.               |
 
 ---
 
@@ -376,11 +376,11 @@ Submitted ─────────┼─► Verified ──► InProgress ─
 
 ### Pyramid
 
-| Tầng | Tỉ lệ | Stack | Phạm vi |
-|---|---|---|---|
-| Unit | ~70% | xUnit + FluentAssertions + NSubstitute | Domain entities, value objects, validators, pure handlers |
-| Integration | ~25% | + Testcontainers Postgres + Respawn | DbContext, repositories, EF queries, geo queries |
-| Functional/E2E | ~5% | + WebApplicationFactory | Controller → DB, auth flow, error mapping |
+| Tầng           | Tỉ lệ | Stack                                  | Phạm vi                                                   |
+| -------------- | ----- | -------------------------------------- | --------------------------------------------------------- |
+| Unit           | ~70%  | xUnit + FluentAssertions + NSubstitute | Domain entities, value objects, validators, pure handlers |
+| Integration    | ~25%  | + Testcontainers Postgres + Respawn    | DbContext, repositories, EF queries, geo queries          |
+| Functional/E2E | ~5%   | + WebApplicationFactory                | Controller → DB, auth flow, error mapping                 |
 
 ### Quy tắc
 

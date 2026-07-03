@@ -8,38 +8,40 @@
 ## 1. Tổng Quan Kiến Trúc Mới
 
 ### Trước (v1.2 — DEO Dispatch)
+
 ```
 Citizen → Submit → DEO review & dispatch → LEO verify → Team xử lý
 ```
 
 ### Sau (v1.3 — Direct-to-Local-Office)
+
 ```
 Citizen → Submit (auto-route GPS→Ward→LocalOffice) → LEO verify & assign → Team xử lý
 ```
 
 ### Điểm khác biệt quan trọng
 
-| Đặc điểm | v1.2 (cũ) | v1.3 (mới) |
-|---|---|---|
-| Routing | DEO dispatch thủ công | Auto-route bằng WardCode |
-| Xác minh | DEO | **LEO** (cấp xã/phường) |
-| Phân công team | DEO | **LEO** (hoặc CompanyManager cho đội công ty) |
-| Trạng thái `Dispatched`/`Assigned` | Có | **Loại bỏ** |
-| InspectionReport | Gộp trong Report | **Tách sub-process riêng** |
-| Company Manager | Không có | **Có dashboard riêng** |
+| Đặc điểm                           | v1.2 (cũ)             | v1.3 (mới)                                    |
+| ---------------------------------- | --------------------- | --------------------------------------------- |
+| Routing                            | DEO dispatch thủ công | Auto-route bằng WardCode                      |
+| Xác minh                           | DEO                   | **LEO** (cấp xã/phường)                       |
+| Phân công team                     | DEO                   | **LEO** (hoặc CompanyManager cho đội công ty) |
+| Trạng thái `Dispatched`/`Assigned` | Có                    | **Loại bỏ**                                   |
+| InspectionReport                   | Gộp trong Report      | **Tách sub-process riêng**                    |
+| Company Manager                    | Không có              | **Có dashboard riêng**                        |
 
 ---
 
 ## 2. Actors & Vai Trò Trong Luồng
 
-| Actor | Vai trò trong luồng |
-|---|---|
-| **Citizen** | Gửi báo cáo (có ảnh + GPS), theo dõi trạng thái, đóng báo cáo |
-| **LEO** (Local Environmental Officer) | Xác minh báo cáo, phân công **đội cộng đồng** trực tiếp, điều phối task sang **công ty**, quản lý InspectionTeam (đội xử phạt phường/xã) |
-| **DEO** (Department Environmental Officer) | Quản lý fallback queue (báo cáo ở phường chưa onboard), quản lý hợp đồng công ty |
-| **Company Manager (CM)** | Nhận task từ LEO, **CRUD + quản lý team công ty**, phân công team công ty xử lý, theo dõi dashboard |
-| **Cleaner** | Thành viên CleanupTeam (cộng đồng hoặc công ty), nhận task → accept → cập nhật tiến độ → resolve |
-| **Company Staff (CS)** | Nhân viên công ty, luồng xử lý giống Cleaner |
+| Actor                                      | Vai trò trong luồng                                                                                                                      |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| **Citizen**                                | Gửi báo cáo (có ảnh + GPS), theo dõi trạng thái, đóng báo cáo                                                                            |
+| **LEO** (Local Environmental Officer)      | Xác minh báo cáo, phân công **đội cộng đồng** trực tiếp, điều phối task sang **công ty**, quản lý InspectionTeam (đội xử phạt phường/xã) |
+| **DEO** (Department Environmental Officer) | Quản lý fallback queue (báo cáo ở phường chưa onboard), quản lý hợp đồng công ty                                                         |
+| **Company Manager (CM)**                   | Nhận task từ LEO, **CRUD + quản lý team công ty**, phân công team công ty xử lý, theo dõi dashboard                                      |
+| **Cleaner**                                | Thành viên CleanupTeam (cộng đồng hoặc công ty), nhận task → accept → cập nhật tiến độ → resolve                                         |
+| **Company Staff (CS)**                     | Nhân viên công ty, luồng xử lý giống Cleaner                                                                                             |
 
 ---
 
@@ -203,10 +205,10 @@ Assigned ──► InProgress ──► Completed
 
 ### 5.1 Loại Công Ty
 
-| ContractType | Mô tả |
-|---|---|
+| ContractType | Mô tả                                                               |
+| ------------ | ------------------------------------------------------------------- |
 | `Subsidiary` | Công ty **trực thuộc** (thuộc sở hữu/quản lý trực tiếp của Sở TNMT) |
-| `Bidding` | Công ty **đấu thầu** (ký hợp đồng thông qua đấu thầu công khai) |
+| `Bidding`    | Công ty **đấu thầu** (ký hợp đồng thông qua đấu thầu công khai)     |
 
 ### 5.2 Onboarding Company
 
@@ -238,6 +240,7 @@ CS  ─── (accept → progress → resolve) ──────────�
 ### 5.5 Contract-Window Authorization
 
 Mọi request từ CM/CS chỉ được chấp nhận khi:
+
 - `Company.Status == Active`
 - `now ∈ [ContractStartDate, ContractEndDate]`
 
@@ -247,70 +250,70 @@ Mọi request từ CM/CS chỉ được chấp nhận khi:
 
 ### 🔵 Phase 0: Setup (Admin / DEO)
 
-| # | Method | Endpoint | Actor | Mô tả |
-|---|--------|----------|-------|-------|
-| 0.1 | POST | `/v1/auth/register` | Public | Đăng ký tài khoản Citizen |
-| 0.2 | POST | `/v1/auth/login` | Public | Đăng nhập, nhận JWT |
+| #   | Method | Endpoint            | Actor  | Mô tả                     |
+| --- | ------ | ------------------- | ------ | ------------------------- |
+| 0.1 | POST   | `/v1/auth/register` | Public | Đăng ký tài khoản Citizen |
+| 0.2 | POST   | `/v1/auth/login`    | Public | Đăng nhập, nhận JWT       |
 
 ### 🟢 Phase 1: Citizen Submit Report
 
-| # | Method | Endpoint | Actor | Mô tả |
-|---|--------|----------|-------|-------|
-| 1.1 | POST | `/v1/reports/analyze` | Citizen | Upload ảnh → AI phân tích |
-| 1.2 | GET | `/v1/catalog/categories` | Citizen | Lấy danh mục ô nhiễm |
-| 1.3 | POST | `/v1/reports` | Citizen | Tạo báo cáo (kèm ảnh, GPS, category) |
-| 1.4 | GET | `/v1/reports/my` | Citizen | Xem báo cáo của tôi |
-| 1.5 | GET | `/v1/reports/{id}` | Citizen | Chi tiết báo cáo |
+| #   | Method | Endpoint                 | Actor   | Mô tả                                |
+| --- | ------ | ------------------------ | ------- | ------------------------------------ |
+| 1.1 | POST   | `/v1/reports/analyze`    | Citizen | Upload ảnh → AI phân tích            |
+| 1.2 | GET    | `/v1/catalog/categories` | Citizen | Lấy danh mục ô nhiễm                 |
+| 1.3 | POST   | `/v1/reports`            | Citizen | Tạo báo cáo (kèm ảnh, GPS, category) |
+| 1.4 | GET    | `/v1/reports/my`         | Citizen | Xem báo cáo của tôi                  |
+| 1.5 | GET    | `/v1/reports/{id}`       | Citizen | Chi tiết báo cáo                     |
 
 ### 🟡 Phase 2: LEO Xác Minh & Phân Công
 
-| # | Method | Endpoint | Actor | Mô tả |
-|---|--------|----------|-------|-------|
-| 2.1 | GET | `/v1/reports/queue` | LEO | Xem hàng đợi báo cáo chờ xử lý |
-| 2.2 | GET | `/v1/reports/{id}` | LEO | Xem chi tiết báo cáo |
-| 2.3 | PUT | `/v1/reports/{id}/verify` | LEO | Xác minh (Submitted → Verified) |
-| 2.4 | PUT | `/v1/reports/{id}/reject` | LEO | Từ chối (Submitted → Rejected) |
-| 2.5 | GET | `/v1/teams?isAvailable=true` | LEO | Xem team rảnh |
-| 2.6 | POST | `/v1/reports/{id}/assign` | LEO | Phân công **community** team (Verified → InProgress) |
-| 2.7 | POST | `/v1/reports/{id}/dispatch-to-company` | LEO | Điều phối sang công ty (giữ Verified) |
-| 2.8 | GET | `/v1/reports/progress-board` | LEO | Board tổng quan InProgress |
-| 2.9 | PUT | `/v1/reports/{id}/reassign` | LEO | Chuyển team (nếu cần) |
+| #   | Method | Endpoint                               | Actor | Mô tả                                                |
+| --- | ------ | -------------------------------------- | ----- | ---------------------------------------------------- |
+| 2.1 | GET    | `/v1/reports/queue`                    | LEO   | Xem hàng đợi báo cáo chờ xử lý                       |
+| 2.2 | GET    | `/v1/reports/{id}`                     | LEO   | Xem chi tiết báo cáo                                 |
+| 2.3 | PUT    | `/v1/reports/{id}/verify`              | LEO   | Xác minh (Submitted → Verified)                      |
+| 2.4 | PUT    | `/v1/reports/{id}/reject`              | LEO   | Từ chối (Submitted → Rejected)                       |
+| 2.5 | GET    | `/v1/teams?isAvailable=true`           | LEO   | Xem team rảnh                                        |
+| 2.6 | POST   | `/v1/reports/{id}/assign`              | LEO   | Phân công **community** team (Verified → InProgress) |
+| 2.7 | POST   | `/v1/reports/{id}/dispatch-to-company` | LEO   | Điều phối sang công ty (giữ Verified)                |
+| 2.8 | GET    | `/v1/reports/progress-board`           | LEO   | Board tổng quan InProgress                           |
+| 2.9 | PUT    | `/v1/reports/{id}/reassign`            | LEO   | Chuyển team (nếu cần)                                |
 
 ### 🏢 Phase 2.5: Company Manager Phân Công
 
-| # | Method | Endpoint | Actor | Mô tả |
-|---|--------|----------|-------|-------|
-| 2.5.1 | GET | `/v1/reports/company-queue` | CM | Xem task chờ phân công |
-| 2.5.2 | POST | `/v1/reports/{id}/assign-company-team` | CM | Phân công team công ty (Verified → InProgress) |
+| #     | Method | Endpoint                               | Actor | Mô tả                                          |
+| ----- | ------ | -------------------------------------- | ----- | ---------------------------------------------- |
+| 2.5.1 | GET    | `/v1/reports/company-queue`            | CM    | Xem task chờ phân công                         |
+| 2.5.2 | POST   | `/v1/reports/{id}/assign-company-team` | CM    | Phân công team công ty (Verified → InProgress) |
 
 ### 🔴 Phase 3: Team Xử Lý (Cleaner / Company Staff)
 
-| # | Method | Endpoint | Actor | Mô tả |
-|---|--------|----------|-------|-------|
-| 3.1 | GET | `/v1/teams/my-profile` | Cleaner/CS | Xem profile team |
-| 3.2 | GET | `/v1/teams/my-tasks` | Cleaner/CS | Danh sách task |
-| 3.3 | GET | `/v1/teams/my-tasks/{reportId}` | Cleaner/CS | Chi tiết task |
-| 3.4 | PUT | `/v1/teams/my-tasks/{reportId}/accept` | Cleaner/CS | Chấp nhận task |
-| 3.5 | PUT | `/v1/teams/my-tasks/{reportId}/decline` | Cleaner/CS | Từ chối task (trong 2h) |
-| 3.6 | PUT | `/v1/reports/{id}/update-progress` | Cleaner/CS | Cập nhật tiến độ + ảnh |
-| 3.7 | PUT | `/v1/reports/{id}/resolve` | Cleaner/CS | Hoàn thành xử lý |
+| #   | Method | Endpoint                                | Actor      | Mô tả                   |
+| --- | ------ | --------------------------------------- | ---------- | ----------------------- |
+| 3.1 | GET    | `/v1/teams/my-profile`                  | Cleaner/CS | Xem profile team        |
+| 3.2 | GET    | `/v1/teams/my-tasks`                    | Cleaner/CS | Danh sách task          |
+| 3.3 | GET    | `/v1/teams/my-tasks/{reportId}`         | Cleaner/CS | Chi tiết task           |
+| 3.4 | PUT    | `/v1/teams/my-tasks/{reportId}/accept`  | Cleaner/CS | Chấp nhận task          |
+| 3.5 | PUT    | `/v1/teams/my-tasks/{reportId}/decline` | Cleaner/CS | Từ chối task (trong 2h) |
+| 3.6 | PUT    | `/v1/reports/{id}/update-progress`      | Cleaner/CS | Cập nhật tiến độ + ảnh  |
+| 3.7 | PUT    | `/v1/reports/{id}/resolve`              | Cleaner/CS | Hoàn thành xử lý        |
 
 ### 🟣 Phase 4: Citizen Close
 
-| # | Method | Endpoint | Actor | Mô tả |
-|---|--------|----------|-------|-------|
-| 4.1 | PUT | `/v1/reports/{id}/close` | Citizen | Đóng báo cáo (Resolved → Closed) |
-| 4.2 | PUT | `/v1/reports/{id}/reopen` | Citizen | Mở lại (Resolved → InProgress, max 2 lần) |
+| #   | Method | Endpoint                  | Actor   | Mô tả                                     |
+| --- | ------ | ------------------------- | ------- | ----------------------------------------- |
+| 4.1 | PUT    | `/v1/reports/{id}/close`  | Citizen | Đóng báo cáo (Resolved → Closed)          |
+| 4.2 | PUT    | `/v1/reports/{id}/reopen` | Citizen | Mở lại (Resolved → InProgress, max 2 lần) |
 
 ### ⚪ Phase 5: LEO Staff & Team Management
 
-| # | Method | Endpoint | Actor | Mô tả |
-|---|--------|----------|-------|-------|
-| 5.1 | POST | `/v1/teams` | LEO | Tạo team (Cleanup / Inspection) |
-| 5.2 | PUT | `/v1/teams/{id}` | LEO | Cập nhật team |
-| 5.3 | POST | `/v1/teams/{teamId}/members` | LEO | Thêm thành viên |
-| 5.4 | DELETE | `/v1/teams/{teamId}/members/{userId}` | LEO | Xóa thành viên |
-| 5.5 | PUT | `/v1/teams/{teamId}/members/{userId}/transfer` | LEO | Chuyển team |
+| #   | Method | Endpoint                                       | Actor | Mô tả                           |
+| --- | ------ | ---------------------------------------------- | ----- | ------------------------------- |
+| 5.1 | POST   | `/v1/teams`                                    | LEO   | Tạo team (Cleanup / Inspection) |
+| 5.2 | PUT    | `/v1/teams/{id}`                               | LEO   | Cập nhật team                   |
+| 5.3 | POST   | `/v1/teams/{teamId}/members`                   | LEO   | Thêm thành viên                 |
+| 5.4 | DELETE | `/v1/teams/{teamId}/members/{userId}`          | LEO   | Xóa thành viên                  |
+| 5.5 | PUT    | `/v1/teams/{teamId}/members/{userId}/transfer` | LEO   | Chuyển team                     |
 
 ---
 
@@ -366,6 +369,7 @@ Citizen          System          LEO            Team(Cleaner/CS)
 ## 8. Fallback Queue (DEO)
 
 Khi một phường/xã **chưa onboard** LocalOffice vào hệ thống:
+
 - Report được gán `AssignedDepartmentId` nhưng **KHÔNG** có `AssignedOfficeId`
 - Report rơi vào **DEO fallback queue**
 - DEO xem queue: `GET /v1/reports/queue` (chỉ thấy báo cáo không có office)
@@ -376,19 +380,22 @@ Khi một phường/xã **chưa onboard** LocalOffice vào hệ thống:
 ## 9. Các Trường Đã Loại Bỏ (Breaking Changes)
 
 ### Database
-| Cột | Bảng | Lý do |
-|-----|------|-------|
-| `dispatched_at` | `reports` | Không còn tầng dispatch |
-| `dispatched_by_id` | `reports` | Không còn DEO dispatch |
+
+| Cột                   | Bảng      | Lý do                   |
+| --------------------- | --------- | ----------------------- |
+| `dispatched_at`       | `reports` | Không còn tầng dispatch |
+| `dispatched_by_id`    | `reports` | Không còn DEO dispatch  |
 | `assigned_officer_id` | `reports` | Thay bằng `verified_by` |
 
 ### Enum values removed
+
 - `ReportStatus.Dispatched`
 - `ReportStatus.Assigned`
 - `ReportStatus.PenaltyIssued` → chuyển sang `InspectionStatus`
 - `ReportStatus.ClosedNoViolation` → chuyển sang `InspectionReport.CloseNoViolation()`
 
 ### Endpoints removed
+
 - `PUT /v1/reports/{id}/dispatch` → **Removed** (auto-routing thay thế)
 - `PUT /v1/reports/{id}/re-dispatch` → **Removed**
 - `PUT /v1/reports/{id}/penalty` → **Moved** to InspectionReport module
@@ -398,11 +405,11 @@ Khi một phường/xã **chưa onboard** LocalOffice vào hệ thống:
 
 ## 10. Bảng Mới (Migration Bước 2)
 
-| Bảng | Mô tả | Quan hệ |
-|------|-------|---------|
-| `inspection_reports` | Sub-process xử phạt | FK → `reports`, `users` |
-| `environmental_service_companies` | Công ty dịch vụ MT | FK → `departments` |
-| `company_staff` | Nhân viên công ty | FK → `users`, `companies` |
+| Bảng                              | Mô tả               | Quan hệ                   |
+| --------------------------------- | ------------------- | ------------------------- |
+| `inspection_reports`              | Sub-process xử phạt | FK → `reports`, `users`   |
+| `environmental_service_companies` | Công ty dịch vụ MT  | FK → `departments`        |
+| `company_staff`                   | Nhân viên công ty   | FK → `users`, `companies` |
 
 ---
 

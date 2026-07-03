@@ -50,14 +50,14 @@
 
 The backend handles core business logic: **authentication**, **report lifecycle**, **geo-queries**, **gamification**, **AI integration**, **notifications**, and **analytics**.
 
-| Metric | Target |
-|--------|--------|
-| Concurrent Users | 5,000 CCU |
-| Report Scale | 100,000+ reports |
-| API Latency | p95 < 2 seconds |
-| Uptime | ≥ 99.5% / month |
-| Recovery | RPO ≤ 24h, RTO ≤ 4h |
-| Localization | vi-VN, en-US |
+| Metric           | Target              |
+| ---------------- | ------------------- |
+| Concurrent Users | 5,000 CCU           |
+| Report Scale     | 100,000+ reports    |
+| API Latency      | p95 < 2 seconds     |
+| Uptime           | ≥ 99.5% / month     |
+| Recovery         | RPO ≤ 24h, RTO ≤ 4h |
+| Localization     | vi-VN, en-US        |
 
 > **Project Code:** SU26SE049 — FPT University, Semester SU26
 
@@ -67,14 +67,14 @@ The backend handles core business logic: **authentication**, **report lifecycle*
 
 ### 👥 Actors & Capabilities
 
-| Actor | Capabilities |
-|-------|-------------|
-| 🧑 **Citizen** | Submit reports with photos + GPS, view map, track status, earn points & badges |
-| 👮 **Environmental Officer** | Verify, classify, assign tasks, manage SLA compliance |
-| 🧹 **Cleanup Team** | GPS check-in, upload before/after photos, mark resolved |
-| 🔧 **System Administrator** | Manage users, roles, categories, system config, audit logs |
-| 🤖 **AI Service** | Auto-classify images, detect duplicates, estimate severity, anti-fraud |
-| 🏢 **Community Organization** | View public map, export open data |
+| Actor                         | Capabilities                                                                   |
+| ----------------------------- | ------------------------------------------------------------------------------ |
+| 🧑 **Citizen**                | Submit reports with photos + GPS, view map, track status, earn points & badges |
+| 👮 **Environmental Officer**  | Verify, classify, assign tasks, manage SLA compliance                          |
+| 🧹 **Cleanup Team**           | GPS check-in, upload before/after photos, mark resolved                        |
+| 🔧 **System Administrator**   | Manage users, roles, categories, system config, audit logs                     |
+| 🤖 **AI Service**             | Auto-classify images, detect duplicates, estimate severity, anti-fraud         |
+| 🏢 **Community Organization** | View public map, export open data                                              |
 
 ### 🔄 Report Lifecycle
 
@@ -120,6 +120,7 @@ GreenLens follows **Clean Architecture** with strict dependency rules:
 ```
 
 **Dependency Rule:**
+
 ```
 Api ──► Application ──► Domain
  │           │
@@ -128,38 +129,38 @@ Api ──► Application ──► Domain
 
 ### Key Patterns
 
-| Pattern | Implementation |
-|---------|---------------|
-| **CQRS** | Commands (mutate) + Queries (read) via MediatR |
-| **Result Pattern** | `Result<T>` for business logic, exceptions only for infrastructure |
+| Pattern             | Implementation                                                      |
+| ------------------- | ------------------------------------------------------------------- |
+| **CQRS**            | Commands (mutate) + Queries (read) via MediatR                      |
+| **Result Pattern**  | `Result<T>` for business logic, exceptions only for infrastructure  |
 | **Vertical Slices** | Each use case = 1 folder (Command + Handler + Validator + Response) |
-| **Outbox Pattern** | At-least-once delivery for events (notifications, AI, MQ) |
-| **Domain Events** | State transitions raise events (`ReportVerifiedEvent`, etc.) |
+| **Outbox Pattern**  | At-least-once delivery for events (notifications, AI, MQ)           |
+| **Domain Events**   | State transitions raise events (`ReportVerifiedEvent`, etc.)        |
 
 ---
 
 ## 🛠️ Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| **Runtime** | .NET 9 (C# 13) |
-| **Web API** | ASP.NET Core 9 — Controller-based |
-| **ORM** | Entity Framework Core 9 |
-| **Database** | PostgreSQL 18 + PostGIS |
-| **Cache** | Redis (multi-level: L1 Memory + L2 Redis) |
-| **Object Storage** | Cloudflare R2 (S3-compatible, zero egress) |
-| **CDN / WAF / DDoS** | Cloudflare (edge proxy, 300+ POP) |
-| **CAPTCHA** | Cloudflare Turnstile (BR-AUTH-011) |
-| **Message Queue** | RabbitMQ / MassTransit |
-| **Background Jobs** | Hangfire |
-| **Auth** | ASP.NET Core Identity + JWT RS256 (24h access / 30d refresh) |
-| **Validation** | FluentValidation (3-layer: edge + input + business) |
-| **Mapping** | Mapster (source-gen, faster than AutoMapper) |
-| **Security** | OwaspHeaders.Core, Data Protection API, bcrypt.net-next |
-| **Logging** | Serilog → Seq / ELK |
-| **Observability** | OpenTelemetry → Jaeger / Tempo |
-| **API Docs** | Swashbuckle (OpenAPI 3.0) |
-| **Testing** | xUnit + FluentAssertions + NSubstitute + Testcontainers |
+| Layer                | Technology                                                   |
+| -------------------- | ------------------------------------------------------------ |
+| **Runtime**          | .NET 9 (C# 13)                                               |
+| **Web API**          | ASP.NET Core 9 — Controller-based                            |
+| **ORM**              | Entity Framework Core 9                                      |
+| **Database**         | PostgreSQL 18 + PostGIS                                      |
+| **Cache**            | Redis (multi-level: L1 Memory + L2 Redis)                    |
+| **Object Storage**   | Cloudflare R2 (S3-compatible, zero egress)                   |
+| **CDN / WAF / DDoS** | Cloudflare (edge proxy, 300+ POP)                            |
+| **CAPTCHA**          | Cloudflare Turnstile (BR-AUTH-011)                           |
+| **Message Queue**    | RabbitMQ / MassTransit                                       |
+| **Background Jobs**  | Hangfire                                                     |
+| **Auth**             | ASP.NET Core Identity + JWT RS256 (24h access / 30d refresh) |
+| **Validation**       | FluentValidation (3-layer: edge + input + business)          |
+| **Mapping**          | Mapster (source-gen, faster than AutoMapper)                 |
+| **Security**         | OwaspHeaders.Core, Data Protection API, bcrypt.net-next      |
+| **Logging**          | Serilog → Seq / ELK                                          |
+| **Observability**    | OpenTelemetry → Jaeger / Tempo                               |
+| **API Docs**         | Swashbuckle (OpenAPI 3.0)                                    |
+| **Testing**          | xUnit + FluentAssertions + NSubstitute + Testcontainers      |
 
 ---
 
@@ -167,12 +168,12 @@ Api ──► Application ──► Domain
 
 ### Prerequisites
 
-| Tool | Version |
-|------|---------|
-| [.NET SDK](https://dotnet.microsoft.com/download) | 9.0+ |
-| [PostgreSQL](https://www.postgresql.org/) + PostGIS | 18+ |
-| [Redis](https://redis.io/) | 7+ |
-| [Docker](https://www.docker.com/) | 24+ (for Testcontainers) |
+| Tool                                                | Version                  |
+| --------------------------------------------------- | ------------------------ |
+| [.NET SDK](https://dotnet.microsoft.com/download)   | 9.0+                     |
+| [PostgreSQL](https://www.postgresql.org/) + PostGIS | 18+                      |
+| [Redis](https://redis.io/)                          | 7+                       |
+| [Docker](https://www.docker.com/)                   | 24+ (for Testcontainers) |
 
 ### Setup
 
@@ -211,17 +212,17 @@ docker compose up -d
 
 ### Environment Variables
 
-| Variable | Description | Default |
-|----------|------------|---------|
-| `ConnectionStrings__DefaultConnection` | PostgreSQL connection string | — |
-| `ConnectionStrings__Redis` | Redis connection string | `localhost:6379` |
-| `Jwt__Secret` | JWT signing key (≥ 32 chars, HS256 dev only) | — |
-| `Jwt__Issuer` | JWT issuer | `greenlens-api` |
-| `Jwt__Audience` | JWT audience | `greenlens-client` |
-| `Cloudflare__R2__Endpoint` | R2 endpoint URL | — |
-| `Cloudflare__R2__Bucket` | R2 bucket name | `greenlens-media` |
-| `Cloudflare__Turnstile__SiteKey` | Turnstile site key (public) | — |
-| `ASPNETCORE_ENVIRONMENT` | Environment name | `Development` |
+| Variable                               | Description                                  | Default            |
+| -------------------------------------- | -------------------------------------------- | ------------------ |
+| `ConnectionStrings__DefaultConnection` | PostgreSQL connection string                 | —                  |
+| `ConnectionStrings__Redis`             | Redis connection string                      | `localhost:6379`   |
+| `Jwt__Secret`                          | JWT signing key (≥ 32 chars, HS256 dev only) | —                  |
+| `Jwt__Issuer`                          | JWT issuer                                   | `greenlens-api`    |
+| `Jwt__Audience`                        | JWT audience                                 | `greenlens-client` |
+| `Cloudflare__R2__Endpoint`             | R2 endpoint URL                              | —                  |
+| `Cloudflare__R2__Bucket`               | R2 bucket name                               | `greenlens-media`  |
+| `Cloudflare__Turnstile__SiteKey`       | Turnstile site key (public)                  | —                  |
+| `ASPNETCORE_ENVIRONMENT`               | Environment name                             | `Development`      |
 
 > ⚠️ **Never** commit real secrets (R2 keys, Turnstile secret, JWT private key). Use `dotnet user-secrets` for dev, Azure Key Vault for production.
 
@@ -286,12 +287,12 @@ greenlens-service/
 
 ### Base URL
 
-| Environment | URL |
-|-------------|-----|
-| Local | `http://localhost:5000/v1` |
-| Dev | `https://api-dev.greenlens.com.vn/v1` |
-| Staging | `https://api-stg.greenlens.com.vn/v1` |
-| Production | `https://api.greenlens.com.vn/v1` |
+| Environment | URL                                   |
+| ----------- | ------------------------------------- |
+| Local       | `http://localhost:5000/v1`            |
+| Dev         | `https://api-dev.greenlens.com.vn/v1` |
+| Staging     | `https://api-stg.greenlens.com.vn/v1` |
+| Production  | `https://api.greenlens.com.vn/v1`     |
 
 ### Response Envelope
 
@@ -314,40 +315,40 @@ Content-Type: application/json
 Accept-Language: vi-VN
 ```
 
-| Token | Lifetime |
-|-------|----------|
-| Access Token | 24 hours |
-| Refresh Token | 30 days |
-| OTP (Email) | 10 minutes |
+| Token         | Lifetime   |
+| ------------- | ---------- |
+| Access Token  | 24 hours   |
+| Refresh Token | 30 days    |
+| OTP (Email)   | 10 minutes |
 
 ### Key Endpoints
 
-| Method | Path | Description | Auth |
-|--------|------|-------------|------|
-| `POST` | `/v1/auth/register` | Register citizen account | Public |
-| `POST` | `/v1/auth/login` | Login, receive JWT | Public |
-| `POST` | `/v1/auth/refresh` | Refresh access token | Bearer |
-| `POST` | `/v1/reports` | Submit pollution report | Citizen |
-| `GET` | `/v1/reports` | List reports (paginated) | Bearer |
-| `GET` | `/v1/reports/{id}` | Get report details | Bearer |
-| `PUT` | `/v1/reports/{id}/verify` | Verify report | Officer |
-| `PUT` | `/v1/reports/{id}/assign` | Assign to cleanup team | Officer |
-| `PUT` | `/v1/reports/{id}/resolve` | Mark as resolved | CleanupTeam |
-| `GET` | `/v1/map/nearby` | Get nearby reports | Public |
-| `GET` | `/v1/map/hotspots` | Get pollution hotspots | Public |
-| `GET` | `/v1/map/heatmap` | Get heatmap data | Public |
-| `GET` | `/v1/gamification/leaderboard` | Get leaderboard | Bearer |
+| Method | Path                           | Description              | Auth        |
+| ------ | ------------------------------ | ------------------------ | ----------- |
+| `POST` | `/v1/auth/register`            | Register citizen account | Public      |
+| `POST` | `/v1/auth/login`               | Login, receive JWT       | Public      |
+| `POST` | `/v1/auth/refresh`             | Refresh access token     | Bearer      |
+| `POST` | `/v1/reports`                  | Submit pollution report  | Citizen     |
+| `GET`  | `/v1/reports`                  | List reports (paginated) | Bearer      |
+| `GET`  | `/v1/reports/{id}`             | Get report details       | Bearer      |
+| `PUT`  | `/v1/reports/{id}/verify`      | Verify report            | Officer     |
+| `PUT`  | `/v1/reports/{id}/assign`      | Assign to cleanup team   | Officer     |
+| `PUT`  | `/v1/reports/{id}/resolve`     | Mark as resolved         | CleanupTeam |
+| `GET`  | `/v1/map/nearby`               | Get nearby reports       | Public      |
+| `GET`  | `/v1/map/hotspots`             | Get pollution hotspots   | Public      |
+| `GET`  | `/v1/map/heatmap`              | Get heatmap data         | Public      |
+| `GET`  | `/v1/gamification/leaderboard` | Get leaderboard          | Bearer      |
 
 > 📖 Full API documentation available at `/swagger` when running locally.
 
 ### Rate Limits
 
-| Scope | Limit |
-|-------|-------|
-| Anonymous API | 60 req/min/IP (Cloudflare edge + app) |
-| Authenticated user | 300 req/min/user (app layer) |
-| Submit report | 5/hour, 20/24h per citizen (Redis-backed) |
-| Login attempts | 5 fail/15min → lock 30min + Turnstile from 3rd fail |
+| Scope              | Limit                                               |
+| ------------------ | --------------------------------------------------- |
+| Anonymous API      | 60 req/min/IP (Cloudflare edge + app)               |
+| Authenticated user | 300 req/min/user (app layer)                        |
+| Submit report      | 5/hour, 20/24h per citizen (Redis-backed)           |
+| Login attempts     | 5 fail/15min → lock 30min + Turnstile from 3rd fail |
 
 ---
 
@@ -355,11 +356,11 @@ Accept-Language: vi-VN
 
 ### Testing Pyramid
 
-| Layer | Ratio | Stack |
-|-------|-------|-------|
-| **Unit** | ~70% | xUnit + FluentAssertions + NSubstitute |
-| **Integration** | ~25% | + Testcontainers (PostgreSQL + PostGIS) + Respawn |
-| **Functional/E2E** | ~5% | + WebApplicationFactory |
+| Layer              | Ratio | Stack                                             |
+| ------------------ | ----- | ------------------------------------------------- |
+| **Unit**           | ~70%  | xUnit + FluentAssertions + NSubstitute            |
+| **Integration**    | ~25%  | + Testcontainers (PostgreSQL + PostGIS) + Respawn |
+| **Functional/E2E** | ~5%   | + WebApplicationFactory                           |
 
 ### Running Tests
 

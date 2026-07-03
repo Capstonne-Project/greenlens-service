@@ -47,37 +47,37 @@ GET /v1/teams/my-progress  ← xem lịch sử tiến độ bất cứ lúc nào
 
 ### AssignmentStatus (trạng thái của một assignment)
 
-| Giá trị | Số | Ý nghĩa |
-|---|---|---|
-| `Assigned` | 0 | Vừa được phân công, chờ team chấp nhận hoặc từ chối |
-| `InProgress` | 1 | Team đã chấp nhận, đang thực hiện |
-| `Completed` | 2 | Team đã hoàn thành phần việc |
-| `Declined` | 3 | Team đã từ chối trong vòng 2h |
+| Giá trị      | Số  | Ý nghĩa                                             |
+| ------------ | --- | --------------------------------------------------- |
+| `Assigned`   | 0   | Vừa được phân công, chờ team chấp nhận hoặc từ chối |
+| `InProgress` | 1   | Team đã chấp nhận, đang thực hiện                   |
+| `Completed`  | 2   | Team đã hoàn thành phần việc                        |
+| `Declined`   | 3   | Team đã từ chối trong vòng 2h                       |
 
 > **Dùng làm filter trên header list:**  
 > Không truyền → lấy tất cả | `Assigned` → chờ xác nhận | `InProgress` → đang làm | `Completed` → đã xong | `Declined` → đã từ chối
 
 ### ReportStatus (trạng thái của report, xuất hiện trong response)
 
-| Giá trị | Ý nghĩa |
-|---|---|
-| `Submitted` | Mới tạo, chờ officer xác minh |
-| `Verified` | Officer đã xác minh, chờ phân công |
-| `InProgress` | Đang được team xử lý |
-| `Resolved` | Tất cả Cleanup team đã hoàn thành |
-| `PenaltyIssued` | Inspector đã xử phạt |
-| `Closed` | Đã đóng hoàn toàn |
-| `Rejected` | Officer từ chối (không hợp lệ) |
-| `Duplicate` | Trùng với báo cáo khác |
+| Giá trị         | Ý nghĩa                            |
+| --------------- | ---------------------------------- |
+| `Submitted`     | Mới tạo, chờ officer xác minh      |
+| `Verified`      | Officer đã xác minh, chờ phân công |
+| `InProgress`    | Đang được team xử lý               |
+| `Resolved`      | Tất cả Cleanup team đã hoàn thành  |
+| `PenaltyIssued` | Inspector đã xử phạt               |
+| `Closed`        | Đã đóng hoàn toàn                  |
+| `Rejected`      | Officer từ chối (không hợp lệ)     |
+| `Duplicate`     | Trùng với báo cáo khác             |
 
 ### Severity (mức độ nghiêm trọng)
 
-| Giá trị | Màu gợi ý |
-|---|---|
-| `Low` | xanh lá |
-| `Medium` | vàng |
-| `High` | cam |
-| `Critical` | đỏ |
+| Giá trị    | Màu gợi ý |
+| ---------- | --------- |
+| `Low`      | xanh lá   |
+| `Medium`   | vàng      |
+| `High`     | cam       |
+| `Critical` | đỏ        |
 
 ---
 
@@ -95,11 +95,11 @@ GET /v1/teams/my-tasks
 
 **Query params:**
 
-| Param | Kiểu | Bắt buộc | Mặc định | Mô tả |
-|---|---|---|---|---|
-| `page` | int | không | 1 | Số trang |
-| `pageSize` | int | không | 20 | Số item / trang |
-| `assignmentStatus` | string | không | (tất cả) | Filter theo `Assigned` / `InProgress` / `Completed` / `Declined` |
+| Param              | Kiểu   | Bắt buộc | Mặc định | Mô tả                                                            |
+| ------------------ | ------ | -------- | -------- | ---------------------------------------------------------------- |
+| `page`             | int    | không    | 1        | Số trang                                                         |
+| `pageSize`         | int    | không    | 20       | Số item / trang                                                  |
+| `assignmentStatus` | string | không    | (tất cả) | Filter theo `Assigned` / `InProgress` / `Completed` / `Declined` |
 
 **Response 200:**
 
@@ -137,6 +137,7 @@ GET /v1/teams/my-tasks
 ```
 
 **Gợi ý UI:**
+
 - Dùng `assignmentStatus` làm tab/chip filter trên header: **Tất cả | Chờ xác nhận | Đang làm | Hoàn thành | Từ chối**
 - Hiển thị badge màu theo `severity`
 - Hiển thị countdown SLA nếu `slaResolveDueAt` còn trong 24h
@@ -198,22 +199,22 @@ GET /v1/teams/my-tasks/{reportId}
 
 **Các cờ điều khiển UI — quan trọng:**
 
-| Cờ | Giá trị | Hiển thị gì |
-|---|---|---|
-| `canDecline` | `true` | Hiện nút **Từ chối** (chỉ khi status = `Assigned` và chưa quá 2h) |
-| `canDecline` | `false` | Ẩn / disabled nút Từ chối |
-| `canUpdateProgress` | `true` | Hiện form **Cập nhật tiến độ** |
-| `canResolve` | `true` | Hiện nút **Hoàn thành** |
+| Cờ                  | Giá trị | Hiển thị gì                                                       |
+| ------------------- | ------- | ----------------------------------------------------------------- |
+| `canDecline`        | `true`  | Hiện nút **Từ chối** (chỉ khi status = `Assigned` và chưa quá 2h) |
+| `canDecline`        | `false` | Ẩn / disabled nút Từ chối                                         |
+| `canUpdateProgress` | `true`  | Hiện form **Cập nhật tiến độ**                                    |
+| `canResolve`        | `true`  | Hiện nút **Hoàn thành**                                           |
 
 > Cả `canUpdateProgress` và `canResolve` đều `true` khi `assignmentStatus = InProgress`.  
 > Sau khi Accept → gọi lại API này để refresh cờ.
 
 **Error codes:**
 
-| HTTP | Code | Ý nghĩa |
-|---|---|---|
-| 404 | `ASSIGNMENT_NOT_FOUND` | Team không có assignment cho report này |
-| 422 | `NOT_TEAM_MEMBER` | User không thuộc team nào |
+| HTTP | Code                   | Ý nghĩa                                 |
+| ---- | ---------------------- | --------------------------------------- |
+| 404  | `ASSIGNMENT_NOT_FOUND` | Team không có assignment cho report này |
+| 422  | `NOT_TEAM_MEMBER`      | User không thuộc team nào               |
 
 ---
 
@@ -231,12 +232,12 @@ PUT /v1/teams/my-tasks/{reportId}/accept
 
 **Error codes:**
 
-| HTTP | Code | Ý nghĩa |
-|---|---|---|
-| 422 | `NOT_TEAM_LEADER` | User không phải leader |
-| 422 | `INVALID_STATUS_TRANSITION` | Assignment không ở trạng thái `Assigned` |
-| 404 | `REPORT_NOT_FOUND` | Report không tồn tại |
-| 404 | `ASSIGNMENT_NOT_FOUND` | Team không có assignment cho report này |
+| HTTP | Code                        | Ý nghĩa                                  |
+| ---- | --------------------------- | ---------------------------------------- |
+| 422  | `NOT_TEAM_LEADER`           | User không phải leader                   |
+| 422  | `INVALID_STATUS_TRANSITION` | Assignment không ở trạng thái `Assigned` |
+| 404  | `REPORT_NOT_FOUND`          | Report không tồn tại                     |
+| 404  | `ASSIGNMENT_NOT_FOUND`      | Team không có assignment cho report này  |
 
 **Sau khi thành công:** Gọi lại `GET /v1/teams/my-tasks/{reportId}` để refresh — `canDecline` sẽ thành `false`, `canUpdateProgress` và `canResolve` thành `true`.
 
@@ -265,12 +266,12 @@ PUT /v1/teams/my-tasks/{reportId}/decline
 
 **Error codes:**
 
-| HTTP | Code | Ý nghĩa |
-|---|---|---|
-| 422 | `REASON_TOO_SHORT` | Lý do < 20 ký tự |
-| 422 | `DECLINE_WINDOW_EXPIRED` | Đã quá 2h kể từ lúc assign |
-| 422 | `INVALID_STATUS_TRANSITION` | Assignment không ở trạng thái `Assigned` |
-| 404 | `ASSIGNMENT_NOT_FOUND` | Không tìm thấy assignment |
+| HTTP | Code                        | Ý nghĩa                                  |
+| ---- | --------------------------- | ---------------------------------------- |
+| 422  | `REASON_TOO_SHORT`          | Lý do < 20 ký tự                         |
+| 422  | `DECLINE_WINDOW_EXPIRED`    | Đã quá 2h kể từ lúc assign               |
+| 422  | `INVALID_STATUS_TRANSITION` | Assignment không ở trạng thái `Assigned` |
+| 404  | `ASSIGNMENT_NOT_FOUND`      | Không tìm thấy assignment                |
 
 **Side effect quan trọng:** Nếu tất cả team được phân công cho report này đều decline → Report tự động quay về `Verified`, officer sẽ phân công lại.
 
@@ -289,13 +290,14 @@ Content-Type: multipart/form-data
 
 **Form fields:**
 
-| Field | Kiểu | Bắt buộc | Mô tả |
-|---|---|---|---|
-| `progressPercent` | int | có | 0–100 |
-| `progressNote` | string | không | Ghi chú tiến độ |
-| `images` | file[] | không | Tối đa 5 ảnh, mỗi ảnh ≤ 20MB, định dạng jpg/png/webp |
+| Field             | Kiểu   | Bắt buộc | Mô tả                                                |
+| ----------------- | ------ | -------- | ---------------------------------------------------- |
+| `progressPercent` | int    | có       | 0–100                                                |
+| `progressNote`    | string | không    | Ghi chú tiến độ                                      |
+| `images`          | file[] | không    | Tối đa 5 ảnh, mỗi ảnh ≤ 20MB, định dạng jpg/png/webp |
 
 **Ví dụ gọi (multipart):**
+
 ```
 progressPercent: 60
 progressNote: Đã dọn xong khu vực A, đang xử lý khu vực B
@@ -318,11 +320,11 @@ images: [file1.jpg, file2.jpg]
 
 **Error codes:**
 
-| HTTP | Code | Ý nghĩa |
-|---|---|---|
-| 413 | `FILE_TOO_LARGE` | File > 20MB |
-| 422 | `NOT_TEAM_LEADER` | Chỉ leader mới được cập nhật |
-| 422 | `INVALID_STATUS_TRANSITION` | Assignment không ở trạng thái `InProgress` |
+| HTTP | Code                        | Ý nghĩa                                    |
+| ---- | --------------------------- | ------------------------------------------ |
+| 413  | `FILE_TOO_LARGE`            | File > 20MB                                |
+| 422  | `NOT_TEAM_LEADER`           | Chỉ leader mới được cập nhật               |
+| 422  | `INVALID_STATUS_TRANSITION` | Assignment không ở trạng thái `InProgress` |
 
 ---
 
@@ -352,10 +354,10 @@ PUT /v1/reports/{reportId}/resolve
 
 **Error codes:**
 
-| HTTP | Code | Ý nghĩa |
-|---|---|---|
-| 422 | `INSUFFICIENT_AFTER_IMAGES` | Ít hơn 2 ảnh after |
-| 422 | `INVALID_STATUS_TRANSITION` | Assignment không ở trạng thái `InProgress` |
+| HTTP | Code                        | Ý nghĩa                                    |
+| ---- | --------------------------- | ------------------------------------------ |
+| 422  | `INSUFFICIENT_AFTER_IMAGES` | Ít hơn 2 ảnh after                         |
+| 422  | `INVALID_STATUS_TRANSITION` | Assignment không ở trạng thái `InProgress` |
 
 **Side effect:** Khi TẤT CẢ team của report đều `Completed` → Report chuyển `InProgress → Resolved`.
 
@@ -371,11 +373,11 @@ GET /v1/teams/my-progress
 
 **Query params:**
 
-| Param | Kiểu | Bắt buộc | Mặc định | Mô tả |
-|---|---|---|---|---|
-| `page` | int | không | 1 | Số trang |
-| `pageSize` | int | không | 20 | Số item / trang |
-| `assignmentStatus` | string | không | (tất cả) | Filter theo trạng thái |
+| Param              | Kiểu   | Bắt buộc | Mặc định | Mô tả                  |
+| ------------------ | ------ | -------- | -------- | ---------------------- |
+| `page`             | int    | không    | 1        | Số trang               |
+| `pageSize`         | int    | không    | 20       | Số item / trang        |
+| `assignmentStatus` | string | không    | (tất cả) | Filter theo trạng thái |
 
 **Response 200:**
 
@@ -408,9 +410,9 @@ GET /v1/teams/my-progress
 
 **Error codes:**
 
-| HTTP | Code | Ý nghĩa |
-|---|---|---|
-| 422 | `NOT_TEAM_LEADER` | Chỉ leader mới xem được |
+| HTTP | Code              | Ý nghĩa                 |
+| ---- | ----------------- | ----------------------- |
+| 422  | `NOT_TEAM_LEADER` | Chỉ leader mới xem được |
 
 ---
 
@@ -520,16 +522,16 @@ GET /v1/teams/my-profile
 
 ## Tóm tắt nhanh (Quick Reference)
 
-| Hành động | Method | URL | Body / Params | Ai gọi được |
-|---|---|---|---|---|
-| Xem danh sách task | `GET` | `/v1/teams/my-tasks` | `?assignmentStatus=&page=&pageSize=` | Tất cả thành viên |
-| Xem chi tiết task | `GET` | `/v1/teams/my-tasks/{reportId}` | — | Tất cả thành viên |
-| Chấp nhận task | `PUT` | `/v1/teams/my-tasks/{reportId}/accept` | empty body | Chỉ Team Leader |
-| Từ chối task | `PUT` | `/v1/teams/my-tasks/{reportId}/decline` | `{ teamId, reason }` | Chỉ Team Leader |
-| Cập nhật tiến độ | `PUT` | `/v1/reports/{reportId}/progress` | `multipart: progressPercent, progressNote, images[]` | Chỉ Team Leader |
-| Hoàn thành (Cleanup) | `PUT` | `/v1/reports/{reportId}/resolve` | `{ teamId, afterImageUrls[] }` | Chỉ Team Leader |
-| Xem lịch sử tiến độ | `GET` | `/v1/teams/my-progress` | `?assignmentStatus=&page=&pageSize=` | Chỉ Team Leader |
-| Xem profile team | `GET` | `/v1/teams/my-profile` | — | Tất cả thành viên |
+| Hành động            | Method | URL                                     | Body / Params                                        | Ai gọi được       |
+| -------------------- | ------ | --------------------------------------- | ---------------------------------------------------- | ----------------- |
+| Xem danh sách task   | `GET`  | `/v1/teams/my-tasks`                    | `?assignmentStatus=&page=&pageSize=`                 | Tất cả thành viên |
+| Xem chi tiết task    | `GET`  | `/v1/teams/my-tasks/{reportId}`         | —                                                    | Tất cả thành viên |
+| Chấp nhận task       | `PUT`  | `/v1/teams/my-tasks/{reportId}/accept`  | empty body                                           | Chỉ Team Leader   |
+| Từ chối task         | `PUT`  | `/v1/teams/my-tasks/{reportId}/decline` | `{ teamId, reason }`                                 | Chỉ Team Leader   |
+| Cập nhật tiến độ     | `PUT`  | `/v1/reports/{reportId}/progress`       | `multipart: progressPercent, progressNote, images[]` | Chỉ Team Leader   |
+| Hoàn thành (Cleanup) | `PUT`  | `/v1/reports/{reportId}/resolve`        | `{ teamId, afterImageUrls[] }`                       | Chỉ Team Leader   |
+| Xem lịch sử tiến độ  | `GET`  | `/v1/teams/my-progress`                 | `?assignmentStatus=&page=&pageSize=`                 | Chỉ Team Leader   |
+| Xem profile team     | `GET`  | `/v1/teams/my-profile`                  | —                                                    | Tất cả thành viên |
 
 ---
 

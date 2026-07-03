@@ -50,14 +50,14 @@ tuyển dụng, xem danh sách, thêm/xóa khỏi team, chuyển team.
 
 ## Bảng tổng hợp API
 
-| # | Method | Endpoint | Mô tả | Auth |
-|---|---|---|---|---|
-| 0 | `GET` | `/v1/offices/my/staff/lookup?email=...` | Tra cứu tài khoản Citizen trước khi recruit | LEO, Admin |
-| 1 | `POST` | `/v1/offices/my/staff` | Tuyển Citizen → Cleaner/Inspector + gán office + team | LEO, Admin |
-| 2 | `GET` | `/v1/offices/my/staff` | Danh sách nhân sự trong phường | LEO, Admin |
-| 3 | `POST` | `/v1/teams/{teamId}/members` | Thêm nhân sự vào team | LEO, Admin |
-| 4 | `DELETE` | `/v1/teams/{teamId}/members/{userId}` | Xóa nhân sự khỏi team (giữ role) | LEO, Admin |
-| 5 | `PUT` | `/v1/teams/{teamId}/members/{userId}/transfer` | Chuyển nhân sự sang team khác (atomic) | LEO, Admin |
+| #   | Method   | Endpoint                                       | Mô tả                                                 | Auth       |
+| --- | -------- | ---------------------------------------------- | ----------------------------------------------------- | ---------- |
+| 0   | `GET`    | `/v1/offices/my/staff/lookup?email=...`        | Tra cứu tài khoản Citizen trước khi recruit           | LEO, Admin |
+| 1   | `POST`   | `/v1/offices/my/staff`                         | Tuyển Citizen → Cleaner/Inspector + gán office + team | LEO, Admin |
+| 2   | `GET`    | `/v1/offices/my/staff`                         | Danh sách nhân sự trong phường                        | LEO, Admin |
+| 3   | `POST`   | `/v1/teams/{teamId}/members`                   | Thêm nhân sự vào team                                 | LEO, Admin |
+| 4   | `DELETE` | `/v1/teams/{teamId}/members/{userId}`          | Xóa nhân sự khỏi team (giữ role)                      | LEO, Admin |
+| 5   | `PUT`    | `/v1/teams/{teamId}/members/{userId}/transfer` | Chuyển nhân sự sang team khác (atomic)                | LEO, Admin |
 
 ---
 
@@ -72,9 +72,9 @@ Authorization: Bearer <LEO or Admin token>
 
 #### Query Parameters
 
-| Param | Type | Required | Mô tả |
-|---|---|---|---|
-| `email` | string | ✅ | Email chính xác của tài khoản cần tra cứu |
+| Param   | Type   | Required | Mô tả                                     |
+| ------- | ------ | -------- | ----------------------------------------- |
+| `email` | string | ✅       | Email chính xác của tài khoản cần tra cứu |
 
 #### Response 200 OK
 
@@ -113,11 +113,12 @@ Authorization: Bearer <LEO or Admin token>
 
 #### Error Responses
 
-| HTTP | Code | Khi nào |
-|---|---|---|
-| 404 | `USER_NOT_FOUND` | Email không tồn tại trong hệ thống |
+| HTTP | Code             | Khi nào                            |
+| ---- | ---------------- | ---------------------------------- |
+| 404  | `USER_NOT_FOUND` | Email không tồn tại trong hệ thống |
 
 > **FE Flow (auto-lookup khi nhập đúng email):**
+>
 > 1. LEO nhập email vào ô input
 > 2. FE validate bằng regex email → chưa đúng format thì **không gọi API**
 > 3. Khi email hợp lệ → **debounce 500ms** → tự động gọi `GET /v1/offices/my/staff/lookup?email=...`
@@ -127,10 +128,11 @@ Authorization: Bearer <LEO or Admin token>
 > 7. LEO sửa email → card biến mất, lặp lại từ bước 2
 >
 > **Gợi ý FE implementation:**
+>
 > ```javascript
 > // Pseudo-code
 > const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-> 
+>
 > onEmailInput = debounce(async (email) => {
 >   if (!EMAIL_REGEX.test(email)) return clearPreview();
 >   const res = await fetch(`/v1/offices/my/staff/lookup?email=${email}`);
@@ -159,12 +161,12 @@ Authorization: Bearer <LEO or Admin token>
 }
 ```
 
-| Field | Type | Required | Mô tả |
-|---|---|---|---|
-| `email` | string | ✅ | Email của tài khoản Citizen cần recruit |
-| `targetRole` | enum | ✅ | `Cleaner` hoặc `Inspector` |
-| `teamId` | GUID | ❌ | Nếu truyền → thêm vào team luôn. Team phải thuộc office của LEO |
-| `isLeader` | bool | ❌ | Default `false`. Set `true` để gán làm Team Leader |
+| Field        | Type   | Required | Mô tả                                                           |
+| ------------ | ------ | -------- | --------------------------------------------------------------- |
+| `email`      | string | ✅       | Email của tài khoản Citizen cần recruit                         |
+| `targetRole` | enum   | ✅       | `Cleaner` hoặc `Inspector`                                      |
+| `teamId`     | GUID   | ❌       | Nếu truyền → thêm vào team luôn. Team phải thuộc office của LEO |
+| `isLeader`   | bool   | ❌       | Default `false`. Set `true` để gán làm Team Leader              |
 
 #### Response 201 Created
 
@@ -187,15 +189,15 @@ Authorization: Bearer <LEO or Admin token>
 
 #### Error Responses
 
-| HTTP | Code | Khi nào |
-|---|---|---|
-| 404 | `USER_NOT_FOUND` | Email không tồn tại trong hệ thống |
-| 409 | `USER_ALREADY_IN_OFFICE` | User đã thuộc phường/xã khác |
-| 409 | `USER_ALREADY_IN_TEAM` | User đã là thành viên một đội |
-| 422 | `INVALID_ROLE_FOR_RECRUIT` | User không phải Citizen (đã là DEO/LEO/Cleaner/...) |
-| 422 | `INVALID_ROLE_FOR_TEAM_MEMBER` | TargetRole không phải Cleaner/Inspector, hoặc role không khớp TeamType |
-| 422 | `TEAM_NOT_IN_OFFICE` | Team không thuộc office của LEO |
-| 422 | `OFFICER_NO_OFFICE` | LEO chưa được gán office |
+| HTTP | Code                           | Khi nào                                                                |
+| ---- | ------------------------------ | ---------------------------------------------------------------------- |
+| 404  | `USER_NOT_FOUND`               | Email không tồn tại trong hệ thống                                     |
+| 409  | `USER_ALREADY_IN_OFFICE`       | User đã thuộc phường/xã khác                                           |
+| 409  | `USER_ALREADY_IN_TEAM`         | User đã là thành viên một đội                                          |
+| 422  | `INVALID_ROLE_FOR_RECRUIT`     | User không phải Citizen (đã là DEO/LEO/Cleaner/...)                    |
+| 422  | `INVALID_ROLE_FOR_TEAM_MEMBER` | TargetRole không phải Cleaner/Inspector, hoặc role không khớp TeamType |
+| 422  | `TEAM_NOT_IN_OFFICE`           | Team không thuộc office của LEO                                        |
+| 422  | `OFFICER_NO_OFFICE`            | LEO chưa được gán office                                               |
 
 ---
 
@@ -208,13 +210,13 @@ Authorization: Bearer <LEO or Admin token>
 
 #### Query Parameters
 
-| Param | Type | Default | Mô tả |
-|---|---|---|---|
-| `page` | int | 1 | Trang hiện tại |
-| `pageSize` | int | 20 | Số item mỗi trang |
-| `search` | string | — | Tìm theo tên hoặc email (case-insensitive) |
-| `role` | enum | — | Lọc theo `Cleaner` hoặc `Inspector` |
-| `hasTeam` | bool | — | `true` = đã có team, `false` = chưa có team, không truyền = tất cả |
+| Param      | Type   | Default | Mô tả                                                              |
+| ---------- | ------ | ------- | ------------------------------------------------------------------ |
+| `page`     | int    | 1       | Trang hiện tại                                                     |
+| `pageSize` | int    | 20      | Số item mỗi trang                                                  |
+| `search`   | string | —       | Tìm theo tên hoặc email (case-insensitive)                         |
+| `role`     | enum   | —       | Lọc theo `Cleaner` hoặc `Inspector`                                |
+| `hasTeam`  | bool   | —       | `true` = đã có team, `false` = chưa có team, không truyền = tất cả |
 
 #### Response 200 OK
 
@@ -280,10 +282,10 @@ Authorization: Bearer <LEO or Admin token>
 }
 ```
 
-| Field | Type | Required | Mô tả |
-|---|---|---|---|
-| `userId` | GUID | ✅ | ID của user cần thêm vào team |
-| `isLeader` | bool | ❌ | Default `false`. Set `true` để gán làm Team Leader |
+| Field      | Type | Required | Mô tả                                              |
+| ---------- | ---- | -------- | -------------------------------------------------- |
+| `userId`   | GUID | ✅       | ID của user cần thêm vào team                      |
+| `isLeader` | bool | ❌       | Default `false`. Set `true` để gán làm Team Leader |
 
 #### Response 201 Created
 
@@ -303,12 +305,12 @@ Authorization: Bearer <LEO or Admin token>
 
 #### Error Responses
 
-| HTTP | Code | Khi nào |
-|---|---|---|
-| 404 | `TEAM_NOT_FOUND` | Team không tồn tại |
-| 404 | `USER_NOT_FOUND` | User không tồn tại |
-| 409 | `MEMBER_ALREADY_IN_TEAM` | User đã là thành viên của team này |
-| 422 | `INVALID_ROLE_FOR_TEAM_MEMBER` | Role không khớp TeamType (Cleaner↔Cleanup, Inspector↔Inspection) |
+| HTTP | Code                           | Khi nào                                                          |
+| ---- | ------------------------------ | ---------------------------------------------------------------- |
+| 404  | `TEAM_NOT_FOUND`               | Team không tồn tại                                               |
+| 404  | `USER_NOT_FOUND`               | User không tồn tại                                               |
+| 409  | `MEMBER_ALREADY_IN_TEAM`       | User đã là thành viên của team này                               |
+| 422  | `INVALID_ROLE_FOR_TEAM_MEMBER` | Role không khớp TeamType (Cleaner↔Cleanup, Inspector↔Inspection) |
 
 > **Lưu ý:** User phải đã có role Cleaner/Inspector (thường qua recruit trước) để thêm vào team.
 
@@ -333,11 +335,12 @@ Authorization: Bearer <LEO or Admin token>
 
 #### Error Responses
 
-| HTTP | Code | Khi nào |
-|---|---|---|
-| 404 | `MEMBER_NOT_FOUND` | User không phải thành viên của team này |
+| HTTP | Code               | Khi nào                                 |
+| ---- | ------------------ | --------------------------------------- |
+| 404  | `MEMBER_NOT_FOUND` | User không phải thành viên của team này |
 
 > **⚠️ Quan trọng:**
+>
 > - **Xóa khỏi team ≠ đuổi khỏi phường** — User vẫn giữ role (Cleaner/Inspector) và vẫn thuộc LocalOffice.
 > - LEO vẫn thấy user trong `GET /v1/offices/my/staff` với `hasTeam=false`.
 > - LEO có thể thêm lại vào team khác bất cứ lúc nào.
@@ -353,10 +356,10 @@ Authorization: Bearer <LEO or Admin token>
 
 #### Path Parameters
 
-| Param | Mô tả |
-|---|---|
+| Param    | Mô tả                         |
+| -------- | ----------------------------- |
 | `teamId` | ID team hiện tại (team nguồn) |
-| `userId` | ID user cần chuyển |
+| `userId` | ID user cần chuyển            |
 
 #### Request Body
 
@@ -367,10 +370,10 @@ Authorization: Bearer <LEO or Admin token>
 }
 ```
 
-| Field | Type | Required | Mô tả |
-|---|---|---|---|
-| `newTeamId` | GUID | ✅ | Team đích để chuyển sang |
-| `isLeader` | bool | ❌ | Default `false`. Set `true` nếu chuyển làm leader team mới |
+| Field       | Type | Required | Mô tả                                                      |
+| ----------- | ---- | -------- | ---------------------------------------------------------- |
+| `newTeamId` | GUID | ✅       | Team đích để chuyển sang                                   |
+| `isLeader`  | bool | ❌       | Default `false`. Set `true` nếu chuyển làm leader team mới |
 
 #### Response 200 OK
 
@@ -391,17 +394,18 @@ Authorization: Bearer <LEO or Admin token>
 
 #### Error Responses
 
-| HTTP | Code | Khi nào |
-|---|---|---|
-| 404 | `TEAM_NOT_FOUND` | Team nguồn hoặc team đích không tồn tại |
-| 404 | `MEMBER_NOT_IN_TEAM` | User không phải thành viên của team nguồn |
-| 409 | `MEMBER_ALREADY_IN_TEAM` | User đã ở team đích rồi |
-| 422 | `TRANSFER_SAME_TEAM` | Team đích trùng team nguồn |
-| 422 | `TEAM_NOT_IN_OFFICE` | Team không thuộc office của LEO |
-| 422 | `INVALID_ROLE_FOR_TEAM_MEMBER` | Role không khớp TeamType mới |
-| 422 | `OFFICER_NO_OFFICE` | LEO chưa được gán office |
+| HTTP | Code                           | Khi nào                                   |
+| ---- | ------------------------------ | ----------------------------------------- |
+| 404  | `TEAM_NOT_FOUND`               | Team nguồn hoặc team đích không tồn tại   |
+| 404  | `MEMBER_NOT_IN_TEAM`           | User không phải thành viên của team nguồn |
+| 409  | `MEMBER_ALREADY_IN_TEAM`       | User đã ở team đích rồi                   |
+| 422  | `TRANSFER_SAME_TEAM`           | Team đích trùng team nguồn                |
+| 422  | `TEAM_NOT_IN_OFFICE`           | Team không thuộc office của LEO           |
+| 422  | `INVALID_ROLE_FOR_TEAM_MEMBER` | Role không khớp TeamType mới              |
+| 422  | `OFFICER_NO_OFFICE`            | LEO chưa được gán office                  |
 
 > **Đặc điểm:**
+>
 > - **Atomic:** Remove khỏi team cũ + Add vào team mới trong 1 transaction — không có trạng thái treo.
 > - **Role không đổi:** Chuyển team chỉ thay đổi team membership, không ảnh hưởng role.
 
@@ -409,41 +413,42 @@ Authorization: Bearer <LEO or Admin token>
 
 ## Business Rules
 
-| ID | Rule | Mô tả |
-|---|---|---|
+| ID          | Rule                | Mô tả                                                                     |
+| ----------- | ------------------- | ------------------------------------------------------------------------- |
 | BR-ORG-005a | Chỉ recruit Citizen | User phải có role = Citizen. DEO, LEO, Admin, Cleaner, Inspector → reject |
-| BR-ORG-005b | 1 user → 1 office | User chỉ thuộc 1 phường/xã. Nếu đã có LocalOfficeId → reject |
-| BR-ORG-005c | 1 user → 1 team | Mỗi user chỉ thuộc 1 team tại 1 thời điểm |
-| BR-ORG-005d | Role khớp TeamType | Cleaner → Cleanup team. Inspector → Inspection team |
-| BR-ORG-005e | Team thuộc office | Team.LocalOfficeId phải = LEO's LocalOfficeId |
-| BR-ORG-005f | TeamId optional | Có thể recruit vào phường mà chưa gán team |
-| BR-ORG-006a | Remove giữ role | Xóa khỏi team không đổi role, user vẫn thuộc phường |
-| BR-ORG-006b | Transfer atomic | Chuyển team = remove + add trong 1 transaction |
+| BR-ORG-005b | 1 user → 1 office   | User chỉ thuộc 1 phường/xã. Nếu đã có LocalOfficeId → reject              |
+| BR-ORG-005c | 1 user → 1 team     | Mỗi user chỉ thuộc 1 team tại 1 thời điểm                                 |
+| BR-ORG-005d | Role khớp TeamType  | Cleaner → Cleanup team. Inspector → Inspection team                       |
+| BR-ORG-005e | Team thuộc office   | Team.LocalOfficeId phải = LEO's LocalOfficeId                             |
+| BR-ORG-005f | TeamId optional     | Có thể recruit vào phường mà chưa gán team                                |
+| BR-ORG-006a | Remove giữ role     | Xóa khỏi team không đổi role, user vẫn thuộc phường                       |
+| BR-ORG-006b | Transfer atomic     | Chuyển team = remove + add trong 1 transaction                            |
 
 ---
 
 ## Tổng hợp Error Codes
 
-| Code | HTTP | Mô tả |
-|---|---|---|
-| `USER_NOT_FOUND` | 404 | Email/User không tồn tại |
-| `TEAM_NOT_FOUND` | 404 | Team không tồn tại |
-| `MEMBER_NOT_FOUND` | 404 | Thành viên không tồn tại trong team |
-| `MEMBER_NOT_IN_TEAM` | 404 | User không thuộc team nguồn (transfer) |
-| `USER_ALREADY_IN_OFFICE` | 409 | User đã thuộc phường khác |
-| `USER_ALREADY_IN_TEAM` | 409 | User đã có team (recruit) |
-| `MEMBER_ALREADY_IN_TEAM` | 409 | User đã trong team (add/transfer) |
-| `INVALID_ROLE_FOR_RECRUIT` | 422 | User không phải Citizen |
-| `INVALID_ROLE_FOR_TEAM_MEMBER` | 422 | Role không khớp TeamType |
-| `TEAM_NOT_IN_OFFICE` | 422 | Team không thuộc office của LEO |
-| `TRANSFER_SAME_TEAM` | 422 | Chuyển về chính team hiện tại |
-| `OFFICER_NO_OFFICE` | 422 | LEO chưa được gán office |
+| Code                           | HTTP | Mô tả                                  |
+| ------------------------------ | ---- | -------------------------------------- |
+| `USER_NOT_FOUND`               | 404  | Email/User không tồn tại               |
+| `TEAM_NOT_FOUND`               | 404  | Team không tồn tại                     |
+| `MEMBER_NOT_FOUND`             | 404  | Thành viên không tồn tại trong team    |
+| `MEMBER_NOT_IN_TEAM`           | 404  | User không thuộc team nguồn (transfer) |
+| `USER_ALREADY_IN_OFFICE`       | 409  | User đã thuộc phường khác              |
+| `USER_ALREADY_IN_TEAM`         | 409  | User đã có team (recruit)              |
+| `MEMBER_ALREADY_IN_TEAM`       | 409  | User đã trong team (add/transfer)      |
+| `INVALID_ROLE_FOR_RECRUIT`     | 422  | User không phải Citizen                |
+| `INVALID_ROLE_FOR_TEAM_MEMBER` | 422  | Role không khớp TeamType               |
+| `TEAM_NOT_IN_OFFICE`           | 422  | Team không thuộc office của LEO        |
+| `TRANSFER_SAME_TEAM`           | 422  | Chuyển về chính team hiện tại          |
+| `OFFICER_NO_OFFICE`            | 422  | LEO chưa được gán office               |
 
 ---
 
 ## Kịch bản FE
 
 ### Tuyển nhân sự mới
+
 1. LEO mở trang "Quản lý nhân sự"
 2. Nhấn "Tuyển mới" → nhập email
 3. Chọn role (Cleaner / Inspector)
@@ -452,6 +457,7 @@ Authorization: Bearer <LEO or Admin token>
 6. Thành công → refresh danh sách
 
 ### Xem danh sách nhân sự
+
 1. `GET /v1/offices/my/staff` → hiển thị bảng
 2. Filter tabs: Tất cả | Cleaner | Inspector
 3. Filter: Có team / Chưa có team
@@ -459,16 +465,19 @@ Authorization: Bearer <LEO or Admin token>
 5. Cột "Team": hiển thị tên team hoặc badge "Chưa có team"
 
 ### Thêm nhân sự chưa có team vào team
+
 1. Từ danh sách nhân sự → lọc `hasTeam=false`
 2. Chọn user → chọn team → `POST /v1/teams/{teamId}/members`
 
 ### Chuyển nhân sự sang team khác
+
 1. LEO mở chi tiết team → thấy danh sách thành viên
 2. Nhấn icon "Chuyển" bên cạnh member
 3. Chọn team đích từ dropdown (chỉ hiện team cùng office, cùng type)
 4. Bấm "Chuyển" → `PUT /v1/teams/{teamId}/members/{userId}/transfer`
 
 ### Xóa nhân sự khỏi team
+
 1. LEO mở chi tiết team → danh sách thành viên
 2. Nhấn icon "Xóa" bên cạnh member
 3. Confirm dialog: "Xóa sẽ chỉ bỏ khỏi team, không đuổi khỏi phường"
