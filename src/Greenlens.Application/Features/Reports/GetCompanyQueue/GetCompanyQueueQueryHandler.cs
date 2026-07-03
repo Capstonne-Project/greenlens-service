@@ -50,6 +50,8 @@ public sealed class GetCompanyQueueQueryHandler(
                 r.Code,
                 r.Address,
                 r.WardCode,
+                r.Latitude,
+                r.Longitude,
                 r.Category.NameVi,
                 r.Severity,
                 r.DispatchedToCompanyAt,

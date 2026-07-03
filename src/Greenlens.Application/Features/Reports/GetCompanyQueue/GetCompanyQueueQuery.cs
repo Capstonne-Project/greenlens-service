@@ -22,6 +22,8 @@ public sealed record CompanyQueueItem(
     string Code,
     string? Address,
     string? WardCode,
+    decimal Latitude,
+    decimal Longitude,
     string CategoryName,
     Severity Severity,
     DateTime? DispatchedAt,
