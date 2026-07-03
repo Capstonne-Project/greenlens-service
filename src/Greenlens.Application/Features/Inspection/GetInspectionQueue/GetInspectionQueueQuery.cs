@@ -1,6 +1,7 @@
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
+using Greenlens.Application.Common.Models;
 
 namespace Greenlens.Application.Features.Inspection.GetInspectionQueue;
 
@@ -12,15 +13,15 @@ public sealed record GetInspectionQueueQuery(
 
 public sealed record GetInspectionQueueResponse(
     List<InspectionQueueItemDto> Items,
-    int TotalCount,
-    int Page,
-    int PageSize);
+    PaginationMeta Pagination);
 
 public sealed record InspectionQueueItemDto(
     Guid Id,
     Guid ReportId,
     string ReportCode,
     InspectionStatus Status,
+    string? Address,
+    string? WardCode,
     string? ViolatorName,
     string? ViolationDescription,
     ViolationLevel? ViolationLevel,

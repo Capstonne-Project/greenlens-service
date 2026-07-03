@@ -1,6 +1,7 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
+using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -50,6 +51,13 @@ public sealed class GetInspectionReportByIdQueryHandler(
             ir.SlaInspectionDueAt,
             ir.ClosedAt,
             ir.ClosedReason,
-            ir.CreatedAt);
+            ir.CreatedAt,
+            CanEditDetails: ir.Status == InspectionStatus.Draft,
+            CanIssuePenalty: ir.Status == InspectionStatus.Draft,
+            CanCloseNoViolation: ir.Status == InspectionStatus.Draft,
+            CanRecordPayment: ir.Status is InspectionStatus.PenaltyIssued
+                or InspectionStatus.PartiallyPaid
+                or InspectionStatus.Overdue,
+            CanClose: ir.Status == InspectionStatus.Paid);
     }
 }

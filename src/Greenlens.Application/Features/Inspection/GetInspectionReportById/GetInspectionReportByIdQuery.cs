@@ -38,4 +38,10 @@ public sealed record InspectionReportDetailResponse(
     DateTime? SlaInspectionDueAt,
     DateTime? ClosedAt,
     string? ClosedReason,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    // UI capability flags (derived from status — BR-INS-010..021)
+    bool CanEditDetails,
+    bool CanIssuePenalty,
+    bool CanCloseNoViolation,
+    bool CanRecordPayment,
+    bool CanClose);

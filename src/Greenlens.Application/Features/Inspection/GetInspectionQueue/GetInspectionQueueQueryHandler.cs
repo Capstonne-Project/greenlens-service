@@ -1,6 +1,7 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Common.Models;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -27,7 +28,7 @@ public sealed class GetInspectionQueueQueryHandler(
 
         if (myTeams.Count == 0)
             return Result<GetInspectionQueueResponse>.Success(
-                new GetInspectionQueueResponse([], 0, request.Page, request.PageSize));
+                new GetInspectionQueueResponse([], PaginationMeta.Create(request.Page, request.PageSize, 0)));
 
         var query = inspections.QueryAsNoTracking()
             .Include(ir => ir.Report)
@@ -47,6 +48,8 @@ public sealed class GetInspectionQueueQueryHandler(
                 ir.ReportId,
                 ir.Report!.Code,
                 ir.Status,
+                ir.Report.Address,
+                ir.Report.WardCode,
                 ir.ViolatorName,
                 ir.ViolationDescription,
                 ir.ViolationLevel,
@@ -57,6 +60,8 @@ public sealed class GetInspectionQueueQueryHandler(
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
-        return new GetInspectionQueueResponse(items, totalCount, request.Page, request.PageSize);
+        var pagination = PaginationMeta.Create(request.Page, request.PageSize, totalCount);
+
+        return new GetInspectionQueueResponse(items, pagination);
     }
 }
