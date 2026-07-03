@@ -122,7 +122,33 @@ Cấu trúc tham khảo (theo `00_API_CONVENTIONS.md`):
 }
 ```
 
-**Role** (chuỗi, khớp backend): `Citizen`, `Officer`, `CleanupTeam`, `Admin` — dùng cho UI/phân quyền màn hình (server vẫn là nguồn sự thật qua policy).
+**Role** (chuỗi PascalCase từ login/refresh — **nguồn sự thật BE v3.0**):
+
+`Citizen`, `DEO`, `LEO`, `Cleaner`, `CompanyManager`, `CompanyStaff`, `Inspector`, `Admin`
+
+> Legacy docs có thể ghi `Officer` / `CleanupTeam` — **không** còn dùng trong JWT hiện tại.
+
+**JWT/profile:** không có claim `teamId`, `companyId`, `teamName`. Mobile resolve qua:
+
+- Cleaner / CompanyStaff → `GET /v1/teams/my-tasks`
+- CompanyManager → `GET /v1/companies/my`
+- Inspector → `GET /v1/inspections/queue`
+- Profile chung → `GET /v1/users/profile` (không phải `/users/me`)
+
+### Ma trận role → API chính
+
+| Role | APIs chính |
+|------|------------|
+| `Citizen` | `/reports`, `/map/*`, close/reopen report |
+| `Cleaner` | `/teams/my-tasks`, `/reports/{id}/progress`, `/resolve` |
+| `CompanyStaff` | Giống Cleaner (company team) |
+| `Inspector` | `/inspections/queue`, `/inspections/{id}/*` |
+| `CompanyManager` | `/companies/my`, `/reports/company-*`, `/teams/company-teams` |
+| `LEO` / `DEO` / `Admin` | Web dashboard (ngoài scope mobile shell) |
+
+**Seed mobile QA:** [`SEED_ACCOUNTS.md`](./SEED_ACCOUNTS.md) — `*@greenlens.dev` / `Lualua123@`
+
+Dùng cho UI/phân quyền màn hình (server vẫn là nguồn sự thật qua policy).
 
 ---
 

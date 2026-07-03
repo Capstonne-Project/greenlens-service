@@ -83,6 +83,27 @@
 | `leo.27145@greenlens.dev` | 1 | VP MTĐT Phường 1 |
 | `leo.27148@greenlens.dev` | 2 | VP MTĐT Phường 2 |
 
+## Mobile Demo Accounts (QA Inspector / CM / Cleaner / Citizen)
+
+> Auto-seeded sau LEO seed. Ward demo: **27145** (TP.HCM Phường 1).  
+> Password chung: **`Lualua123@`**
+
+| Role | Email | Sample data |
+|------|-------|-------------|
+| Citizen | `citizen@greenlens.dev` | Reporter; `REP-MOB-RES001` (Resolved — test close/reopen) |
+| Cleaner (leader) | `cleaner@greenlens.dev` | Community team; task `REP-MOB-CLN001` InProgress |
+| Cleaner (member) | `cleaner.member@greenlens.dev` | Cùng team, không phải leader |
+| Inspector (leader) | `inspector@greenlens.dev` | Inspection queue Draft `REP-MOB-INS001` |
+| CompanyManager | `company@greenlens.dev` | Company **GreenLens Demo DVMT**; queue `REP-MOB-CQ001` |
+| CompanyStaff (leader) | `staff@greenlens.dev` | Company team task `REP-MOB-TSK001` InProgress 40% |
+
+> MK được **reset về `Lualua123@` mỗi lần** `dotnet run` (Development) cho các email trên.  
+> Bản seed cũ (`*.mobile@greenlens.dev`) vẫn dùng được cùng MK sau khi restart API.
+
+**Dev API base:** `http://localhost:5000/v1`
+
+**API guides:** [`fe-inspection-api-guide.md`](./fe-inspection-api-guide.md), [`fe-company-manager-api-guide.md`](./fe-company-manager-api-guide.md)
+
 ## Quick Login (Swagger/Postman)
 
 ```json
@@ -106,6 +127,13 @@
 }
 ```
 
+```json
+{
+  "email": "company@greenlens.dev",
+  "password": "Lualua123@"
+}
+```
+
 ## Tóm tắt
 
 | Role | Count | Email Pattern | Password |
@@ -113,6 +141,7 @@
 | Admin | 1 | `admin@greenlens.com.vn` | `Admin@123456` |
 | DEO | 34 | `deo.{provinceCode}@greenlens.dev` | `Officer@123` |
 | LEO | 3,321 | `leo.{wardCode}@greenlens.dev` | `Officer@123` |
-| **Total** | **3,356** | | |
+| Mobile demo | 6 | `*@greenlens.dev` (xem bảng trên) | `Lualua123@` |
+| **Total** | **3,362+** | | |
 
 > ⚠️ **Chỉ dùng cho Development/Staging.** Production KHÔNG seed accounts.
