@@ -13,6 +13,7 @@ namespace Greenlens.Application.Features.Inspection.IssuePenalty;
 /// </summary>
 public sealed class IssuePenaltyCommandHandler(
     IInspectionReportRepository inspections,
+    ITeamMemberRepository teamMembers,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     ILogger<IssuePenaltyCommandHandler> logger)
@@ -23,6 +24,11 @@ public sealed class IssuePenaltyCommandHandler(
         var inspection = await inspections.GetByIdAsync(request.InspectionId, ct).ConfigureAwait(false);
         if (inspection is null)
             return Errors.Inspections.InspectionNotFound;
+
+        var authError = await InspectionTeamAuthorization.ValidateTeamLeaderAsync(
+            inspection, teamMembers, currentUser, ct).ConfigureAwait(false);
+        if (authError is not null)
+            return authError;
 
         // BR-INS-022: Check repeat offender
         var isRepeatOffender = false;
