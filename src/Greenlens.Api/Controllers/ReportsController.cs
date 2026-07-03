@@ -364,11 +364,11 @@ public sealed class ReportsController(ISender sender) : ControllerBase
     // Xem: GET/PUT /v1/teams/my-tasks/* và GET /v1/teams/my-progress
 
     [HttpPut("{id:guid}/progress")]
-    [Authorize(Roles = "Cleaner,Inspector,Admin")]
+    [Authorize(Roles = "Cleaner,CompanyStaff,Inspector,Admin")]
     [Tags("🧹 Cleaner Dashboard")]
     [Consumes("multipart/form-data")]
     [SwaggerOperation(
-        Summary = "[Cleaner/Inspector] Cập nhật tiến độ + ảnh",
+        Summary = "[Cleaner/CompanyStaff/Inspector] Cập nhật tiến độ + ảnh",
         Description = "Team leader cập nhật % tiến độ, ghi chú, và tùy chọn upload ảnh trong cùng 1 request. " +
             "TeamId tự động lấy từ token. Tối đa 5 ảnh, mỗi ảnh ≤ 20MB. Status không thay đổi.")]
     [SwaggerResponse(200, "Đã cập nhật, trả về URLs ảnh đã upload", typeof(ApiResponse<UpdateProgressResponse>))]
@@ -396,9 +396,9 @@ public sealed class ReportsController(ISender sender) : ControllerBase
     }
 
     [HttpPut("{id:guid}/resolve")]
-    [Authorize(Roles = "Cleaner,Admin")]
+    [Authorize(Roles = "Cleaner,CompanyStaff,Admin")]
     [Tags("🧹 Cleaner Dashboard")]
-    [SwaggerOperation(Summary = "[Cleaner] Hoàn thành phần việc của team", Description = "Cleanup Team đánh dấu phần việc đã hoàn thành. Yêu cầu ≥ 2 ảnh after. Khi tất cả team đều completed → report chuyển InProgress → Resolved.")]
+    [SwaggerOperation(Summary = "[Cleaner/CompanyStaff] Hoàn thành phần việc của team", Description = "Cleanup / company team leader đánh dấu phần việc đã hoàn thành. Yêu cầu ≥ 2 ảnh after. Khi tất cả team đều completed → report chuyển InProgress → Resolved.")]
     [SwaggerResponse(200, "Đã hoàn thành", typeof(ApiResponse))]
     [SwaggerResponse(422, "Thiếu ảnh hoặc status không hợp lệ", typeof(ApiResponse))]
     public async Task<IActionResult> ResolveAsync(
