@@ -201,7 +201,7 @@ Dùng **`TeamsController`** — không qua CompaniesController:
 | PUT | `/v1/reports/{reportId}/progress` | multipart — xem [`cleaner-progress-resolve-fe-guide.md`](./cleaner-progress-resolve-fe-guide.md) |
 | PUT | `/v1/reports/{reportId}/resolve` | JSON after images |
 
-**Seed staff leader:** `staff@greenlens.dev` / `Lualua123@` — report `REP-MOB-TSK001`.
+> Path `my-tasks/*` dùng **`reportId`**, không phải `assignmentId`.
 
 ---
 
