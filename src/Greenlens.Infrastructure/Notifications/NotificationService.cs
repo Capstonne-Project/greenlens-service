@@ -1,5 +1,4 @@
 using Greenlens.Application.Common.Interfaces;
-using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using Greenlens.Infrastructure.Persistence;
@@ -17,7 +16,6 @@ namespace Greenlens.Infrastructure.Notifications;
 /// </summary>
 internal sealed class NotificationService(
     ApplicationDbContext db,
-    IUserRepository userRepo,
     IPushNotificationSender pushSender,
     IEmailSender emailSender,
     ILogger<NotificationService> logger) : INotificationService
@@ -32,9 +30,15 @@ internal sealed class NotificationService(
         Guid? referenceId = null,
         CancellationToken ct = default)
     {
-        // 1. Load user for FCM token and email
-        var user = await userRepo.GetByIdAsync(recipientId, ct).ConfigureAwait(false);
-        if (user is null)
+        // 1. Load recipient contact info (no tracking — side effects run after main command commit)
+        var recipient = await db.Users
+            .AsNoTracking()
+            .Where(u => u.Id == recipientId)
+            .Select(u => new { u.Email, u.FcmDeviceToken })
+            .FirstOrDefaultAsync(ct)
+            .ConfigureAwait(false);
+
+        if (recipient is null)
         {
             logger.LogWarning("Notification skipped: user {UserId} not found", recipientId);
             return;
@@ -87,7 +91,7 @@ internal sealed class NotificationService(
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
 
         // 6. Dispatch to channels (fire-and-forget style, errors logged but not thrown)
-        if (pushEnabled && !string.IsNullOrEmpty(user.FcmDeviceToken))
+        if (pushEnabled && !string.IsNullOrEmpty(recipient.FcmDeviceToken))
         {
             try
             {
@@ -95,7 +99,7 @@ internal sealed class NotificationService(
                     ? new Dictionary<string, string> { ["referenceId"] = referenceId.Value.ToString(), ["type"] = type.ToString() }
                     : null;
 
-                await pushSender.SendPushAsync(user.FcmDeviceToken, title, message, data, ct)
+                await pushSender.SendPushAsync(recipient.FcmDeviceToken, title, message, data, ct)
                     .ConfigureAwait(false);
             }
             catch (Exception ex)
@@ -108,7 +112,7 @@ internal sealed class NotificationService(
         {
             try
             {
-                await emailSender.SendNotificationEmailAsync(user.Email, title, message, ct)
+                await emailSender.SendNotificationEmailAsync(recipient.Email, title, message, ct)
                     .ConfigureAwait(false);
             }
             catch (Exception ex)

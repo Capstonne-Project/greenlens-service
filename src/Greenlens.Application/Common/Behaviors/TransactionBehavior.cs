@@ -16,13 +16,15 @@ namespace Greenlens.Application.Common.Behaviors;
 public sealed class TransactionBehavior<TRequest, TResponse>(
     ITransactionManager transactionManager,
     IDomainEventCollector eventCollector,
+    IChangeTrackerCleaner changeTrackerCleaner,
     IPublisher publisher,
     ILogger<TransactionBehavior<TRequest, TResponse>> logger)
     : IPipelineBehavior<TRequest, TResponse>
     where TRequest : IRequest<TResponse>
 {
     private static readonly bool IsCommand =
-        typeof(TRequest).Name.EndsWith("Command", StringComparison.Ordinal);
+        typeof(TRequest).Name.EndsWith("Command", StringComparison.Ordinal)
+        && !typeof(INoTransaction).IsAssignableFrom(typeof(TRequest));
 
     public async Task<TResponse> Handle(
         TRequest request,
@@ -44,7 +46,21 @@ public sealed class TransactionBehavior<TRequest, TResponse>(
 
             logger.LogDebug("Transaction committed for {Request}", requestName);
 
-            await PublishDeferredDomainEventsAsync(cancellationToken).ConfigureAwait(false);
+            // Side-effect handlers (notifications, gamification) must not inherit
+            // tracked entities from the committed command — avoids DbUpdateConcurrencyException.
+            changeTrackerCleaner.ClearTrackedEntities();
+
+            try
+            {
+                await PublishDeferredDomainEventsAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(
+                    ex,
+                    "Deferred domain event handling failed after commit for {Request}",
+                    requestName);
+            }
 
             return response;
         }
@@ -68,6 +84,9 @@ public sealed class TransactionBehavior<TRequest, TResponse>(
 
         foreach (var domainEvent in deferred)
         {
+            // Each handler (notification, gamification) gets a clean DbContext —
+            // prevents stale Report/User entities from prior handlers causing concurrency errors.
+            changeTrackerCleaner.ClearTrackedEntities();
             await publisher.Publish(domainEvent, ct).ConfigureAwait(false);
         }
     }

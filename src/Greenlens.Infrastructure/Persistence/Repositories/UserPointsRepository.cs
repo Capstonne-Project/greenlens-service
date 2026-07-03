@@ -9,6 +9,18 @@ internal sealed class UserPointsRepository(ApplicationDbContext db)
 {
     public async Task<UserPoints> GetOrCreateByUserIdAsync(Guid userId, CancellationToken ct = default)
     {
+        var local = db.ChangeTracker.Entries<UserPoints>()
+            .Select(e => e.Entity)
+            .FirstOrDefault(x => x.UserId == userId);
+
+        if (local is not null)
+        {
+            if (!db.Entry(local).Collection(x => x.Transactions).IsLoaded)
+                await db.Entry(local).Collection(x => x.Transactions).LoadAsync(ct).ConfigureAwait(false);
+
+            return local;
+        }
+
         var existing = await db.UserPoints
             .Include(x => x.Transactions)
             .FirstOrDefaultAsync(x => x.UserId == userId, ct)

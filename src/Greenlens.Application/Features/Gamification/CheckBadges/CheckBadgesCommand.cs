@@ -1,3 +1,4 @@
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
@@ -12,7 +13,7 @@ namespace Greenlens.Application.Features.Gamification.CheckBadges;
 /// Typically triggered after AwardPoints.
 /// </summary>
 /// <remarks>Implements: BR-GAM-004.</remarks>
-public sealed record CheckBadgesCommand(Guid UserId) : IRequest<Result<CheckBadgesResponse>>;
+public sealed record CheckBadgesCommand(Guid UserId) : IRequest<Result<CheckBadgesResponse>>, INoTransaction;
 
 public sealed record CheckBadgesResponse(IReadOnlyList<string> NewlyAwarded);
 

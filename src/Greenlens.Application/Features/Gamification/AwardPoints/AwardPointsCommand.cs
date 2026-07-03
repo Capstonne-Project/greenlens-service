@@ -1,3 +1,4 @@
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -12,7 +13,7 @@ public sealed record AwardPointsCommand(
     Guid UserId,
     int Points,
     PointReason Reason,
-    Guid? ReportId) : IRequest<Result<AwardPointsResponse>>;
+    Guid? ReportId) : IRequest<Result<AwardPointsResponse>>, INoTransaction;
 
 public sealed record AwardPointsResponse(
     int PointsAwarded,
