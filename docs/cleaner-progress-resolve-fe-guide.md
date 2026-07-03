@@ -22,6 +22,8 @@ Content-Type: multipart/form-data
 | `progressNote` | string | ❌ | Ghi chú tiến độ |
 | `images` | file[] | ❌ | Tối đa 5 ảnh, mỗi ảnh ≤ 20MB |
 
+> **Không có** endpoint riêng `POST /reports/{id}/progress/images`. Upload ảnh tiến độ **trong cùng** request multipart `PUT /progress` (field `images`).
+
 **Ví dụ (multipart/form-data):**
 ```
 progressPercent = 60
