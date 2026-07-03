@@ -6,6 +6,8 @@ namespace Greenlens.Application.Common.Interfaces;
 /// </summary>
 public interface ITransactionManager
 {
+    bool HasActiveTransaction { get; }
+
     Task BeginTransactionAsync(CancellationToken ct = default);
     Task CommitAsync(CancellationToken ct = default);
     Task RollbackAsync(CancellationToken ct = default);

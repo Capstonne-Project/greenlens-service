@@ -1,3 +1,4 @@
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
@@ -12,7 +13,7 @@ namespace Greenlens.Application.Features.Gamification.CheckBadges;
 /// Typically triggered after AwardPoints.
 /// </summary>
 /// <remarks>Implements: BR-GAM-004.</remarks>
-public sealed record CheckBadgesCommand(Guid UserId) : IRequest<Result<CheckBadgesResponse>>;
+public sealed record CheckBadgesCommand(Guid UserId) : IRequest<Result<CheckBadgesResponse>>, INoTransaction;
 
 public sealed record CheckBadgesResponse(IReadOnlyList<string> NewlyAwarded);
 
@@ -22,12 +23,15 @@ public sealed class CheckBadgesCommandHandler(
     IUserBadgeRepository userBadgeRepo,
     IReportRepository reportRepo,
     IUnitOfWork unitOfWork,
+    IChangeTrackerCleaner changeTrackerCleaner,
     ILogger<CheckBadgesCommandHandler> logger)
     : IRequestHandler<CheckBadgesCommand, Result<CheckBadgesResponse>>
 {
     public async Task<Result<CheckBadgesResponse>> Handle(
         CheckBadgesCommand request, CancellationToken ct)
     {
+        changeTrackerCleaner.ClearTrackedEntities();
+
         var userPoints = await userPointsRepo
             .GetByUserIdAsync(request.UserId, ct)
             .ConfigureAwait(false);

@@ -11,6 +11,8 @@ internal sealed class TransactionManager(ApplicationDbContext context) : ITransa
 {
     private IDbContextTransaction? _transaction;
 
+    public bool HasActiveTransaction => _transaction is not null;
+
     public async Task BeginTransactionAsync(CancellationToken ct = default)
     {
         _transaction ??= await context.Database.BeginTransactionAsync(ct).ConfigureAwait(false);

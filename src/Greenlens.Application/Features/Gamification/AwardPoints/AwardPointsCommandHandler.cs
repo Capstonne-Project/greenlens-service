@@ -1,3 +1,4 @@
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using MediatR;
@@ -13,12 +14,15 @@ namespace Greenlens.Application.Features.Gamification.AwardPoints;
 public sealed class AwardPointsCommandHandler(
     IUserPointsRepository userPointsRepo,
     IUnitOfWork unitOfWork,
+    IChangeTrackerCleaner changeTrackerCleaner,
     ILogger<AwardPointsCommandHandler> logger)
     : IRequestHandler<AwardPointsCommand, Result<AwardPointsResponse>>
 {
     public async Task<Result<AwardPointsResponse>> Handle(
         AwardPointsCommand request, CancellationToken ct)
     {
+        changeTrackerCleaner.ClearTrackedEntities();
+
         var userPoints = await userPointsRepo
             .GetOrCreateByUserIdAsync(request.UserId, ct)
             .ConfigureAwait(false);

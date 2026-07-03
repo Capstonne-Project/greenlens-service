@@ -12,6 +12,7 @@ using Greenlens.Infrastructure.Persistence;
 using Greenlens.Infrastructure.Persistence.Repositories;
 using Greenlens.Infrastructure.Persistence.Repositories.Location;
 using Greenlens.Infrastructure.BackgroundJobs;
+using Greenlens.Infrastructure.DomainEvents;
 using Greenlens.Infrastructure.Notifications;
 using Hangfire;
 using Hangfire.PostgreSql;
@@ -84,6 +85,8 @@ public static class DependencyInjection
 
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<ITransactionManager, TransactionManager>();
+        services.AddScoped<IDomainEventCollector, DomainEventCollector>();
+        services.AddScoped<IChangeTrackerCleaner, ChangeTrackerCleaner>();
 
         // ── Identity & Auth ──────────────────────────────
         services.AddScoped<ICurrentUser, CurrentUser>();
@@ -128,6 +131,7 @@ public static class DependencyInjection
         {
             cfg.RegisterServicesFromAssembly(
                 typeof(Application.Common.Errors).Assembly);
+            cfg.NotificationPublisherType = typeof(IsolatingNotificationPublisher);
             cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
             cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(TransactionBehavior<,>));
             cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
