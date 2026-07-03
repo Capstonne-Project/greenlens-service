@@ -12,6 +12,7 @@ using Greenlens.Infrastructure.Persistence;
 using Greenlens.Infrastructure.Persistence.Repositories;
 using Greenlens.Infrastructure.Persistence.Repositories.Location;
 using Greenlens.Infrastructure.BackgroundJobs;
+using Greenlens.Infrastructure.DomainEvents;
 using Greenlens.Infrastructure.Notifications;
 using Hangfire;
 using Hangfire.PostgreSql;
@@ -84,6 +85,7 @@ public static class DependencyInjection
 
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<ITransactionManager, TransactionManager>();
+        services.AddScoped<IDomainEventCollector, DomainEventCollector>();
 
         // ── Identity & Auth ──────────────────────────────
         services.AddScoped<ICurrentUser, CurrentUser>();

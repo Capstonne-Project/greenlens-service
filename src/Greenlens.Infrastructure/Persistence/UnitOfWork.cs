@@ -1,3 +1,4 @@
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using MediatR;
@@ -9,7 +10,11 @@ namespace Greenlens.Infrastructure.Persistence;
 /// Events are collected from tracked entities BEFORE SaveChanges, then published AFTER
 /// so that handlers see the committed state.
 /// </summary>
-internal sealed class UnitOfWork(ApplicationDbContext context, IPublisher publisher) : IUnitOfWork
+internal sealed class UnitOfWork(
+    ApplicationDbContext context,
+    IPublisher publisher,
+    ITransactionManager transactionManager,
+    IDomainEventCollector eventCollector) : IUnitOfWork
 {
     public async Task<int> SaveChangesAsync(CancellationToken ct = default)
     {
@@ -27,12 +32,27 @@ internal sealed class UnitOfWork(ApplicationDbContext context, IPublisher publis
 
         var result = await context.SaveChangesAsync(ct).ConfigureAwait(false);
 
-        // Publish domain events after successful save
+        if (domainEvents.Count == 0)
+            return result;
+
+        // Inside an open transaction: defer handlers until commit to avoid
+        // re-entrant SaveChanges (e.g. VerifyReport → AwardPoints concurrency).
+        if (transactionManager.HasActiveTransaction)
+        {
+            eventCollector.Enqueue(domainEvents);
+            return result;
+        }
+
+        await PublishEventsAsync(domainEvents, ct).ConfigureAwait(false);
+
+        return result;
+    }
+
+    internal async Task PublishEventsAsync(IReadOnlyList<IDomainEvent> domainEvents, CancellationToken ct)
+    {
         foreach (var domainEvent in domainEvents)
         {
             await publisher.Publish(domainEvent, ct).ConfigureAwait(false);
         }
-
-        return result;
     }
 }

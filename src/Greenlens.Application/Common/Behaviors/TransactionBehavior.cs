@@ -10,11 +10,13 @@ namespace Greenlens.Application.Common.Behaviors;
 /// </summary>
 /// <remarks>
 /// Pipeline order: Validation → Transaction → Logging → Handler.
-/// Rollback is automatic on any exception; UnitOfWork.SaveChangesAsync commits
-/// entity changes and dispatches domain events inside the transaction boundary.
+/// Rollback is automatic on any exception. Domain events are deferred until
+/// after the transaction commits to prevent re-entrant SaveChanges failures.
 /// </remarks>
 public sealed class TransactionBehavior<TRequest, TResponse>(
     ITransactionManager transactionManager,
+    IDomainEventCollector eventCollector,
+    IPublisher publisher,
     ILogger<TransactionBehavior<TRequest, TResponse>> logger)
     : IPipelineBehavior<TRequest, TResponse>
     where TRequest : IRequest<TResponse>
@@ -42,15 +44,31 @@ public sealed class TransactionBehavior<TRequest, TResponse>(
 
             logger.LogDebug("Transaction committed for {Request}", requestName);
 
+            await PublishDeferredDomainEventsAsync(cancellationToken).ConfigureAwait(false);
+
             return response;
         }
         catch
         {
+            eventCollector.Clear();
+
             await transactionManager.RollbackAsync(cancellationToken).ConfigureAwait(false);
 
             logger.LogWarning("Transaction rolled back for {Request}", requestName);
 
             throw;
+        }
+    }
+
+    private async Task PublishDeferredDomainEventsAsync(CancellationToken ct)
+    {
+        var deferred = eventCollector.DrainAll();
+        if (deferred.Count == 0)
+            return;
+
+        foreach (var domainEvent in deferred)
+        {
+            await publisher.Publish(domainEvent, ct).ConfigureAwait(false);
         }
     }
 }
