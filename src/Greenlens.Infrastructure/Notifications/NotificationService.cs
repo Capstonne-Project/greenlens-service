@@ -16,6 +16,7 @@ namespace Greenlens.Infrastructure.Notifications;
 /// </summary>
 internal sealed class NotificationService(
     ApplicationDbContext db,
+    IChangeTrackerCleaner changeTrackerCleaner,
     IPushNotificationSender pushSender,
     IEmailSender emailSender,
     ILogger<NotificationService> logger) : INotificationService
@@ -89,6 +90,7 @@ internal sealed class NotificationService(
         var notification = Notification.Create(recipientId, type, title, message, channel, referenceId);
         db.Notifications.Add(notification);
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
+        changeTrackerCleaner.ClearTrackedEntities();
 
         // 6. Dispatch to channels (fire-and-forget style, errors logged but not thrown)
         if (pushEnabled && !string.IsNullOrEmpty(recipient.FcmDeviceToken))

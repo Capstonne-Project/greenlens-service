@@ -23,12 +23,15 @@ public sealed class CheckBadgesCommandHandler(
     IUserBadgeRepository userBadgeRepo,
     IReportRepository reportRepo,
     IUnitOfWork unitOfWork,
+    IChangeTrackerCleaner changeTrackerCleaner,
     ILogger<CheckBadgesCommandHandler> logger)
     : IRequestHandler<CheckBadgesCommand, Result<CheckBadgesResponse>>
 {
     public async Task<Result<CheckBadgesResponse>> Handle(
         CheckBadgesCommand request, CancellationToken ct)
     {
+        changeTrackerCleaner.ClearTrackedEntities();
+
         var userPoints = await userPointsRepo
             .GetByUserIdAsync(request.UserId, ct)
             .ConfigureAwait(false);

@@ -131,6 +131,7 @@ public static class DependencyInjection
         {
             cfg.RegisterServicesFromAssembly(
                 typeof(Application.Common.Errors).Assembly);
+            cfg.NotificationPublisherType = typeof(IsolatingNotificationPublisher);
             cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
             cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(TransactionBehavior<,>));
             cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
