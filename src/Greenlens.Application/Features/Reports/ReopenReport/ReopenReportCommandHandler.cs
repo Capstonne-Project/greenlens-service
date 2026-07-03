@@ -24,6 +24,9 @@ public sealed class ReopenReportCommandHandler(
         if (report is null)
             return Errors.Reports.ReportNotFound;
 
+        if (report.ReporterId != currentUser.UserId)
+            return Errors.Reports.NotReporter;
+
         // Attempt reopen — max 2 times (BR-REP-015)
         if (!report.TryReopen())
         {

@@ -27,6 +27,9 @@ public sealed class CloseReportCommandHandler(
         if (report.Status != ReportStatus.Resolved)
             return Errors.Reports.InvalidStatusTransition;
 
+        if (report.ReporterId != currentUser.UserId)
+            return Errors.Reports.NotReporter;
+
         var fromStatus = report.Status;
         report.Close();
 

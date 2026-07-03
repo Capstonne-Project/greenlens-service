@@ -66,6 +66,11 @@ public static partial class Errors
             "Lý do phải có ít nhất 50 ký tự.",
             ErrorType.Validation);
 
+        public static Error NotReporter => new(
+            "NOT_REPORT_OWNER",
+            "Chỉ người gửi báo cáo mới được thực hiện hành động này.",
+            ErrorType.Forbidden);
+
         public static Error ReopenLimitReached => new(
             "REOPEN_LIMIT_REACHED",
             "Đã hết số lần mở lại báo cáo (tối đa 2 lần).",
