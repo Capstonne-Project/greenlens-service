@@ -46,7 +46,7 @@ public sealed class SubmitPollutionReportCommandHandler(
         CancellationToken cancellationToken)
     {
         if (!currentUser.IsAuthenticated)
-            return Errors.Reports.AuthenticationRequired;
+            return Errors.Reports.LoginRequired;
 
         // ── Validate category ───────────────────────────────────────────────
         var category = await categories.GetByIdAsync(request.CategoryId, cancellationToken)

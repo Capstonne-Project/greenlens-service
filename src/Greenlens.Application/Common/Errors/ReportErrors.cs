@@ -176,5 +176,29 @@ public static partial class Errors
             "COMPANY_DOES_NOT_SERVE_WARD",
             "Công ty không phụ trách phường/xã của báo cáo này. Kiểm tra lại vùng phục vụ của công ty.",
             ErrorType.BusinessRule);
+
+        /// <summary>BR-REP-012: Login required to submit report.</summary>
+        public static Error LoginRequired => new(
+            "LOGIN_REQUIRED",
+            "Bạn cần đăng nhập để gửi báo cáo ô nhiễm.",
+            ErrorType.Forbidden);
+
+        /// <summary>BR-REP-017: Cannot delete verified/processed report.</summary>
+        public static Error CannotDeleteReport => new(
+            "CANNOT_DELETE_REPORT",
+            "Báo cáo đã được xác nhận hoặc đang xử lý, không thể xóa.",
+            ErrorType.BusinessRule);
+
+        /// <summary>BR-REP-014: Missing before images on resolve.</summary>
+        public static Error MissingBeforeImages => new(
+            "MISSING_BEFORE_IMAGES",
+            "Cần upload ít nhất 1 ảnh hiện trạng trước khi xử lý (before).",
+            ErrorType.Validation);
+
+        /// <summary>BR-REP-015: Reopen window (7 days) expired.</summary>
+        public static Error ReopenWindowExpired => new(
+            "REOPEN_WINDOW_EXPIRED",
+            "Đã quá 7 ngày kể từ khi báo cáo được giải quyết. Không thể mở lại.",
+            ErrorType.BusinessRule);
     }
 }

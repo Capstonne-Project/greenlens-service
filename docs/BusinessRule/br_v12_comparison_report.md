@@ -123,18 +123,18 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 | BR-REP-002      | Video 1, mp4/mov                         |   ✅   | `UploadReportVideo/` + `FFmpegVideoTranscoder` (H.264 720p CRF 28, max 100MB/60s) |
 | BR-REP-003      | GPS Vietnam bounds                       |   ✅   | Validator                                                                         |
 | BR-REP-004      | Mô tả: filter tục tĩu                    |   ❌   | Chưa có word filter                                                               |
-| BR-REP-005      | **3 loại** ô nhiễm (Rác, Nước, Hóa chất) |   ⚠️   | `PollutionCategory` là configurable, cần seed đúng 3 loại                         |
+| BR-REP-005      | **3 loại** ô nhiễm (Rác, Nước, Hóa chất) |   ✅   | `PollutionCategorySeeder` seed 3 loại, SMOKE deactivated                          |
 | BR-REP-006      | Severity 4 mức                           |   ✅   | `Severity.cs` enum                                                                |
-| BR-REP-008      | Cảnh báo tồn đọng 72h                    |   ❌   | Chưa có job                                                                       |
-| BR-REP-009      | Cảnh báo chưa phân công 24h              |   ❌   | Chưa có job                                                                       |
+| BR-REP-008      | Cảnh báo tồn đọng 72h                    |   ✅   | `OverdueReportNotificationJob` + `IsOverdue` flag                                 |
+| BR-REP-009      | Cảnh báo chưa phân công 24h              |   ✅   | `OverdueReportNotificationJob` (dedup 24h notification)                            |
 | BR-REP-010      | Rate limit 5/h, 20/24h                   |   ❌   | Chưa có Redis sorted set                                                          |
 | BR-REP-011      | EXIF metadata validation                 |   ❌   | Chưa có                                                                           |
-| BR-REP-012      | Ẩn danh tính (tùy chọn)                  |   ⚠️   | Cần verify field trên Report                                                      |
+| BR-REP-012      | Bắt buộc đăng nhập (không ẩn danh)       |   ✅   | `SubmitPollutionReportCommandHandler` check `IsAuthenticated` → `LoginRequired`   |
 | BR-REP-013      | Initial status = Submitted               |   ✅   | `Report.cs` factory                                                               |
-| BR-REP-014      | Ảnh before/after khi Resolved            |   ⚠️   | `UploadProgressImage/` có, chưa enforce ≥ 1 before + ≥ 1 after                    |
-| BR-REP-015      | Citizen xác nhận (7d, max 2 re-open)     |   ⚠️   | `CloseReport/` + `ReopenReport/` có, max 2 cần verify                             |
-| BR-REP-016      | Auto-close 7 ngày                        |   ❌   | `AutoCloseResolvedReportJob` chưa có                                              |
-| BR-REP-017      | Không xóa report đã verified             |   ⚠️   | Cần verify                                                                        |
+| BR-REP-014      | Ảnh before/after khi Resolved            |   ✅   | `UploadBeforeImages/` + enforce ≥ 1 before trên `ResolveReportHandler`            |
+| BR-REP-015      | Citizen xác nhận (7d, max 2 re-open)     |   ✅   | `TryReopen()` 7-day window + max 2. `ReopenWindowExpired` error                   |
+| BR-REP-016      | Auto-close 7 ngày                        |   ✅   | `AutoCloseResolvedReportJob` + StatusHistory + Notification                       |
+| BR-REP-017      | Không xóa report đã verified             |   ✅   | `DeleteReport/` + `CanDelete()` guard (Submitted only, no AI/Officer)             |
 | BR-REP-018      | Đánh giá của Citizen sau Resolved        |   ❌   | Chưa có feature                                                                   |
 | BR-REP-019      | Draft max 3, xóa 7d                      |   ⚠️   | `ReportDraft.cs` tồn tại, chưa có `DraftCleanupJob`                               |
 | BR-REP-020/021  | State machine + role transitions         |   ✅   | `Report.cs` state machine methods                                                 |

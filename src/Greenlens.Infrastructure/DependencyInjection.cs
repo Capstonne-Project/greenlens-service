@@ -292,5 +292,11 @@ public static class DependencyInjection
             "account-hard-delete",
             job => job.ExecuteAsync(),
             "0 2 * * *"); // daily at 02:00 UTC
+
+        // BR-REP-008 + BR-REP-009: Flag overdue reports, notify unassigned
+        RecurringJob.AddOrUpdate<OverdueReportNotificationJob>(
+            "overdue-report-notification",
+            job => job.ExecuteAsync(),
+            "0 * * * *"); // every hour
     }
 }

@@ -91,6 +91,10 @@ public sealed class Report : SoftDeletableEntity
     public bool SlaVerifyBreached { get; private set; }
     public bool SlaResolveBreached { get; private set; }
 
+    // ── Overdue ──
+    /// <summary>BR-REP-008: Report pending > 72h.</summary>
+    public bool IsOverdue { get; private set; }
+
     // ── Navigation properties ──
     public User? Reporter { get; private set; }
     public PollutionCategory Category { get; private set; } = default!;
@@ -279,10 +283,14 @@ public sealed class Report : SoftDeletableEntity
         ClosedAt = DateTime.UtcNow;
     }
 
-    /// <summary>Citizen not satisfied — reopen. Max 2 times. Resolved → InProgress. BR-REP-015.</summary>
+    /// <summary>Citizen not satisfied — reopen. Max 2 times, within 7 days. Resolved → InProgress. BR-REP-015.</summary>
     public bool TryReopen()
     {
         if (Status != ReportStatus.Resolved || ReopenedCount >= 2)
+            return false;
+
+        // BR-REP-015: only reopen within 7 days of Resolved
+        if (ResolvedAt.HasValue && DateTime.UtcNow - ResolvedAt.Value > TimeSpan.FromDays(7))
             return false;
 
         Status = ReportStatus.InProgress;
@@ -339,6 +347,18 @@ public sealed class Report : SoftDeletableEntity
 
     /// <summary>BR-OFF-020: Flag SLA resolution breach (InProgress > severity deadline).</summary>
     public void MarkSlaResolveBreached() => SlaResolveBreached = true;
+
+    /// <summary>BR-REP-008: Mark report as overdue (pending > 72h).</summary>
+    public void MarkOverdue() => IsOverdue = true;
+
+    /// <summary>
+    /// BR-REP-017: Citizen can only delete report at Submitted status
+    /// with no AI classification or officer verification.
+    /// </summary>
+    public bool CanDelete()
+        => Status == ReportStatus.Submitted
+           && VerifiedBy is null
+           && AiClassifiedType is null;
 
     /// <summary>AI service sets suggested waste tag codes after image analysis.</summary>
     public void SetAiSuggestedWasteTagCodes(string? codes) => AiSuggestedWasteTagCodes = codes;

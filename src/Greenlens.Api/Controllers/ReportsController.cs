@@ -9,6 +9,7 @@ using Greenlens.Application.Features.Reports.GetCompanyQueue;
 using Greenlens.Application.Features.Reports.GetCompanyAssignments;
 using Greenlens.Application.Features.Reports.GetCompanyReportDetail;
 using Greenlens.Application.Features.Reports.CloseReport;
+using Greenlens.Application.Features.Reports.DeleteReport;
 using Greenlens.Application.Features.Reports.GetMyReports;
 using Greenlens.Application.Features.Reports.GetOfficerQueue;
 using Greenlens.Application.Features.Reports.GetReportProgress;
@@ -24,6 +25,7 @@ using Greenlens.Application.Features.Reports.ResolveReport;
 using Greenlens.Application.Features.Reports.SubmitPollutionReport;
 using Greenlens.Application.Features.Reports.TagReportWaste;
 using Greenlens.Application.Features.Reports.UpdateProgress;
+using Greenlens.Application.Features.Reports.UploadBeforeImages;
 using Greenlens.Application.Features.Reports.VerifyReport;
 using Greenlens.Application.Features.Inspection.CreateInspectionReport;
 using Greenlens.Application.Features.Inspection.GetInspectionsByReport;
@@ -452,11 +454,70 @@ public sealed class ReportsController(ISender sender) : ControllerBase
     [HttpPut("{id:guid}/reopen")]
     [Authorize]
     [Tags("📋 Reports — Citizen Flow")]
-    [SwaggerOperation(Summary = "[Citizen] Mở lại báo cáo", Description = "Citizen mở lại báo cáo nếu chưa hài lòng. Tối đa 2 lần reopen. Chuyển status Resolved → InProgress.")]
+    [SwaggerOperation(Summary = "[Citizen] Mở lại báo cáo", Description = "Citizen mở lại báo cáo nếu chưa hài lòng. Tối đa 2 lần reopen, trong vòng 7 ngày từ Resolved. Chuyển status Resolved → InProgress.")]
     [SwaggerResponse(200, "Đã mở lại", typeof(ApiResponse))]
-    [SwaggerResponse(422, "Hết lượt reopen hoặc status không hợp lệ", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Hết lượt reopen, quá 7 ngày, hoặc status không hợp lệ", typeof(ApiResponse))]
     public async Task<IActionResult> ReopenAsync([FromRoute] Guid id, CancellationToken ct)
         => (await sender.Send(new ReopenReportCommand(id), ct)).ToHttpNoContent("Đã mở lại báo cáo.");
+
+    /// <summary>BR-REP-017: Citizen soft-deletes their own report (Submitted only, no AI/Officer).</summary>
+    [HttpDelete("{id:guid}")]
+    [Authorize]
+    [Tags("📋 Reports — Citizen Flow")]
+    [SwaggerOperation(
+        Summary = "[Citizen] Xóa báo cáo",
+        Description = "Citizen xóa báo cáo của mình. Chỉ cho phép ở trạng thái Submitted, " +
+            "chưa có AI phân loại hoặc Officer xác minh. Soft-delete (dữ liệu vẫn lưu).")]
+    [SwaggerResponse(204, "Đã xóa")]
+    [SwaggerResponse(403, "Không phải người tạo báo cáo", typeof(ApiResponse))]
+    [SwaggerResponse(404, "Không tìm thấy báo cáo", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Báo cáo đã được xác nhận, không thể xóa", typeof(ApiResponse))]
+    public async Task<IActionResult> DeleteAsync([FromRoute] Guid id, CancellationToken ct)
+        => (await sender.Send(new DeleteReportCommand(id), ct)).ToHttpNoContent();
+
+    /// <summary>BR-REP-014: Upload before images after check-in, before starting cleanup.</summary>
+    [HttpPost("{id:guid}/before-images")]
+    [Authorize(Roles = "Cleaner,CompanyStaff,Admin")]
+    [Tags("🧹 Cleaner Dashboard")]
+    [Consumes("multipart/form-data")]
+    [SwaggerOperation(
+        Summary = "[Cleaner/CompanyStaff] Upload ảnh hiện trạng trước khi dọn",
+        Description = "Team leader upload ảnh hiện trạng khi đến hiện trường (before images). " +
+            "Bắt buộc trước khi hoàn thành (resolve). Tối đa 5 ảnh, mỗi ảnh ≤ 20MB.")]
+    [SwaggerResponse(200, "Đã upload", typeof(ApiResponse<UploadBeforeImagesResponse>))]
+    [SwaggerResponse(422, "Assignment không InProgress hoặc không phải leader", typeof(ApiResponse))]
+    public async Task<IActionResult> UploadBeforeImagesAsync(
+        [FromRoute] Guid id,
+        [FromForm] List<IFormFile> images,
+        CancellationToken ct)
+    {
+        if (images is null || images.Count == 0)
+            return BadRequest(new ApiResponse
+            {
+                Code = "FILE_REQUIRED",
+                Message = "Vui lòng chọn ít nhất 1 ảnh.",
+                Status = 400
+            });
+
+        var imageFiles = new List<BeforeImageFile>();
+        foreach (var img in images)
+        {
+            if (img.Length > 20 * 1024 * 1024)
+                return StatusCode(413, new ApiResponse
+                {
+                    Code = "FILE_TOO_LARGE",
+                    Message = $"File '{img.FileName}' vượt quá 20MB.",
+                    Status = 413
+                });
+
+            using var ms = new MemoryStream();
+            await img.CopyToAsync(ms, ct);
+            imageFiles.Add(new BeforeImageFile(ms.ToArray(), img.FileName, img.ContentType));
+        }
+
+        var command = new UploadBeforeImagesCommand(id, imageFiles);
+        return (await sender.Send(command, ct)).ToHttp();
+    }
 
     // ═══════════════════════════════════════════
     // ██  INSPECTION (nested resource)
