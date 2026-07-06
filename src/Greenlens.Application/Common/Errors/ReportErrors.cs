@@ -200,5 +200,23 @@ public static partial class Errors
             "REOPEN_WINDOW_EXPIRED",
             "Đã quá 7 ngày kể từ khi báo cáo được giải quyết. Không thể mở lại.",
             ErrorType.BusinessRule);
+
+        /// <summary>BR-REP-018: Already submitted a rating for this report.</summary>
+        public static Error AlreadyRated => new(
+            "ALREADY_RATED",
+            "Bạn đã đánh giá báo cáo này rồi.",
+            ErrorType.Conflict);
+
+        /// <summary>BR-REP-019: Draft limit reached (max 3).</summary>
+        public static Error DraftLimitReached => new(
+            "DRAFT_LIMIT_REACHED",
+            "Bạn đã đạt giới hạn 3 bản nháp. Xóa bớt hoặc gửi đi.",
+            ErrorType.BusinessRule);
+
+        /// <summary>BR-REP-019: Draft not found or not owned by user.</summary>
+        public static Error DraftNotFound => new(
+            "DRAFT_NOT_FOUND",
+            "Không tìm thấy bản nháp.",
+            ErrorType.NotFound);
     }
 }

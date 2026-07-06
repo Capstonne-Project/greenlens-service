@@ -9,7 +9,9 @@ using Greenlens.Application.Features.Reports.GetCompanyQueue;
 using Greenlens.Application.Features.Reports.GetCompanyAssignments;
 using Greenlens.Application.Features.Reports.GetCompanyReportDetail;
 using Greenlens.Application.Features.Reports.CloseReport;
+using Greenlens.Application.Features.Reports.DeleteDraft;
 using Greenlens.Application.Features.Reports.DeleteReport;
+using Greenlens.Application.Features.Reports.GetMyDrafts;
 using Greenlens.Application.Features.Reports.GetMyReports;
 using Greenlens.Application.Features.Reports.GetOfficerQueue;
 using Greenlens.Application.Features.Reports.GetReportProgress;
@@ -20,8 +22,10 @@ using Greenlens.Application.Features.Reports.GetReports;
 using Greenlens.Application.Features.Reports.GetWasteTags;
 using Greenlens.Application.Features.Reports.ReassignTeam;
 using Greenlens.Application.Features.Reports.RejectReport;
+using Greenlens.Application.Features.Reports.RateReport;
 using Greenlens.Application.Features.Reports.ReopenReport;
 using Greenlens.Application.Features.Reports.ResolveReport;
+using Greenlens.Application.Features.Reports.SaveDraft;
 using Greenlens.Application.Features.Reports.SubmitPollutionReport;
 using Greenlens.Application.Features.Reports.TagReportWaste;
 using Greenlens.Application.Features.Reports.UpdateProgress;
@@ -558,6 +562,59 @@ public sealed class ReportsController(ISender sender) : ControllerBase
     public async Task<IActionResult> GetInspectionsAsync(
         [FromRoute] Guid id, CancellationToken ct)
         => (await sender.Send(new GetInspectionsByReportQuery(id), ct)).ToHttp();
+
+    // ═══════════════════════════════════════════
+    // ██  CITIZEN SATISFACTION (BR-REP-018)
+    // ═══════════════════════════════════════════
+
+    /// <summary>Citizen đánh giá báo cáo sau khi Resolved/Closed.</summary>
+    [HttpPost("{id:guid}/rate")]
+    [Authorize]
+    [SwaggerOperation(Tags = ["📋 Reports — Citizen Flow"])]
+    [ProducesResponseType(typeof(RateReportResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> RateAsync(
+        [FromRoute] Guid id,
+        [FromBody] RateReportRequest body,
+        CancellationToken ct)
+        => (await sender.Send(
+            new RateReportCommand(id, body.IsSatisfied, body.Rating, body.Comment), ct)).ToHttp();
+
+    // ═══════════════════════════════════════════
+    // ██  DRAFT MANAGEMENT (BR-REP-019)
+    // ═══════════════════════════════════════════
+
+    /// <summary>Tạo mới hoặc cập nhật bản nháp. Max 3 per user.</summary>
+    [HttpPost("drafts")]
+    [Authorize]
+    [SwaggerOperation(Tags = ["📋 Reports — Citizen Flow"])]
+    [ProducesResponseType(typeof(SaveDraftResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> SaveDraftAsync(
+        [FromBody] SaveDraftRequest body,
+        CancellationToken ct)
+        => (await sender.Send(
+            new SaveDraftCommand(body.DraftId, body.Payload), ct)).ToHttp();
+
+    /// <summary>Lấy danh sách bản nháp của tôi.</summary>
+    [HttpGet("drafts")]
+    [Authorize]
+    [SwaggerOperation(Tags = ["📋 Reports — Citizen Flow"])]
+    [ProducesResponseType(typeof(GetMyDraftsResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMyDraftsAsync(CancellationToken ct)
+        => (await sender.Send(new GetMyDraftsQuery(), ct)).ToHttp();
+
+    /// <summary>Xóa bản nháp.</summary>
+    [HttpDelete("drafts/{draftId:guid}")]
+    [Authorize]
+    [SwaggerOperation(Tags = ["📋 Reports — Citizen Flow"])]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteDraftAsync(
+        [FromRoute] Guid draftId,
+        CancellationToken ct)
+        => (await sender.Send(new DeleteDraftCommand(draftId), ct)).ToHttp();
 }
 
 // ── Request DTOs ──
@@ -580,3 +637,5 @@ public sealed record CreateInspectionRequest(
     string? ViolatorIdentity);
 
 public sealed record EscalateReportRequest(string Reason);
+public sealed record RateReportRequest(bool IsSatisfied, int? Rating, string? Comment);
+public sealed record SaveDraftRequest(Guid? DraftId, string Payload);

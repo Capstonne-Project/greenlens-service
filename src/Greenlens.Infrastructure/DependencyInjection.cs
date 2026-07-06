@@ -298,5 +298,11 @@ public static class DependencyInjection
             "overdue-report-notification",
             job => job.ExecuteAsync(),
             "0 * * * *"); // every hour
+
+        // BR-REP-019: Delete stale drafts (> 7 days idle)
+        RecurringJob.AddOrUpdate<DraftCleanupJob>(
+            "draft-cleanup",
+            job => job.ExecuteAsync(),
+            "0 3 * * *"); // daily at 03:00 UTC
     }
 }
