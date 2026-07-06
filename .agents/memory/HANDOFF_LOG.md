@@ -9,3 +9,4 @@
 - 2026-06-29 14:30 — Session v9: P0 Blocking (TransactionBehavior + 3 SLA jobs) + Notification module (6 endpoints) + LEO company dispatch API (GET /v1/companies/my-ward). All merged to develop.
 - 2026-06-30 16:47 — Session v10: BR-AUTH batch (009/011/012/015/020/021) + BR-ORG batch (014/015/016/021). Invitation flow replaces instant recruit, reject re-queue, LEO manual escalate to DEO, release staff. Removed IsCityLevelRoute flag. Build ✅ 0 errors. Pending commit.
 - 2026-07-01 10:08 — Session v11: System Documentation — Architecture Diagram (8 Mermaid), Conceptual ERD (33 entities), Activity Diagrams (6 flows with swimlanes). No code changes.
+- 2026-07-07 03:00 — Session v12: BR-OFF (11/12 rules): SLA breach notifications, priority score job, KPI query (custom+preset), report export CSV+XLSX (ClosedXML). BR-DAT (5/5 rules): DataRetentionJob, ExportMyData JSON+CSV, User consent flow + SubmitReport guard + migration. Build 0 errors, 150 tests pass.
