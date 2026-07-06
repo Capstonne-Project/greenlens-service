@@ -38,6 +38,9 @@ internal sealed class UserConfiguration : IEntityTypeConfiguration<User>
             .HasForeignKey(u => u.LocalOfficeId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        // ── Data Consent (BR-DAT-005) ──
+        builder.Property(u => u.HasDataConsent).HasDefaultValue(false);
+
         // Soft delete query filter
         builder.HasQueryFilter(u => u.DeletedAt == null);
     }

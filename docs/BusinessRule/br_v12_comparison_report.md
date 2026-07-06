@@ -294,10 +294,17 @@ Chưa có feature module. Thiếu entity Comment.
 - 10 admin features đã có (CRUD category, waste tags, force update, roles)
 - **Thiếu:** BR-ADM-004 (notification templates), BR-ADM-005 (gamification config), BR-ADM-006 (content moderation), BR-ADM-007 (spam dashboard), BR-ADM-008 (khung tiền phạt configurable), BR-ADM-010 (audit log đầy đủ), BR-ADM-012 (giám sát công ty)
 
-### ❌ Data Privacy (`BR-DAT-001..005`)
 
-- BR-DAT-001: bcrypt ✅, TLS — infra
-- BR-DAT-002..005: Retention policy, export data, backup, consent log → ❌
+### ✅ Data Privacy (`BR-DAT-001..005`) — 5/5 rules
+
+| BR         | Status | Ghi chú                                                                                           |
+| ---------- | :----: | ------------------------------------------------------------------------------------------------- |
+| BR-DAT-001 |   ✅   | `BcryptPasswordHasher` 12 rounds ✅. TLS — infra (reverse proxy). Secrets qua env vars, không hardcode |
+| BR-DAT-002 |   ✅   | `DataRetentionJob` (weekly Sunday 04:00 UTC): xóa S3 files ảnh >2 năm (giữ DB record), hard-delete audit log >12 tháng |
+| BR-DAT-003 |   ✅   | `ExportMyDataQuery` → `GET /v1/users/me/data-export`: export profile + reports + notifications + gamification. Hỗ trợ JSON + CSV |
+| BR-DAT-004 |   ✅   | Infra concern — pg_dump daily, 30 bản, S3 lifecycle. Không cần code backend                        |
+| BR-DAT-005 |   ✅   | `User.HasDataConsent` + `ConsentAcceptedAt`. `POST /v1/users/me/consent` khi mở app lần đầu. SubmitReport handler chặn nếu chưa consent |
+
 
 ### ❌ Non-functional (`BR-SYS-001..006`)
 
@@ -306,25 +313,25 @@ Chưa có feature module. Thiếu entity Comment.
 
 ---
 
-## B.15 Background Jobs — ❌ Chưa có
+## B.15 Background Jobs — ⚠️ 8/10 registered
 
 | Job                            | BR             | Mô tả                                               |
 | ------------------------------ | -------------- | --------------------------------------------------- |
 | `AutoCloseResolvedReportJob`   | BR-REP-016     | ✅ Resolved → Closed sau 7 ngày (hourly, batch 100) |
-| `SlaBreachVerificationJob`     | BR-OFF-002     | ✅ Submitted > 24h → flag breached (every 15')      |
-| `SlaBreachResolutionJob`       | BR-OFF-020     | ✅ InProgress > SLA → flag breached (every 30')     |
+| `SlaBreachVerificationJob`     | BR-OFF-002     | ✅ Submitted > 24h → flag breached + notification (every 15') |
+| `SlaBreachResolutionJob`       | BR-OFF-020     | ✅ InProgress > SLA → flag breached + notification (every 30') |
 | `OverdueReportNotificationJob` | BR-REP-008/009 | ✅ Pending > 72h, Verified > 24h (hourly)           |
-| `AiRetryJob`                   | BR-AI-006      | ❌ ai_pending retry trong 1h                        |
+| `PriorityScoreRefreshJob`      | BR-OFF-010     | ✅ Recalculate priority scores (every 30')          |
 | `DraftCleanupJob`              | BR-REP-019     | ✅ Draft > 7 ngày → xóa (daily 03:00 UTC)           |
-| `CompanyContractExpiryJob`     | BR-CMP-007     | ❌ Bidding hết hạn → Expired                        |
+| `DataRetentionJob`             | BR-DAT-002     | ✅ Xóa ảnh S3 >2 năm, audit log >12 tháng (weekly Sun 04:00 UTC) |
+| `AccountHardDeleteJob`         | BR-AUTH-021    | ✅ Soft delete > 90d → hard delete (daily)          |
 | `LeaderboardSnapshotJob`       | BR-GAM-005     | ✅ Daily snapshot 00:05 UTC                         |
-| `AuditLogRetentionJob`         | BR-ADM-010     | ❌ Xóa log > 12 tháng                               |
-| `AccountHardDeleteJob`         | BR-AUTH-021    | ❌ Soft delete > 90d → hard delete                  |
+| `AiRetryJob`                   | BR-AI-006      | ❌ ai_pending retry trong 1h                        |
+| `CompanyContractExpiryJob`     | BR-CMP-007     | ❌ Bidding hết hạn → Expired                        |
 
 > [!NOTE]
 > Hangfire đã setup đầy đủ: DI, PostgreSql storage, Dashboard `/hangfire`.
 > `TransactionBehavior` (MediatR pipeline) đã thêm — wrap mọi Command trong DB transaction.
-> `LeaderboardSnapshotJob` + `AutoCloseResolvedReportJob` + `SlaBreachVerificationJob` + `SlaBreachResolutionJob` đã đăng ký.
 
 ---
 
