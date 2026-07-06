@@ -31,6 +31,7 @@ public sealed class SubmitPollutionReportCommandHandler(
     IReportStatusHistoryRepository statusHistory,
     IWasteTagRepository wasteTags,
     IReportWasteTagRepository reportWasteTags,
+    IUserRepository users,
     IWardRepository wards,
     IDepartmentRepository departments,
     ILocalOfficeRepository localOffices,
@@ -47,6 +48,12 @@ public sealed class SubmitPollutionReportCommandHandler(
     {
         if (!currentUser.IsAuthenticated)
             return Errors.Reports.LoginRequired;
+
+        // ── BR-DAT-005: Consent check ────────────────────────────────────────
+        var submitter = await users.GetByIdAsync(currentUser.UserId, cancellationToken)
+            .ConfigureAwait(false);
+        if (submitter is not null && !submitter.HasDataConsent)
+            return Errors.Users.DataConsentRequired;
 
         // ── Validate category ───────────────────────────────────────────────
         var category = await categories.GetByIdAsync(request.CategoryId, cancellationToken)
