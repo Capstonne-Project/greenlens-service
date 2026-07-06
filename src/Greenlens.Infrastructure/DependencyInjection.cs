@@ -304,5 +304,11 @@ public static class DependencyInjection
             "draft-cleanup",
             job => job.ExecuteAsync(),
             "0 3 * * *"); // daily at 03:00 UTC
+
+        // BR-OFF-010: Recalculate priority scores
+        RecurringJob.AddOrUpdate<PriorityScoreRefreshJob>(
+            "priority-score-refresh",
+            job => job.ExecuteAsync(),
+            "*/30 * * * *"); // every 30 minutes
     }
 }

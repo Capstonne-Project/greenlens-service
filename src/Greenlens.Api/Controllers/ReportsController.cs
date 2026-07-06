@@ -11,8 +11,10 @@ using Greenlens.Application.Features.Reports.GetCompanyReportDetail;
 using Greenlens.Application.Features.Reports.CloseReport;
 using Greenlens.Application.Features.Reports.DeleteDraft;
 using Greenlens.Application.Features.Reports.DeleteReport;
+using Greenlens.Application.Features.Reports.ExportReports;
 using Greenlens.Application.Features.Reports.GetMyDrafts;
 using Greenlens.Application.Features.Reports.GetMyReports;
+using Greenlens.Application.Features.Reports.GetOfficerKpi;
 using Greenlens.Application.Features.Reports.GetOfficerQueue;
 using Greenlens.Application.Features.Reports.GetReportProgress;
 using Greenlens.Application.Features.Reports.GetReportProgressBoard;
@@ -615,6 +617,58 @@ public sealed class ReportsController(ISender sender) : ControllerBase
         [FromRoute] Guid draftId,
         CancellationToken ct)
         => (await sender.Send(new DeleteDraftCommand(draftId), ct)).ToHttp();
+
+    // ═══════════════════════════════════════════
+    // ██  OFFICER KPI (BR-OFF-021)
+    // ═══════════════════════════════════════════
+
+    /// <summary>KPI Officer: tỉ lệ xác minh đúng hạn, resolved rate, avg response time.</summary>
+    [HttpGet("officer-kpi")]
+    [Authorize(Roles = "LEO,DEO,Admin")]
+    [Tags("📊 Officer Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO/DEO/Admin] KPI Officer",
+        Description = "LEO xem KPI của mình. DEO/Admin truyền officerId để xem KPI của bất kỳ officer. " +
+            "Hỗ trợ custom From/To hoặc preset period (ThisMonth, LastQuarter, etc).")]
+    [SwaggerResponse(200, "KPI data", typeof(ApiResponse<OfficerKpiResponse>))]
+    public async Task<IActionResult> GetOfficerKpiAsync(
+        [FromQuery] Guid? officerId,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] KpiPeriod? period,
+        CancellationToken ct)
+        => (await sender.Send(
+            new GetOfficerKpiQuery(officerId, from, to, period), ct)).ToHttp();
+
+    // ═══════════════════════════════════════════
+    // ██  EXPORT (BR-OFF-022)
+    // ═══════════════════════════════════════════
+
+    /// <summary>Export báo cáo ra CSV hoặc Excel.</summary>
+    [HttpGet("export")]
+    [Authorize(Roles = "LEO,DEO,Admin")]
+    [Tags("📊 Officer Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO/DEO/Admin] Export báo cáo",
+        Description = "LEO export xã/phường; DEO export toàn tỉnh; Admin export all. PII chỉ Admin thấy.")]
+    [SwaggerResponse(200, "File download")]
+    public async Task<IActionResult> ExportAsync(
+        [FromQuery] ReportStatus? status,
+        [FromQuery] Severity? severity,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] ExportFormat format,
+        CancellationToken ct)
+    {
+        var result = await sender.Send(
+            new ExportReportsQuery(status, severity, from, to, format), ct);
+
+        if (!result.IsSuccess)
+            return result.ToHttp();
+
+        var data = result.Value!;
+        return File(data.Content, data.ContentType, data.FileName);
+    }
 }
 
 // ── Request DTOs ──
