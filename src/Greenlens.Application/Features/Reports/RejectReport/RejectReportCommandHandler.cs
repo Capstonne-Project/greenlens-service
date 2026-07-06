@@ -36,6 +36,10 @@ public sealed class RejectReportCommandHandler(
         if (report.Status != ReportStatus.Submitted)
             return Errors.Reports.InvalidStatusTransition;
 
+        // BR-OFF-004: conflict of interest — cannot reject own report
+        if (report.ReporterId == currentUser.UserId)
+            return Errors.Reports.ConflictOfInterest;
+
         // BR-ORG-015: Reject re-queues to Department — status stays Submitted,
         // AssignedOfficeId cleared so DEO sees it in common queue
         report.Reject(request.Reason);

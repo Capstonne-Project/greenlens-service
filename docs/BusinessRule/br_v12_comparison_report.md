@@ -115,7 +115,7 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 
 ---
 
-## B.3 Report (`BR-REP-001..033`) — ✅ 15/23 rules
+## B.3 Report (`BR-REP-001..033`) — ✅ 17/23 rules
 
 | BR              | Mô tả                                    | Status | Evidence                                                                          |
 | --------------- | ---------------------------------------- | :----: | --------------------------------------------------------------------------------- |
@@ -135,8 +135,8 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 | BR-REP-015      | Citizen xác nhận (7d, max 2 re-open)     |   ✅   | `TryReopen()` 7-day window + max 2. `ReopenWindowExpired` error                   |
 | BR-REP-016      | Auto-close 7 ngày                        |   ✅   | `AutoCloseResolvedReportJob` + StatusHistory + Notification                       |
 | BR-REP-017      | Không xóa report đã verified             |   ✅   | `DeleteReport/` + `CanDelete()` guard (Submitted only, no AI/Officer)             |
-| BR-REP-018      | Đánh giá của Citizen sau Resolved        |   ❌   | Chưa có feature                                                                   |
-| BR-REP-019      | Draft max 3, xóa 7d                      |   ⚠️   | `ReportDraft.cs` tồn tại, chưa có `DraftCleanupJob`                               |
+| BR-REP-018      | Đánh giá của Citizen sau Resolved        |   ✅   | `RateReport/` — check Resolved/Closed, 1 lần/report. `POST /reports/{id}/rate`    |
+| BR-REP-019      | Draft max 3, xóa 7d                      |   ✅   | `SaveDraft/`, `GetMyDrafts/`, `DeleteDraft/` + `DraftCleanupJob` (daily 03:00)     |
 | BR-REP-020/021  | State machine + role transitions         |   ✅   | `Report.cs` state machine methods                                                 |
 | BR-REP-022      | Reject reason ≥ 20 chars                 |   ✅   | `RejectReport/` validator                                                         |
 | BR-REP-030..033 | Duplicate detection                      |   ❌   | Chưa implement                                                                    |
@@ -158,22 +158,22 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 
 ---
 
-## B.5 Officer (`BR-OFF-001..022`) — ⚠️ 5/12 rules
+## B.5 Officer (`BR-OFF-001..022`) — ✅ 11/12 rules
 
-| BR         | Status | Ghi chú                                                 |
-| ---------- | :----: | ------------------------------------------------------- |
-| BR-OFF-001 |   ✅   | GPS → Ward → LEO routing                                |
-| BR-OFF-002 |   ❌   | SLA xác minh 24h → `SlaBreachVerificationJob`           |
-| BR-OFF-003 |   ✅   | Chỉnh loại/mức độ khi verify                            |
-| BR-OFF-004 |   ⚠️   | Conflict of interest — cần verify                       |
-| BR-OFF-005 |   ⚠️   | Triage dọn dẹp + xử phạt — có pieces nhưng chưa enforce |
-| BR-OFF-010 |   ❌   | Priority score formula                                  |
-| BR-OFF-011 |   ✅   | Gán team (community hoặc company)                       |
-| BR-OFF-012 |   ✅   | Reassign                                                |
-| BR-OFF-013 |   ❌   | Giới hạn 10 task/team                                   |
-| BR-OFF-020 |   ❌   | SLA xử lý theo severity                                 |
-| BR-OFF-021 |   ❌   | KPI Officer                                             |
-| BR-OFF-022 |   ❌   | Export CSV/Excel                                        |
+| BR         | Status | Ghi chú                                                                     |
+| ---------- | :----: | --------------------------------------------------------------------------- |
+| BR-OFF-001 |   ✅   | GPS → Ward → LEO routing                                                    |
+| BR-OFF-002 |   ✅   | SLA xác minh 24h → `SlaBreachVerificationJob` + notification LEO/DEO        |
+| BR-OFF-003 |   ✅   | Chỉnh loại/mức độ khi verify                                                |
+| BR-OFF-004 |   ✅   | Conflict of interest — Verify + Reject + Escalate                           |
+| BR-OFF-005 |   ✅   | Triage dọn dẹp + xử phạt — flow đúng (AssignTeam + CreateInspectionReport)  |
+| BR-OFF-010 |   ✅   | Priority score formula → `PriorityScoreRefreshJob` every 30'                |
+| BR-OFF-011 |   ✅   | Gán team (community hoặc company)                                           |
+| BR-OFF-012 |   ✅   | Reassign                                                                    |
+| BR-OFF-013 |   ❌   | Giới hạn 10 task/team — chờ review vận hành                                 |
+| BR-OFF-020 |   ✅   | SLA xử lý theo severity → `SlaBreachResolutionJob` + notification LEO       |
+| BR-OFF-021 |   ✅   | KPI Officer — `GetOfficerKpiQuery` (custom From/To + preset period)         |
+| BR-OFF-022 |   ✅   | Export CSV/Excel — `ExportReportsQuery` (scope: LEO/DEO/Admin, PII control) |
 
 ---
 
@@ -313,9 +313,9 @@ Chưa có feature module. Thiếu entity Comment.
 | `AutoCloseResolvedReportJob`   | BR-REP-016     | ✅ Resolved → Closed sau 7 ngày (hourly, batch 100) |
 | `SlaBreachVerificationJob`     | BR-OFF-002     | ✅ Submitted > 24h → flag breached (every 15')      |
 | `SlaBreachResolutionJob`       | BR-OFF-020     | ✅ InProgress > SLA → flag breached (every 30')     |
-| `OverdueReportNotificationJob` | BR-REP-008/009 | ❌ Pending > 72h, Verified > 24h                    |
+| `OverdueReportNotificationJob` | BR-REP-008/009 | ✅ Pending > 72h, Verified > 24h (hourly)           |
 | `AiRetryJob`                   | BR-AI-006      | ❌ ai_pending retry trong 1h                        |
-| `DraftCleanupJob`              | BR-REP-019     | ❌ Draft > 7 ngày → xóa                             |
+| `DraftCleanupJob`              | BR-REP-019     | ✅ Draft > 7 ngày → xóa (daily 03:00 UTC)           |
 | `CompanyContractExpiryJob`     | BR-CMP-007     | ❌ Bidding hết hạn → Expired                        |
 | `LeaderboardSnapshotJob`       | BR-GAM-005     | ✅ Daily snapshot 00:05 UTC                         |
 | `AuditLogRetentionJob`         | BR-ADM-010     | ❌ Xóa log > 12 tháng                               |
