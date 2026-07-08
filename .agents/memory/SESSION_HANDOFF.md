@@ -1,13 +1,13 @@
 # Session Handoff — GreenLens Backend
 
-> **Cập nhật lần cuối:** 2026-07-07 03:00 · **Phiên bản:** 12 · **Agent:** Antigravity
+> **Cập nhật lần cuối:** 2026-07-08 23:23 · **Phiên bản:** 13 · **Agent:** Antigravity (Claude Opus 4.6)
 
 ## 0. TL;DR
-Backend .NET 9 GreenLens. Phiên 12 implement **BR-OFF-002..022** (Officer SLA, KPI, Priority, Export) và **BR-DAT-001..005** (Data Privacy: encryption, retention, export, consent). Tổng cộng 16 business rules mới. Build 0 errors, 150 tests pass. Documentation cập nhật xong.
+Backend .NET 9 GreenLens. Phiên 13 fix 2 lỗi startup: (1) DI validation — 4 handler inject `IGenericRepository<>` trực tiếp thay vì specific repo → tạo `IReportDraftRepository` + `IReportSatisfactionRepository`; (2) DB schema mismatch — `consent_accepted_at` + `has_data_consent` thiếu cột → tạo + apply migration. User cập nhật BR-OFF-013 workload limit từ 10→6. Code pushed lên `feat/report-lifecycle-hardening`.
 
 ## 1. Mục tiêu & Bối cảnh
 - **Mục tiêu tổng thể:** Backend .NET 9 cho ứng dụng báo cáo ô nhiễm môi trường (SU26SE049)
-- **Phạm vi phiên 12:** Officer workflow (BR-OFF) + Data Privacy (BR-DAT)
+- **Phạm vi phiên 13:** Bug fix startup (DI + migration), stabilization
 - **Ngôn ngữ:** Tiếng Việt (giao tiếp + XML doc BR), English (code)
 
 ## 2. Quyết định đã chốt (Locked Decisions)
@@ -31,37 +31,36 @@ Backend .NET 9 GreenLens. Phiên 12 implement **BR-OFF-002..022** (Officer SLA, 
 | 15 | BR-ORG-015: LEO reject → status giữ Submitted, clear AssignedOfficeId → re-queue | Không dùng terminal Rejected status | 2026-06-29 |
 | 16 | BR-ORG-016: **LEO manual escalate** thay vì flag `IsCityLevelRoute` trên Ward | Flag trên Ward không chính xác — 1 phường có cả tuyến cấp TP lẫn hẻm | 2026-06-30 |
 | 17 | BR-ORG-021: Invitation flow (7 ngày) + ReleaseStaff | Không instant role change — citizen phải accept | 2026-06-29 |
-| 18 | BR-OFF-013 workload limit (10 tasks/team) — **deferred** | User sẽ xem lại logic vận hành trước | 2026-07-07 |
+| 18 | BR-OFF-013 workload limit **6 tasks/team** (cập nhật từ 10) — **deferred** | User cần xem lại logic vận hành trước | 2026-07-08 |
 | 19 | BR-OFF-021 KPI: hỗ trợ cả custom date range + preset periods | Linh hoạt cho nhiều use case | 2026-07-07 |
 | 20 | BR-OFF-022 Export: cùng 1 endpoint, `format=csv|xlsx` | Thống nhất, dùng ClosedXML cho Excel | 2026-07-07 |
 | 21 | BR-DAT-002 Ảnh 2 năm: xóa S3 file, giữ DB record (Url → placeholder) | Giữ metadata cho audit trail | 2026-07-07 |
 | 22 | BR-DAT-003 Export: hỗ trợ cả JSON + CSV | Linh hoạt tùy user | 2026-07-07 |
 | 23 | BR-DAT-005 Consent: `HasDataConsent` default false, user phải accept khi mở app lần đầu | Tuân thủ GDPR / NĐ-13 | 2026-07-07 |
+| 24 | **Specific repo per entity, NEVER inject `IGenericRepository<T>` directly** | Convention trong `IGenericRepository.cs` comment — DI chỉ đăng ký specific interface | 2026-07-08 |
+| 25 | **Ignore `PendingModelChangesWarning`** trong EF ConfigureWarnings | User muốn dev environment linh hoạt hơn khi có model changes chưa migrate | 2026-07-08 |
 
 ## 3. Trạng thái hiện tại
 
-### ✅ Đã hoàn thành (phiên 12 — 2026-07-07)
+### ✅ Đã hoàn thành (phiên 13 — 2026-07-08)
 
-**BR-OFF (Officer workflow) — 11/12 rules:**
-- BR-OFF-002: `SlaBreachVerificationJob` — Submitted >24h → flag breached + notification
-- BR-OFF-004: Segregation of duties — handler check verifier ≠ assigner
-- BR-OFF-005: Reject reason ≥20 chars — FluentValidation
-- BR-OFF-010: `PriorityScoreRefreshJob` — auto priority = severity×3 + relatedCount×2 + ageHours/24
-- BR-OFF-020: `SlaBreachResolutionJob` — InProgress > SLA (3/5/7/10d by severity) → breached
-- BR-OFF-021: `GetOfficerKpiQuery` — custom date range + preset periods (today/week/month/quarter/year)
-- BR-OFF-022: `ExportReportsQuery` — CSV (StringBuilder) + Excel (ClosedXML), PII filter for non-Admin
-- ❌ BR-OFF-013: workload limit 10 tasks/team — **user deferred** để xem lại logic vận hành
+**Fix DI startup error (3 inner exceptions):**
+- Tạo `IReportDraftRepository` + `ReportDraftRepository` (Application + Infrastructure)
+- Tạo `IReportSatisfactionRepository` + `ReportSatisfactionRepository`
+- Cập nhật 4 handlers: `SaveDraftCommandHandler`, `GetMyDraftsQueryHandler`, `DeleteDraftCommandHandler`, `RateReportCommandHandler` — đổi `IGenericRepository<>` → specific interface
+- Đăng ký DI trong `DependencyInjection.cs`
 
-**BR-DAT (Data Privacy) — 5/5 rules:**
-- BR-DAT-001: `BcryptPasswordHasher` 12 rounds ✅ (đã có từ trước)
-- BR-DAT-002: `DataRetentionJob` — weekly xóa S3 ảnh >2y (giữ record), hard-delete audit log >12m
-- BR-DAT-003: `ExportMyDataQuery` — `GET /v1/users/me/data-export?format=Json|Csv`
-- BR-DAT-004: Infra concern (pg_dump daily) — documented only
-- BR-DAT-005: `User.HasDataConsent` + `ConsentAcceptedAt` + `POST /v1/users/me/consent` + guard SubmitReport
+**Fix DB migration error (`consent_accepted_at` does not exist):**
+- Tạo migration `202607072130_AddUserConsentAcceptedAt` (thêm 2 cột: `consent_accepted_at`, `has_data_consent`)
+- Apply migration thành công
 
-**Bug fix:** `ReportTests.Reject_FromSubmitted_ShouldSucceed` — aligned with BR-ORG-015 (status stays Submitted)
+**User changes:**
+- `br_v12_comparison_report.md`: sửa BR-ORG section "11/12 → 11/11", BR-OFF-013 limit "10 → 6"
+- `DependencyInjection.cs`: thêm ignore `PendingModelChangesWarning`
+- Pushed to `feat/report-lifecycle-hardening` (commit `987a2ee`)
 
 ### ✅ Đã hoàn thành (phiên trước — tóm tắt)
+- Phiên 12: BR-OFF (11/12: SLA breach, priority, KPI, export) + BR-DAT (5/5: retention, export, consent)
 - Phiên 11: System Documentation (Architecture, ERD, Activity Diagrams)
 - Phiên 10: BR-AUTH (lockout, password history, ban, restore) + BR-ORG (invitation, reject, escalate)
 - Phiên 9: Gamification (BR-GAM-001..006), P0 Blocking, Notifications, Company Dispatch
@@ -72,8 +71,12 @@ Backend .NET 9 GreenLens. Phiên 12 implement **BR-OFF-002..022** (Officer SLA, 
 - [ ] AI Service: BR-AI-006 fallback retry job (AiRetryJob)
 - [ ] Map module: BR-MAP-001..012 (heatmap, hotspot, nearby — PostGIS queries)
 - [ ] Administration: BR-ADM-004 (notification templates), BR-ADM-005 (gamification config), BR-ADM-006..008, BR-ADM-010 (audit log full), BR-ADM-012 (giám sát công ty)
-- [ ] BR-OFF-013: workload limit 10 tasks/team (khi user xác nhận logic)
+- [ ] BR-OFF-013: workload limit 6 tasks/team (khi user xác nhận logic)
 - [ ] CompanyContractExpiryJob (BR-CMP-007): bidding expired
+- [ ] BR-CMP-004: thêm `Terminated` vào CompanyStatus enum
+- [ ] BR-CMP-006: Gia hạn / tái ký hợp đồng
+- [ ] BR-CMP-013: Suspend/Terminate → push tasks về LEO
+- [ ] BR-CMP-020: KPI công ty
 - [ ] Cập nhật API Documentation lên v1.8+
 - [ ] Unit tests cho invitation flow, escalate, reject re-queue (pending từ phiên 10)
 
@@ -81,19 +84,17 @@ Backend .NET 9 GreenLens. Phiên 12 implement **BR-OFF-002..022** (Officer SLA, 
 
 | Đường dẫn | Vai trò | Trạng thái |
 |---|---|---|
-| `docs/BusinessRule/br_v12_comparison_report.md` | So sánh BR v1.2 vs hệ thống | ✅ Updated (BR-OFF + BR-DAT) |
-| `src/Greenlens.Domain/Entities/User.cs` | +HasDataConsent, ConsentAcceptedAt, AcceptDataConsent() | ✅ Sửa |
-| `src/Greenlens.Application/Features/Users/AcceptDataConsent/` | Consent command + handler | ✅ Mới |
-| `src/Greenlens.Application/Features/Users/ExportMyData/` | Export personal data (JSON/CSV) | ✅ Mới |
-| `src/Greenlens.Application/Features/Officer/GetOfficerKpi/` | KPI query + handler | ✅ Mới |
-| `src/Greenlens.Application/Features/Officer/ExportReports/` | CSV/Excel export | ✅ Mới |
-| `src/Greenlens.Infrastructure/BackgroundJobs/DataRetentionJob.cs` | Media 2y + audit 12m cleanup | ✅ Mới |
-| `src/Greenlens.Infrastructure/BackgroundJobs/PriorityScoreRefreshJob.cs` | Priority auto-calc | ✅ Mới |
-| `src/Greenlens.Infrastructure/BackgroundJobs/SlaBreachVerificationJob.cs` | Submitted >24h SLA | ✅ Sửa (thêm notification) |
-| `src/Greenlens.Infrastructure/BackgroundJobs/SlaBreachResolutionJob.cs` | InProgress > SLA | ✅ Sửa (thêm notification) |
-| `src/Greenlens.Infrastructure/Persistence/Migrations/202607071200_AddDataConsentToUser.cs` | Migration consent | ✅ Mới |
-| `src/Greenlens.Api/Controllers/UsersController.cs` | +consent, +data-export | ✅ Sửa |
-| `src/Greenlens.Api/Controllers/ReportsController.cs` | +KPI, +export | ✅ Sửa |
+| `docs/BusinessRule/br_v12_comparison_report.md` | So sánh BR v1.2 vs hệ thống | ✅ Updated (phiên 13: sửa counts) |
+| `src/Greenlens.Application/Common/Interfaces/Persistence/IReportDraftRepository.cs` | Specific repo interface | ✅ Mới (phiên 13) |
+| `src/Greenlens.Application/Common/Interfaces/Persistence/IReportSatisfactionRepository.cs` | Specific repo interface | ✅ Mới (phiên 13) |
+| `src/Greenlens.Infrastructure/Persistence/Repositories/ReportDraftRepository.cs` | Repo implementation | ✅ Mới (phiên 13) |
+| `src/Greenlens.Infrastructure/Persistence/Repositories/ReportSatisfactionRepository.cs` | Repo implementation | ✅ Mới (phiên 13) |
+| `src/Greenlens.Infrastructure/DependencyInjection.cs` | DI container setup | ✅ Sửa (phiên 13: +2 repo, +PendingModelChangesWarning) |
+| `src/Greenlens.Infrastructure/Persistence/Migrations/20260707143234_202607072130_AddUserConsentAcceptedAt.cs` | Migration consent columns | ✅ Mới (phiên 13) |
+| `src/Greenlens.Application/Features/Reports/RateReport/RateReportCommandHandler.cs` | Rate report handler | ✅ Sửa (specific repo) |
+| `src/Greenlens.Application/Features/Reports/SaveDraft/SaveDraftCommandHandler.cs` | Save draft handler | ✅ Sửa (specific repo) |
+| `src/Greenlens.Application/Features/Reports/GetMyDrafts/GetMyDraftsQueryHandler.cs` | Get drafts handler | ✅ Sửa (specific repo) |
+| `src/Greenlens.Application/Features/Reports/DeleteDraft/DeleteDraftCommandHandler.cs` | Delete draft handler | ✅ Sửa (specific repo) |
 
 ## 6. Kiến thức nền & Quy ước
 - **Tech stack:** .NET 9, ASP.NET Core, EF Core 9, PostgreSQL + PostGIS, Hangfire, MediatR, FluentValidation, Mapster, ClosedXML
@@ -103,21 +104,26 @@ Backend .NET 9 GreenLens. Phiên 12 implement **BR-OFF-002..022** (Officer SLA, 
 - **Naming:** snake_case DB (UseSnakeCaseNamingConvention), PascalCase C#
 - **HasFilter trong EF:** Dùng `"column_name"` (snake_case), KHÔNG `"PropertyName"`
 - **Build:** `dotnet build -v q` | **Test:** `dotnet test --no-build`
-- **Migration:** `dotnet ef migrations add <Name> --project src/Greenlens.Infrastructure --startup-project src/Greenlens.Api --output-dir Persistence/Migrations` (hiện có lỗi DI pre-existing — tạo migration thủ công)
+- **Run:** `dotnet run -lp https` (từ `src/Greenlens.Api/`)
+- **Migration tạo:** `dotnet ef migrations add <Name> --project ..\Greenlens.Infrastructure --startup-project .` (từ Api dir)
+- **Migration apply:** `dotnet ef database update --project ..\Greenlens.Infrastructure --startup-project .`
 - **Git:** Conventional Commits, branch `feature/<slug>`, KHÔNG dùng mã BR/P0 trong tên
 - **Non-generic Result uses `ToHttpNoContent()`**, generic `Result<T>` uses `ToHttp()` or `ToHttpCreated()`
 - **Domain layer KHÔNG reference Errors class** (Application layer) — dùng inline `new Error(...)`
+- **Repo convention:** Mỗi entity phải có `IXxxRepository : IGenericRepository<Xxx>` riêng + impl + DI registration. KHÔNG inject `IGenericRepository<T>` trực tiếp
 - **Invitation flow replaces instant recruit** — RecruitStaff creates StaffInvitation, citizen must Accept
 - **Reject re-queue:** status stays Submitted, AssignedOfficeId = null → Department queue
 - **LEO escalate:** manual POST, not auto-flag — vì 1 phường có cả tuyến cấp TP lẫn hẻm
 - **Diagrams:** dùng Mermaid trong .md — xem trên GitHub hoặc mermaid.live
 - **Export endpoint pattern:** `?format=csv|xlsx` hoặc `?format=json|csv` — cùng 1 endpoint, content negotiation qua query param
 - **ClosedXML** đã thêm vào `Greenlens.Application.csproj` cho Excel export
+- **EF Warnings:** ignore `PossibleIncorrectRequiredNavigationWithQueryFilterInteractionWarning` + `PendingModelChangesWarning`
 
 ## 7. Câu hỏi mở / Cần xác nhận
-- BR-OFF-013 workload limit: user cần xem lại logic vận hành trước khi implement
-- Module tiếp theo: Comments? AI retry? Map? Admin?
-- Migration EF tooling bị lỗi DI (pre-existing) — cần fix hoặc tiếp tục tạo thủ công?
+- BR-OFF-013 workload limit **6 tasks/team**: user cần xem lại logic vận hành trước khi implement
+- Module tiếp theo: Comments? AI retry? Map? Admin? Company (CMP-004/006/013/020)?
+- BR-CMP-004: thêm `Terminated` vào CompanyStatus enum — user cần confirm behavior
+- Unit tests cho invitation flow, escalate, reject re-queue — pending từ phiên 10
 
 ## 8. Thuật ngữ
 | Thuật ngữ | Nghĩa |
@@ -142,3 +148,4 @@ Backend .NET 9 GreenLens. Phiên 12 implement **BR-OFF-002..022** (Officer SLA, 
 - 2026-07-01 — System Documentation: Architecture Diagram (8 Mermaid), Conceptual ERD (33 entities), Activity Diagrams (6 flows)
 - 2026-07-07 — BR-OFF (11/12): SLA breach notifications, priority score job, KPI query, report export (CSV+XLSX). ClosedXML added. Fix ReportTests.Reject
 - 2026-07-07 — BR-DAT (5/5): DataRetentionJob, ExportMyData (JSON+CSV), User consent (HasDataConsent + POST endpoint + SubmitReport guard), migration
+- 2026-07-08 — Fix DI startup: tạo IReportDraftRepository + IReportSatisfactionRepository (4 files mới, 4 handlers sửa, DI registration). Fix migration: AddUserConsentAcceptedAt (2 cột). BR-OFF-013 limit 10→6. Pushed feat/report-lifecycle-hardening (987a2ee)

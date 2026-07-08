@@ -184,5 +184,22 @@ public static partial class Errors
             "USER_NOT_IN_YOUR_OFFICE",
             "Người dùng không thuộc phường/xã bạn quản lý.",
             ErrorType.Forbidden);
+
+        // ── Company Status (BR-CMP-004) ──
+
+        public static Error CompanyNotActive => new(
+            "COMPANY_NOT_ACTIVE",
+            "Công ty không ở trạng thái Active, không thể tạm ngưng.",
+            ErrorType.BusinessRule);
+
+        public static Error CompanyCannotTerminate => new(
+            "COMPANY_CANNOT_TERMINATE",
+            "Không thể chấm dứt công ty từ trạng thái hiện tại.",
+            ErrorType.BusinessRule);
+
+        public static Error CompanyNotSuspended => new(
+            "COMPANY_NOT_SUSPENDED",
+            "Chỉ có thể kích hoạt lại công ty đang bị tạm ngưng.",
+            ErrorType.BusinessRule);
     }
 }

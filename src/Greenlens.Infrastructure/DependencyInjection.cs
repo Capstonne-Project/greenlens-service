@@ -14,6 +14,7 @@ using Greenlens.Infrastructure.Persistence.Repositories.Location;
 using Greenlens.Infrastructure.BackgroundJobs;
 using Greenlens.Infrastructure.DomainEvents;
 using Greenlens.Infrastructure.Notifications;
+using Greenlens.Infrastructure.Services;
 using Hangfire;
 using Hangfire.PostgreSql;
 
@@ -109,7 +110,10 @@ public static class DependencyInjection
         services.AddScoped<IFirebasePhoneAuthService, FirebasePhoneAuthService>();
 
         // ── File Storage (R2 Cloudflare) ────────────────
-        services.AddSingleton<IFileStorageService, Storage.R2FileStorageService>();
+        services.AddScoped<IFileStorageService, Storage.R2FileStorageService>();
+
+        // ── Company Cascade (BR-CMP-013) ────────────────
+        services.AddScoped<ICompanyCascadeService, CompanyCascadeService>();
 
         // ── Video Transcoding (FFmpeg) — BR-REP-002 ──
         services.AddScoped<IVideoTranscoder, Video.FFmpegVideoTranscoder>();
@@ -154,6 +158,10 @@ public static class DependencyInjection
             .Bind(configuration.GetSection("Smtp"))
             .ValidateDataAnnotations()
             .ValidateOnStart();
+
+        // BR-OFF-013: Workload limits
+        services.Configure<Application.Common.Options.WorkloadLimitsOptions>(
+            configuration.GetSection(Application.Common.Options.WorkloadLimitsOptions.SectionName));
 
         // ── Map Migrations ────────────────────────────────
         services.AddScoped<IAdministrativeRegionRepository, AdministrativeRegionRepository>();
@@ -319,5 +327,11 @@ public static class DependencyInjection
             "data-retention",
             job => job.ExecuteAsync(),
             "0 4 * * 0"); // weekly Sunday 04:00 UTC
+
+        // BR-CMP-007: Auto-expire Bidding companies + send 30/7/1-day warnings
+        RecurringJob.AddOrUpdate<CompanyContractExpiryJob>(
+            "company-contract-expiry",
+            job => job.ExecuteAsync(),
+            "0 2 * * *"); // daily at 02:00 UTC
     }
 }

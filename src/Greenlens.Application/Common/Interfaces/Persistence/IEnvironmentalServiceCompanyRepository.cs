@@ -6,4 +6,11 @@ public interface IEnvironmentalServiceCompanyRepository : IGenericRepository<Env
 {
     /// <summary>Check if a company has the given ward in its service area.</summary>
     Task<bool> ServesWardAsync(Guid companyId, string wardCode, CancellationToken ct);
+
+    /// <summary>BR-CMP-007: Get active Bidding companies with expired contracts.</summary>
+    Task<List<EnvironmentalServiceCompany>> GetBiddingExpiredAsync(DateTime asOfDate, CancellationToken ct);
+
+    /// <summary>BR-CMP-007: Get active Bidding companies expiring within a day range (inclusive).</summary>
+    Task<List<EnvironmentalServiceCompany>> GetBiddingExpiringBetweenAsync(
+        DateTime fromDate, DateTime toDate, CancellationToken ct);
 }

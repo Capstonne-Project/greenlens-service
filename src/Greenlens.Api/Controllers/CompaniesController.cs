@@ -10,6 +10,9 @@ using Greenlens.Application.Features.Organization.GetCompanyById;
 using Greenlens.Application.Features.Organization.GetCompanyServiceAreas;
 using Greenlens.Application.Features.Organization.GetCompanyStaff;
 using Greenlens.Application.Features.Organization.GetMyCompany;
+using Greenlens.Application.Features.Organization.ReactivateCompany;
+using Greenlens.Application.Features.Organization.SuspendCompany;
+using Greenlens.Application.Features.Organization.TerminateCompany;
 using Greenlens.Application.Features.Organization.ToggleCompanyStaffStatus;
 using Greenlens.Application.Features.Organization.UpdateCompanyServiceAreas;
 using Greenlens.Domain.Entities;
@@ -118,6 +121,54 @@ public sealed class CompaniesController(ISender sender) : ControllerBase
         => (await sender.Send(new GetCompanyByIdQuery(id), ct)).ToHttp();
 
     // ═══════════════════════════════════════════
+    // ██  COMPANY STATUS (BR-CMP-004)
+    // ═══════════════════════════════════════════
+
+    [HttpPost("{id:guid}/suspend")]
+    [Authorize(Roles = "DEO,Admin")]
+    [Tags("🔍 DEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[DEO/Admin] Tạm ngưng công ty",
+        Description = "Tạm ngưng hoạt động công ty (Active → Suspended). " +
+            "Cascading: tự động hủy tất cả task đang giao, đưa báo cáo về Verified. " +
+            "DEO có thể kích hoạt lại sau bằng endpoint reactivate.")]
+    [SwaggerResponse(200, "Đã tạm ngưng", typeof(ApiResponse))]
+    [SwaggerResponse(404, "Công ty không tồn tại", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Công ty không Active hoặc lý do quá ngắn", typeof(ApiResponse))]
+    public async Task<IActionResult> SuspendAsync(
+        [FromRoute] Guid id, [FromBody] CompanyStatusReasonRequest request, CancellationToken ct)
+        => (await sender.Send(new SuspendCompanyCommand(id, request.Reason), ct)).ToHttpNoContent("Đã tạm ngưng công ty.");
+
+    [HttpPost("{id:guid}/terminate")]
+    [Authorize(Roles = "DEO,Admin")]
+    [Tags("🔍 DEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[DEO/Admin] Chấm dứt hợp đồng công ty",
+        Description = "Chấm dứt hợp đồng công ty sớm (Active/Suspended/Expired → Terminated). " +
+            "Cascading: tự động hủy tất cả task đang giao, đưa báo cáo về Verified. " +
+            "⚠️ Hành động không thể đảo ngược.")]
+    [SwaggerResponse(200, "Đã chấm dứt", typeof(ApiResponse))]
+    [SwaggerResponse(404, "Công ty không tồn tại", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Không thể chấm dứt từ trạng thái hiện tại", typeof(ApiResponse))]
+    public async Task<IActionResult> TerminateAsync(
+        [FromRoute] Guid id, [FromBody] CompanyStatusReasonRequest request, CancellationToken ct)
+        => (await sender.Send(new TerminateCompanyCommand(id, request.Reason), ct)).ToHttpNoContent("Đã chấm dứt hợp đồng.");
+
+    [HttpPost("{id:guid}/reactivate")]
+    [Authorize(Roles = "DEO,Admin")]
+    [Tags("🔍 DEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[DEO/Admin] Kích hoạt lại công ty",
+        Description = "Kích hoạt lại công ty đang bị tạm ngưng (Suspended → Active). " +
+            "Công ty sẽ trở lại hoạt động và nhận task mới.")]
+    [SwaggerResponse(200, "Đã kích hoạt lại", typeof(ApiResponse))]
+    [SwaggerResponse(404, "Công ty không tồn tại", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Công ty không ở trạng thái Suspended", typeof(ApiResponse))]
+    public async Task<IActionResult> ReactivateAsync(
+        [FromRoute] Guid id, CancellationToken ct)
+        => (await sender.Send(new ReactivateCompanyCommand(id), ct)).ToHttpNoContent("Đã kích hoạt lại công ty.");
+
+    // ═══════════════════════════════════════════
     // ██  SERVICE AREAS (BR-CMP-008, BR-CMP-014)
     // ═══════════════════════════════════════════
 
@@ -222,3 +273,5 @@ public sealed class CompaniesController(ISender sender) : ControllerBase
 public sealed record UpdateServiceAreasRequest(List<string> WardCodes);
 public sealed record ToggleStaffStatusRequest(bool IsActive);
 public sealed record CreateCompanyManagerRequest(string ManagerEmail, string ManagerFullName);
+public sealed record CompanyStatusReasonRequest(string Reason);
+

@@ -35,6 +35,9 @@ public sealed class EnvironmentalServiceCompany : AuditableEntity
     /// <summary>Timestamp khi công ty được kích hoạt (DEO approve).</summary>
     public DateTime? ActivatedAt { get; private set; }
 
+    /// <summary>BR-CMP-007: Timestamp of last expiry warning sent (30d/7d/1d). Used for idempotency.</summary>
+    public DateTime? LastExpiryWarningAt { get; private set; }
+
     // ── Organization ──
     public Guid DepartmentId { get; private set; }
 
@@ -134,6 +137,12 @@ public sealed class EnvironmentalServiceCompany : AuditableEntity
 
     /// <summary>BR-CMP-005: Hiệu lực tác nghiệp chỉ dựa Status (KHÔNG dùng cửa sổ hợp đồng khóa routing).</summary>
     public bool IsActive => Status == CompanyStatus.Active;
+
+    /// <summary>BR-CMP-007: Mark that an expiry warning was sent. Prevents duplicate notifications.</summary>
+    public void MarkExpiryWarned()
+    {
+        LastExpiryWarningAt = DateTime.UtcNow;
+    }
 
     public void UpdateProfile(
         string? name = null,

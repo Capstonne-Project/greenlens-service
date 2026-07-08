@@ -348,6 +348,18 @@ public sealed class Report : SoftDeletableEntity
     /// <summary>BR-OFF-020: Flag SLA resolution breach (InProgress > severity deadline).</summary>
     public void MarkSlaResolveBreached() => SlaResolveBreached = true;
 
+    /// <summary>
+    /// BR-CMP-013: Revert InProgress → Verified when company deactivated and
+    /// all its assignments are declined. LEO will reassign to another team.
+    /// </summary>
+    public void RevertToVerified()
+    {
+        EnsureStatus(ReportStatus.InProgress);
+        Status = ReportStatus.Verified;
+        AssignedCompanyId = null;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
     /// <summary>BR-REP-008: Mark report as overdue (pending > 72h).</summary>
     public void MarkOverdue() => IsOverdue = true;
 
