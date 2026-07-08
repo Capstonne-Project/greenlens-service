@@ -13,7 +13,7 @@ namespace Greenlens.Application.Features.Reports.SaveDraft;
 /// </summary>
 /// <remarks>Implements: BR-REP-019.</remarks>
 public sealed class SaveDraftCommandHandler(
-    IGenericRepository<ReportDraft> drafts,
+    IReportDraftRepository drafts,
     ICurrentUser currentUser,
     IUnitOfWork uow)
     : IRequestHandler<SaveDraftCommand, Result<SaveDraftResponse>>

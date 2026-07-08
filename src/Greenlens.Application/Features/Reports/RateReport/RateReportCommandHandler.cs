@@ -18,7 +18,7 @@ namespace Greenlens.Application.Features.Reports.RateReport;
 /// </remarks>
 public sealed class RateReportCommandHandler(
     IReportRepository reports,
-    IGenericRepository<ReportSatisfaction> satisfactions,
+    IReportSatisfactionRepository satisfactions,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     ILogger<RateReportCommandHandler> logger)

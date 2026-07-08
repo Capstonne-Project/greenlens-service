@@ -9,7 +9,7 @@ namespace Greenlens.Application.Features.Reports.GetMyDrafts;
 
 /// <summary>BR-REP-019: Return all drafts for current user, newest first.</summary>
 public sealed class GetMyDraftsQueryHandler(
-    IGenericRepository<ReportDraft> drafts,
+    IReportDraftRepository drafts,
     ICurrentUser currentUser)
     : IRequestHandler<GetMyDraftsQuery, Result<GetMyDraftsResponse>>
 {

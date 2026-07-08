@@ -41,7 +41,8 @@ public static class DependencyInjection
                 o => o.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName))
             .UseSnakeCaseNamingConvention()
             .ConfigureWarnings(w => w.Ignore(
-                Microsoft.EntityFrameworkCore.Diagnostics.CoreEventId.PossibleIncorrectRequiredNavigationWithQueryFilterInteractionWarning)));
+                Microsoft.EntityFrameworkCore.Diagnostics.CoreEventId.PossibleIncorrectRequiredNavigationWithQueryFilterInteractionWarning,
+                Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
 
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
@@ -52,6 +53,8 @@ public static class DependencyInjection
         services.AddScoped<IReportStatusHistoryRepository, ReportStatusHistoryRepository>();
         services.AddScoped<IWasteTagRepository, WasteTagRepository>();
         services.AddScoped<IReportWasteTagRepository, ReportWasteTagRepository>();
+        services.AddScoped<IReportDraftRepository, ReportDraftRepository>();
+        services.AddScoped<IReportSatisfactionRepository, ReportSatisfactionRepository>();
 
         // ── Organization module (v1.1) ──
         services.AddScoped<IDepartmentRepository, DepartmentRepository>();

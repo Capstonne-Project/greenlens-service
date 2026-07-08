@@ -9,7 +9,7 @@ namespace Greenlens.Application.Features.Reports.DeleteDraft;
 
 /// <summary>BR-REP-019: Hard-delete draft after ownership check.</summary>
 public sealed class DeleteDraftCommandHandler(
-    IGenericRepository<ReportDraft> drafts,
+    IReportDraftRepository drafts,
     ICurrentUser currentUser,
     IUnitOfWork uow)
     : IRequestHandler<DeleteDraftCommand, Result<Unit>>
