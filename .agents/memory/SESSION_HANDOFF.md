@@ -1,13 +1,13 @@
 # Session Handoff — GreenLens Backend
 
-> **Cập nhật lần cuối:** 2026-07-08 23:23 · **Phiên bản:** 13 · **Agent:** Antigravity (Claude Opus 4.6)
+> **Cập nhật lần cuối:** 2026-07-10 01:12 · **Phiên bản:** 14 · **Agent:** Antigravity (Claude Opus 4.6)
 
 ## 0. TL;DR
-Backend .NET 9 GreenLens. Phiên 13 fix 2 lỗi startup: (1) DI validation — 4 handler inject `IGenericRepository<>` trực tiếp thay vì specific repo → tạo `IReportDraftRepository` + `IReportSatisfactionRepository`; (2) DB schema mismatch — `consent_accepted_at` + `has_data_consent` thiếu cột → tạo + apply migration. User cập nhật BR-OFF-013 workload limit từ 10→6. Code pushed lên `feat/report-lifecycle-hardening`.
+Backend .NET 9 GreenLens. Phiên 14 hoàn thành module Company **14/14 rules** — implement 3 BR còn thiếu: BR-CMP-006 (gia hạn hợp đồng + ContractPeriod entity), BR-CMP-020 (KPI công ty), BR-CMP-021 (audit data isolation 11/11 handlers). Thêm migration `AddContractPeriods` + data seed. Tổng tiến độ BR v1.2: ~65%. Build 0 errors.
 
 ## 1. Mục tiêu & Bối cảnh
 - **Mục tiêu tổng thể:** Backend .NET 9 cho ứng dụng báo cáo ô nhiễm môi trường (SU26SE049)
-- **Phạm vi phiên 13:** Bug fix startup (DI + migration), stabilization
+- **Phạm vi phiên 14:** BR-CMP-006, BR-CMP-020, BR-CMP-021 — hoàn thành Company module
 - **Ngôn ngữ:** Tiếng Việt (giao tiếp + XML doc BR), English (code)
 
 ## 2. Quyết định đã chốt (Locked Decisions)
@@ -31,35 +31,46 @@ Backend .NET 9 GreenLens. Phiên 13 fix 2 lỗi startup: (1) DI validation — 4
 | 15 | BR-ORG-015: LEO reject → status giữ Submitted, clear AssignedOfficeId → re-queue | Không dùng terminal Rejected status | 2026-06-29 |
 | 16 | BR-ORG-016: **LEO manual escalate** thay vì flag `IsCityLevelRoute` trên Ward | Flag trên Ward không chính xác — 1 phường có cả tuyến cấp TP lẫn hẻm | 2026-06-30 |
 | 17 | BR-ORG-021: Invitation flow (7 ngày) + ReleaseStaff | Không instant role change — citizen phải accept | 2026-06-29 |
-| 18 | BR-OFF-013 workload limit **6 tasks/team** (cập nhật từ 10) — **deferred** | User cần xem lại logic vận hành trước | 2026-07-08 |
+| 18 | BR-OFF-013 workload limit **6 tasks/team**, cảnh báo tại 5 | User xác nhận | 2026-07-08 |
 | 19 | BR-OFF-021 KPI: hỗ trợ cả custom date range + preset periods | Linh hoạt cho nhiều use case | 2026-07-07 |
 | 20 | BR-OFF-022 Export: cùng 1 endpoint, `format=csv|xlsx` | Thống nhất, dùng ClosedXML cho Excel | 2026-07-07 |
 | 21 | BR-DAT-002 Ảnh 2 năm: xóa S3 file, giữ DB record (Url → placeholder) | Giữ metadata cho audit trail | 2026-07-07 |
 | 22 | BR-DAT-003 Export: hỗ trợ cả JSON + CSV | Linh hoạt tùy user | 2026-07-07 |
 | 23 | BR-DAT-005 Consent: `HasDataConsent` default false, user phải accept khi mở app lần đầu | Tuân thủ GDPR / NĐ-13 | 2026-07-07 |
 | 24 | **Specific repo per entity, NEVER inject `IGenericRepository<T>` directly** | Convention trong `IGenericRepository.cs` comment — DI chỉ đăng ký specific interface | 2026-07-08 |
-| 25 | **Ignore `PendingModelChangesWarning`** trong EF ConfigureWarnings | User muốn dev environment linh hoạt hơn khi có model changes chưa migrate | 2026-07-08 |
+| 25 | **Ignore `PendingModelChangesWarning`** trong EF ConfigureWarnings | User muốn dev environment linh hoạt hơn | 2026-07-08 |
+| 26 | **BR-CMP-004: Suspend/Terminate → phương án A** (auto-decline assignments + revert reports về Verified) | User chọn | 2026-07-08 |
+| 27 | **BR-CMP-006: ContractPeriod entity (phương án B)** cho lịch sử kỳ hợp đồng, không dùng JSON/audit log | User chọn | 2026-07-08 |
+| 28 | **BR-CMP-006: Chỉ Terminate + Expire làm trước**, gia hạn/tái ký riêng | User yêu cầu | 2026-07-08 |
 
 ## 3. Trạng thái hiện tại
 
-### ✅ Đã hoàn thành (phiên 13 — 2026-07-08)
+### ✅ Đã hoàn thành (phiên 14 — 2026-07-10)
 
-**Fix DI startup error (3 inner exceptions):**
-- Tạo `IReportDraftRepository` + `ReportDraftRepository` (Application + Infrastructure)
-- Tạo `IReportSatisfactionRepository` + `ReportSatisfactionRepository`
-- Cập nhật 4 handlers: `SaveDraftCommandHandler`, `GetMyDraftsQueryHandler`, `DeleteDraftCommandHandler`, `RateReportCommandHandler` — đổi `IGenericRepository<>` → specific interface
-- Đăng ký DI trong `DependencyInjection.cs`
+**BR-CMP-006 — Gia hạn / Tái ký hợp đồng:**
+- Domain: `ContractPeriod` entity (id, companyId, contractNumber, contractType, startDate, endDate, renewedByUserId, note)
+- Domain: `EnvironmentalServiceCompany.RenewContract()` method (Bidding only, date validation, auto-reactivate Expired→Active)
+- Infrastructure: `ContractPeriodConfiguration.cs` (EF config, string conversion, indexes)
+- Infrastructure: `DbSet<ContractPeriod>` added to `ApplicationDbContext`
+- Application: `RenewContract/` slice (Command + Handler + Validator)
+- Application: `GetContractHistory/` slice (Query + Handler — CM auto-resolve via Guid.Empty)
+- Application: `CreateCompanyCommandHandler` — thêm tạo initial ContractPeriod
+- API: 3 endpoints mới (`POST {id}/renew-contract`, `GET {id}/contract-history`, `GET my/contract-history`)
+- Migration: `202607100100_AddContractPeriods` — tạo bảng + data seed kỳ ban đầu cho existing companies
 
-**Fix DB migration error (`consent_accepted_at` does not exist):**
-- Tạo migration `202607072130_AddUserConsentAcceptedAt` (thêm 2 cột: `consent_accepted_at`, `has_data_consent`)
-- Apply migration thành công
+**BR-CMP-020 — KPI Công ty:**
+- Application: `GetCompanyKpi/` slice (Query + Handler + Validator) — metrics: assigned/completed/declined, SLA compliance rate, avg resolution hours. Reuse `KpiPeriod` enum từ GetOfficerKpi
+- API: 2 endpoints (`GET {id}/kpi`, `GET my/kpi`) — DEO xem theo company, CM xem company mình
 
-**User changes:**
-- `br_v12_comparison_report.md`: sửa BR-ORG section "11/12 → 11/11", BR-OFF-013 limit "10 → 6"
-- `DependencyInjection.cs`: thêm ignore `PendingModelChangesWarning`
-- Pushed to `feat/report-lifecycle-hardening` (commit `987a2ee`)
+**BR-CMP-021 — Data Isolation Audit:**
+- Audit 11/11 CM/CompanyStaff handlers → **tất cả đã đúng**, không gap nào
+- Pattern: resolve `companyId` từ token via `CompanyStaff.GetByUserIdAsync()` + filter queries by companyId
+
+**Documentation:**
+- `br_v12_comparison_report.md`: CMP 11/14 → **14/14**, tổng tiến độ ~60% → ~65%
 
 ### ✅ Đã hoàn thành (phiên trước — tóm tắt)
+- Phiên 13: Fix DI startup (IReportDraftRepository + IReportSatisfactionRepository), fix migration, BR-OFF-013 limit 10→6
 - Phiên 12: BR-OFF (11/12: SLA breach, priority, KPI, export) + BR-DAT (5/5: retention, export, consent)
 - Phiên 11: System Documentation (Architecture, ERD, Activity Diagrams)
 - Phiên 10: BR-AUTH (lockout, password history, ban, restore) + BR-ORG (invitation, reject, escalate)
@@ -71,12 +82,9 @@ Backend .NET 9 GreenLens. Phiên 13 fix 2 lỗi startup: (1) DI validation — 4
 - [ ] AI Service: BR-AI-006 fallback retry job (AiRetryJob)
 - [ ] Map module: BR-MAP-001..012 (heatmap, hotspot, nearby — PostGIS queries)
 - [ ] Administration: BR-ADM-004 (notification templates), BR-ADM-005 (gamification config), BR-ADM-006..008, BR-ADM-010 (audit log full), BR-ADM-012 (giám sát công ty)
-- [ ] BR-OFF-013: workload limit 6 tasks/team (khi user xác nhận logic)
-- [ ] CompanyContractExpiryJob (BR-CMP-007): bidding expired
-- [ ] BR-CMP-004: thêm `Terminated` vào CompanyStatus enum
-- [ ] BR-CMP-006: Gia hạn / tái ký hợp đồng
-- [ ] BR-CMP-013: Suspend/Terminate → push tasks về LEO
-- [ ] BR-CMP-020: KPI công ty
+- [ ] Cleanup module: BR-CLN check-in, SLA
+- [ ] BR-AUTH-014: Brute-force lock 30' + CAPTCHA lần 3 (sliding window + Turnstile)
+- [ ] BR-INS-003..032: Inspection remaining (reject 2h, check-in, repeat offender, SLA, daily update, KPI)
 - [ ] Cập nhật API Documentation lên v1.8+
 - [ ] Unit tests cho invitation flow, escalate, reject re-queue (pending từ phiên 10)
 
@@ -84,17 +92,18 @@ Backend .NET 9 GreenLens. Phiên 13 fix 2 lỗi startup: (1) DI validation — 4
 
 | Đường dẫn | Vai trò | Trạng thái |
 |---|---|---|
-| `docs/BusinessRule/br_v12_comparison_report.md` | So sánh BR v1.2 vs hệ thống | ✅ Updated (phiên 13: sửa counts) |
-| `src/Greenlens.Application/Common/Interfaces/Persistence/IReportDraftRepository.cs` | Specific repo interface | ✅ Mới (phiên 13) |
-| `src/Greenlens.Application/Common/Interfaces/Persistence/IReportSatisfactionRepository.cs` | Specific repo interface | ✅ Mới (phiên 13) |
-| `src/Greenlens.Infrastructure/Persistence/Repositories/ReportDraftRepository.cs` | Repo implementation | ✅ Mới (phiên 13) |
-| `src/Greenlens.Infrastructure/Persistence/Repositories/ReportSatisfactionRepository.cs` | Repo implementation | ✅ Mới (phiên 13) |
-| `src/Greenlens.Infrastructure/DependencyInjection.cs` | DI container setup | ✅ Sửa (phiên 13: +2 repo, +PendingModelChangesWarning) |
-| `src/Greenlens.Infrastructure/Persistence/Migrations/20260707143234_202607072130_AddUserConsentAcceptedAt.cs` | Migration consent columns | ✅ Mới (phiên 13) |
-| `src/Greenlens.Application/Features/Reports/RateReport/RateReportCommandHandler.cs` | Rate report handler | ✅ Sửa (specific repo) |
-| `src/Greenlens.Application/Features/Reports/SaveDraft/SaveDraftCommandHandler.cs` | Save draft handler | ✅ Sửa (specific repo) |
-| `src/Greenlens.Application/Features/Reports/GetMyDrafts/GetMyDraftsQueryHandler.cs` | Get drafts handler | ✅ Sửa (specific repo) |
-| `src/Greenlens.Application/Features/Reports/DeleteDraft/DeleteDraftCommandHandler.cs` | Delete draft handler | ✅ Sửa (specific repo) |
+| `docs/BusinessRule/br_v12_comparison_report.md` | So sánh BR v1.2 vs hệ thống | ✅ Updated (phiên 14: CMP 14/14) |
+| `src/Greenlens.Domain/Entities/ContractPeriod.cs` | Entity kỳ hợp đồng | ✅ Mới (phiên 14) |
+| `src/Greenlens.Domain/Entities/EnvironmentalServiceCompany.cs` | Entity công ty | ✅ Sửa (+RenewContract(), +ContractPeriods nav) |
+| `src/Greenlens.Infrastructure/Persistence/Configurations/Organization/ContractPeriodConfiguration.cs` | EF config | ✅ Mới (phiên 14) |
+| `src/Greenlens.Infrastructure/Persistence/ApplicationDbContext.cs` | DbContext | ✅ Sửa (+DbSet) |
+| `src/Greenlens.Infrastructure/Migrations/202607100100_AddContractPeriods.cs` | Migration | ✅ Mới (phiên 14) |
+| `src/Greenlens.Application/Features/Organization/RenewContract/` | Gia hạn HĐ slice (3 files) | ✅ Mới (phiên 14) |
+| `src/Greenlens.Application/Features/Organization/GetContractHistory/` | Lịch sử kỳ HĐ slice (2 files) | ✅ Mới (phiên 14) |
+| `src/Greenlens.Application/Features/Organization/GetCompanyKpi/` | KPI công ty slice (3 files) | ✅ Mới (phiên 14) |
+| `src/Greenlens.Application/Common/Errors/OrganizationErrors.cs` | Error constants | ✅ Sửa (+3 errors) |
+| `src/Greenlens.Application/Features/Organization/CreateCompany/CreateCompanyCommandHandler.cs` | Tạo công ty | ✅ Sửa (+initial ContractPeriod) |
+| `src/Greenlens.Api/Controllers/CompaniesController.cs` | API endpoints | ✅ Sửa (+5 endpoints, +RenewContractRequest DTO) |
 
 ## 6. Kiến thức nền & Quy ước
 - **Tech stack:** .NET 9, ASP.NET Core, EF Core 9, PostgreSQL + PostGIS, Hangfire, MediatR, FluentValidation, Mapster, ClosedXML
@@ -118,11 +127,11 @@ Backend .NET 9 GreenLens. Phiên 13 fix 2 lỗi startup: (1) DI validation — 4
 - **Export endpoint pattern:** `?format=csv|xlsx` hoặc `?format=json|csv` — cùng 1 endpoint, content negotiation qua query param
 - **ClosedXML** đã thêm vào `Greenlens.Application.csproj` cho Excel export
 - **EF Warnings:** ignore `PossibleIncorrectRequiredNavigationWithQueryFilterInteractionWarning` + `PendingModelChangesWarning`
+- **ContractPeriod pattern:** 1 company → N periods. Mỗi lần gia hạn tạo period mới + update ContractEndDate/ContractNumber trên company. CreateCompany tạo initial period.
+- **CM data isolation:** Mọi CM handler phải resolve companyId từ `CompanyStaff.GetByUserIdAsync(currentUser.UserId)`, KHÔNG nhận companyId từ client
 
 ## 7. Câu hỏi mở / Cần xác nhận
-- BR-OFF-013 workload limit **6 tasks/team**: user cần xem lại logic vận hành trước khi implement
-- Module tiếp theo: Comments? AI retry? Map? Admin? Company (CMP-004/006/013/020)?
-- BR-CMP-004: thêm `Terminated` vào CompanyStatus enum — user cần confirm behavior
+- Module tiếp theo: Comments? AI retry? Map? Admin? Cleanup? Inspection?
 - Unit tests cho invitation flow, escalate, reject re-queue — pending từ phiên 10
 
 ## 8. Thuật ngữ
@@ -133,7 +142,7 @@ Backend .NET 9 GreenLens. Phiên 13 fix 2 lỗi startup: (1) DI validation — 4
 | CM | Company Manager (quản lý công ty DVMT) |
 | CITENCO | Công ty MT Đô thị TP.HCM — đơn vị xử lý tuyến cấp TP |
 | SLA | Service Level Agreement — thời hạn xử lý report theo severity |
-| KPI | Key Performance Indicator — chỉ số hiệu suất officer |
+| KPI | Key Performance Indicator — chỉ số hiệu suất officer/company |
 | GDPR | General Data Protection Regulation — quy định bảo vệ dữ liệu EU |
 | NĐ-13 | Nghị định 13/2023/NĐ-CP — Bảo vệ dữ liệu cá nhân Việt Nam |
 
@@ -149,3 +158,4 @@ Backend .NET 9 GreenLens. Phiên 13 fix 2 lỗi startup: (1) DI validation — 4
 - 2026-07-07 — BR-OFF (11/12): SLA breach notifications, priority score job, KPI query, report export (CSV+XLSX). ClosedXML added. Fix ReportTests.Reject
 - 2026-07-07 — BR-DAT (5/5): DataRetentionJob, ExportMyData (JSON+CSV), User consent (HasDataConsent + POST endpoint + SubmitReport guard), migration
 - 2026-07-08 — Fix DI startup: tạo IReportDraftRepository + IReportSatisfactionRepository (4 files mới, 4 handlers sửa, DI registration). Fix migration: AddUserConsentAcceptedAt (2 cột). BR-OFF-013 limit 10→6. Pushed feat/report-lifecycle-hardening (987a2ee)
+- 2026-07-10 — BR-CMP-006 (ContractPeriod entity + RenewContract + GetContractHistory + migration data seed), BR-CMP-020 (GetCompanyKpi — task volume/SLA/avg hours), BR-CMP-021 (audit 11/11 handlers passed). Company module 14/14. 13 files mới/sửa. Build 0 errors.

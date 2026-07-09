@@ -201,5 +201,24 @@ public static partial class Errors
             "COMPANY_NOT_SUSPENDED",
             "Chỉ có thể kích hoạt lại công ty đang bị tạm ngưng.",
             ErrorType.BusinessRule);
+
+        // ── Contract Renewal (BR-CMP-006) ──
+
+        public static Error SubsidiaryCannotRenew => new(
+            "SUBSIDIARY_CANNOT_RENEW",
+            "Công ty trực thuộc (Subsidiary) có hợp đồng vô thời hạn, không thể gia hạn.",
+            ErrorType.BusinessRule);
+
+        public static Error ContractNumberAlreadyUsed => new(
+            "CONTRACT_NUMBER_ALREADY_USED",
+            "Số hợp đồng mới đã tồn tại trong hệ thống.",
+            ErrorType.Conflict);
+
+        // ── Data Isolation (BR-CMP-021) ──
+
+        public static Error CrossCompanyAccess => new(
+            "CROSS_COMPANY_ACCESS",
+            "Bạn không có quyền truy cập dữ liệu của công ty khác.",
+            ErrorType.Forbidden);
     }
 }

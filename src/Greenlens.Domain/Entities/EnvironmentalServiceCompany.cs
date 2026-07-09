@@ -12,6 +12,7 @@ namespace Greenlens.Domain.Entities;
 /// Hiệu lực tác nghiệp chỉ dựa Company.Status == Active (BR-CMP-005).
 /// ContractStartDate/EndDate là metadata (hiển thị + job expire). Subsidiary vô thời hạn (EndDate null).
 /// Onboarding: CM đặt mật khẩu lần đầu qua cơ chế reset-password chung (BR-CMP-002).
+/// BR-CMP-006: Lịch sử kỳ hợp đồng lưu qua ContractPeriod (1-N).
 /// </remarks>
 public sealed class EnvironmentalServiceCompany : AuditableEntity
 {
@@ -45,6 +46,7 @@ public sealed class EnvironmentalServiceCompany : AuditableEntity
     public Department? Department { get; private set; }
     public ICollection<CompanyStaff> Staff { get; private set; } = [];
     public ICollection<CompanyServiceArea> ServiceAreas { get; private set; } = [];
+    public ICollection<ContractPeriod> ContractPeriods { get; private set; } = [];
 
     // ────────────────────────────────────────────────────
     // Factory
@@ -142,6 +144,46 @@ public sealed class EnvironmentalServiceCompany : AuditableEntity
     public void MarkExpiryWarned()
     {
         LastExpiryWarningAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// BR-CMP-006: DEO gia hạn/tái ký hợp đồng Bidding.
+    /// Tạo kỳ hợp đồng mới, cập nhật metadata trên Company, auto-reactivate từ Expired.
+    /// </summary>
+    public ContractPeriod RenewContract(
+        DateTime newStartDate,
+        DateTime newEndDate,
+        string newContractNumber,
+        Guid renewedByUserId,
+        string? note = null)
+    {
+        if (ContractType != ContractType.Bidding)
+            throw new InvalidOperationException(
+                "Subsidiary contracts are indefinite — cannot renew.");
+
+        if (newEndDate <= newStartDate)
+            throw new InvalidOperationException(
+                "New contract end date must be after start date.");
+
+        // Update current contract metadata on Company
+        ContractStartDate = newStartDate;
+        ContractEndDate = newEndDate;
+        ContractNumber = newContractNumber;
+        LastExpiryWarningAt = null; // Reset warning tracker
+
+        // Auto-reactivate from Expired
+        if (Status == CompanyStatus.Expired)
+            Status = CompanyStatus.Active;
+
+        UpdatedAt = DateTime.UtcNow;
+
+        // Create history record
+        var period = ContractPeriod.Create(
+            Id, newContractNumber, ContractType,
+            newStartDate, newEndDate, renewedByUserId, note);
+        ContractPeriods.Add(period);
+
+        return period;
     }
 
     public void UpdateProfile(

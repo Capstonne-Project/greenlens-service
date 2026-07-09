@@ -60,9 +60,9 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 
 |      Trạng thái       | Modules                                                                                                                     | % ước tính |
 | :-------------------: | :-------------------------------------------------------------------------------------------------------------------------- | :--------: |
-|  ✅ Core hoàn thành   | Auth, Reports (32 slices), Organization (39 slices), Inspection (10 slices), Map (2), Catalog (3), Admin (10), Media, Users |    ~60%    |
-| ⚠️ Implement một phần | Company (thiếu contract renewal), Cleanup (thiếu check-in/SLA)                                                             |    ~15%    |
-|   ❌ Chưa implement   | Comments, Rate Limiting, Brute-force, Analytics/KPI, Duplicate Detection                                                    |    ~25%    |
+|  ✅ Core hoàn thành   | Auth, Reports (32 slices), Organization (39 slices), Inspection (10 slices), Map (2), Catalog (3), Admin (10), Media, Users, Company (14/14 rules) |    ~65%    |
+| ⚠️ Implement một phần | Cleanup (thiếu check-in/SLA)                                                                                               |    ~10%    |
+|   ❌ Chưa implement   | Comments, Rate Limiting, Brute-force, Duplicate Detection                                                                    |    ~25%    |
 
 ---
 
@@ -213,7 +213,7 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 
 ---
 
-## B.8 Company (`BR-CMP-001..021`) — ✅ 11/14 rules
+## B.8 Company (`BR-CMP-001..021`) — ✅ 14/14 rules
 
 | BR         | Status | Ghi chú                                                                                                                  |
 | ---------- | :----: | ------------------------------------------------------------------------------------------------------------------------ |
@@ -222,15 +222,15 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 | BR-CMP-003 |   ✅   | ContractType enum, ContractEndDate nullable                                                                              |
 | BR-CMP-004 |   ✅   | 5 status (PendingActivation/Active/Suspended/Expired/Terminated) + `SuspendCompany/`, `TerminateCompany/`, `ReactivateCompany/` |
 | BR-CMP-005 |   ✅   | `IsActive` property trên entity                                                                                          |
-| BR-CMP-006 |   ❌   | Gia hạn / tái ký — chưa có feature (scope tách riêng)                                                                    |
+| BR-CMP-006 |   ✅   | `RenewContract/` command + `ContractPeriod` entity (1-N lịch sử kỳ HĐ) + `GetContractHistory/` query. Auto-reactivate Expired→Active. Migration seed kỳ ban đầu cho existing companies. |
 | BR-CMP-007 |   ✅   | `CompanyContractExpiryJob` — auto-expire Bidding hết hạn + cảnh báo 30/7/1 ngày trước khi hết hạn (daily 02:00 UTC)      |
 | BR-CMP-010 |   ✅   | `CreateCompanyStaff/`                                                                                                    |
 | BR-CMP-011 |   ✅   | `CreateCompanyTeam/`, `AssignCompanyTeam/`                                                                               |
 | BR-CMP-012 |   ✅   | `GetCompanyServiceAreas/`, `UpdateCompanyServiceAreas/`                                                                  |
 | BR-CMP-013 |   ✅   | `CompanyCascadeService`: Suspend/Terminate/Expire → auto-decline assignments (ForceDecline) + revert reports → Verified + notify LEO |
 | BR-CMP-014 |   ✅   | N-N `CompanyServiceArea`                                                                                                 |
-| BR-CMP-020 |   ❌   | KPI công ty                                                                                                              |
-| BR-CMP-021 |   ⚠️   | Phân tách dữ liệu — cần verify query filters                                                                             |
+| BR-CMP-020 |   ✅   | `GetCompanyKpi/` query — task volume (assigned/completed/declined), SLA compliance rate, avg resolution hours. DEO xem theo company, CM xem company mình. Reuse `KpiPeriod` enum. |
+| BR-CMP-021 |   ✅   | **Audit passed** — tất cả 11 CM/CompanyStaff handlers đều resolve `companyId` từ token via `CompanyStaff.GetByUserIdAsync()` + filter queries by companyId. Không gap nào. |
 
 ---
 
