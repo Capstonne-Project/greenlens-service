@@ -37,6 +37,7 @@ internal sealed class ApplicationDbContext(
     public DbSet<EnvironmentalServiceCompany> EnvironmentalServiceCompanies => Set<EnvironmentalServiceCompany>();
     public DbSet<CompanyStaff> CompanyStaff => Set<CompanyStaff>();
     public DbSet<CompanyServiceArea> CompanyServiceAreas => Set<CompanyServiceArea>();
+    public DbSet<ContractPeriod> ContractPeriods => Set<ContractPeriod>();
 
     // ── Gamification module (v1.2) ──
     public DbSet<UserPoints> UserPoints => Set<UserPoints>();

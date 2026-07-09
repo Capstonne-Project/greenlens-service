@@ -24,6 +24,7 @@ public sealed class CreateCompanyCommandHandler(
     IWardRepository wards,
     IUnitOfWork uow,
     IPasswordHasher passwordHasher,
+    ICurrentUser currentUser,
     ILogger<CreateCompanyCommandHandler> logger)
     : IRequestHandler<CreateCompanyCommand, Result<CreateCompanyResponse>>
 {
@@ -83,7 +84,18 @@ public sealed class CreateCompanyCommandHandler(
 
         companies.Add(company);
 
-        // ── 6. Assign ward service areas (if provided) ──
+        // ── 6. Initial ContractPeriod (BR-CMP-006) ──
+        var initialPeriod = ContractPeriod.Create(
+            company.Id,
+            company.ContractNumber,
+            company.ContractType,
+            company.ContractStartDate,
+            company.ContractEndDate,
+            currentUser.UserId,
+            "Kỳ hợp đồng ban đầu");
+        company.ContractPeriods.Add(initialPeriod);
+
+        // ── 7. Assign ward service areas (if provided) ──
         if (request.WardCodes is { Count: > 0 })
         {
             var newAreas = request.WardCodes
@@ -91,7 +103,7 @@ public sealed class CreateCompanyCommandHandler(
             serviceAreas.AddRange(newAreas);
         }
 
-        // ── 7. Create CM user with temporary password (optional) ──
+        // ── 8. Create CM user with temporary password (optional) ──
         User? managerUser = null;
         string? tempPassword = null;
 
