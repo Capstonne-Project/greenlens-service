@@ -1,6 +1,8 @@
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Common.Models;
 using Greenlens.Domain.Common;
+using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,9 +10,14 @@ namespace Greenlens.Application.Features.Organization.GetCompanies;
 
 /// <summary>
 /// Returns a paginated list of companies with search/filter/sort support.
+/// DEO sees only companies with service areas in their province (BR-ADM-012).
+/// Admin sees all companies.
 /// </summary>
+/// <remarks>Implements: BR-CMP-001, BR-ADM-012.</remarks>
 public sealed class GetCompaniesQueryHandler(
-    IEnvironmentalServiceCompanyRepository companies)
+    IEnvironmentalServiceCompanyRepository companies,
+    ICurrentUser currentUser,
+    IUserRepository users)
     : IRequestHandler<GetCompaniesQuery, Result<GetCompaniesResponse>>
 {
     public async Task<Result<GetCompaniesResponse>> Handle(
@@ -21,6 +28,25 @@ public sealed class GetCompaniesQueryHandler(
             .Include(c => c.ServiceAreas)
             .Include(c => c.Staff)
             .AsQueryable();
+
+        // ── BR-ADM-012: DEO scope by province ──
+        var user = await users.GetByIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
+        if (user is not null && user.Role == UserRole.DEO && user.DepartmentId.HasValue)
+        {
+            // Resolve province code through the user's department
+            var userWithDept = await users.QueryAsNoTracking()
+                .Include(u => u.Department)
+                .FirstOrDefaultAsync(u => u.Id == currentUser.UserId, ct)
+                .ConfigureAwait(false);
+
+            var provinceCode = userWithDept?.Department?.ProvinceCode;
+            if (!string.IsNullOrEmpty(provinceCode))
+            {
+                // Only companies that have at least one ServiceArea in DEO's province
+                query = query.Where(c =>
+                    c.ServiceAreas.Any(sa => sa.Ward != null && sa.Ward.ProvinceCode == provinceCode));
+            }
+        }
 
         // ── Filter ──
         if (request.Status.HasValue)

@@ -6,6 +6,7 @@ using Greenlens.Application.Common.Behaviors;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Infrastructure.Ai;
+using Greenlens.Infrastructure.Audit;
 using Greenlens.Infrastructure.Email;
 using Greenlens.Infrastructure.Identity;
 using Greenlens.Infrastructure.Persistence;
@@ -45,6 +46,9 @@ public static class DependencyInjection
                 Microsoft.EntityFrameworkCore.Diagnostics.CoreEventId.PossibleIncorrectRequiredNavigationWithQueryFilterInteractionWarning,
                 Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
 
+        services.AddScoped<IApplicationDbContext>(
+            sp => sp.GetRequiredService<ApplicationDbContext>());
+
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IOtpRepository, OtpRepository>();
@@ -76,6 +80,11 @@ public static class DependencyInjection
         services.AddScoped<IUserPointsRepository, UserPointsRepository>();
         services.AddScoped<IBadgeRepository, BadgeRepository>();
         services.AddScoped<IUserBadgeRepository, UserBadgeRepository>();
+
+        // ── Administration module (BR-ADM-*) ──
+        services.AddScoped<IPenaltyFrameworkRepository, PenaltyFrameworkRepository>();
+        services.AddScoped<IGamificationConfigRepository, GamificationConfigRepository>();
+        services.AddScoped<INotificationTemplateRepository, NotificationTemplateRepository>();
 
         // ── Notification module (BR-NTF-001..004) ──
         services.AddScoped<INotificationRepository, NotificationRepository>();
@@ -133,6 +142,9 @@ public static class DependencyInjection
         services.AddScoped<IAiClassificationService, AiClassificationService>();
         services.AddSingleton<ITempImageStore, TempImageStore>();
 
+        // ── Audit (BR-ADM-010) ─────────────────────────────
+        services.AddScoped<IAuditLogger, AuditLogger>();
+
         // ── MediatR ──────────────────────────────────────
         services.AddMediatR(cfg =>
         {
@@ -141,6 +153,7 @@ public static class DependencyInjection
             cfg.NotificationPublisherType = typeof(IsolatingNotificationPublisher);
             cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
             cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(TransactionBehavior<,>));
+            cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(AuditLogBehavior<,>));
             cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
         });
 

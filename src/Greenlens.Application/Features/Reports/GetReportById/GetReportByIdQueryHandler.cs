@@ -26,6 +26,10 @@ public sealed class GetReportByIdQueryHandler(
         if (r is null)
             return Errors.Reports.ReportNotFound;
 
+        // BR-ADM-006: hidden reports are invisible to public
+        if (r.IsHidden)
+            return Errors.Reports.ReportNotFound;
+
         var media = r.Media.Select(m => new ReportMediaItem(
             m.Id, m.Type.ToString(), m.Url, m.MimeType, m.SizeBytes)).ToList();
 

@@ -37,7 +37,7 @@ public sealed class UploadReportImageCommandHandlerTests
         var result = await _sut.Handle(CreateCommand(), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal("https://cdn/image.jpg", result.Value.Url);
+        Assert.Equal("https://cdn/image.jpg", result.Value!.Url);
         Assert.Equal("reports/images/abc_photo.jpg", result.Value.Key);
         Assert.Equal("image/jpeg", result.Value.MimeType);
         Assert.Equal(1_000_000, result.Value.SizeBytes);
@@ -71,7 +71,7 @@ public sealed class UploadReportImageCommandHandlerTests
         var result = await _sut.Handle(CreateCommand(contentType: contentType), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal("INVALID_IMAGE_TYPE", result.Error.Code);
+        Assert.Equal("INVALID_IMAGE_TYPE", result.Error!.Code);
     }
 
     [Fact]
@@ -82,7 +82,7 @@ public sealed class UploadReportImageCommandHandlerTests
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal("IMAGE_TOO_LARGE", result.Error.Code);
+        Assert.Equal("IMAGE_TOO_LARGE", result.Error!.Code);
     }
 
     [Fact]
@@ -111,7 +111,7 @@ public sealed class UploadReportImageCommandHandlerTests
         var result = await _sut.Handle(CreateCommand(), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal("STORAGE_UPLOAD_FAILED", result.Error.Code);
+        Assert.Equal("STORAGE_UPLOAD_FAILED", result.Error!.Code);
     }
 
     // ── Correct folder ──

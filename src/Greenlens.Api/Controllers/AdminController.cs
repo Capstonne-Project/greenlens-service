@@ -1,15 +1,30 @@
 using Greenlens.Api.Extensions;
 using Greenlens.Application.Common.Models;
 using Greenlens.Application.Features.Admin.ArchiveCategory;
+using Greenlens.Application.Features.Admin.AuditLogs.GetAuditLogById;
+using Greenlens.Application.Features.Admin.AuditLogs.GetAuditLogs;
 using Greenlens.Application.Features.Admin.CreateCategory;
 using Greenlens.Application.Features.Admin.CreateWasteTag;
 using Greenlens.Application.Features.Admin.ForceUpdateReportStatus;
 using Greenlens.Application.Features.Admin.GetAdminReports;
 using Greenlens.Application.Features.Admin.GetAdminWasteTags;
+using Greenlens.Application.Features.Admin.PenaltyFrameworks.CreatePenaltyFramework;
+using Greenlens.Application.Features.Admin.PenaltyFrameworks.DeactivatePenaltyFramework;
+using Greenlens.Application.Features.Admin.PenaltyFrameworks.GetPenaltyFrameworks;
+using Greenlens.Application.Features.Admin.PenaltyFrameworks.UpdatePenaltyFramework;
 using Greenlens.Application.Features.Admin.ToggleWasteTag;
 using Greenlens.Application.Features.Admin.UpdateCategory;
 using Greenlens.Application.Features.Admin.UpdateWasteTag;
 using Greenlens.Application.Features.Admin.UpdateUserRole;
+using Greenlens.Application.Features.Admin.ContentModeration.HideReport;
+using Greenlens.Application.Features.Admin.ContentModeration.UnhideReport;
+using Greenlens.Application.Features.Admin.SpamDashboard.GetSpamSuspects;
+using Greenlens.Application.Features.Admin.GamificationConfigs.GetGamificationConfigs;
+using Greenlens.Application.Features.Admin.GamificationConfigs.UpdateGamificationConfig;
+using Greenlens.Application.Features.Admin.NotificationTemplates.CreateNotificationTemplate;
+using Greenlens.Application.Features.Admin.NotificationTemplates.GetNotificationTemplates;
+using Greenlens.Application.Features.Admin.NotificationTemplates.PublishNotificationTemplate;
+using Greenlens.Application.Features.Admin.NotificationTemplates.TestNotificationTemplate;
 using Greenlens.Application.Features.Reports.GetReportById;
 using Greenlens.Application.Features.Users;
 using Greenlens.Application.Features.Users.CreateAccount;
@@ -239,6 +254,166 @@ public sealed class AdminController(ISender sender) : ControllerBase
         [FromRoute] Guid id, [FromBody] ToggleWasteTagRequest request, CancellationToken ct)
         => (await sender.Send(new ToggleWasteTagCommand(id, request.IsActive), ct)).ToHttpNoContent("Đã thay đổi trạng thái tag.");
 
+    // ═══════════════════════════════════════════
+    // ██  PENALTY FRAMEWORKS (BR-ADM-008)
+    // ═══════════════════════════════════════════
+
+    [HttpGet("penalty-frameworks")]
+    [SwaggerOperation(Summary = "[Admin] Danh sách khung tiền phạt", Description = "Danh sách khung mức phạt theo loại ô nhiễm và cấp vi phạm. Hỗ trợ lọc theo categoryId, violationLevel, isActive.")]
+    [SwaggerResponse(200, "Danh sách khung phạt", typeof(ApiResponse<GetPenaltyFrameworksResponse>))]
+    public async Task<IActionResult> GetPenaltyFrameworksAsync(
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
+        [FromQuery] Guid? categoryId = null,
+        [FromQuery] Domain.Enums.ViolationLevel? violationLevel = null,
+        [FromQuery] bool? isActive = null, CancellationToken ct = default)
+        => (await sender.Send(
+            new GetPenaltyFrameworksQuery(page, pageSize, categoryId, violationLevel, isActive), ct)).ToHttp();
+
+    [HttpPost("penalty-frameworks")]
+    [SwaggerOperation(Summary = "[Admin] Tạo khung tiền phạt", Description = "Tạo khung mức phạt mới cho 1 loại ô nhiễm + cấp vi phạm. MinAmount ≤ MaxAmount.")]
+    [SwaggerResponse(201, "Đã tạo", typeof(ApiResponse<CreatePenaltyFrameworkResponse>))]
+    [SwaggerResponse(409, "Đã tồn tại active entry cho category + level này", typeof(ApiResponse))]
+    public async Task<IActionResult> CreatePenaltyFrameworkAsync(
+        [FromBody] CreatePenaltyFrameworkCommand command, CancellationToken ct)
+        => (await sender.Send(command, ct)).ToHttpCreated();
+
+    [HttpPut("penalty-frameworks/{id:guid}")]
+    [SwaggerOperation(Summary = "[Admin] Cập nhật khung tiền phạt", Description = "Cập nhật mức min/max và ngày hiệu lực. Không ảnh hưởng quyết định đã ban hành.")]
+    [SwaggerResponse(200, "Đã cập nhật", typeof(ApiResponse))]
+    [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
+    public async Task<IActionResult> UpdatePenaltyFrameworkAsync(
+        [FromRoute] Guid id, [FromBody] UpdatePenaltyFrameworkRequest request, CancellationToken ct)
+        => (await sender.Send(
+            new UpdatePenaltyFrameworkCommand(id, request.MinAmount, request.MaxAmount, request.EffectiveFrom, request.EffectiveTo), ct))
+            .ToHttpNoContent("Đã cập nhật khung tiền phạt.");
+
+    [HttpPatch("penalty-frameworks/{id:guid}/toggle")]
+    [SwaggerOperation(Summary = "[Admin] Bật/tắt khung tiền phạt", Description = "Deactivate hoặc reactivate khung phạt. Khung bị tắt không dùng cho quyết định mới.")]
+    [SwaggerResponse(200, "Đã thay đổi trạng thái", typeof(ApiResponse))]
+    [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
+    public async Task<IActionResult> TogglePenaltyFrameworkAsync(
+        [FromRoute] Guid id, [FromBody] TogglePenaltyFrameworkRequest request, CancellationToken ct)
+        => (await sender.Send(new DeactivatePenaltyFrameworkCommand(id, request.Activate), ct))
+            .ToHttpNoContent("Đã thay đổi trạng thái khung phạt.");
+
+    // ═══════════════════════════════════════════
+    // ██  AUDIT LOGS (BR-ADM-010)
+    // ═══════════════════════════════════════════
+
+    [HttpGet("audit-logs")]
+    [SwaggerOperation(Summary = "[Admin] Danh sách audit log", Description = "Danh sách hành động nhạy cảm được ghi log. Lọc theo userId, entityType, action, ngày.")]
+    [SwaggerResponse(200, "Danh sách audit log", typeof(ApiResponse<GetAuditLogsResponse>))]
+    public async Task<IActionResult> GetAuditLogsAsync(
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
+        [FromQuery] Guid? userId = null, [FromQuery] string? entityType = null,
+        [FromQuery] string? action = null,
+        [FromQuery] DateTime? fromDate = null, [FromQuery] DateTime? toDate = null,
+        CancellationToken ct = default)
+        => (await sender.Send(
+            new GetAuditLogsQuery(page, pageSize, userId, entityType, action, fromDate, toDate), ct)).ToHttp();
+
+    [HttpGet("audit-logs/{id:guid}")]
+    [SwaggerOperation(Summary = "[Admin] Chi tiết audit log", Description = "Xem 1 bản ghi audit kèm OldValues/NewValues JSON.")]
+    [SwaggerResponse(200, "Chi tiết audit log", typeof(ApiResponse<AuditLogDetailResponse>))]
+    [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
+    public async Task<IActionResult> GetAuditLogByIdAsync([FromRoute] Guid id, CancellationToken ct)
+        => (await sender.Send(new GetAuditLogByIdQuery(id), ct)).ToHttp();
+
+    // ═══════════════════════════════════════════
+    // ██  CONTENT MODERATION (BR-ADM-006)
+    // ═══════════════════════════════════════════
+
+    [HttpPost("reports/{id:guid}/hide")]
+    [SwaggerOperation(Summary = "[Admin] Ẩn báo cáo", Description = "Admin ẩn báo cáo vi phạm khỏi công chúng. Reversible — dùng unhide để hiện lại.")]
+    [SwaggerResponse(200, "Đã ẩn", typeof(ApiResponse))]
+    [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
+    public async Task<IActionResult> HideReportAsync(
+        [FromRoute] Guid id, [FromBody] HideReportRequest request, CancellationToken ct)
+        => (await sender.Send(new HideReportCommand(id, request.Reason), ct))
+            .ToHttpNoContent("Đã ẩn báo cáo.");
+
+    [HttpPost("reports/{id:guid}/unhide")]
+    [SwaggerOperation(Summary = "[Admin] Hiện lại báo cáo", Description = "Admin bỏ ẩn báo cáo — hiện lại cho công chúng.")]
+    [SwaggerResponse(200, "Đã hiện lại", typeof(ApiResponse))]
+    [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
+    public async Task<IActionResult> UnhideReportAsync([FromRoute] Guid id, CancellationToken ct)
+        => (await sender.Send(new UnhideReportCommand(id), ct))
+            .ToHttpNoContent("Đã hiện lại báo cáo.");
+
+    // ═══════════════════════════════════════════
+    // ██  SPAM DASHBOARD (BR-ADM-007)
+    // ═══════════════════════════════════════════
+
+    [HttpGet("spam-suspects")]
+    [SwaggerOperation(Summary = "[Admin] Spam Dashboard", Description = "Danh sách tài khoản nghi spam theo heuristic rules (submit >5/h, reject >3/7d, AI flagged).")]
+    [SwaggerResponse(200, "Danh sách suspect", typeof(ApiResponse<GetSpamSuspectsResponse>))]
+    public async Task<IActionResult> GetSpamSuspectsAsync(
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
+        [FromQuery] int minReportsPerHour = 5,
+        [FromQuery] int minRejected7Days = 3,
+        [FromQuery] int minAiFlagged = 2, CancellationToken ct = default)
+        => (await sender.Send(
+            new GetSpamSuspectsQuery(page, pageSize, minReportsPerHour, minRejected7Days, minAiFlagged), ct)).ToHttp();
+
+    // ═══════════════════════════════════════════
+    // ██  GAMIFICATION CONFIG (BR-ADM-005)
+    // ═══════════════════════════════════════════
+
+    [HttpGet("gamification-configs")]
+    [SwaggerOperation(Summary = "[Admin] Cấu hình điểm gamification", Description = "Danh sách cấu hình điểm cho từng hành động (verify, resolve, reject...).")]
+    [SwaggerResponse(200, "Danh sách config", typeof(ApiResponse<List<GamificationConfigItem>>))]
+    public async Task<IActionResult> GetGamificationConfigsAsync(CancellationToken ct)
+        => (await sender.Send(new GetGamificationConfigsQuery(), ct)).ToHttp();
+
+    [HttpPut("gamification-configs/{id:guid}")]
+    [SwaggerOperation(Summary = "[Admin] Cập nhật điểm gamification", Description = "Thay đổi số điểm cho 1 hành động. Bật/tắt hành động.")]
+    [SwaggerResponse(200, "Đã cập nhật", typeof(ApiResponse))]
+    [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
+    public async Task<IActionResult> UpdateGamificationConfigAsync(
+        [FromRoute] Guid id, [FromBody] UpdateGamificationConfigRequest request, CancellationToken ct)
+        => (await sender.Send(
+            new UpdateGamificationConfigCommand(id, request.Points, request.Description, request.IsActive), ct))
+            .ToHttpNoContent("Đã cập nhật cấu hình điểm.");
+
+    // ═══════════════════════════════════════════
+    // ██  NOTIFICATION TEMPLATES (BR-ADM-004)
+    // ═══════════════════════════════════════════
+
+    [HttpGet("notification-templates")]
+    [SwaggerOperation(Summary = "[Admin] Danh sách template thông báo", Description = "Liệt kê tất cả notification templates. Lọc theo channel, trạng thái publish.")]
+    [SwaggerResponse(200, "Danh sách template", typeof(ApiResponse<GetNotificationTemplatesResponse>))]
+    public async Task<IActionResult> GetNotificationTemplatesAsync(
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
+        [FromQuery] string? channel = null, [FromQuery] bool? isPublished = null,
+        CancellationToken ct = default)
+        => (await sender.Send(
+            new GetNotificationTemplatesQuery(page, pageSize, channel, isPublished), ct)).ToHttp();
+
+    [HttpPost("notification-templates")]
+    [SwaggerOperation(Summary = "[Admin] Tạo template thông báo", Description = "Tạo template mới (draft). Cần publish trước khi hệ thống sử dụng.")]
+    [SwaggerResponse(201, "Đã tạo", typeof(ApiResponse<CreateNotificationTemplateResponse>))]
+    [SwaggerResponse(409, "Đã tồn tại", typeof(ApiResponse))]
+    public async Task<IActionResult> CreateNotificationTemplateAsync(
+        [FromBody] CreateNotificationTemplateCommand command, CancellationToken ct)
+        => (await sender.Send(command, ct)).ToHttpCreated();
+
+    [HttpPatch("notification-templates/{id:guid}/publish")]
+    [SwaggerOperation(Summary = "[Admin] Publish/Unpublish template", Description = "Publish template để hệ thống dùng, hoặc unpublish để tạm tắt.")]
+    [SwaggerResponse(200, "Đã thay đổi", typeof(ApiResponse))]
+    [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
+    public async Task<IActionResult> PublishNotificationTemplateAsync(
+        [FromRoute] Guid id, [FromBody] PublishTemplateRequest request, CancellationToken ct)
+        => (await sender.Send(new PublishNotificationTemplateCommand(id, request.Publish), ct))
+            .ToHttpNoContent(request.Publish ? "Đã publish template." : "Đã unpublish template.");
+
+    [HttpPost("notification-templates/{id:guid}/test")]
+    [SwaggerOperation(Summary = "[Admin] Test gửi template", Description = "Gửi thử template với dữ liệu mẫu đến admin hiện tại. Không gửi cho user thật.")]
+    [SwaggerResponse(200, "Kết quả render + gửi thử", typeof(ApiResponse<TestNotificationTemplateResponse>))]
+    [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
+    public async Task<IActionResult> TestNotificationTemplateAsync(
+        [FromRoute] Guid id, [FromBody] Dictionary<string, string> sampleData, CancellationToken ct)
+        => (await sender.Send(new TestNotificationTemplateCommand(id, sampleData), ct)).ToHttp();
+
     // ── Helpers ──
 
     private static string GetRoleDescription(UserRole role) => role switch
@@ -264,3 +439,8 @@ public sealed record RoleDto(string Name, string Description);
 public sealed record RolePermissionDto(string Role, List<string> Permissions);
 public sealed record AdminUpdateWasteTagRequest(string NameVi, string NameEn, string? IconUrl, string? Description, int DisplayOrder);
 public sealed record ToggleWasteTagRequest(bool IsActive);
+public sealed record UpdatePenaltyFrameworkRequest(decimal MinAmount, decimal MaxAmount, DateTime EffectiveFrom, DateTime? EffectiveTo);
+public sealed record TogglePenaltyFrameworkRequest(bool Activate);
+public sealed record HideReportRequest(string Reason);
+public sealed record UpdateGamificationConfigRequest(int Points, string Description, bool IsActive);
+public sealed record PublishTemplateRequest(bool Publish = true);

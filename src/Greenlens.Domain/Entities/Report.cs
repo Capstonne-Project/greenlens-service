@@ -95,6 +95,13 @@ public sealed class Report : SoftDeletableEntity
     /// <summary>BR-REP-008: Report pending > 72h.</summary>
     public bool IsOverdue { get; private set; }
 
+    // ── Content Moderation (BR-ADM-006) ──
+    /// <summary>Admin-hidden content. Reversible soft-hide, separate from soft-delete.</summary>
+    public bool IsHidden { get; private set; }
+    public DateTime? HiddenAt { get; private set; }
+    public Guid? HiddenBy { get; private set; }
+    public string? HiddenReason { get; private set; }
+
     // ── Navigation properties ──
     public User? Reporter { get; private set; }
     public PollutionCategory Category { get; private set; } = default!;
@@ -400,5 +407,29 @@ public sealed class Report : SoftDeletableEntity
     {
         Status = newStatus;
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    // ────────────────────────────────────────────────────
+    // Content Moderation (BR-ADM-006)
+    // ────────────────────────────────────────────────────
+
+    /// <summary>Admin hides this report from public view. Reversible.</summary>
+    /// <remarks>Implements: BR-ADM-006.</remarks>
+    public void Hide(Guid adminId, string reason)
+    {
+        IsHidden = true;
+        HiddenAt = DateTime.UtcNow;
+        HiddenBy = adminId;
+        HiddenReason = reason;
+    }
+
+    /// <summary>Admin unhides this report, making it visible again.</summary>
+    /// <remarks>Implements: BR-ADM-006.</remarks>
+    public void Unhide()
+    {
+        IsHidden = false;
+        HiddenAt = null;
+        HiddenBy = null;
+        HiddenReason = null;
     }
 }

@@ -33,7 +33,7 @@ public sealed class GetCompanyAssignmentsQueryHandler(
 
         // ── 2. Build query: all assignments where team belongs to this company ──
         var baseQuery = assignments.QueryAsNoTracking()
-            .Include(a => a.Report).ThenInclude(r => r.Category)
+            .Include(a => a.Report).ThenInclude(r => r!.Category)
             .Include(a => a.Team).ThenInclude(t => t!.Members)
             .Include(a => a.AssignedByUser)
             .Where(a => a.Team!.CompanyId == companyId);

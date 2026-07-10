@@ -112,7 +112,12 @@ public sealed class GetOfficerQueueQueryHandler(
                 r.PriorityScore,
                 r.CreatedAt,
                 r.SlaVerifyDueAt,
-                r.SlaResolveDueAt))
+                r.SlaResolveDueAt,
+                r.Media
+                    .Where(m => m.Type == MediaType.Image)
+                    .OrderBy(m => m.UploadedAt)
+                    .Select(m => m.ThumbnailUrl ?? m.Url)
+                    .FirstOrDefault()))
             .ToListAsync(ct)
             .ConfigureAwait(false);
 

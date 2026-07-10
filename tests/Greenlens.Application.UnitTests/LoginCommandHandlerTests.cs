@@ -47,7 +47,7 @@ public sealed class LoginCommandHandlerTests
         var result = await _sut.Handle(new LoginCommand("test@test.com", "password123"), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal("access-token", result.Value.AccessToken);
+        Assert.Equal("access-token", result.Value!.AccessToken);
         Assert.Equal("refresh-token", result.Value.RefreshToken);
         Assert.Equal(user.Email, result.Value.User.Email);
     }
@@ -60,7 +60,7 @@ public sealed class LoginCommandHandlerTests
         var result = await _sut.Handle(new LoginCommand("unknown@test.com", "pass"), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal("INVALID_CREDENTIALS", result.Error.Code);
+        Assert.Equal("INVALID_CREDENTIALS", result.Error!.Code);
     }
 
     [Fact]
@@ -73,7 +73,7 @@ public sealed class LoginCommandHandlerTests
         var result = await _sut.Handle(new LoginCommand("test@test.com", "wrong"), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal("INVALID_CREDENTIALS", result.Error.Code);
+        Assert.Equal("INVALID_CREDENTIALS", result.Error!.Code);
         Assert.Equal(1, user.FailedLoginAttempts);
         await _uow.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
@@ -89,7 +89,7 @@ public sealed class LoginCommandHandlerTests
         var result = await _sut.Handle(new LoginCommand("test@test.com", "pass"), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal("ACCOUNT_LOCKED", result.Error.Code);
+        Assert.Equal("ACCOUNT_LOCKED", result.Error!.Code);
     }
 
     [Fact]

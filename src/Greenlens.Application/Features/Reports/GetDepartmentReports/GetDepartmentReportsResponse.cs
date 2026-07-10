@@ -37,4 +37,5 @@ public sealed record DepartmentReportItem(
     DateTime? ResolvedAt,
     DateTime? ClosedAt,
     DateTime? SlaVerifyDueAt,
-    DateTime? SlaResolveDueAt);
+    DateTime? SlaResolveDueAt,
+    string? FirstImageUrl);
