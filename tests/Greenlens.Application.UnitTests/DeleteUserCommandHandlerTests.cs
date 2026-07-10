@@ -45,7 +45,7 @@ public sealed class DeleteUserCommandHandlerTests
         var result = await _sut.Handle(new DeleteUserCommand(AdminId), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal("CANNOT_DELETE_SELF", result.Error.Code);
+        Assert.Equal("CANNOT_DELETE_SELF", result.Error!.Code);
     }
 
     [Fact]
@@ -56,7 +56,7 @@ public sealed class DeleteUserCommandHandlerTests
         var result = await _sut.Handle(new DeleteUserCommand(TargetUserId), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal("USER_NOT_FOUND", result.Error.Code);
+        Assert.Equal("USER_NOT_FOUND", result.Error!.Code);
     }
 
     [Fact]

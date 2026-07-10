@@ -1,3 +1,4 @@
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Models;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
@@ -10,7 +11,7 @@ namespace Greenlens.Application.Features.Admin.AuditLogs.GetAuditLogs;
 /// Returns a paginated list of audit log entries with optional filters.
 /// </summary>
 /// <remarks>Implements: BR-ADM-010.</remarks>
-public sealed class GetAuditLogsQueryHandler(DbContext db)
+public sealed class GetAuditLogsQueryHandler(IApplicationDbContext db)
     : IRequestHandler<GetAuditLogsQuery, Result<GetAuditLogsResponse>>
 {
     public async Task<Result<GetAuditLogsResponse>> Handle(

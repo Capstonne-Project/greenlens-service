@@ -1,7 +1,7 @@
+using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace Greenlens.Application.Features.Admin.PenaltyFrameworks.CreatePenaltyFramework;
 
@@ -10,7 +10,9 @@ namespace Greenlens.Application.Features.Admin.PenaltyFrameworks.CreatePenaltyFr
 /// </summary>
 /// <remarks>Implements: BR-ADM-008.</remarks>
 public sealed class CreatePenaltyFrameworkCommandHandler(
-    DbContext db)
+    IPollutionCategoryRepository pollutionCategories,
+    IPenaltyFrameworkRepository penaltyFrameworks,
+    IUnitOfWork uow)
     : IRequestHandler<CreatePenaltyFrameworkCommand, Result<CreatePenaltyFrameworkResponse>>
 {
     public async Task<Result<CreatePenaltyFrameworkResponse>> Handle(
@@ -18,8 +20,8 @@ public sealed class CreatePenaltyFrameworkCommandHandler(
         CancellationToken ct)
     {
         // Verify category exists
-        var categoryExists = await db.Set<PollutionCategory>()
-            .AnyAsync(c => c.Id == request.CategoryId, ct)
+        var categoryExists = await pollutionCategories
+            .ExistsAsync(c => c.Id == request.CategoryId, ct)
             .ConfigureAwait(false);
 
         if (!categoryExists)
@@ -27,10 +29,10 @@ public sealed class CreatePenaltyFrameworkCommandHandler(
                 new Error("PenaltyFramework.CategoryNotFound", "Pollution category not found.", ErrorType.NotFound));
 
         // Check for duplicate active entry: same category + level + active
-        var duplicate = await db.Set<PenaltyFramework>()
-            .AnyAsync(p => p.CategoryId == request.CategoryId
-                        && p.ViolationLevel == request.ViolationLevel
-                        && p.IsActive, ct)
+        var duplicate = await penaltyFrameworks
+            .ExistsAsync(p => p.CategoryId == request.CategoryId
+                              && p.ViolationLevel == request.ViolationLevel
+                              && p.IsActive, ct)
             .ConfigureAwait(false);
 
         if (duplicate)
@@ -47,8 +49,8 @@ public sealed class CreatePenaltyFrameworkCommandHandler(
             request.EffectiveFrom,
             request.EffectiveTo);
 
-        db.Set<PenaltyFramework>().Add(entity);
-        await db.SaveChangesAsync(ct).ConfigureAwait(false);
+        penaltyFrameworks.Add(entity);
+        await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 
         return new CreatePenaltyFrameworkResponse(
             entity.Id,

@@ -1,7 +1,7 @@
+using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace Greenlens.Application.Features.Admin.NotificationTemplates.CreateNotificationTemplate;
 
@@ -9,15 +9,17 @@ namespace Greenlens.Application.Features.Admin.NotificationTemplates.CreateNotif
 /// Creates a new notification template in draft state (not published).
 /// </summary>
 /// <remarks>Implements: BR-ADM-004.</remarks>
-public sealed class CreateNotificationTemplateCommandHandler(DbContext db)
+public sealed class CreateNotificationTemplateCommandHandler(
+    INotificationTemplateRepository templates,
+    IUnitOfWork uow)
     : IRequestHandler<CreateNotificationTemplateCommand, Result<CreateNotificationTemplateResponse>>
 {
     public async Task<Result<CreateNotificationTemplateResponse>> Handle(
         CreateNotificationTemplateCommand request,
         CancellationToken ct)
     {
-        var duplicate = await db.Set<NotificationTemplate>()
-            .AnyAsync(t => t.TemplateKey == request.TemplateKey && t.Channel == request.Channel, ct)
+        var duplicate = await templates
+            .ExistsAsync(t => t.TemplateKey == request.TemplateKey && t.Channel == request.Channel, ct)
             .ConfigureAwait(false);
 
         if (duplicate)
@@ -30,8 +32,8 @@ public sealed class CreateNotificationTemplateCommandHandler(DbContext db)
             request.TemplateKey, request.TitleVi, request.BodyVi,
             request.TitleEn, request.BodyEn, request.Channel, request.Type);
 
-        db.Set<NotificationTemplate>().Add(entity);
-        await db.SaveChangesAsync(ct).ConfigureAwait(false);
+        templates.Add(entity);
+        await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 
         return new CreateNotificationTemplateResponse(entity.Id, entity.TemplateKey, entity.IsPublished);
     }

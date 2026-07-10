@@ -569,10 +569,12 @@ public sealed class ReportsController(ISender sender) : ControllerBase
     // ██  CITIZEN SATISFACTION (BR-REP-018)
     // ═══════════════════════════════════════════
 
-    /// <summary>Citizen đánh giá báo cáo sau khi Resolved/Closed.</summary>
     [HttpPost("{id:guid}/rate")]
     [Authorize]
-    [SwaggerOperation(Tags = ["📋 Reports — Citizen Flow"])]
+    [Tags("📋 Reports — Citizen Flow")]
+    [SwaggerOperation(
+        Summary = "[Citizen] Đánh giá chất lượng xử lý báo cáo",
+        Description = "Citizen đánh giá mức độ hài lòng đối với báo cáo sau khi đã được Resolved hoặc Closed (BR-REP-018).")]
     [ProducesResponseType(typeof(RateReportResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -587,10 +589,12 @@ public sealed class ReportsController(ISender sender) : ControllerBase
     // ██  DRAFT MANAGEMENT (BR-REP-019)
     // ═══════════════════════════════════════════
 
-    /// <summary>Tạo mới hoặc cập nhật bản nháp. Max 3 per user.</summary>
     [HttpPost("drafts")]
     [Authorize]
-    [SwaggerOperation(Tags = ["📋 Reports — Citizen Flow"])]
+    [Tags("📋 Reports — Citizen Flow")]
+    [SwaggerOperation(
+        Summary = "[Citizen] Tạo hoặc cập nhật bản nháp báo cáo",
+        Description = "Lưu bản nháp của báo cáo ô nhiễm môi trường. Giới hạn tối đa 3 bản nháp đồng thời cho mỗi tài khoản người dùng (BR-REP-019).")]
     [ProducesResponseType(typeof(SaveDraftResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> SaveDraftAsync(
@@ -599,18 +603,22 @@ public sealed class ReportsController(ISender sender) : ControllerBase
         => (await sender.Send(
             new SaveDraftCommand(body.DraftId, body.Payload), ct)).ToHttp();
 
-    /// <summary>Lấy danh sách bản nháp của tôi.</summary>
     [HttpGet("drafts")]
     [Authorize]
-    [SwaggerOperation(Tags = ["📋 Reports — Citizen Flow"])]
+    [Tags("📋 Reports — Citizen Flow")]
+    [SwaggerOperation(
+        Summary = "[Citizen] Lấy danh sách các bản nháp cá nhân",
+        Description = "Trả về danh sách các bản nháp báo cáo đang hoạt động của người dùng.")]
     [ProducesResponseType(typeof(GetMyDraftsResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMyDraftsAsync(CancellationToken ct)
         => (await sender.Send(new GetMyDraftsQuery(), ct)).ToHttp();
 
-    /// <summary>Xóa bản nháp.</summary>
     [HttpDelete("drafts/{draftId:guid}")]
     [Authorize]
-    [SwaggerOperation(Tags = ["📋 Reports — Citizen Flow"])]
+    [Tags("📋 Reports — Citizen Flow")]
+    [SwaggerOperation(
+        Summary = "[Citizen] Xóa bản nháp",
+        Description = "Xóa một bản nháp báo cáo ô nhiễm cụ thể bằng ID.")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteDraftAsync(

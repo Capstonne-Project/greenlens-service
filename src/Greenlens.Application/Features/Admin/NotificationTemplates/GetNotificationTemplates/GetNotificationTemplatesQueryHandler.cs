@@ -1,3 +1,4 @@
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
@@ -7,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Greenlens.Application.Features.Admin.NotificationTemplates.GetNotificationTemplates;
 
 /// <remarks>Implements: BR-ADM-004.</remarks>
-public sealed class GetNotificationTemplatesQueryHandler(DbContext db)
+public sealed class GetNotificationTemplatesQueryHandler(IApplicationDbContext db)
     : IRequestHandler<GetNotificationTemplatesQuery, Result<GetNotificationTemplatesResponse>>
 {
     public async Task<Result<GetNotificationTemplatesResponse>> Handle(

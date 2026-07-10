@@ -1,7 +1,6 @@
+using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
-using Greenlens.Domain.Entities;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace Greenlens.Application.Features.Admin.PenaltyFrameworks.DeactivatePenaltyFramework;
 
@@ -9,14 +8,14 @@ namespace Greenlens.Application.Features.Admin.PenaltyFrameworks.DeactivatePenal
 /// Deactivates or reactivates a PenaltyFramework entry.
 /// </summary>
 /// <remarks>Implements: BR-ADM-008.</remarks>
-public sealed class DeactivatePenaltyFrameworkCommandHandler(DbContext db)
+public sealed class DeactivatePenaltyFrameworkCommandHandler(
+    IPenaltyFrameworkRepository penaltyFrameworks,
+    IUnitOfWork uow)
     : IRequestHandler<DeactivatePenaltyFrameworkCommand, Result>
 {
     public async Task<Result> Handle(DeactivatePenaltyFrameworkCommand request, CancellationToken ct)
     {
-        var entity = await db.Set<PenaltyFramework>()
-            .FirstOrDefaultAsync(p => p.Id == request.Id, ct)
-            .ConfigureAwait(false);
+        var entity = await penaltyFrameworks.GetByIdAsync(request.Id, ct).ConfigureAwait(false);
 
         if (entity is null)
             return Result.Failure(
@@ -27,7 +26,7 @@ public sealed class DeactivatePenaltyFrameworkCommandHandler(DbContext db)
         else
             entity.Deactivate();
 
-        await db.SaveChangesAsync(ct).ConfigureAwait(false);
+        await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 
         return Result.Success();
     }

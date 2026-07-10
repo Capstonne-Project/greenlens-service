@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
 using Greenlens.Application.Common.Interfaces;
+using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
-using Greenlens.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,7 +12,7 @@ namespace Greenlens.Application.Features.Admin.NotificationTemplates.TestNotific
 /// </summary>
 /// <remarks>Implements: BR-ADM-004 (test gửi trước khi publish).</remarks>
 public sealed class TestNotificationTemplateCommandHandler(
-    DbContext db,
+    INotificationTemplateRepository templates,
     ICurrentUser currentUser,
     INotificationService notificationService)
     : IRequestHandler<TestNotificationTemplateCommand, Result<TestNotificationTemplateResponse>>
@@ -23,8 +23,7 @@ public sealed class TestNotificationTemplateCommandHandler(
         TestNotificationTemplateCommand request,
         CancellationToken ct)
     {
-        var template = await db.Set<NotificationTemplate>()
-            .AsNoTracking()
+        var template = await templates.QueryAsNoTracking()
             .FirstOrDefaultAsync(t => t.Id == request.TemplateId, ct)
             .ConfigureAwait(false);
 

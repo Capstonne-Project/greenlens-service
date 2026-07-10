@@ -1,3 +1,4 @@
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
@@ -11,7 +12,7 @@ namespace Greenlens.Application.Features.Admin.SpamDashboard.GetSpamSuspects;
 /// No real-time AI calls — reads pre-computed AI flags from DB.
 /// </summary>
 /// <remarks>Implements: BR-ADM-007.</remarks>
-public sealed class GetSpamSuspectsQueryHandler(DbContext db)
+public sealed class GetSpamSuspectsQueryHandler(IApplicationDbContext db)
     : IRequestHandler<GetSpamSuspectsQuery, Result<GetSpamSuspectsResponse>>
 {
     public async Task<Result<GetSpamSuspectsResponse>> Handle(

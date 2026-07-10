@@ -46,6 +46,9 @@ public static class DependencyInjection
                 Microsoft.EntityFrameworkCore.Diagnostics.CoreEventId.PossibleIncorrectRequiredNavigationWithQueryFilterInteractionWarning,
                 Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
 
+        services.AddScoped<IApplicationDbContext>(
+            sp => sp.GetRequiredService<ApplicationDbContext>());
+
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IOtpRepository, OtpRepository>();
@@ -77,6 +80,11 @@ public static class DependencyInjection
         services.AddScoped<IUserPointsRepository, UserPointsRepository>();
         services.AddScoped<IBadgeRepository, BadgeRepository>();
         services.AddScoped<IUserBadgeRepository, UserBadgeRepository>();
+
+        // ── Administration module (BR-ADM-*) ──
+        services.AddScoped<IPenaltyFrameworkRepository, PenaltyFrameworkRepository>();
+        services.AddScoped<IGamificationConfigRepository, GamificationConfigRepository>();
+        services.AddScoped<INotificationTemplateRepository, NotificationTemplateRepository>();
 
         // ── Notification module (BR-NTF-001..004) ──
         services.AddScoped<INotificationRepository, NotificationRepository>();

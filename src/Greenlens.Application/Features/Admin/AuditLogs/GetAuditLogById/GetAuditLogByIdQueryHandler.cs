@@ -1,3 +1,4 @@
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using MediatR;
@@ -9,7 +10,7 @@ namespace Greenlens.Application.Features.Admin.AuditLogs.GetAuditLogById;
 /// Returns a single audit log entry with full values for admin detail view.
 /// </summary>
 /// <remarks>Implements: BR-ADM-010.</remarks>
-public sealed class GetAuditLogByIdQueryHandler(DbContext db)
+public sealed class GetAuditLogByIdQueryHandler(IApplicationDbContext db)
     : IRequestHandler<GetAuditLogByIdQuery, Result<AuditLogDetailResponse>>
 {
     public async Task<Result<AuditLogDetailResponse>> Handle(

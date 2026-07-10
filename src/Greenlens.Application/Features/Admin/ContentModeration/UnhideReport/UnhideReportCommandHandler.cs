@@ -1,7 +1,6 @@
+using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
-using Greenlens.Domain.Entities;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace Greenlens.Application.Features.Admin.ContentModeration.UnhideReport;
 
@@ -9,14 +8,14 @@ namespace Greenlens.Application.Features.Admin.ContentModeration.UnhideReport;
 /// Admin unhides a previously hidden report, restoring public visibility.
 /// </summary>
 /// <remarks>Implements: BR-ADM-006.</remarks>
-public sealed class UnhideReportCommandHandler(DbContext db)
+public sealed class UnhideReportCommandHandler(
+    IReportRepository reports,
+    IUnitOfWork uow)
     : IRequestHandler<UnhideReportCommand, Result>
 {
     public async Task<Result> Handle(UnhideReportCommand request, CancellationToken ct)
     {
-        var report = await db.Set<Report>()
-            .FirstOrDefaultAsync(r => r.Id == request.ReportId, ct)
-            .ConfigureAwait(false);
+        var report = await reports.GetByIdAsync(request.ReportId, ct).ConfigureAwait(false);
 
         if (report is null)
             return Result.Failure(new Error("Report.NotFound", "Báo cáo không tồn tại.", ErrorType.NotFound));
@@ -25,7 +24,7 @@ public sealed class UnhideReportCommandHandler(DbContext db)
             return Result.Failure(new Error("Report.NotHidden", "Báo cáo không bị ẩn.", ErrorType.Conflict));
 
         report.Unhide();
-        await db.SaveChangesAsync(ct).ConfigureAwait(false);
+        await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 
         return Result.Success();
     }

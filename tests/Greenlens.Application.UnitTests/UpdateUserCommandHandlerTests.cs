@@ -62,6 +62,6 @@ public sealed class UpdateUserCommandHandlerTests
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal("USER_NOT_FOUND", result.Error.Code);
+        Assert.Equal("USER_NOT_FOUND", result.Error!.Code);
     }
 }

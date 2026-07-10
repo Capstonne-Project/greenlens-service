@@ -1,3 +1,4 @@
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Models;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
@@ -10,7 +11,7 @@ namespace Greenlens.Application.Features.Admin.PenaltyFrameworks.GetPenaltyFrame
 /// Returns a paginated list of penalty framework entries with optional filters.
 /// </summary>
 /// <remarks>Implements: BR-ADM-008.</remarks>
-public sealed class GetPenaltyFrameworksQueryHandler(DbContext db)
+public sealed class GetPenaltyFrameworksQueryHandler(IApplicationDbContext db)
     : IRequestHandler<GetPenaltyFrameworksQuery, Result<GetPenaltyFrameworksResponse>>
 {
     public async Task<Result<GetPenaltyFrameworksResponse>> Handle(

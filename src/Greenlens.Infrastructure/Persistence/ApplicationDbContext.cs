@@ -8,7 +8,7 @@ namespace Greenlens.Infrastructure.Persistence;
 internal sealed class ApplicationDbContext(
     DbContextOptions<ApplicationDbContext> options,
     ICurrentUser? currentUser = null)
-    : DbContext(options)
+    : DbContext(options), IApplicationDbContext
 {
     public DbSet<User> Users => Set<User>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();

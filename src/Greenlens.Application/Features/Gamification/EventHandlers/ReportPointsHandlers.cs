@@ -1,10 +1,11 @@
 using Greenlens.Application.Features.Gamification.AwardPoints;
 using Greenlens.Application.Features.Gamification.CheckBadges;
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore;
 
 namespace Greenlens.Application.Features.Gamification.EventHandlers;
 
@@ -16,7 +17,7 @@ namespace Greenlens.Application.Features.Gamification.EventHandlers;
 /// <remarks>Implements: BR-GAM-001, BR-ADM-005.</remarks>
 public sealed class ReportVerifiedPointsHandler(
     ISender sender,
-    DbContext db,
+    IApplicationDbContext db,
     ILogger<ReportVerifiedPointsHandler> logger)
     : INotificationHandler<ReportVerifiedEvent>
 {
@@ -51,7 +52,7 @@ public sealed class ReportVerifiedPointsHandler(
 
 public sealed class ReportResolvedPointsHandler(
     ISender sender,
-    DbContext db,
+    IApplicationDbContext db,
     ILogger<ReportResolvedPointsHandler> logger)
     : INotificationHandler<ReportResolvedEvent>
 {
@@ -85,7 +86,7 @@ public sealed class ReportResolvedPointsHandler(
 
 public sealed class ReportRejectedPointsHandler(
     ISender sender,
-    DbContext db,
+    IApplicationDbContext db,
     ILogger<ReportRejectedPointsHandler> logger)
     : INotificationHandler<ReportRejectedEvent>
 {

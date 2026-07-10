@@ -1,3 +1,4 @@
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using MediatR;
@@ -9,7 +10,7 @@ namespace Greenlens.Application.Features.Admin.GamificationConfigs.GetGamificati
 /// Returns all gamification point configurations (small dataset, no pagination).
 /// </summary>
 /// <remarks>Implements: BR-ADM-005.</remarks>
-public sealed class GetGamificationConfigsQueryHandler(DbContext db)
+public sealed class GetGamificationConfigsQueryHandler(IApplicationDbContext db)
     : IRequestHandler<GetGamificationConfigsQuery, Result<List<GamificationConfigItem>>>
 {
     public async Task<Result<List<GamificationConfigItem>>> Handle(
