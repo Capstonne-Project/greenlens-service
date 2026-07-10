@@ -37,6 +37,10 @@ public sealed class EscalateReportCommandHandler(
         if (report.Status is not (ReportStatus.Verified or ReportStatus.InProgress))
             return Errors.Reports.InvalidStatusTransition;
 
+        // BR-OFF-004: conflict of interest — cannot escalate own report
+        if (report.ReporterId == currentUser.UserId)
+            return Errors.Reports.ConflictOfInterest;
+
         // LEO must belong to the same office
         var leo = await users.GetByIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
         if (leo is null)

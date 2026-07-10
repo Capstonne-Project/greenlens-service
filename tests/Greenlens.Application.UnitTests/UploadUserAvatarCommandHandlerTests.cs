@@ -43,7 +43,7 @@ public sealed class UploadUserAvatarCommandHandlerTests
         var result = await _sut.Handle(CreateCommand(), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal("https://cdn/avatar.jpg", result.Value.AvatarUrl);
+        Assert.Equal("https://cdn/avatar.jpg", result.Value!.AvatarUrl);
         Assert.Equal("https://cdn/avatar.jpg", user.AvatarUrl);
         await _uow.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
@@ -57,7 +57,7 @@ public sealed class UploadUserAvatarCommandHandlerTests
         var result = await _sut.Handle(CreateCommand(contentType: contentType), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal("INVALID_FILE_TYPE", result.Error.Code);
+        Assert.Equal("INVALID_FILE_TYPE", result.Error!.Code);
     }
 
     [Fact]
@@ -66,7 +66,7 @@ public sealed class UploadUserAvatarCommandHandlerTests
         var result = await _sut.Handle(CreateCommand(size: 6 * 1024 * 1024), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal("FILE_TOO_LARGE", result.Error.Code);
+        Assert.Equal("FILE_TOO_LARGE", result.Error!.Code);
     }
 
     [Fact]
@@ -77,7 +77,7 @@ public sealed class UploadUserAvatarCommandHandlerTests
         var result = await _sut.Handle(CreateCommand(), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal("USER_NOT_FOUND", result.Error.Code);
+        Assert.Equal("USER_NOT_FOUND", result.Error!.Code);
     }
 
     [Fact]
@@ -92,7 +92,7 @@ public sealed class UploadUserAvatarCommandHandlerTests
         var result = await _sut.Handle(CreateCommand(), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal("STORAGE_UPLOAD_FAILED", result.Error.Code);
+        Assert.Equal("STORAGE_UPLOAD_FAILED", result.Error!.Code);
     }
 
     [Fact]

@@ -1,11 +1,13 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Common.Options;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Greenlens.Application.Features.Reports.AssignCompanyTeam;
 
@@ -23,6 +25,7 @@ public sealed class AssignCompanyTeamCommandHandler(
     ICompanyStaffRepository companyStaff,
     ICurrentUser currentUser,
     IUnitOfWork uow,
+    IOptions<WorkloadLimitsOptions> workloadOptions,
     ILogger<AssignCompanyTeamCommandHandler> logger) : IRequestHandler<AssignCompanyTeamCommand, Result>
 {
     public async Task<Result> Handle(AssignCompanyTeamCommand request, CancellationToken ct)
@@ -59,10 +62,14 @@ public sealed class AssignCompanyTeamCommandHandler(
             if (team.CompanyId != callerCompanyId)
                 return Errors.Reports.ReportNotDispatchedToYourCompany;
 
-            // BR-OFF-013: team can only handle 1 task at a time
+            // BR-OFF-013: configurable workload limit (default 6, warning at 5)
+            var limits = workloadOptions.Value;
             var workload = await assignments.CountInProgressByTeamAsync(item.TeamId, ct).ConfigureAwait(false);
-            if (workload >= 1)
+            if (workload >= limits.MaxTasksPerTeam)
                 return Errors.Reports.TeamWorkloadExceeded;
+            if (workload >= limits.WarningThreshold)
+                logger.LogWarning("Company team {TeamId} approaching workload limit: {Current}/{Max}",
+                    item.TeamId, workload, limits.MaxTasksPerTeam);
         }
 
         // Create assignments

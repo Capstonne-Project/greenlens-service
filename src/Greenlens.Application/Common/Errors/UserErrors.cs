@@ -35,6 +35,12 @@ public static partial class Errors
             "STORAGE_UPLOAD_FAILED",
             "Không thể tải file lên máy chủ lưu trữ. Vui lòng thử lại sau.",
             ErrorType.Unexpected);
+
+        /// <summary>BR-DAT-005: User must accept data consent before submitting reports.</summary>
+        public static Error DataConsentRequired => new(
+            "DATA_CONSENT_REQUIRED",
+            "Bạn cần đồng ý chính sách xử lý dữ liệu trước khi gửi báo cáo.",
+            ErrorType.Forbidden);
     }
 
     public static class Phone

@@ -13,4 +13,7 @@ public interface IReportAssignmentRepository : IGenericRepository<ReportAssignme
         int page,
         int pageSize,
         CancellationToken ct = default);
+
+    /// <summary>BR-CMP-013: Get all active (Assigned/InProgress) assignments for teams of a company.</summary>
+    Task<List<ReportAssignment>> GetActiveByCompanyTeamsAsync(Guid companyId, CancellationToken ct = default);
 }

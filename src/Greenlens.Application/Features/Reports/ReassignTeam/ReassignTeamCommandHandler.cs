@@ -1,11 +1,13 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Common.Options;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Greenlens.Application.Features.Reports.ReassignTeam;
 
@@ -16,6 +18,7 @@ public sealed class ReassignTeamCommandHandler(
     IReportAssignmentRepository assignments,
     ICurrentUser currentUser,
     IUnitOfWork uow,
+    IOptions<WorkloadLimitsOptions> workloadOptions,
     ILogger<ReassignTeamCommandHandler> logger) : IRequestHandler<ReassignTeamCommand, Result>
 {
     public async Task<Result> Handle(ReassignTeamCommand request, CancellationToken ct)
@@ -37,9 +40,10 @@ public sealed class ReassignTeamCommandHandler(
         if (oldTeam.TeamType != newTeam.TeamType)
             return Errors.Reports.ReassignSameTeamType;
 
-        // BR-OFF-013: team can only handle 1 task at a time
+        // BR-OFF-013: configurable workload limit (default 6, warning at 5)
+        var limits = workloadOptions.Value;
         var workload = await assignments.CountInProgressByTeamAsync(request.NewTeamId, ct).ConfigureAwait(false);
-        if (workload >= 1)
+        if (workload >= limits.MaxTasksPerTeam)
             return Errors.Reports.TeamWorkloadExceeded;
 
         // Find and update assignment

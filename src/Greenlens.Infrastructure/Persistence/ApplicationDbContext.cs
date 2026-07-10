@@ -8,7 +8,7 @@ namespace Greenlens.Infrastructure.Persistence;
 internal sealed class ApplicationDbContext(
     DbContextOptions<ApplicationDbContext> options,
     ICurrentUser? currentUser = null)
-    : DbContext(options)
+    : DbContext(options), IApplicationDbContext
 {
     public DbSet<User> Users => Set<User>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
@@ -37,6 +37,7 @@ internal sealed class ApplicationDbContext(
     public DbSet<EnvironmentalServiceCompany> EnvironmentalServiceCompanies => Set<EnvironmentalServiceCompany>();
     public DbSet<CompanyStaff> CompanyStaff => Set<CompanyStaff>();
     public DbSet<CompanyServiceArea> CompanyServiceAreas => Set<CompanyServiceArea>();
+    public DbSet<ContractPeriod> ContractPeriods => Set<ContractPeriod>();
 
     // ── Gamification module (v1.2) ──
     public DbSet<UserPoints> UserPoints => Set<UserPoints>();
@@ -53,6 +54,12 @@ internal sealed class ApplicationDbContext(
 
     // ── Staff Invitation (BR-ORG-021) ──
     public DbSet<StaffInvitation> StaffInvitations => Set<StaffInvitation>();
+
+    // ── Administration module (BR-ADM-*) ──
+    public DbSet<PenaltyFramework> PenaltyFrameworks => Set<PenaltyFramework>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<GamificationConfig> GamificationConfigs => Set<GamificationConfig>();
+    public DbSet<NotificationTemplate> NotificationTemplates => Set<NotificationTemplate>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -33,7 +33,7 @@ public sealed class RegisterCommandHandlerTests
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal("new@test.com", result.Value.Email);
+        Assert.Equal("new@test.com", result.Value!.Email);
         _users.Received(1).Add(Arg.Any<User>());
         _otps.Received(1).Add(Arg.Any<OtpCode>());
         await _uow.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
@@ -67,7 +67,7 @@ public sealed class RegisterCommandHandlerTests
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal("EMAIL_TAKEN", result.Error.Code);
+        Assert.Equal("EMAIL_TAKEN", result.Error!.Code);
     }
 
     [Fact]

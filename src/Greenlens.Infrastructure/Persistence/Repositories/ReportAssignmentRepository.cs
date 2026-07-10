@@ -42,4 +42,13 @@ internal sealed class ReportAssignmentRepository(ApplicationDbContext db)
 
         return (items, total);
     }
+
+    /// <inheritdoc />
+    public Task<List<ReportAssignment>> GetActiveByCompanyTeamsAsync(Guid companyId, CancellationToken ct)
+        => Query()
+            .Include(a => a.Report)
+            .Include(a => a.Team)
+            .Where(a => a.Team!.CompanyId == companyId
+                && (a.Status == AssignmentStatus.Assigned || a.Status == AssignmentStatus.InProgress))
+            .ToListAsync(ct);
 }

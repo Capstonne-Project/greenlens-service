@@ -6,6 +6,7 @@ using Greenlens.Application.Common.Behaviors;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Infrastructure.Ai;
+using Greenlens.Infrastructure.Audit;
 using Greenlens.Infrastructure.Email;
 using Greenlens.Infrastructure.Identity;
 using Greenlens.Infrastructure.Persistence;
@@ -14,6 +15,7 @@ using Greenlens.Infrastructure.Persistence.Repositories.Location;
 using Greenlens.Infrastructure.BackgroundJobs;
 using Greenlens.Infrastructure.DomainEvents;
 using Greenlens.Infrastructure.Notifications;
+using Greenlens.Infrastructure.Services;
 using Hangfire;
 using Hangfire.PostgreSql;
 
@@ -41,7 +43,11 @@ public static class DependencyInjection
                 o => o.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName))
             .UseSnakeCaseNamingConvention()
             .ConfigureWarnings(w => w.Ignore(
-                Microsoft.EntityFrameworkCore.Diagnostics.CoreEventId.PossibleIncorrectRequiredNavigationWithQueryFilterInteractionWarning)));
+                Microsoft.EntityFrameworkCore.Diagnostics.CoreEventId.PossibleIncorrectRequiredNavigationWithQueryFilterInteractionWarning,
+                Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
+
+        services.AddScoped<IApplicationDbContext>(
+            sp => sp.GetRequiredService<ApplicationDbContext>());
 
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
@@ -52,6 +58,8 @@ public static class DependencyInjection
         services.AddScoped<IReportStatusHistoryRepository, ReportStatusHistoryRepository>();
         services.AddScoped<IWasteTagRepository, WasteTagRepository>();
         services.AddScoped<IReportWasteTagRepository, ReportWasteTagRepository>();
+        services.AddScoped<IReportDraftRepository, ReportDraftRepository>();
+        services.AddScoped<IReportSatisfactionRepository, ReportSatisfactionRepository>();
 
         // ── Organization module (v1.1) ──
         services.AddScoped<IDepartmentRepository, DepartmentRepository>();
@@ -72,6 +80,11 @@ public static class DependencyInjection
         services.AddScoped<IUserPointsRepository, UserPointsRepository>();
         services.AddScoped<IBadgeRepository, BadgeRepository>();
         services.AddScoped<IUserBadgeRepository, UserBadgeRepository>();
+
+        // ── Administration module (BR-ADM-*) ──
+        services.AddScoped<IPenaltyFrameworkRepository, PenaltyFrameworkRepository>();
+        services.AddScoped<IGamificationConfigRepository, GamificationConfigRepository>();
+        services.AddScoped<INotificationTemplateRepository, NotificationTemplateRepository>();
 
         // ── Notification module (BR-NTF-001..004) ──
         services.AddScoped<INotificationRepository, NotificationRepository>();
@@ -106,7 +119,10 @@ public static class DependencyInjection
         services.AddScoped<IFirebasePhoneAuthService, FirebasePhoneAuthService>();
 
         // ── File Storage (R2 Cloudflare) ────────────────
-        services.AddSingleton<IFileStorageService, Storage.R2FileStorageService>();
+        services.AddScoped<IFileStorageService, Storage.R2FileStorageService>();
+
+        // ── Company Cascade (BR-CMP-013) ────────────────
+        services.AddScoped<ICompanyCascadeService, CompanyCascadeService>();
 
         // ── Video Transcoding (FFmpeg) — BR-REP-002 ──
         services.AddScoped<IVideoTranscoder, Video.FFmpegVideoTranscoder>();
@@ -126,6 +142,9 @@ public static class DependencyInjection
         services.AddScoped<IAiClassificationService, AiClassificationService>();
         services.AddSingleton<ITempImageStore, TempImageStore>();
 
+        // ── Audit (BR-ADM-010) ─────────────────────────────
+        services.AddScoped<IAuditLogger, AuditLogger>();
+
         // ── MediatR ──────────────────────────────────────
         services.AddMediatR(cfg =>
         {
@@ -134,6 +153,7 @@ public static class DependencyInjection
             cfg.NotificationPublisherType = typeof(IsolatingNotificationPublisher);
             cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
             cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(TransactionBehavior<,>));
+            cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(AuditLogBehavior<,>));
             cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
         });
 
@@ -151,6 +171,10 @@ public static class DependencyInjection
             .Bind(configuration.GetSection("Smtp"))
             .ValidateDataAnnotations()
             .ValidateOnStart();
+
+        // BR-OFF-013: Workload limits
+        services.Configure<Application.Common.Options.WorkloadLimitsOptions>(
+            configuration.GetSection(Application.Common.Options.WorkloadLimitsOptions.SectionName));
 
         // ── Map Migrations ────────────────────────────────
         services.AddScoped<IAdministrativeRegionRepository, AdministrativeRegionRepository>();
@@ -290,6 +314,36 @@ public static class DependencyInjection
         // BR-AUTH-021: Permanently delete accounts soft-deleted > 90 days
         RecurringJob.AddOrUpdate<AccountHardDeleteJob>(
             "account-hard-delete",
+            job => job.ExecuteAsync(),
+            "0 2 * * *"); // daily at 02:00 UTC
+
+        // BR-REP-008 + BR-REP-009: Flag overdue reports, notify unassigned
+        RecurringJob.AddOrUpdate<OverdueReportNotificationJob>(
+            "overdue-report-notification",
+            job => job.ExecuteAsync(),
+            "0 * * * *"); // every hour
+
+        // BR-REP-019: Delete stale drafts (> 7 days idle)
+        RecurringJob.AddOrUpdate<DraftCleanupJob>(
+            "draft-cleanup",
+            job => job.ExecuteAsync(),
+            "0 3 * * *"); // daily at 03:00 UTC
+
+        // BR-OFF-010: Recalculate priority scores
+        RecurringJob.AddOrUpdate<PriorityScoreRefreshJob>(
+            "priority-score-refresh",
+            job => job.ExecuteAsync(),
+            "*/30 * * * *"); // every 30 minutes
+
+        // BR-DAT-002: Data retention — delete expired media files (>2y) and audit logs (>12m)
+        RecurringJob.AddOrUpdate<DataRetentionJob>(
+            "data-retention",
+            job => job.ExecuteAsync(),
+            "0 4 * * 0"); // weekly Sunday 04:00 UTC
+
+        // BR-CMP-007: Auto-expire Bidding companies + send 30/7/1-day warnings
+        RecurringJob.AddOrUpdate<CompanyContractExpiryJob>(
+            "company-contract-expiry",
             job => job.ExecuteAsync(),
             "0 2 * * *"); // daily at 02:00 UTC
     }

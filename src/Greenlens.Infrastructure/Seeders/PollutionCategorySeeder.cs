@@ -6,7 +6,8 @@ using Microsoft.Extensions.Logging;
 namespace Greenlens.Infrastructure.Seeders;
 
 /// <summary>
-/// Seeds the four default pollution categories for report forms and AI mapping.
+/// Seeds the three official pollution categories (BR-REP-005 v1.2).
+/// Deactivates removed categories (SMOKE) if they already exist.
 /// </summary>
 /// <remarks>Implements: BR-REP-005.</remarks>
 internal static class PollutionCategorySeeder
@@ -15,9 +16,11 @@ internal static class PollutionCategorySeeder
     [
         ("TRASH", "Ô nhiễm rác thải", "Trash"),
         ("WASTEWATER", "Ô nhiễm nước", "Water"),
-        ("SMOKE", "Ô nhiễm không khí", "Smoke"),
         ("CHEMICAL", "Ô nhiễm hóa chất", "Chemical"),
     ];
+
+    /// <summary>Category codes removed in BR v1.2 — will be deactivated if present.</summary>
+    private static readonly string[] RemovedCodes = ["SMOKE"];
 
     public static async Task SeedAsync(
         ApplicationDbContext db,
@@ -41,10 +44,23 @@ internal static class PollutionCategorySeeder
             added++;
         }
 
-        if (added == 0)
+        // BR-REP-005 v1.2: Deactivate removed categories
+        var toDeactivate = await db.PollutionCategories
+            .Where(c => RemovedCodes.Contains(c.Code) && c.IsActive)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        foreach (var cat in toDeactivate)
+        {
+            cat.Deactivate();
+            logger.LogInformation("Deactivated removed pollution category: {Code}", cat.Code);
+        }
+
+        if (added == 0 && toDeactivate.Count == 0)
             return;
 
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
-        logger.LogInformation("Seeded {Count} pollution categories", added);
+        if (added > 0)
+            logger.LogInformation("Seeded {Count} pollution categories", added);
     }
 }

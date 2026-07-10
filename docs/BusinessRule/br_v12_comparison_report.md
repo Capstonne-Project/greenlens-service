@@ -60,9 +60,9 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 
 |      Trạng thái       | Modules                                                                                                                     | % ước tính |
 | :-------------------: | :-------------------------------------------------------------------------------------------------------------------------- | :--------: |
-|  ✅ Core hoàn thành   | Auth, Reports (32 slices), Organization (39 slices), Inspection (10 slices), Map (2), Catalog (3), Admin (10), Media, Users |    ~60%    |
-| ⚠️ Implement một phần | Company (thiếu Terminated + contract renewal), Cleanup (thiếu check-in/SLA), Domain (thiếu CompanyStatus.Terminated)        |    ~15%    |
-|   ❌ Chưa implement   | Notifications, Comments, Gamification, Background Jobs, Rate Limiting, Brute-force, Analytics/KPI                           |    ~25%    |
+|  ✅ Core hoàn thành   | Auth, Reports (32 slices), Organization (39 slices), Inspection (10 slices), Map (2), Catalog (3), Admin (10), Media, Users, Company (14/14 rules) |    ~65%    |
+| ⚠️ Implement một phần | Cleanup (thiếu check-in/SLA)                                                                                               |    ~10%    |
+|   ❌ Chưa implement   | Comments, Rate Limiting, Brute-force, Duplicate Detection                                                                    |    ~25%    |
 
 ---
 
@@ -94,28 +94,28 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 
 ---
 
-## B.2 Organization & Routing (`BR-ORG-001..021`) — ✅ 11/12 rules
+## B.2 Organization & Routing (`BR-ORG-001..021`) — ✅ 11/11 rules
 
-| BR         | Mô tả                                                       | Status | Evidence                                                                                                 |
-| ---------- | ----------------------------------------------------------- | :----: | -------------------------------------------------------------------------------------------------------- |
-| BR-ORG-001 | Department cấp Tỉnh                                         |   ✅   | `CreateDepartment/`, `GetDepartments/`                                                                   |
-| BR-ORG-002 | Local Office cấp Xã/Phường                                  |   ✅   | `CreateLocalOffice/`, CRUD                                                                               |
-| BR-ORG-003 | Office → Team (1:N)                                         |   ✅   | `CreateTeam/`, `AddTeamMember/`, `RemoveTeamMember/`                                                     |
-| BR-ORG-004 | Ward polygon geo routing                                    |   ✅   | `Ward.cs`, PostGIS                                                                                       |
-| BR-ORG-005 | Đa đơn vị trong 1 phường                                    |   ✅   | N-N model `CompanyServiceArea`                                                                           |
-| BR-ORG-010 | GPS → Ward → LEO routing                                    |   ✅   | `SubmitPollutionReport/` handler                                                                         |
-| BR-ORG-011 | Department Common Queue                                     |   ✅   | `SubmitPollutionReport/` handler: ward chưa onboard → `RouteToDepartment(dept.Id)`                       |
-| BR-ORG-012 | Conflict of interest (LEO ≠ reporter + ward scope)          |   ✅   | `VerifyReport/`: `ConflictOfInterest` (self) + `OutsideJurisdiction` (ngoài phường)                      |
-| BR-ORG-013 | Quyết định xử lý khi xác minh (dọn dẹp + xử phạt song song) |   ✅   | `VerifyReport/` → verify, `AssignTeam/` → cleanup, `CreateInspectionReport/` → xử phạt (2 nhánh độc lập) |
-| BR-ORG-014 | SLA tiếp nhận 24h → escalate DEO                            |   ✅   | `SlaBreachVerificationJob`: flag `SlaVerifyBreached` + `EscalateToDepartment()` (clear AssignedOfficeId → DEO queue) |
-| BR-ORG-015 | Re-assign khi LEO reject                                    |   ✅   | `RejectReport/`: reason ≥ 20 chars, status stays Submitted, AssignedOfficeId cleared → Department queue  |
+| BR         | Mô tả                                                       | Status | Evidence                                                                                                                                 |
+| ---------- | ----------------------------------------------------------- | :----: | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| BR-ORG-001 | Department cấp Tỉnh                                         |   ✅   | `CreateDepartment/`, `GetDepartments/`                                                                                                   |
+| BR-ORG-002 | Local Office cấp Xã/Phường                                  |   ✅   | `CreateLocalOffice/`, CRUD                                                                                                               |
+| BR-ORG-003 | Office → Team (1:N)                                         |   ✅   | `CreateTeam/`, `AddTeamMember/`, `RemoveTeamMember/`                                                                                     |
+| BR-ORG-004 | Ward polygon geo routing                                    |   ✅   | `Ward.cs`, PostGIS                                                                                                                       |
+| BR-ORG-005 | Đa đơn vị trong 1 phường                                    |   ✅   | N-N model `CompanyServiceArea`                                                                                                           |
+| BR-ORG-010 | GPS → Ward → LEO routing                                    |   ✅   | `SubmitPollutionReport/` handler                                                                                                         |
+| BR-ORG-011 | Department Common Queue                                     |   ✅   | `SubmitPollutionReport/` handler: ward chưa onboard → `RouteToDepartment(dept.Id)`                                                       |
+| BR-ORG-012 | Conflict of interest (LEO ≠ reporter + ward scope)          |   ✅   | `VerifyReport/`: `ConflictOfInterest` (self) + `OutsideJurisdiction` (ngoài phường)                                                      |
+| BR-ORG-013 | Quyết định xử lý khi xác minh (dọn dẹp + xử phạt song song) |   ✅   | `VerifyReport/` → verify, `AssignTeam/` → cleanup, `CreateInspectionReport/` → xử phạt (2 nhánh độc lập)                                 |
+| BR-ORG-014 | SLA tiếp nhận 24h → escalate DEO                            |   ✅   | `SlaBreachVerificationJob`: flag `SlaVerifyBreached` + `EscalateToDepartment()` (clear AssignedOfficeId → DEO queue)                     |
+| BR-ORG-015 | Re-assign khi LEO reject                                    |   ✅   | `RejectReport/`: reason ≥ 20 chars, status stays Submitted, AssignedOfficeId cleared → Department queue                                  |
 | BR-ORG-016 | Escalation tuyến cấp TP                                     |   ✅   | `EscalateReport/`: LEO manually escalate Verified/InProgress → DEO queue (clear AssignedOfficeId). Endpoint `POST reports/{id}/escalate` |
-| BR-ORG-020 | Mời thành viên đội (LEO mời qua email)                      |   ✅   | `RecruitStaff/` (invitation flow), `LookupCitizenByEmail/`, `AcceptInvitation/`, `DeclineInvitation/`    |
-| BR-ORG-021 | Hiệu lực lời mời 7 ngày                                     |   ✅   | `StaffInvitation` entity (7d expiry, single-use), `GetMyInvitations/`, `ReleaseStaff/`                   |
+| BR-ORG-020 | Mời thành viên đội (LEO mời qua email)                      |   ✅   | `RecruitStaff/` (invitation flow), `LookupCitizenByEmail/`, `AcceptInvitation/`, `DeclineInvitation/`                                    |
+| BR-ORG-021 | Hiệu lực lời mời 7 ngày                                     |   ✅   | `StaffInvitation` entity (7d expiry, single-use), `GetMyInvitations/`, `ReleaseStaff/`                                                   |
 
 ---
 
-## B.3 Report (`BR-REP-001..033`) — ✅ 15/23 rules
+## B.3 Report (`BR-REP-001..033`) — ✅ 17/23 rules
 
 | BR              | Mô tả                                    | Status | Evidence                                                                          |
 | --------------- | ---------------------------------------- | :----: | --------------------------------------------------------------------------------- |
@@ -123,20 +123,20 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 | BR-REP-002      | Video 1, mp4/mov                         |   ✅   | `UploadReportVideo/` + `FFmpegVideoTranscoder` (H.264 720p CRF 28, max 100MB/60s) |
 | BR-REP-003      | GPS Vietnam bounds                       |   ✅   | Validator                                                                         |
 | BR-REP-004      | Mô tả: filter tục tĩu                    |   ❌   | Chưa có word filter                                                               |
-| BR-REP-005      | **3 loại** ô nhiễm (Rác, Nước, Hóa chất) |   ⚠️   | `PollutionCategory` là configurable, cần seed đúng 3 loại                         |
+| BR-REP-005      | **3 loại** ô nhiễm (Rác, Nước, Hóa chất) |   ✅   | `PollutionCategorySeeder` seed 3 loại, SMOKE deactivated                          |
 | BR-REP-006      | Severity 4 mức                           |   ✅   | `Severity.cs` enum                                                                |
-| BR-REP-008      | Cảnh báo tồn đọng 72h                    |   ❌   | Chưa có job                                                                       |
-| BR-REP-009      | Cảnh báo chưa phân công 24h              |   ❌   | Chưa có job                                                                       |
+| BR-REP-008      | Cảnh báo tồn đọng 72h                    |   ✅   | `OverdueReportNotificationJob` + `IsOverdue` flag                                 |
+| BR-REP-009      | Cảnh báo chưa phân công 24h              |   ✅   | `OverdueReportNotificationJob` (dedup 24h notification)                           |
 | BR-REP-010      | Rate limit 5/h, 20/24h                   |   ❌   | Chưa có Redis sorted set                                                          |
 | BR-REP-011      | EXIF metadata validation                 |   ❌   | Chưa có                                                                           |
-| BR-REP-012      | Ẩn danh tính (tùy chọn)                  |   ⚠️   | Cần verify field trên Report                                                      |
+| BR-REP-012      | Bắt buộc đăng nhập (không ẩn danh)       |   ✅   | `SubmitPollutionReportCommandHandler` check `IsAuthenticated` → `LoginRequired`   |
 | BR-REP-013      | Initial status = Submitted               |   ✅   | `Report.cs` factory                                                               |
-| BR-REP-014      | Ảnh before/after khi Resolved            |   ⚠️   | `UploadProgressImage/` có, chưa enforce ≥ 1 before + ≥ 1 after                    |
-| BR-REP-015      | Citizen xác nhận (7d, max 2 re-open)     |   ⚠️   | `CloseReport/` + `ReopenReport/` có, max 2 cần verify                             |
-| BR-REP-016      | Auto-close 7 ngày                        |   ❌   | `AutoCloseResolvedReportJob` chưa có                                              |
-| BR-REP-017      | Không xóa report đã verified             |   ⚠️   | Cần verify                                                                        |
-| BR-REP-018      | Đánh giá của Citizen sau Resolved        |   ❌   | Chưa có feature                                                                   |
-| BR-REP-019      | Draft max 3, xóa 7d                      |   ⚠️   | `ReportDraft.cs` tồn tại, chưa có `DraftCleanupJob`                               |
+| BR-REP-014      | Ảnh before/after khi Resolved            |   ✅   | `UploadBeforeImages/` + enforce ≥ 1 before trên `ResolveReportHandler`            |
+| BR-REP-015      | Citizen xác nhận (7d, max 2 re-open)     |   ✅   | `TryReopen()` 7-day window + max 2. `ReopenWindowExpired` error                   |
+| BR-REP-016      | Auto-close 7 ngày                        |   ✅   | `AutoCloseResolvedReportJob` + StatusHistory + Notification                       |
+| BR-REP-017      | Không xóa report đã verified             |   ✅   | `DeleteReport/` + `CanDelete()` guard (Submitted only, no AI/Officer)             |
+| BR-REP-018      | Đánh giá của Citizen sau Resolved        |   ✅   | `RateReport/` — check Resolved/Closed, 1 lần/report. `POST /reports/{id}/rate`    |
+| BR-REP-019      | Draft max 3, xóa 7d                      |   ✅   | `SaveDraft/`, `GetMyDrafts/`, `DeleteDraft/` + `DraftCleanupJob` (daily 03:00)    |
 | BR-REP-020/021  | State machine + role transitions         |   ✅   | `Report.cs` state machine methods                                                 |
 | BR-REP-022      | Reject reason ≥ 20 chars                 |   ✅   | `RejectReport/` validator                                                         |
 | BR-REP-030..033 | Duplicate detection                      |   ❌   | Chưa implement                                                                    |
@@ -158,22 +158,22 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 
 ---
 
-## B.5 Officer (`BR-OFF-001..022`) — ⚠️ 5/12 rules
+## B.5 Officer (`BR-OFF-001..022`) — ✅ 12/12 rules
 
-| BR         | Status | Ghi chú                                                 |
-| ---------- | :----: | ------------------------------------------------------- |
-| BR-OFF-001 |   ✅   | GPS → Ward → LEO routing                                |
-| BR-OFF-002 |   ❌   | SLA xác minh 24h → `SlaBreachVerificationJob`           |
-| BR-OFF-003 |   ✅   | Chỉnh loại/mức độ khi verify                            |
-| BR-OFF-004 |   ⚠️   | Conflict of interest — cần verify                       |
-| BR-OFF-005 |   ⚠️   | Triage dọn dẹp + xử phạt — có pieces nhưng chưa enforce |
-| BR-OFF-010 |   ❌   | Priority score formula                                  |
-| BR-OFF-011 |   ✅   | Gán team (community hoặc company)                       |
-| BR-OFF-012 |   ✅   | Reassign                                                |
-| BR-OFF-013 |   ❌   | Giới hạn 10 task/team                                   |
-| BR-OFF-020 |   ❌   | SLA xử lý theo severity                                 |
-| BR-OFF-021 |   ❌   | KPI Officer                                             |
-| BR-OFF-022 |   ❌   | Export CSV/Excel                                        |
+| BR         | Status | Ghi chú                                                                                                             |
+| ---------- | :----: | ------------------------------------------------------------------------------------------------------------------- |
+| BR-OFF-001 |   ✅   | GPS → Ward → LEO routing                                                                                            |
+| BR-OFF-002 |   ✅   | SLA xác minh 24h → `SlaBreachVerificationJob` + notification LEO/DEO                                                |
+| BR-OFF-003 |   ✅   | Chỉnh loại/mức độ khi verify                                                                                        |
+| BR-OFF-004 |   ✅   | Conflict of interest — Verify + Reject + Escalate                                                                   |
+| BR-OFF-005 |   ✅   | Triage dọn dẹp + xử phạt — flow đúng (AssignTeam + CreateInspectionReport)                                          |
+| BR-OFF-010 |   ✅   | Priority score formula → `PriorityScoreRefreshJob` every 30'                                                        |
+| BR-OFF-011 |   ✅   | Gán team (community hoặc company)                                                                                   |
+| BR-OFF-012 |   ✅   | Reassign                                                                                                            |
+| BR-OFF-013 |   ✅   | Giới hạn 6 task/team, cảnh báo tại 5 — `WorkloadLimitsOptions` + enforce trong AssignTeam/AssignCompanyTeam/Reassign |
+| BR-OFF-020 |   ✅   | SLA xử lý theo severity → `SlaBreachResolutionJob` + notification LEO                                               |
+| BR-OFF-021 |   ✅   | KPI Officer — `GetOfficerKpiQuery` (custom From/To + preset period)                                                 |
+| BR-OFF-022 |   ✅   | Export CSV/Excel — `ExportReportsQuery` (scope: LEO/DEO/Admin, PII control)                                         |
 
 ---
 
@@ -213,24 +213,24 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 
 ---
 
-## B.8 Company (`BR-CMP-001..021`) — ⚠️ 8/14 rules
+## B.8 Company (`BR-CMP-001..021`) — ✅ 14/14 rules
 
-| BR         | Status | Ghi chú                                                         |
-| ---------- | :----: | --------------------------------------------------------------- |
-| BR-CMP-001 |   ✅   | `CreateCompany/`                                                |
-| BR-CMP-002 |   ✅   | `ResetCompanyManagerPassword/` (reset-password flow)            |
-| BR-CMP-003 |   ✅   | ContractType enum, ContractEndDate nullable                     |
-| BR-CMP-004 |   ⚠️   | `CompanyStatus` enum thiếu **`Terminated`** (chỉ có 4/5 status) |
-| BR-CMP-005 |   ✅   | `IsActive` property trên entity                                 |
-| BR-CMP-006 |   ❌   | Gia hạn / tái ký — chưa có feature                              |
-| BR-CMP-007 |   ❌   | `CompanyContractExpiryJob` chưa có                              |
-| BR-CMP-010 |   ✅   | `CreateCompanyStaff/`                                           |
-| BR-CMP-011 |   ✅   | `CreateCompanyTeam/`, `AssignCompanyTeam/`                      |
-| BR-CMP-012 |   ✅   | `GetCompanyServiceAreas/`, `UpdateCompanyServiceAreas/`         |
-| BR-CMP-013 |   ❌   | Suspend/Terminate → push tasks về LEO — chưa implement          |
-| BR-CMP-014 |   ✅   | N-N `CompanyServiceArea`                                        |
-| BR-CMP-020 |   ❌   | KPI công ty                                                     |
-| BR-CMP-021 |   ⚠️   | Phân tách dữ liệu — cần verify query filters                    |
+| BR         | Status | Ghi chú                                                                                                                  |
+| ---------- | :----: | ------------------------------------------------------------------------------------------------------------------------ |
+| BR-CMP-001 |   ✅   | `CreateCompany/`                                                                                                         |
+| BR-CMP-002 |   ✅   | `ResetCompanyManagerPassword/` (reset-password flow)                                                                     |
+| BR-CMP-003 |   ✅   | ContractType enum, ContractEndDate nullable                                                                              |
+| BR-CMP-004 |   ✅   | 5 status (PendingActivation/Active/Suspended/Expired/Terminated) + `SuspendCompany/`, `TerminateCompany/`, `ReactivateCompany/` |
+| BR-CMP-005 |   ✅   | `IsActive` property trên entity                                                                                          |
+| BR-CMP-006 |   ✅   | `RenewContract/` command + `ContractPeriod` entity (1-N lịch sử kỳ HĐ) + `GetContractHistory/` query. Auto-reactivate Expired→Active. Migration seed kỳ ban đầu cho existing companies. |
+| BR-CMP-007 |   ✅   | `CompanyContractExpiryJob` — auto-expire Bidding hết hạn + cảnh báo 30/7/1 ngày trước khi hết hạn (daily 02:00 UTC)      |
+| BR-CMP-010 |   ✅   | `CreateCompanyStaff/`                                                                                                    |
+| BR-CMP-011 |   ✅   | `CreateCompanyTeam/`, `AssignCompanyTeam/`                                                                               |
+| BR-CMP-012 |   ✅   | `GetCompanyServiceAreas/`, `UpdateCompanyServiceAreas/`                                                                  |
+| BR-CMP-013 |   ✅   | `CompanyCascadeService`: Suspend/Terminate/Expire → auto-decline assignments (ForceDecline) + revert reports → Verified + notify LEO |
+| BR-CMP-014 |   ✅   | N-N `CompanyServiceArea`                                                                                                 |
+| BR-CMP-020 |   ✅   | `GetCompanyKpi/` query — task volume (assigned/completed/declined), SLA compliance rate, avg resolution hours. DEO xem theo company, CM xem company mình. Reuse `KpiPeriod` enum. |
+| BR-CMP-021 |   ✅   | **Audit passed** — tất cả 11 CM/CompanyStaff handlers đều resolve `companyId` từ token via `CompanyStaff.GetByUserIdAsync()` + filter queries by companyId. Không gap nào. |
 
 ---
 
@@ -294,10 +294,15 @@ Chưa có feature module. Thiếu entity Comment.
 - 10 admin features đã có (CRUD category, waste tags, force update, roles)
 - **Thiếu:** BR-ADM-004 (notification templates), BR-ADM-005 (gamification config), BR-ADM-006 (content moderation), BR-ADM-007 (spam dashboard), BR-ADM-008 (khung tiền phạt configurable), BR-ADM-010 (audit log đầy đủ), BR-ADM-012 (giám sát công ty)
 
-### ❌ Data Privacy (`BR-DAT-001..005`)
+### ✅ Data Privacy (`BR-DAT-001..005`) — 5/5 rules
 
-- BR-DAT-001: bcrypt ✅, TLS — infra
-- BR-DAT-002..005: Retention policy, export data, backup, consent log → ❌
+| BR         | Status | Ghi chú                                                                                                                                 |
+| ---------- | :----: | --------------------------------------------------------------------------------------------------------------------------------------- |
+| BR-DAT-001 |   ✅   | `BcryptPasswordHasher` 12 rounds ✅. TLS — infra (reverse proxy). Secrets qua env vars, không hardcode                                  |
+| BR-DAT-002 |   ✅   | `DataRetentionJob` (weekly Sunday 04:00 UTC): xóa S3 files ảnh >2 năm (giữ DB record), hard-delete audit log >12 tháng                  |
+| BR-DAT-003 |   ✅   | `ExportMyDataQuery` → `GET /v1/users/me/data-export`: export profile + reports + notifications + gamification. Hỗ trợ JSON + CSV        |
+| BR-DAT-004 |   ✅   | Infra concern — pg_dump daily, 30 bản, S3 lifecycle. Không cần code backend                                                             |
+| BR-DAT-005 |   ✅   | `User.HasDataConsent` + `ConsentAcceptedAt`. `POST /v1/users/me/consent` khi mở app lần đầu. SubmitReport handler chặn nếu chưa consent |
 
 ### ❌ Non-functional (`BR-SYS-001..006`)
 
@@ -306,25 +311,25 @@ Chưa có feature module. Thiếu entity Comment.
 
 ---
 
-## B.15 Background Jobs — ❌ Chưa có
+## B.15 Background Jobs — ✅ 10/11 registered
 
-| Job                            | BR             | Mô tả                                               |
-| ------------------------------ | -------------- | --------------------------------------------------- |
-| `AutoCloseResolvedReportJob`   | BR-REP-016     | ✅ Resolved → Closed sau 7 ngày (hourly, batch 100) |
-| `SlaBreachVerificationJob`     | BR-OFF-002     | ✅ Submitted > 24h → flag breached (every 15')      |
-| `SlaBreachResolutionJob`       | BR-OFF-020     | ✅ InProgress > SLA → flag breached (every 30')     |
-| `OverdueReportNotificationJob` | BR-REP-008/009 | ❌ Pending > 72h, Verified > 24h                    |
-| `AiRetryJob`                   | BR-AI-006      | ❌ ai_pending retry trong 1h                        |
-| `DraftCleanupJob`              | BR-REP-019     | ❌ Draft > 7 ngày → xóa                             |
-| `CompanyContractExpiryJob`     | BR-CMP-007     | ❌ Bidding hết hạn → Expired                        |
-| `LeaderboardSnapshotJob`       | BR-GAM-005     | ✅ Daily snapshot 00:05 UTC                         |
-| `AuditLogRetentionJob`         | BR-ADM-010     | ❌ Xóa log > 12 tháng                               |
-| `AccountHardDeleteJob`         | BR-AUTH-021    | ❌ Soft delete > 90d → hard delete                  |
+| Job                            | BR             | Mô tả                                                                                            |
+| ------------------------------ | -------------- | ------------------------------------------------------------------------------------------------ |
+| `AutoCloseResolvedReportJob`   | BR-REP-016     | ✅ Resolved → Closed sau 7 ngày (hourly, batch 100)                                              |
+| `SlaBreachVerificationJob`     | BR-OFF-002     | ✅ Submitted > 24h → flag breached + notification (every 15')                                    |
+| `SlaBreachResolutionJob`       | BR-OFF-020     | ✅ InProgress > SLA → flag breached + notification (every 30')                                   |
+| `OverdueReportNotificationJob` | BR-REP-008/009 | ✅ Pending > 72h, Verified > 24h (hourly)                                                        |
+| `PriorityScoreRefreshJob`      | BR-OFF-010     | ✅ Recalculate priority scores (every 30')                                                       |
+| `DraftCleanupJob`              | BR-REP-019     | ✅ Draft > 7 ngày → xóa (daily 03:00 UTC)                                                        |
+| `DataRetentionJob`             | BR-DAT-002     | ✅ Xóa ảnh S3 >2 năm, audit log >12 tháng (weekly Sun 04:00 UTC)                                 |
+| `AccountHardDeleteJob`         | BR-AUTH-021    | ✅ Soft delete > 90d → hard delete (daily)                                                       |
+| `LeaderboardSnapshotJob`       | BR-GAM-005     | ✅ Daily snapshot 00:05 UTC                                                                      |
+| `CompanyContractExpiryJob`     | BR-CMP-007     | ✅ Bidding hết hạn → Expired + cascading + cảnh báo CM 30/7/1 ngày trước (daily 02:00 UTC)       |
+| `AiRetryJob`                   | BR-AI-006      | ❌ ai_pending retry trong 1h                                                                     |
 
 > [!NOTE]
 > Hangfire đã setup đầy đủ: DI, PostgreSql storage, Dashboard `/hangfire`.
 > `TransactionBehavior` (MediatR pipeline) đã thêm — wrap mọi Command trong DB transaction.
-> `LeaderboardSnapshotJob` + `AutoCloseResolvedReportJob` + `SlaBreachVerificationJob` + `SlaBreachResolutionJob` đã đăng ký.
 
 ---
 
@@ -332,9 +337,9 @@ Chưa có feature module. Thiếu entity Comment.
 
 | Entity                                   | Có                             | Thiếu                                                      |
 | ---------------------------------------- | ------------------------------ | ---------------------------------------------------------- |
-| `CompanyStatus` enum                     | ✅ 5 values (incl. Terminated) | —                                                          |
-| `PollutionCategory`                      | ✅ Configurable                | ⚠️ Seed data cần đúng 3 loại (v1.2 bỏ Không khí, Tiếng ồn) |
-| `Invitation` entity                      | ❌                             | BR-ORG-021: token, expiry 7d, single-use                   |
+| `CompanyStatus` enum                     | ✅ 5 values (incl. Terminated) | Suspend/Terminate/Reactivate/Expire transitions implemented |
+| `PollutionCategory`                      | ✅ Configurable                | ⚠️ Seed data cần đúng 3 loại (v1.2 bỏ Không khí, Tiếng ồn)  |
+| `Invitation` entity                      | ❌                             | BR-ORG-021: token, expiry 7d, single-use                    |
 | `Comment` entity                         | ❌                             | BR-CMT-001..004                                            |
 | `Badge`, `UserPoints`                    | ✅ ĐÃ IMPLEMENT                | BR-GAM-001..006                                            |
 | `Notification`, `NotificationPreference` | ✅ ĐÃ IMPLEMENT                | BR-NTF-001..004                                            |
@@ -355,15 +360,17 @@ Chưa có feature module. Thiếu entity Comment.
 
 ## P1 — Core Business Value
 
-| #   | Task                                                    | BRs                        | Status |
-| --- | ------------------------------------------------------- | -------------------------- | :----: |
-| 5   | **Notifications** (FCM + Email templates + preferences) | BR-NTF-001..004            |   ✅   |
-| 6   | **Comments** (entity + CRUD + moderation)               | BR-CMT-001..004            |
-| 7   | **Brute-force protection** (sliding window + Turnstile) | BR-AUTH-014                |
-| 8   | **Rate limiting** (Redis + ASP.NET middleware)          | BR-SYS-004, BR-REP-010     |
-| 9   | **Check-in ≤ 200m** (PostGIS ST_DWithin)                | BR-CLN-002/003, BR-INS-004 |
-| 10  | **Company contract renewal** (gia hạn/tái ký)           | BR-CMP-006                 |
-| 11  | **Company suspend → push tasks**                        | BR-CMP-013                 |
+| #   | Task                                                     | BRs                        | Status |
+| --- | -------------------------------------------------------- | -------------------------- | :----: |
+| 5   | **Notifications** (FCM + Email templates + preferences)  | BR-NTF-001..004            |   ✅   |
+| 6   | **Company lifecycle** (Suspend/Terminate/Reactivate)     | BR-CMP-004, BR-CMP-013     |   ✅   |
+| 7   | **Company contract expiry job** (auto-expire + warnings) | BR-CMP-007                 |   ✅   |
+| 8   | **Workload limit** (6 task/team, warn at 5)              | BR-OFF-013                 |   ✅   |
+| 9   | **Comments** (entity + CRUD + moderation)                | BR-CMT-001..004            |        |
+| 10  | **Brute-force protection** (sliding window + Turnstile)  | BR-AUTH-014                |        |
+| 11  | **Rate limiting** (Redis + ASP.NET middleware)            | BR-SYS-004, BR-REP-010     |        |
+| 12  | **Check-in ≤ 200m** (PostGIS ST_DWithin)                 | BR-CLN-002/003, BR-INS-004 |        |
+| 13  | **Company contract renewal** (gia hạn/tái ký)            | BR-CMP-006                 |        |
 
 ## P2 — Enhancement
 

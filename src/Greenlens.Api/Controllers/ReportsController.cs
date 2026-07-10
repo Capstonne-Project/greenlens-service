@@ -9,7 +9,12 @@ using Greenlens.Application.Features.Reports.GetCompanyQueue;
 using Greenlens.Application.Features.Reports.GetCompanyAssignments;
 using Greenlens.Application.Features.Reports.GetCompanyReportDetail;
 using Greenlens.Application.Features.Reports.CloseReport;
+using Greenlens.Application.Features.Reports.DeleteDraft;
+using Greenlens.Application.Features.Reports.DeleteReport;
+using Greenlens.Application.Features.Reports.ExportReports;
+using Greenlens.Application.Features.Reports.GetMyDrafts;
 using Greenlens.Application.Features.Reports.GetMyReports;
+using Greenlens.Application.Features.Reports.GetOfficerKpi;
 using Greenlens.Application.Features.Reports.GetOfficerQueue;
 using Greenlens.Application.Features.Reports.GetReportProgress;
 using Greenlens.Application.Features.Reports.GetReportProgressBoard;
@@ -19,11 +24,14 @@ using Greenlens.Application.Features.Reports.GetReports;
 using Greenlens.Application.Features.Reports.GetWasteTags;
 using Greenlens.Application.Features.Reports.ReassignTeam;
 using Greenlens.Application.Features.Reports.RejectReport;
+using Greenlens.Application.Features.Reports.RateReport;
 using Greenlens.Application.Features.Reports.ReopenReport;
 using Greenlens.Application.Features.Reports.ResolveReport;
+using Greenlens.Application.Features.Reports.SaveDraft;
 using Greenlens.Application.Features.Reports.SubmitPollutionReport;
 using Greenlens.Application.Features.Reports.TagReportWaste;
 using Greenlens.Application.Features.Reports.UpdateProgress;
+using Greenlens.Application.Features.Reports.UploadBeforeImages;
 using Greenlens.Application.Features.Reports.VerifyReport;
 using Greenlens.Application.Features.Inspection.CreateInspectionReport;
 using Greenlens.Application.Features.Inspection.GetInspectionsByReport;
@@ -452,11 +460,70 @@ public sealed class ReportsController(ISender sender) : ControllerBase
     [HttpPut("{id:guid}/reopen")]
     [Authorize]
     [Tags("📋 Reports — Citizen Flow")]
-    [SwaggerOperation(Summary = "[Citizen] Mở lại báo cáo", Description = "Citizen mở lại báo cáo nếu chưa hài lòng. Tối đa 2 lần reopen. Chuyển status Resolved → InProgress.")]
+    [SwaggerOperation(Summary = "[Citizen] Mở lại báo cáo", Description = "Citizen mở lại báo cáo nếu chưa hài lòng. Tối đa 2 lần reopen, trong vòng 7 ngày từ Resolved. Chuyển status Resolved → InProgress.")]
     [SwaggerResponse(200, "Đã mở lại", typeof(ApiResponse))]
-    [SwaggerResponse(422, "Hết lượt reopen hoặc status không hợp lệ", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Hết lượt reopen, quá 7 ngày, hoặc status không hợp lệ", typeof(ApiResponse))]
     public async Task<IActionResult> ReopenAsync([FromRoute] Guid id, CancellationToken ct)
         => (await sender.Send(new ReopenReportCommand(id), ct)).ToHttpNoContent("Đã mở lại báo cáo.");
+
+    /// <summary>BR-REP-017: Citizen soft-deletes their own report (Submitted only, no AI/Officer).</summary>
+    [HttpDelete("{id:guid}")]
+    [Authorize]
+    [Tags("📋 Reports — Citizen Flow")]
+    [SwaggerOperation(
+        Summary = "[Citizen] Xóa báo cáo",
+        Description = "Citizen xóa báo cáo của mình. Chỉ cho phép ở trạng thái Submitted, " +
+            "chưa có AI phân loại hoặc Officer xác minh. Soft-delete (dữ liệu vẫn lưu).")]
+    [SwaggerResponse(204, "Đã xóa")]
+    [SwaggerResponse(403, "Không phải người tạo báo cáo", typeof(ApiResponse))]
+    [SwaggerResponse(404, "Không tìm thấy báo cáo", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Báo cáo đã được xác nhận, không thể xóa", typeof(ApiResponse))]
+    public async Task<IActionResult> DeleteAsync([FromRoute] Guid id, CancellationToken ct)
+        => (await sender.Send(new DeleteReportCommand(id), ct)).ToHttpNoContent();
+
+    /// <summary>BR-REP-014: Upload before images after check-in, before starting cleanup.</summary>
+    [HttpPost("{id:guid}/before-images")]
+    [Authorize(Roles = "Cleaner,CompanyStaff,Admin")]
+    [Tags("🧹 Cleaner Dashboard")]
+    [Consumes("multipart/form-data")]
+    [SwaggerOperation(
+        Summary = "[Cleaner/CompanyStaff] Upload ảnh hiện trạng trước khi dọn",
+        Description = "Team leader upload ảnh hiện trạng khi đến hiện trường (before images). " +
+            "Bắt buộc trước khi hoàn thành (resolve). Tối đa 5 ảnh, mỗi ảnh ≤ 20MB.")]
+    [SwaggerResponse(200, "Đã upload", typeof(ApiResponse<UploadBeforeImagesResponse>))]
+    [SwaggerResponse(422, "Assignment không InProgress hoặc không phải leader", typeof(ApiResponse))]
+    public async Task<IActionResult> UploadBeforeImagesAsync(
+        [FromRoute] Guid id,
+        [FromForm] List<IFormFile> images,
+        CancellationToken ct)
+    {
+        if (images is null || images.Count == 0)
+            return BadRequest(new ApiResponse
+            {
+                Code = "FILE_REQUIRED",
+                Message = "Vui lòng chọn ít nhất 1 ảnh.",
+                Status = 400
+            });
+
+        var imageFiles = new List<BeforeImageFile>();
+        foreach (var img in images)
+        {
+            if (img.Length > 20 * 1024 * 1024)
+                return StatusCode(413, new ApiResponse
+                {
+                    Code = "FILE_TOO_LARGE",
+                    Message = $"File '{img.FileName}' vượt quá 20MB.",
+                    Status = 413
+                });
+
+            using var ms = new MemoryStream();
+            await img.CopyToAsync(ms, ct);
+            imageFiles.Add(new BeforeImageFile(ms.ToArray(), img.FileName, img.ContentType));
+        }
+
+        var command = new UploadBeforeImagesCommand(id, imageFiles);
+        return (await sender.Send(command, ct)).ToHttp();
+    }
 
     // ═══════════════════════════════════════════
     // ██  INSPECTION (nested resource)
@@ -497,6 +564,119 @@ public sealed class ReportsController(ISender sender) : ControllerBase
     public async Task<IActionResult> GetInspectionsAsync(
         [FromRoute] Guid id, CancellationToken ct)
         => (await sender.Send(new GetInspectionsByReportQuery(id), ct)).ToHttp();
+
+    // ═══════════════════════════════════════════
+    // ██  CITIZEN SATISFACTION (BR-REP-018)
+    // ═══════════════════════════════════════════
+
+    [HttpPost("{id:guid}/rate")]
+    [Authorize]
+    [Tags("📋 Reports — Citizen Flow")]
+    [SwaggerOperation(
+        Summary = "[Citizen] Đánh giá chất lượng xử lý báo cáo",
+        Description = "Citizen đánh giá mức độ hài lòng đối với báo cáo sau khi đã được Resolved hoặc Closed (BR-REP-018).")]
+    [ProducesResponseType(typeof(RateReportResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> RateAsync(
+        [FromRoute] Guid id,
+        [FromBody] RateReportRequest body,
+        CancellationToken ct)
+        => (await sender.Send(
+            new RateReportCommand(id, body.IsSatisfied, body.Rating, body.Comment), ct)).ToHttp();
+
+    // ═══════════════════════════════════════════
+    // ██  DRAFT MANAGEMENT (BR-REP-019)
+    // ═══════════════════════════════════════════
+
+    [HttpPost("drafts")]
+    [Authorize]
+    [Tags("📋 Reports — Citizen Flow")]
+    [SwaggerOperation(
+        Summary = "[Citizen] Tạo hoặc cập nhật bản nháp báo cáo",
+        Description = "Lưu bản nháp của báo cáo ô nhiễm môi trường. Giới hạn tối đa 3 bản nháp đồng thời cho mỗi tài khoản người dùng (BR-REP-019).")]
+    [ProducesResponseType(typeof(SaveDraftResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> SaveDraftAsync(
+        [FromBody] SaveDraftRequest body,
+        CancellationToken ct)
+        => (await sender.Send(
+            new SaveDraftCommand(body.DraftId, body.Payload), ct)).ToHttp();
+
+    [HttpGet("drafts")]
+    [Authorize]
+    [Tags("📋 Reports — Citizen Flow")]
+    [SwaggerOperation(
+        Summary = "[Citizen] Lấy danh sách các bản nháp cá nhân",
+        Description = "Trả về danh sách các bản nháp báo cáo đang hoạt động của người dùng.")]
+    [ProducesResponseType(typeof(GetMyDraftsResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMyDraftsAsync(CancellationToken ct)
+        => (await sender.Send(new GetMyDraftsQuery(), ct)).ToHttp();
+
+    [HttpDelete("drafts/{draftId:guid}")]
+    [Authorize]
+    [Tags("📋 Reports — Citizen Flow")]
+    [SwaggerOperation(
+        Summary = "[Citizen] Xóa bản nháp",
+        Description = "Xóa một bản nháp báo cáo ô nhiễm cụ thể bằng ID.")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteDraftAsync(
+        [FromRoute] Guid draftId,
+        CancellationToken ct)
+        => (await sender.Send(new DeleteDraftCommand(draftId), ct)).ToHttp();
+
+    // ═══════════════════════════════════════════
+    // ██  OFFICER KPI (BR-OFF-021)
+    // ═══════════════════════════════════════════
+
+    /// <summary>KPI Officer: tỉ lệ xác minh đúng hạn, resolved rate, avg response time.</summary>
+    [HttpGet("officer-kpi")]
+    [Authorize(Roles = "LEO,DEO,Admin")]
+    [Tags("📊 Officer Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO/DEO/Admin] KPI Officer",
+        Description = "LEO xem KPI của mình. DEO/Admin truyền officerId để xem KPI của bất kỳ officer. " +
+            "Hỗ trợ custom From/To hoặc preset period (ThisMonth, LastQuarter, etc).")]
+    [SwaggerResponse(200, "KPI data", typeof(ApiResponse<OfficerKpiResponse>))]
+    public async Task<IActionResult> GetOfficerKpiAsync(
+        [FromQuery] Guid? officerId,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] KpiPeriod? period,
+        CancellationToken ct)
+        => (await sender.Send(
+            new GetOfficerKpiQuery(officerId, from, to, period), ct)).ToHttp();
+
+    // ═══════════════════════════════════════════
+    // ██  EXPORT (BR-OFF-022)
+    // ═══════════════════════════════════════════
+
+    /// <summary>Export báo cáo ra CSV hoặc Excel.</summary>
+    [HttpGet("export")]
+    [Authorize(Roles = "LEO,DEO,Admin")]
+    [Tags("📊 Officer Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO/DEO/Admin] Export báo cáo",
+        Description = "LEO export xã/phường; DEO export toàn tỉnh; Admin export all. PII chỉ Admin thấy.")]
+    [SwaggerResponse(200, "File download")]
+    public async Task<IActionResult> ExportAsync(
+        [FromQuery] ReportStatus? status,
+        [FromQuery] Severity? severity,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] ExportFormat format,
+        CancellationToken ct)
+    {
+        var result = await sender.Send(
+            new ExportReportsQuery(status, severity, from, to, format), ct);
+
+        if (!result.IsSuccess)
+            return result.ToHttp();
+
+        var data = result.Value!;
+        return File(data.Content, data.ContentType, data.FileName);
+    }
 }
 
 // ── Request DTOs ──
@@ -519,3 +699,5 @@ public sealed record CreateInspectionRequest(
     string? ViolatorIdentity);
 
 public sealed record EscalateReportRequest(string Reason);
+public sealed record RateReportRequest(bool IsSatisfied, int? Rating, string? Comment);
+public sealed record SaveDraftRequest(Guid? DraftId, string Payload);

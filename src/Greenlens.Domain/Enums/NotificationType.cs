@@ -13,5 +13,11 @@ public enum NotificationType
     SlaBreachWarning,
     NearbyReport,
     PenaltyIssued,
-    ContractExpiry
+    ContractExpiry,
+    /// <summary>BR-REP-008: Report pending > 72h.</summary>
+    ReportOverdue,
+    /// <summary>BR-REP-009: Verified report unassigned > 24h.</summary>
+    ReportUnassigned,
+    /// <summary>BR-REP-016: Report auto-closed after 7 days.</summary>
+    ReportAutoClosed
 }

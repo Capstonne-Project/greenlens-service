@@ -58,4 +58,5 @@ public sealed record OfficerQueueItem(
     decimal PriorityScore,
     DateTime CreatedAt,
     DateTime? SlaVerifyDueAt,
-    DateTime? SlaResolveDueAt);
+    DateTime? SlaResolveDueAt,
+    string? FirstImageUrl);

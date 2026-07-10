@@ -34,6 +34,12 @@ public sealed class User : SoftDeletableEntity
     /// <summary>BR-AUTH-015: Admin có thể ban/unban user. User bị ban không thể đăng nhập.</summary>
     public bool IsBanned { get; private set; }
 
+    // ── Data Consent (BR-DAT-005) ──
+    /// <summary>True when user explicitly accepts data processing terms (photos, GPS).</summary>
+    public bool HasDataConsent { get; private set; }
+    /// <summary>UTC timestamp when consent was accepted.</summary>
+    public DateTime? ConsentAcceptedAt { get; private set; }
+
     // ── Notifications (BR-NTF-001) ──
     /// <summary>Firebase Cloud Messaging device token for push notifications.</summary>
     public string? FcmDeviceToken { get; private set; }
@@ -239,4 +245,11 @@ public sealed class User : SoftDeletableEntity
 
     /// <summary>BR-AUTH-015: Toggle ban status.</summary>
     public void ToggleBan() => IsBanned = !IsBanned;
+
+    /// <summary>BR-DAT-005: User explicitly accepts data processing consent.</summary>
+    public void AcceptDataConsent()
+    {
+        HasDataConsent = true;
+        ConsentAcceptedAt = DateTime.UtcNow;
+    }
 }

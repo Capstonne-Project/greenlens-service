@@ -3,6 +3,7 @@ using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Common.Models;
 using Greenlens.Domain.Common;
+using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -123,7 +124,12 @@ public sealed class GetDepartmentReportsQueryHandler(
                 r.ResolvedAt,
                 r.ClosedAt,
                 r.SlaVerifyDueAt,
-                r.SlaResolveDueAt))
+                r.SlaResolveDueAt,
+                r.Media
+                    .Where(m => m.Type == MediaType.Image)
+                    .OrderBy(m => m.UploadedAt)
+                    .Select(m => m.ThumbnailUrl ?? m.Url)
+                    .FirstOrDefault()))
             .ToListAsync(ct)
             .ConfigureAwait(false);
 

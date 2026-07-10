@@ -27,6 +27,12 @@ public sealed class ReopenReportCommandHandler(
         if (report.ReporterId != currentUser.UserId)
             return Errors.Reports.NotReporter;
 
+        // BR-REP-015: Check 7-day reopen window (distinct error from limit reached)
+        if (report.Status == ReportStatus.Resolved
+            && report.ResolvedAt.HasValue
+            && DateTime.UtcNow - report.ResolvedAt.Value > TimeSpan.FromDays(7))
+            return Errors.Reports.ReopenWindowExpired;
+
         // Attempt reopen — max 2 times (BR-REP-015)
         if (!report.TryReopen())
         {

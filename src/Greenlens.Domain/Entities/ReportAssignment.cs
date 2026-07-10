@@ -85,6 +85,20 @@ public sealed class ReportAssignment : BaseEntity
         DeclineReason = reason;
     }
 
+    /// <summary>
+    /// BR-CMP-013: System-level forced decline for cascading deactivation.
+    /// Unlike Decline(), allows from both Assigned and InProgress states.
+    /// </summary>
+    public void ForceDecline(string reason)
+    {
+        if (Status is not (AssignmentStatus.Assigned or AssignmentStatus.InProgress))
+            throw new InvalidOperationException(
+                $"Cannot force-decline from status {Status}. Must be Assigned or InProgress.");
+
+        Status = AssignmentStatus.Declined;
+        DeclineReason = reason;
+    }
+
     /// <summary>Team leader updates progress mid-task. Status must be InProgress.</summary>
     public void UpdateProgress(int percent, string? note, Guid updatedByUserId)
     {

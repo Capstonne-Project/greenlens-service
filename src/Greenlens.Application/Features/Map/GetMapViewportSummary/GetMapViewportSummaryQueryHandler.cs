@@ -48,6 +48,7 @@ public sealed class GetMapViewportSummaryQueryHandler(
 
         var baseQuery = reports.QueryAsNoTracking()
             .Where(r => PublicMapReportStatuses.Visible.Contains(r.Status))
+            .Where(r => !r.IsHidden) // BR-ADM-006: hide moderated reports
             .Where(r =>
                 r.Latitude >= request.MinLat &&
                 r.Latitude <= request.MaxLat &&

@@ -10,8 +10,15 @@ using Greenlens.Application.Features.Organization.GetCompanyById;
 using Greenlens.Application.Features.Organization.GetCompanyServiceAreas;
 using Greenlens.Application.Features.Organization.GetCompanyStaff;
 using Greenlens.Application.Features.Organization.GetMyCompany;
+using Greenlens.Application.Features.Organization.ReactivateCompany;
+using Greenlens.Application.Features.Organization.SuspendCompany;
+using Greenlens.Application.Features.Organization.TerminateCompany;
 using Greenlens.Application.Features.Organization.ToggleCompanyStaffStatus;
 using Greenlens.Application.Features.Organization.UpdateCompanyServiceAreas;
+using Greenlens.Application.Features.Organization.RenewContract;
+using Greenlens.Application.Features.Organization.GetContractHistory;
+using Greenlens.Application.Features.Organization.GetCompanyKpi;
+using Greenlens.Application.Features.Reports.GetOfficerKpi;
 using Greenlens.Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -118,6 +125,54 @@ public sealed class CompaniesController(ISender sender) : ControllerBase
         => (await sender.Send(new GetCompanyByIdQuery(id), ct)).ToHttp();
 
     // ═══════════════════════════════════════════
+    // ██  COMPANY STATUS (BR-CMP-004)
+    // ═══════════════════════════════════════════
+
+    [HttpPost("{id:guid}/suspend")]
+    [Authorize(Roles = "DEO,Admin")]
+    [Tags("🔍 DEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[DEO/Admin] Tạm ngưng công ty",
+        Description = "Tạm ngưng hoạt động công ty (Active → Suspended). " +
+            "Cascading: tự động hủy tất cả task đang giao, đưa báo cáo về Verified. " +
+            "DEO có thể kích hoạt lại sau bằng endpoint reactivate.")]
+    [SwaggerResponse(200, "Đã tạm ngưng", typeof(ApiResponse))]
+    [SwaggerResponse(404, "Công ty không tồn tại", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Công ty không Active hoặc lý do quá ngắn", typeof(ApiResponse))]
+    public async Task<IActionResult> SuspendAsync(
+        [FromRoute] Guid id, [FromBody] CompanyStatusReasonRequest request, CancellationToken ct)
+        => (await sender.Send(new SuspendCompanyCommand(id, request.Reason), ct)).ToHttpNoContent("Đã tạm ngưng công ty.");
+
+    [HttpPost("{id:guid}/terminate")]
+    [Authorize(Roles = "DEO,Admin")]
+    [Tags("🔍 DEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[DEO/Admin] Chấm dứt hợp đồng công ty",
+        Description = "Chấm dứt hợp đồng công ty sớm (Active/Suspended/Expired → Terminated). " +
+            "Cascading: tự động hủy tất cả task đang giao, đưa báo cáo về Verified. " +
+            "⚠️ Hành động không thể đảo ngược.")]
+    [SwaggerResponse(200, "Đã chấm dứt", typeof(ApiResponse))]
+    [SwaggerResponse(404, "Công ty không tồn tại", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Không thể chấm dứt từ trạng thái hiện tại", typeof(ApiResponse))]
+    public async Task<IActionResult> TerminateAsync(
+        [FromRoute] Guid id, [FromBody] CompanyStatusReasonRequest request, CancellationToken ct)
+        => (await sender.Send(new TerminateCompanyCommand(id, request.Reason), ct)).ToHttpNoContent("Đã chấm dứt hợp đồng.");
+
+    [HttpPost("{id:guid}/reactivate")]
+    [Authorize(Roles = "DEO,Admin")]
+    [Tags("🔍 DEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[DEO/Admin] Kích hoạt lại công ty",
+        Description = "Kích hoạt lại công ty đang bị tạm ngưng (Suspended → Active). " +
+            "Công ty sẽ trở lại hoạt động và nhận task mới.")]
+    [SwaggerResponse(200, "Đã kích hoạt lại", typeof(ApiResponse))]
+    [SwaggerResponse(404, "Công ty không tồn tại", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Công ty không ở trạng thái Suspended", typeof(ApiResponse))]
+    public async Task<IActionResult> ReactivateAsync(
+        [FromRoute] Guid id, CancellationToken ct)
+        => (await sender.Send(new ReactivateCompanyCommand(id), ct)).ToHttpNoContent("Đã kích hoạt lại công ty.");
+
+    // ═══════════════════════════════════════════
     // ██  SERVICE AREAS (BR-CMP-008, BR-CMP-014)
     // ═══════════════════════════════════════════
 
@@ -216,9 +271,102 @@ public sealed class CompaniesController(ISender sender) : ControllerBase
     [SwaggerResponse(403, "Không phải CompanyManager", typeof(ApiResponse))]
     public async Task<IActionResult> GetMyCompanyAsync(CancellationToken ct)
         => (await sender.Send(new GetMyCompanyQuery(), ct)).ToHttp();
+
+    // ═══════════════════════════════════════════
+    // ██  CONTRACT RENEWAL (BR-CMP-006)
+    // ═══════════════════════════════════════════
+
+    [HttpPost("{id:guid}/renew-contract")]
+    [Authorize(Roles = "DEO,Admin")]
+    [Tags("🔍 DEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[DEO/Admin] Gia hạn / tái ký hợp đồng",
+        Description = "Gia hạn hợp đồng cho công ty Bidding. " +
+            "Tạo kỳ hợp đồng mới, cập nhật ContractEndDate. " +
+            "Nếu công ty đang Expired → tự động kích hoạt lại (Active). " +
+            "Subsidiary (vô thời hạn) không thể gia hạn.")]
+    [SwaggerResponse(200, "Đã gia hạn", typeof(ApiResponse<RenewContractResponse>))]
+    [SwaggerResponse(404, "Công ty không tồn tại", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Subsidiary hoặc validation error", typeof(ApiResponse))]
+    public async Task<IActionResult> RenewContractAsync(
+        [FromRoute] Guid id, [FromBody] RenewContractRequest request, CancellationToken ct)
+        => (await sender.Send(new RenewContractCommand(
+            id, request.NewStartDate, request.NewEndDate,
+            request.NewContractNumber, request.Note), ct)).ToHttp();
+
+    [HttpGet("{id:guid}/contract-history")]
+    [Authorize(Roles = "DEO,Admin")]
+    [Tags("🔍 DEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[DEO/Admin] Lịch sử kỳ hợp đồng",
+        Description = "Trả về tất cả kỳ hợp đồng của công ty, sắp xếp mới nhất trước.")]
+    [SwaggerResponse(200, "Lịch sử kỳ hợp đồng", typeof(ApiResponse<ContractHistoryResponse>))]
+    [SwaggerResponse(404, "Công ty không tồn tại", typeof(ApiResponse))]
+    public async Task<IActionResult> GetContractHistoryAsync(
+        [FromRoute] Guid id, CancellationToken ct)
+        => (await sender.Send(new GetContractHistoryQuery(id), ct)).ToHttp();
+
+    [HttpGet("my/contract-history")]
+    [Authorize(Roles = "CompanyManager")]
+    [Tags("🏢 Company Dashboard")]
+    [SwaggerOperation(
+        Summary = "[CM] Lịch sử kỳ hợp đồng công ty tôi",
+        Description = "CM xem lịch sử các kỳ hợp đồng của công ty mình.")]
+    [SwaggerResponse(200, "Lịch sử kỳ hợp đồng", typeof(ApiResponse<ContractHistoryResponse>))]
+    [SwaggerResponse(403, "Không phải CompanyManager", typeof(ApiResponse))]
+    public async Task<IActionResult> GetMyContractHistoryAsync(CancellationToken ct)
+        => (await sender.Send(new GetContractHistoryQuery(Guid.Empty), ct)).ToHttp();
+    // Note: Guid.Empty signals handler to resolve from CM token — handled in GetContractHistoryQueryHandler
+
+    // ═══════════════════════════════════════════
+    // ██  KPI (BR-CMP-020)
+    // ═══════════════════════════════════════════
+
+    [HttpGet("{id:guid}/kpi")]
+    [Authorize(Roles = "DEO,Admin")]
+    [Tags("🔍 DEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[DEO/Admin] KPI công ty",
+        Description = "Tính KPI cho công ty: số task tiếp nhận/hoàn thành, tỉ lệ đúng SLA, " +
+            "thời gian xử lý trung bình. Hỗ trợ lọc theo khoảng thời gian hoặc preset (ThisMonth, LastQuarter...).")]
+    [SwaggerResponse(200, "KPI công ty", typeof(ApiResponse<CompanyKpiResponse>))]
+    [SwaggerResponse(404, "Công ty không tồn tại", typeof(ApiResponse))]
+    public async Task<IActionResult> GetCompanyKpiAsync(
+        [FromRoute] Guid id,
+        [FromQuery] DateTime? from = null, [FromQuery] DateTime? to = null,
+        [FromQuery] string? period = null,
+        CancellationToken ct = default)
+        => (await sender.Send(new GetCompanyKpiQuery(
+            id, from, to, ParseKpiPeriod(period)), ct)).ToHttp();
+
+    [HttpGet("my/kpi")]
+    [Authorize(Roles = "CompanyManager")]
+    [Tags("🏢 Company Dashboard")]
+    [SwaggerOperation(
+        Summary = "[CM] KPI công ty của tôi",
+        Description = "CM xem KPI công ty mình. Tự động xác định companyId từ tài khoản.")]
+    [SwaggerResponse(200, "KPI công ty", typeof(ApiResponse<CompanyKpiResponse>))]
+    [SwaggerResponse(403, "Không phải CompanyManager", typeof(ApiResponse))]
+    public async Task<IActionResult> GetMyCompanyKpiAsync(
+        [FromQuery] DateTime? from = null, [FromQuery] DateTime? to = null,
+        [FromQuery] string? period = null,
+        CancellationToken ct = default)
+        => (await sender.Send(new GetCompanyKpiQuery(
+            null, from, to, ParseKpiPeriod(period)), ct)).ToHttp();
+
+    // ── Helpers ──
+    private static KpiPeriod? ParseKpiPeriod(string? period)
+        => Enum.TryParse<KpiPeriod>(period, true, out var p) ? p : null;
 }
 
 // ── Request DTOs ──
 public sealed record UpdateServiceAreasRequest(List<string> WardCodes);
 public sealed record ToggleStaffStatusRequest(bool IsActive);
 public sealed record CreateCompanyManagerRequest(string ManagerEmail, string ManagerFullName);
+public sealed record CompanyStatusReasonRequest(string Reason);
+public sealed record RenewContractRequest(
+    DateTime NewStartDate,
+    DateTime NewEndDate,
+    string NewContractNumber,
+    string? Note = null);
+

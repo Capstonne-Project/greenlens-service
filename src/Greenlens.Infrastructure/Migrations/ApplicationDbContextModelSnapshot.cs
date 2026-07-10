@@ -22,6 +22,72 @@ namespace Greenlens.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Greenlens.Domain.Entities.AuditLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("action");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("EntityId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("entity_id");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("entity_type");
+
+                    b.Property<string>("IpAddress")
+                        .IsRequired()
+                        .HasMaxLength(45)
+                        .HasColumnType("character varying(45)")
+                        .HasColumnName("ip_address");
+
+                    b.Property<string>("NewValues")
+                        .HasColumnType("text")
+                        .HasColumnName("new_values");
+
+                    b.Property<string>("OldValues")
+                        .HasColumnType("text")
+                        .HasColumnName("old_values");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("user_agent");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_audit_logs");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_audit_logs_created_at");
+
+                    b.HasIndex("EntityType", "EntityId")
+                        .HasDatabaseName("ix_audit_logs_entity");
+
+                    b.HasIndex("UserId", "CreatedAt")
+                        .HasDatabaseName("ix_audit_logs_user_date");
+
+                    b.ToTable("audit_logs", (string)null);
+                });
+
             modelBuilder.Entity("Greenlens.Domain.Entities.Badge", b =>
                 {
                     b.Property<Guid>("Id")
@@ -326,6 +392,62 @@ namespace Greenlens.Infrastructure.Migrations
                     b.ToTable("company_staff", (string)null);
                 });
 
+            modelBuilder.Entity("Greenlens.Domain.Entities.ContractPeriod", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("company_id");
+
+                    b.Property<string>("ContractNumber")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("contract_number");
+
+                    b.Property<string>("ContractType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("contract_type");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("end_date");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("note");
+
+                    b.Property<Guid>("RenewedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("renewed_by_user_id");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("start_date");
+
+                    b.HasKey("Id")
+                        .HasName("pk_contract_periods");
+
+                    b.HasIndex("CompanyId")
+                        .HasDatabaseName("ix_contract_periods_company_id");
+
+                    b.HasIndex("CompanyId", "StartDate")
+                        .HasDatabaseName("ix_contract_periods_company_id_start_date");
+
+                    b.ToTable("contract_periods", (string)null);
+                });
+
             modelBuilder.Entity("Greenlens.Domain.Entities.Department", b =>
                 {
                     b.Property<Guid>("Id")
@@ -427,6 +549,10 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
                         .HasColumnName("email");
+
+                    b.Property<DateTime?>("LastExpiryWarningAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_expiry_warning_at");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -537,6 +663,117 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasDatabaseName("ix_environmental_teams_team_type");
 
                     b.ToTable("environmental_teams", (string)null);
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.GamificationConfig", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ActionType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("action_type");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<int>("Points")
+                        .HasColumnType("integer")
+                        .HasColumnName("points");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_gamification_configs");
+
+                    b.HasIndex("ActionType")
+                        .IsUnique()
+                        .HasDatabaseName("ix_gamification_config_action_type");
+
+                    b.ToTable("gamification_configs", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("a0000001-0000-0000-0000-000000000001"),
+                            ActionType = "ReportVerified",
+                            CreatedAt = new DateTime(2026, 7, 10, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Báo cáo được xác minh bởi LEO",
+                            IsActive = true,
+                            Points = 10
+                        },
+                        new
+                        {
+                            Id = new Guid("a0000001-0000-0000-0000-000000000002"),
+                            ActionType = "ReportResolved",
+                            CreatedAt = new DateTime(2026, 7, 10, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Báo cáo đã xử lý xong (cleanup hoàn tất)",
+                            IsActive = true,
+                            Points = 20
+                        },
+                        new
+                        {
+                            Id = new Guid("a0000001-0000-0000-0000-000000000003"),
+                            ActionType = "PenaltyIssued",
+                            CreatedAt = new DateTime(2026, 7, 10, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Biên bản xử phạt được ban hành",
+                            IsActive = true,
+                            Points = 20
+                        },
+                        new
+                        {
+                            Id = new Guid("a0000001-0000-0000-0000-000000000004"),
+                            ActionType = "DuplicateReport",
+                            CreatedAt = new DateTime(2026, 7, 10, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Báo cáo trùng lặp được gộp vào báo cáo gốc",
+                            IsActive = true,
+                            Points = 5
+                        },
+                        new
+                        {
+                            Id = new Guid("a0000001-0000-0000-0000-000000000005"),
+                            ActionType = "ReportRejected",
+                            CreatedAt = new DateTime(2026, 7, 10, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Báo cáo bị từ chối (không hợp lệ)",
+                            IsActive = true,
+                            Points = -5
+                        },
+                        new
+                        {
+                            Id = new Guid("a0000001-0000-0000-0000-000000000006"),
+                            ActionType = "FraudPenalty",
+                            CreatedAt = new DateTime(2026, 7, 10, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "BR-GAM-006: Phạt gian lận — trừ toàn bộ điểm",
+                            IsActive = true,
+                            Points = -100
+                        });
                 });
 
             modelBuilder.Entity("Greenlens.Domain.Entities.InspectionReport", b =>
@@ -996,6 +1233,91 @@ namespace Greenlens.Infrastructure.Migrations
                     b.ToTable("notification_preferences", (string)null);
                 });
 
+            modelBuilder.Entity("Greenlens.Domain.Entities.NotificationTemplate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("BodyEn")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("body_en");
+
+                    b.Property<string>("BodyVi")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("body_vi");
+
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("channel");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("created_by");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsPublished")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_published");
+
+                    b.Property<string>("TemplateKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("template_key");
+
+                    b.Property<string>("TitleEn")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("title_en");
+
+                    b.Property<string>("TitleVi")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("title_vi");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("type");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notification_templates");
+
+                    b.HasIndex("TemplateKey", "Channel")
+                        .IsUnique()
+                        .HasDatabaseName("ix_notification_template_key_channel");
+
+                    b.ToTable("notification_templates", (string)null);
+                });
+
             modelBuilder.Entity("Greenlens.Domain.Entities.OtpCode", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1083,6 +1405,80 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasDatabaseName("ix_password_histories_user_id_created_at");
 
                     b.ToTable("password_histories", (string)null);
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.PenaltyFramework", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CategoryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("category_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasDefaultValue("VND")
+                        .HasColumnName("currency");
+
+                    b.Property<DateTime>("EffectiveFrom")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("effective_from");
+
+                    b.Property<DateTime?>("EffectiveTo")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("effective_to");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<decimal>("MaxAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("max_amount");
+
+                    b.Property<decimal>("MinAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("min_amount");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("updated_by");
+
+                    b.Property<string>("ViolationLevel")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("violation_level");
+
+                    b.HasKey("Id")
+                        .HasName("pk_penalty_frameworks");
+
+                    b.HasIndex("CategoryId", "ViolationLevel", "IsActive")
+                        .HasDatabaseName("ix_penalty_fw_category_level_active");
+
+                    b.ToTable("penalty_frameworks", (string)null);
                 });
 
             modelBuilder.Entity("Greenlens.Domain.Entities.PointTransaction", b =>
@@ -1316,6 +1712,26 @@ namespace Greenlens.Infrastructure.Migrations
                     b.Property<DateTime?>("DispatchedToCompanyAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("dispatched_to_company_at");
+
+                    b.Property<DateTime?>("HiddenAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("hidden_at");
+
+                    b.Property<Guid?>("HiddenBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("hidden_by");
+
+                    b.Property<string>("HiddenReason")
+                        .HasColumnType("text")
+                        .HasColumnName("hidden_reason");
+
+                    b.Property<bool>("IsHidden")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_hidden");
+
+                    b.Property<bool>("IsOverdue")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_overdue");
 
                     b.Property<bool>("IsSuspicious")
                         .HasColumnType("boolean")
@@ -1989,6 +2405,10 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasColumnType("character varying(1000)")
                         .HasColumnName("avatar_url");
 
+                    b.Property<DateTime?>("ConsentAcceptedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("consent_accepted_at");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -2033,6 +2453,12 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)")
                         .HasColumnName("google_id");
+
+                    b.Property<bool>("HasDataConsent")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("has_data_consent");
 
                     b.Property<bool>("IsBanned")
                         .HasColumnType("boolean")
@@ -2396,6 +2822,18 @@ namespace Greenlens.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Greenlens.Domain.Entities.AuditLog", b =>
+                {
+                    b.HasOne("Greenlens.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_audit_logs_users_user_id");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Greenlens.Domain.Entities.CompanyServiceArea", b =>
                 {
                     b.HasOne("Greenlens.Domain.Entities.EnvironmentalServiceCompany", "Company")
@@ -2436,6 +2874,18 @@ namespace Greenlens.Infrastructure.Migrations
                     b.Navigation("Company");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.ContractPeriod", b =>
+                {
+                    b.HasOne("Greenlens.Domain.Entities.EnvironmentalServiceCompany", "Company")
+                        .WithMany("ContractPeriods")
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_contract_periods_environmental_service_companies_company_id");
+
+                    b.Navigation("Company");
                 });
 
             modelBuilder.Entity("Greenlens.Domain.Entities.Department", b =>
@@ -2623,6 +3073,18 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasConstraintName("fk_password_histories_users_user_id");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.PenaltyFramework", b =>
+                {
+                    b.HasOne("Greenlens.Domain.Entities.PollutionCategory", "Category")
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_penalty_frameworks_pollution_categories_category_id");
+
+                    b.Navigation("Category");
                 });
 
             modelBuilder.Entity("Greenlens.Domain.Entities.PointTransaction", b =>
@@ -2969,6 +3431,8 @@ namespace Greenlens.Infrastructure.Migrations
 
             modelBuilder.Entity("Greenlens.Domain.Entities.EnvironmentalServiceCompany", b =>
                 {
+                    b.Navigation("ContractPeriods");
+
                     b.Navigation("ServiceAreas");
 
                     b.Navigation("Staff");

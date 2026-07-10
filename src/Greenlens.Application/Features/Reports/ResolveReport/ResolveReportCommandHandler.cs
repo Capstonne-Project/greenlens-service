@@ -5,6 +5,7 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.ResolveReport;
@@ -39,6 +40,13 @@ public sealed class ResolveReportCommandHandler(
 
         if (report.Status != ReportStatus.InProgress)
             return Errors.Reports.InvalidStatusTransition;
+
+        // BR-REP-014: Must have ≥ 1 before image uploaded during check-in
+        var hasBeforeImage = await reportMedia.QueryAsNoTracking()
+            .AnyAsync(m => m.ReportId == request.ReportId && m.Type == MediaType.Before, ct)
+            .ConfigureAwait(false);
+        if (!hasBeforeImage)
+            return Errors.Reports.MissingBeforeImages;
 
         // Find this team's assignment via token — no need to pass teamId in body
         var reportAssignments = await assignments.GetByReportIdAsync(request.ReportId, ct).ConfigureAwait(false);
