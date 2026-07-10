@@ -1,0 +1,38 @@
+using Greenlens.Domain.Common;
+using Greenlens.Domain.Entities;
+using MediatR;
+using Microsoft.EntityFrameworkCore;
+
+namespace Greenlens.Application.Features.Admin.NotificationTemplates.CreateNotificationTemplate;
+
+/// <summary>
+/// Creates a new notification template in draft state (not published).
+/// </summary>
+/// <remarks>Implements: BR-ADM-004.</remarks>
+public sealed class CreateNotificationTemplateCommandHandler(DbContext db)
+    : IRequestHandler<CreateNotificationTemplateCommand, Result<CreateNotificationTemplateResponse>>
+{
+    public async Task<Result<CreateNotificationTemplateResponse>> Handle(
+        CreateNotificationTemplateCommand request,
+        CancellationToken ct)
+    {
+        var duplicate = await db.Set<NotificationTemplate>()
+            .AnyAsync(t => t.TemplateKey == request.TemplateKey && t.Channel == request.Channel, ct)
+            .ConfigureAwait(false);
+
+        if (duplicate)
+            return Result<CreateNotificationTemplateResponse>.Failure(
+                new Error("NotificationTemplate.Duplicate",
+                    $"Template '{request.TemplateKey}' đã tồn tại cho channel {request.Channel}.",
+                    ErrorType.Conflict));
+
+        var entity = NotificationTemplate.Create(
+            request.TemplateKey, request.TitleVi, request.BodyVi,
+            request.TitleEn, request.BodyEn, request.Channel, request.Type);
+
+        db.Set<NotificationTemplate>().Add(entity);
+        await db.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        return new CreateNotificationTemplateResponse(entity.Id, entity.TemplateKey, entity.IsPublished);
+    }
+}
