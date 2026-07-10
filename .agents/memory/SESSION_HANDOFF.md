@@ -1,13 +1,13 @@
 # Session Handoff — GreenLens Backend
 
-> **Cập nhật lần cuối:** 2026-07-10 01:12 · **Phiên bản:** 14 · **Agent:** Antigravity (Claude Opus 4.6)
+> **Cập nhật lần cuối:** 2026-07-10 02:53 · **Phiên bản:** 15 · **Agent:** Antigravity (Claude Opus 4.6)
 
 ## 0. TL;DR
-Backend .NET 9 GreenLens. Phiên 14 hoàn thành module Company **14/14 rules** — implement 3 BR còn thiếu: BR-CMP-006 (gia hạn hợp đồng + ContractPeriod entity), BR-CMP-020 (KPI công ty), BR-CMP-021 (audit data isolation 11/11 handlers). Thêm migration `AddContractPeriods` + data seed. Tổng tiến độ BR v1.2: ~65%. Build 0 errors.
+Backend .NET 9 GreenLens. Phiên 14 hoàn thành module Company **14/14 rules** (CMP-006 ContractPeriod, CMP-020 KPI, CMP-021 audit). Phiên 15 lên plan BR-REP-030..033 (duplicate detection): Tier 1 geo+time+category inline + Tier 2 CLIP/DINOv2 qua Python AI service. Tạo spec doc cho team Python. **Plan chưa approved — đang chờ user review.** Tổng tiến độ ~65%.
 
 ## 1. Mục tiêu & Bối cảnh
 - **Mục tiêu tổng thể:** Backend .NET 9 cho ứng dụng báo cáo ô nhiễm môi trường (SU26SE049)
-- **Phạm vi phiên 14:** BR-CMP-006, BR-CMP-020, BR-CMP-021 — hoàn thành Company module
+- **Phạm vi phiên 15:** Planning BR-REP-030..033 (duplicate detection), technical discussion about pHash vs CLIP/DINOv2
 - **Ngôn ngữ:** Tiếng Việt (giao tiếp + XML doc BR), English (code)
 
 ## 2. Quyết định đã chốt (Locked Decisions)
@@ -40,34 +40,29 @@ Backend .NET 9 GreenLens. Phiên 14 hoàn thành module Company **14/14 rules** 
 | 24 | **Specific repo per entity, NEVER inject `IGenericRepository<T>` directly** | Convention trong `IGenericRepository.cs` comment — DI chỉ đăng ký specific interface | 2026-07-08 |
 | 25 | **Ignore `PendingModelChangesWarning`** trong EF ConfigureWarnings | User muốn dev environment linh hoạt hơn | 2026-07-08 |
 | 26 | **BR-CMP-004: Suspend/Terminate → phương án A** (auto-decline assignments + revert reports về Verified) | User chọn | 2026-07-08 |
-| 27 | **BR-CMP-006: ContractPeriod entity (phương án B)** cho lịch sử kỳ hợp đồng, không dùng JSON/audit log | User chọn | 2026-07-08 |
+| 27 | **BR-CMP-006: ContractPeriod entity (phương án B)** cho lịch sử kỳ hợp đồng | User chọn | 2026-07-08 |
 | 28 | **BR-CMP-006: Chỉ Terminate + Expire làm trước**, gia hạn/tái ký riêng | User yêu cầu | 2026-07-08 |
+| 29 | **BR-REP-030: Duplicate detection Tier 1** = geo ≤ 50m + cùng category + ≤ 24h (SQL query) | Đủ tin cậy, free, instant | 2026-07-10 |
+| 30 | **BR-REP-030: Tier 2 dùng CLIP/DINOv2**, KHÔNG dùng pHash | pHash fail khi khác góc > 30°. CLIP/DINOv2 hiểu ngữ nghĩa ảnh, xử lý tốt < 90° | 2026-07-10 |
+| 31 | **Duplicate check inline (Option A)** trong SubmitHandler | Citizen cần biết ngay "báo cáo có thể trùng" | 2026-07-10 |
+| 32 | **Tier 2 chạy trên Python AI service** (thêm endpoint `/api/v1/compare-images`), .NET chỉ gọi HTTP | Cùng pattern với `/classify-moderation-upload`. Team AI tự quản model. Không load ML model vào .NET process | 2026-07-10 |
+| 33 | **DINOv2-base recommend** cho production (~330MB RAM, ~200ms/cặp, free, CPU đủ) | Cân bằng accuracy/speed. DINOv2-small (~85MB) nếu cần tiết kiệm | 2026-07-10 |
 
 ## 3. Trạng thái hiện tại
 
+### ⏳ Đang chờ approval (phiên 15 — 2026-07-10)
+
+**BR-REP-030..033 — Duplicate Detection:**
+- Implementation plan đã tạo → **chưa được user approve**
+- Spec doc cho Python AI service đã tạo: `docs/ai-compare-images-spec.md`
+- Discussion xong: pHash vs CLIP/DINOv2, deploy production feasibility, processing order
+
 ### ✅ Đã hoàn thành (phiên 14 — 2026-07-10)
-
-**BR-CMP-006 — Gia hạn / Tái ký hợp đồng:**
-- Domain: `ContractPeriod` entity (id, companyId, contractNumber, contractType, startDate, endDate, renewedByUserId, note)
-- Domain: `EnvironmentalServiceCompany.RenewContract()` method (Bidding only, date validation, auto-reactivate Expired→Active)
-- Infrastructure: `ContractPeriodConfiguration.cs` (EF config, string conversion, indexes)
-- Infrastructure: `DbSet<ContractPeriod>` added to `ApplicationDbContext`
-- Application: `RenewContract/` slice (Command + Handler + Validator)
-- Application: `GetContractHistory/` slice (Query + Handler — CM auto-resolve via Guid.Empty)
-- Application: `CreateCompanyCommandHandler` — thêm tạo initial ContractPeriod
-- API: 3 endpoints mới (`POST {id}/renew-contract`, `GET {id}/contract-history`, `GET my/contract-history`)
-- Migration: `202607100100_AddContractPeriods` — tạo bảng + data seed kỳ ban đầu cho existing companies
-
-**BR-CMP-020 — KPI Công ty:**
-- Application: `GetCompanyKpi/` slice (Query + Handler + Validator) — metrics: assigned/completed/declined, SLA compliance rate, avg resolution hours. Reuse `KpiPeriod` enum từ GetOfficerKpi
-- API: 2 endpoints (`GET {id}/kpi`, `GET my/kpi`) — DEO xem theo company, CM xem company mình
-
-**BR-CMP-021 — Data Isolation Audit:**
-- Audit 11/11 CM/CompanyStaff handlers → **tất cả đã đúng**, không gap nào
-- Pattern: resolve `companyId` từ token via `CompanyStaff.GetByUserIdAsync()` + filter queries by companyId
-
-**Documentation:**
-- `br_v12_comparison_report.md`: CMP 11/14 → **14/14**, tổng tiến độ ~60% → ~65%
+- BR-CMP-006: ContractPeriod entity + RenewContract + GetContractHistory + migration data seed
+- BR-CMP-020: GetCompanyKpi query (assigned/completed/declined, SLA, avg hours)
+- BR-CMP-021: Audit 11/11 CM handlers — không gap
+- Company module: **14/14 rules** ✅
+- br_v12_comparison_report.md: updated ~65%
 
 ### ✅ Đã hoàn thành (phiên trước — tóm tắt)
 - Phiên 13: Fix DI startup (IReportDraftRepository + IReportSatisfactionRepository), fix migration, BR-OFF-013 limit 10→6
@@ -78,13 +73,14 @@ Backend .NET 9 GreenLens. Phiên 14 hoàn thành module Company **14/14 rules** 
 - Phiên 8 trở về trước: API Docs v1.7, E2E tests, Hangfire, DomainEvent infra
 
 ## 4. Việc tiếp theo (Next Steps)
+- [ ] **BR-REP-030..033: Duplicate detection** — approve plan → implement (~15 files)
 - [ ] Comments module (BR-CMT-001..004)
 - [ ] AI Service: BR-AI-006 fallback retry job (AiRetryJob)
 - [ ] Map module: BR-MAP-001..012 (heatmap, hotspot, nearby — PostGIS queries)
-- [ ] Administration: BR-ADM-004 (notification templates), BR-ADM-005 (gamification config), BR-ADM-006..008, BR-ADM-010 (audit log full), BR-ADM-012 (giám sát công ty)
+- [ ] Administration: BR-ADM-004..010, BR-ADM-012
 - [ ] Cleanup module: BR-CLN check-in, SLA
-- [ ] BR-AUTH-014: Brute-force lock 30' + CAPTCHA lần 3 (sliding window + Turnstile)
-- [ ] BR-INS-003..032: Inspection remaining (reject 2h, check-in, repeat offender, SLA, daily update, KPI)
+- [ ] BR-AUTH-014: Brute-force lock
+- [ ] BR-INS remaining
 - [ ] Cập nhật API Documentation lên v1.8+
 - [ ] Unit tests cho invitation flow, escalate, reject re-queue (pending từ phiên 10)
 
@@ -93,17 +89,14 @@ Backend .NET 9 GreenLens. Phiên 14 hoàn thành module Company **14/14 rules** 
 | Đường dẫn | Vai trò | Trạng thái |
 |---|---|---|
 | `docs/BusinessRule/br_v12_comparison_report.md` | So sánh BR v1.2 vs hệ thống | ✅ Updated (phiên 14: CMP 14/14) |
+| `docs/ai-compare-images-spec.md` | Spec endpoint `/compare-images` cho Python AI service | ✅ Mới (phiên 15) |
 | `src/Greenlens.Domain/Entities/ContractPeriod.cs` | Entity kỳ hợp đồng | ✅ Mới (phiên 14) |
-| `src/Greenlens.Domain/Entities/EnvironmentalServiceCompany.cs` | Entity công ty | ✅ Sửa (+RenewContract(), +ContractPeriods nav) |
-| `src/Greenlens.Infrastructure/Persistence/Configurations/Organization/ContractPeriodConfiguration.cs` | EF config | ✅ Mới (phiên 14) |
-| `src/Greenlens.Infrastructure/Persistence/ApplicationDbContext.cs` | DbContext | ✅ Sửa (+DbSet) |
-| `src/Greenlens.Infrastructure/Migrations/202607100100_AddContractPeriods.cs` | Migration | ✅ Mới (phiên 14) |
-| `src/Greenlens.Application/Features/Organization/RenewContract/` | Gia hạn HĐ slice (3 files) | ✅ Mới (phiên 14) |
-| `src/Greenlens.Application/Features/Organization/GetContractHistory/` | Lịch sử kỳ HĐ slice (2 files) | ✅ Mới (phiên 14) |
-| `src/Greenlens.Application/Features/Organization/GetCompanyKpi/` | KPI công ty slice (3 files) | ✅ Mới (phiên 14) |
-| `src/Greenlens.Application/Common/Errors/OrganizationErrors.cs` | Error constants | ✅ Sửa (+3 errors) |
-| `src/Greenlens.Application/Features/Organization/CreateCompany/CreateCompanyCommandHandler.cs` | Tạo công ty | ✅ Sửa (+initial ContractPeriod) |
-| `src/Greenlens.Api/Controllers/CompaniesController.cs` | API endpoints | ✅ Sửa (+5 endpoints, +RenewContractRequest DTO) |
+| `src/Greenlens.Domain/Entities/EnvironmentalServiceCompany.cs` | Entity công ty | ✅ Sửa (+RenewContract, +ContractPeriods) |
+| `src/Greenlens.Domain/Entities/Report.cs` | Entity báo cáo — đã có ParentReportId, MarkDuplicate, ReportFlag | Cần sửa thêm (duplicate detection fields) |
+| `src/Greenlens.Domain/Entities/ReportFlag.cs` | Entity flag report (BR-REP-033) | ✅ Đã có sẵn |
+| `src/Greenlens.Domain/Enums/FlagType.cs` | Enum: Duplicate, Invalid, Spam, Inappropriate | ✅ Đã có sẵn |
+| `src/Greenlens.Infrastructure/AI/AiClassificationService.cs` | HTTP adapter cho Python AI | Cần thêm CompareAsync method |
+| `src/Greenlens.Infrastructure/Migrations/202607100100_AddContractPeriods.cs` | Migration contract periods | ✅ Mới (phiên 14) |
 
 ## 6. Kiến thức nền & Quy ước
 - **Tech stack:** .NET 9, ASP.NET Core, EF Core 9, PostgreSQL + PostGIS, Hangfire, MediatR, FluentValidation, Mapster, ClosedXML
@@ -119,20 +112,22 @@ Backend .NET 9 GreenLens. Phiên 14 hoàn thành module Company **14/14 rules** 
 - **Git:** Conventional Commits, branch `feature/<slug>`, KHÔNG dùng mã BR/P0 trong tên
 - **Non-generic Result uses `ToHttpNoContent()`**, generic `Result<T>` uses `ToHttp()` or `ToHttpCreated()`
 - **Domain layer KHÔNG reference Errors class** (Application layer) — dùng inline `new Error(...)`
-- **Repo convention:** Mỗi entity phải có `IXxxRepository : IGenericRepository<Xxx>` riêng + impl + DI registration. KHÔNG inject `IGenericRepository<T>` trực tiếp
+- **Repo convention:** Mỗi entity phải có `IXxxRepository : IGenericRepository<Xxx>` riêng + impl + DI registration
 - **Invitation flow replaces instant recruit** — RecruitStaff creates StaffInvitation, citizen must Accept
 - **Reject re-queue:** status stays Submitted, AssignedOfficeId = null → Department queue
-- **LEO escalate:** manual POST, not auto-flag — vì 1 phường có cả tuyến cấp TP lẫn hẻm
-- **Diagrams:** dùng Mermaid trong .md — xem trên GitHub hoặc mermaid.live
-- **Export endpoint pattern:** `?format=csv|xlsx` hoặc `?format=json|csv` — cùng 1 endpoint, content negotiation qua query param
-- **ClosedXML** đã thêm vào `Greenlens.Application.csproj` cho Excel export
+- **LEO escalate:** manual POST, not auto-flag
+- **Export endpoint pattern:** `?format=csv|xlsx` — cùng 1 endpoint
 - **EF Warnings:** ignore `PossibleIncorrectRequiredNavigationWithQueryFilterInteractionWarning` + `PendingModelChangesWarning`
-- **ContractPeriod pattern:** 1 company → N periods. Mỗi lần gia hạn tạo period mới + update ContractEndDate/ContractNumber trên company. CreateCompany tạo initial period.
-- **CM data isolation:** Mọi CM handler phải resolve companyId từ `CompanyStaff.GetByUserIdAsync(currentUser.UserId)`, KHÔNG nhận companyId từ client
+- **ContractPeriod pattern:** 1 company → N periods. CreateCompany tạo initial period
+- **CM data isolation:** Mọi CM handler resolve companyId từ token, KHÔNG nhận từ client
+- **Duplicate detection:** Tier 1 (geo+time+category, SQL, inline SubmitHandler) + Tier 2 (CLIP/DINOv2 via Python `/api/v1/compare-images`, optional, 5s timeout fallback)
+- **Report.Location:** dùng `decimal Latitude/Longitude`, KHÔNG phải `NetTopologySuite.Point`. Geo query dùng Haversine approximate rồi post-filter
 
 ## 7. Câu hỏi mở / Cần xác nhận
-- Module tiếp theo: Comments? AI retry? Map? Admin? Cleanup? Inspection?
+- **BR-REP-030..033 plan chưa approved** — user cần review plan rồi confirm
+- Module tiếp theo sau duplicate detection: Comments? Map? Admin? Cleanup?
 - Unit tests cho invitation flow, escalate, reject re-queue — pending từ phiên 10
+- Python AI service deploy: user cần xác nhận infra (Railway/Render/AWS) cho DINOv2-base (~1.5GB RAM min)
 
 ## 8. Thuật ngữ
 | Thuật ngữ | Nghĩa |
@@ -143,8 +138,11 @@ Backend .NET 9 GreenLens. Phiên 14 hoàn thành module Company **14/14 rules** 
 | CITENCO | Công ty MT Đô thị TP.HCM — đơn vị xử lý tuyến cấp TP |
 | SLA | Service Level Agreement — thời hạn xử lý report theo severity |
 | KPI | Key Performance Indicator — chỉ số hiệu suất officer/company |
-| GDPR | General Data Protection Regulation — quy định bảo vệ dữ liệu EU |
-| NĐ-13 | Nghị định 13/2023/NĐ-CP — Bảo vệ dữ liệu cá nhân Việt Nam |
+| pHash | Perceptual Hash — so sánh pixel layout, fail khi khác góc > 30° |
+| CLIP | Contrastive Language-Image Pretraining (OpenAI) — image embedding model |
+| DINOv2 | Self-supervised Vision Transformer (Meta) — image embedding model, recommend cho GreenLens |
+| Tier 1 | Duplicate detection bằng geo+time+category (SQL query) |
+| Tier 2 | Duplicate detection bằng AI image compare (CLIP/DINOv2) |
 
 ## 9. Change Log
 - 2026-06-17 — API Documentation v1.7 + E2E test Company Management (20/20 PASS)
@@ -155,7 +153,8 @@ Backend .NET 9 GreenLens. Phiên 14 hoàn thành module Company **14/14 rules** 
 - 2026-06-29 — BR-AUTH batch: role assignment, lockout, password history, ban/unban, restore account
 - 2026-06-30 — BR-ORG batch: invitation flow, reject re-queue, LEO manual escalate, release staff
 - 2026-07-01 — System Documentation: Architecture Diagram (8 Mermaid), Conceptual ERD (33 entities), Activity Diagrams (6 flows)
-- 2026-07-07 — BR-OFF (11/12): SLA breach notifications, priority score job, KPI query, report export (CSV+XLSX). ClosedXML added. Fix ReportTests.Reject
-- 2026-07-07 — BR-DAT (5/5): DataRetentionJob, ExportMyData (JSON+CSV), User consent (HasDataConsent + POST endpoint + SubmitReport guard), migration
-- 2026-07-08 — Fix DI startup: tạo IReportDraftRepository + IReportSatisfactionRepository (4 files mới, 4 handlers sửa, DI registration). Fix migration: AddUserConsentAcceptedAt (2 cột). BR-OFF-013 limit 10→6. Pushed feat/report-lifecycle-hardening (987a2ee)
-- 2026-07-10 — BR-CMP-006 (ContractPeriod entity + RenewContract + GetContractHistory + migration data seed), BR-CMP-020 (GetCompanyKpi — task volume/SLA/avg hours), BR-CMP-021 (audit 11/11 handlers passed). Company module 14/14. 13 files mới/sửa. Build 0 errors.
+- 2026-07-07 — BR-OFF (11/12): SLA breach notifications, priority score job, KPI query, report export (CSV+XLSX). ClosedXML added
+- 2026-07-07 — BR-DAT (5/5): DataRetentionJob, ExportMyData (JSON+CSV), User consent flow + migration
+- 2026-07-08 — Fix DI startup: IReportDraftRepository + IReportSatisfactionRepository. Fix migration. BR-OFF-013 limit 10→6
+- 2026-07-10 — Company module 14/14 ✅ (CMP-006 ContractPeriod + RenewContract, CMP-020 KPI, CMP-021 audit). Migration AddContractPeriods. Build 0 errors
+- 2026-07-10 — Plan BR-REP-030..033 duplicate detection. Locked: Tier 1 inline + Tier 2 CLIP/DINOv2 via Python. Created ai-compare-images-spec.md. Plan pending approval
