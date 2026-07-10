@@ -55,6 +55,12 @@ internal sealed class ApplicationDbContext(
     // ── Staff Invitation (BR-ORG-021) ──
     public DbSet<StaffInvitation> StaffInvitations => Set<StaffInvitation>();
 
+    // ── Administration module (BR-ADM-*) ──
+    public DbSet<PenaltyFramework> PenaltyFrameworks => Set<PenaltyFramework>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<GamificationConfig> GamificationConfigs => Set<GamificationConfig>();
+    public DbSet<NotificationTemplate> NotificationTemplates => Set<NotificationTemplate>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
