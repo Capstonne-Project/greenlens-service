@@ -6,6 +6,7 @@ using Greenlens.Application.Common.Behaviors;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Infrastructure.Ai;
+using Greenlens.Infrastructure.Audit;
 using Greenlens.Infrastructure.Email;
 using Greenlens.Infrastructure.Identity;
 using Greenlens.Infrastructure.Persistence;
@@ -133,6 +134,9 @@ public static class DependencyInjection
         services.AddScoped<IAiClassificationService, AiClassificationService>();
         services.AddSingleton<ITempImageStore, TempImageStore>();
 
+        // ── Audit (BR-ADM-010) ─────────────────────────────
+        services.AddScoped<IAuditLogger, AuditLogger>();
+
         // ── MediatR ──────────────────────────────────────
         services.AddMediatR(cfg =>
         {
@@ -141,6 +145,7 @@ public static class DependencyInjection
             cfg.NotificationPublisherType = typeof(IsolatingNotificationPublisher);
             cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
             cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(TransactionBehavior<,>));
+            cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(AuditLogBehavior<,>));
             cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
         });
 
