@@ -17,6 +17,7 @@ public sealed class GetReportsQueryHandler(
     {
         var query = reports.QueryAsNoTracking()
             .Include(r => r.Category)
+            .Where(r => !r.IsHidden) // BR-ADM-006: hide moderated reports from public
             .AsQueryable();
 
         if (request.Status.HasValue)
