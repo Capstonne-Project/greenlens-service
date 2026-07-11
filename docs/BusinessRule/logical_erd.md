@@ -8,16 +8,16 @@
 
 ## Quy ước ký hiệu
 
-| Ký hiệu | Ý nghĩa |
-|----------|---------|
-| **PK** | Primary Key |
-| **FK** | Foreign Key |
-| **UK** | Unique Key |
-| **NN** | Not Null |
-| *(italic)* | Nullable |
-| `«enum»` | Giá trị từ enum |
-| 🟢 | Đã implement trong codebase |
-| 🔴 | **CHƯA implement** — cần tạo mới |
+| Ký hiệu    | Ý nghĩa                          |
+| ---------- | -------------------------------- |
+| **PK**     | Primary Key                      |
+| **FK**     | Foreign Key                      |
+| **UK**     | Unique Key                       |
+| **NN**     | Not Null                         |
+| _(italic)_ | Nullable                         |
+| `«enum»`   | Giá trị từ enum                  |
+| 🟢         | Đã implement trong codebase      |
+| 🔴         | **CHƯA implement** — cần tạo mới |
 
 ---
 
@@ -25,32 +25,32 @@
 
 ## User 🟢
 
-| Key | Attribute | Data Type | Constraint |
-|-----|-----------|-----------|------------|
-| PK | Id | GUID | NN |
-| | Email | String | NN, UK |
-| | PasswordHash | String | NN |
-| | FullName | String | NN |
-| | *PhoneNumber* | String | UK |
-| | *AvatarUrl* | String | |
-| | Role | «UserRole» | NN |
-| | IsEmailVerified | Boolean | NN |
-| | IsPhoneVerified | Boolean | NN |
-| | MustChangePassword | Boolean | NN |
-| | FailedLoginAttempts | Integer | NN |
-| | *LockoutEnd* | DateTime | |
-| | *GoogleId* | String | |
-| | IsBanned | Boolean | NN |
-| | *FcmDeviceToken* | String | |
-| | Language | String | NN, default "vi-VN" |
-| FK | *DepartmentId* | GUID | → Department |
-| FK | *LocalOfficeId* | GUID | → LocalOffice |
-| | CreatedAt | DateTime | NN |
-| | *CreatedBy* | String | |
-| | *UpdatedAt* | DateTime | |
-| | *UpdatedBy* | String | |
-| | *DeletedAt* | DateTime | Soft delete |
-| | *DeletedBy* | String | |
+| Key | Attribute           | Data Type  | Constraint          |
+| --- | ------------------- | ---------- | ------------------- |
+| PK  | Id                  | GUID       | NN                  |
+|     | Email               | String     | NN, UK              |
+|     | PasswordHash        | String     | NN                  |
+|     | FullName            | String     | NN                  |
+|     | _PhoneNumber_       | String     | UK                  |
+|     | _AvatarUrl_         | String     |                     |
+|     | Role                | «UserRole» | NN                  |
+|     | IsEmailVerified     | Boolean    | NN                  |
+|     | IsPhoneVerified     | Boolean    | NN                  |
+|     | MustChangePassword  | Boolean    | NN                  |
+|     | FailedLoginAttempts | Integer    | NN                  |
+|     | _LockoutEnd_        | DateTime   |                     |
+|     | _GoogleId_          | String     |                     |
+|     | IsBanned            | Boolean    | NN                  |
+|     | _FcmDeviceToken_    | String     |                     |
+|     | Language            | String     | NN, default "vi-VN" |
+| FK  | _DepartmentId_      | GUID       | → Department        |
+| FK  | _LocalOfficeId_     | GUID       | → LocalOffice       |
+|     | CreatedAt           | DateTime   | NN                  |
+|     | _CreatedBy_         | String     |                     |
+|     | _UpdatedAt_         | DateTime   |                     |
+|     | _UpdatedBy_         | String     |                     |
+|     | _DeletedAt_         | DateTime   | Soft delete         |
+|     | _DeletedBy_         | String     |                     |
 
 > **«UserRole»**: Citizen, DEO, LEO, Cleaner, CompanyManager, CompanyStaff, Inspector, Admin
 
@@ -58,32 +58,32 @@
 
 ## RefreshToken 🟢
 
-| Key | Attribute | Data Type | Constraint |
-|-----|-----------|-----------|------------|
-| PK | Id | GUID | NN |
-| FK | UserId | GUID | NN → User |
-| | TokenHash | String | NN |
-| | ExpiresAt | DateTime | NN |
-| | CreatedAt | DateTime | NN |
-| | IsRevoked | Boolean | NN |
-| | *RevokedAt* | DateTime | |
-| | *ReplacedByTokenHash* | String | |
+| Key | Attribute             | Data Type | Constraint |
+| --- | --------------------- | --------- | ---------- |
+| PK  | Id                    | GUID      | NN         |
+| FK  | UserId                | GUID      | NN → User  |
+|     | TokenHash             | String    | NN         |
+|     | ExpiresAt             | DateTime  | NN         |
+|     | CreatedAt             | DateTime  | NN         |
+|     | IsRevoked             | Boolean   | NN         |
+|     | _RevokedAt_           | DateTime  |            |
+|     | _ReplacedByTokenHash_ | String    |            |
 
 ---
 
 ## OtpCode 🟢
 
-| Key | Attribute | Data Type | Constraint |
-|-----|-----------|-----------|------------|
-| PK | Id | GUID | NN |
-| | Email | String | NN |
-| | *PhoneNumber* | String | |
-| | CodeHash | String | NN |
-| | Purpose | «OtpPurpose» | NN |
-| | ExpiresAt | DateTime | NN |
-| | CreatedAt | DateTime | NN |
-| | IsUsed | Boolean | NN |
-| | AttemptCount | Integer | NN |
+| Key | Attribute     | Data Type    | Constraint |
+| --- | ------------- | ------------ | ---------- |
+| PK  | Id            | GUID         | NN         |
+|     | Email         | String       | NN         |
+|     | _PhoneNumber_ | String       |            |
+|     | CodeHash      | String       | NN         |
+|     | Purpose       | «OtpPurpose» | NN         |
+|     | ExpiresAt     | DateTime     | NN         |
+|     | CreatedAt     | DateTime     | NN         |
+|     | IsUsed        | Boolean      | NN         |
+|     | AttemptCount  | Integer      | NN         |
 
 > **«OtpPurpose»**: EmailVerification, PasswordReset, PhoneVerification
 
@@ -91,12 +91,12 @@
 
 ## PasswordHistory 🟢
 
-| Key | Attribute | Data Type | Constraint |
-|-----|-----------|-----------|------------|
-| PK | Id | GUID | NN |
-| FK | UserId | GUID | NN → User |
-| | PasswordHash | String | NN |
-| | CreatedAt | DateTime | NN |
+| Key | Attribute    | Data Type | Constraint |
+| --- | ------------ | --------- | ---------- |
+| PK  | Id           | GUID      | NN         |
+| FK  | UserId       | GUID      | NN → User  |
+|     | PasswordHash | String    | NN         |
+|     | CreatedAt    | DateTime  | NN         |
 
 ---
 
@@ -104,50 +104,50 @@
 
 ## Department 🟢
 
-| Key | Attribute | Data Type | Constraint |
-|-----|-----------|-----------|------------|
-| PK | Id | GUID | NN |
-| | Name | String | NN |
-| FK | ProvinceCode | String(2) | NN → Province |
-| | IsActive | Boolean | NN |
-| | CreatedAt | DateTime | NN |
-| | *CreatedBy* | String | |
-| | *UpdatedAt* | DateTime | |
-| | *UpdatedBy* | String | |
+| Key | Attribute    | Data Type | Constraint    |
+| --- | ------------ | --------- | ------------- |
+| PK  | Id           | GUID      | NN            |
+|     | Name         | String    | NN            |
+| FK  | ProvinceCode | String(2) | NN → Province |
+|     | IsActive     | Boolean   | NN            |
+|     | CreatedAt    | DateTime  | NN            |
+|     | _CreatedBy_  | String    |               |
+|     | _UpdatedAt_  | DateTime  |               |
+|     | _UpdatedBy_  | String    |               |
 
 ---
 
 ## LocalOffice 🟢
 
-| Key | Attribute | Data Type | Constraint |
-|-----|-----------|-----------|------------|
-| PK | Id | GUID | NN |
-| | Name | String | NN |
-| FK | DepartmentId | GUID | NN → Department |
-| FK | WardCode | String(5) | NN → Ward |
-| FK | *OfficerId* | GUID | → User (LEO) |
-| | IsOnboarded | Boolean | NN |
-| | CreatedAt | DateTime | NN |
-| | *CreatedBy* | String | |
-| | *UpdatedAt* | DateTime | |
-| | *UpdatedBy* | String | |
+| Key | Attribute    | Data Type | Constraint      |
+| --- | ------------ | --------- | --------------- |
+| PK  | Id           | GUID      | NN              |
+|     | Name         | String    | NN              |
+| FK  | DepartmentId | GUID      | NN → Department |
+| FK  | WardCode     | String(5) | NN → Ward       |
+| FK  | _OfficerId_  | GUID      | → User (LEO)    |
+|     | IsOnboarded  | Boolean   | NN              |
+|     | CreatedAt    | DateTime  | NN              |
+|     | _CreatedBy_  | String    |                 |
+|     | _UpdatedAt_  | DateTime  |                 |
+|     | _UpdatedBy_  | String    |                 |
 
 ---
 
 ## EnvironmentalTeam 🟢
 
-| Key | Attribute | Data Type | Constraint |
-|-----|-----------|-----------|------------|
-| PK | Id | GUID | NN |
-| | Name | String | NN |
-| FK | *LocalOfficeId* | GUID | → LocalOffice |
-| | TeamType | «TeamType» | NN |
-| | IsActive | Boolean | NN |
-| FK | *CompanyId* | GUID | → EnvironmentalServiceCompany |
-| | CreatedAt | DateTime | NN |
-| | *CreatedBy* | String | |
-| | *UpdatedAt* | DateTime | |
-| | *UpdatedBy* | String | |
+| Key | Attribute       | Data Type  | Constraint                    |
+| --- | --------------- | ---------- | ----------------------------- |
+| PK  | Id              | GUID       | NN                            |
+|     | Name            | String     | NN                            |
+| FK  | _LocalOfficeId_ | GUID       | → LocalOffice                 |
+|     | TeamType        | «TeamType» | NN                            |
+|     | IsActive        | Boolean    | NN                            |
+| FK  | _CompanyId_     | GUID       | → EnvironmentalServiceCompany |
+|     | CreatedAt       | DateTime   | NN                            |
+|     | _CreatedBy_     | String     |                               |
+|     | _UpdatedAt_     | DateTime   |                               |
+|     | _UpdatedBy_     | String     |                               |
 
 > **«TeamType»**: Cleanup, Inspection
 > **BR-ORG-003:** Team chỉ thuộc 1 chủ thể (LocalOffice HOẶC Company) tại một thời điểm.
@@ -156,34 +156,34 @@
 
 ## TeamMember 🟢
 
-| Key | Attribute | Data Type | Constraint |
-|-----|-----------|-----------|------------|
-| PK | Id | GUID | NN |
-| FK | TeamId | GUID | NN → EnvironmentalTeam |
-| FK | UserId | GUID | NN → User |
-| | IsLeader | Boolean | NN |
-| | JoinedAt | DateTime | NN |
+| Key | Attribute | Data Type | Constraint             |
+| --- | --------- | --------- | ---------------------- |
+| PK  | Id        | GUID      | NN                     |
+| FK  | TeamId    | GUID      | NN → EnvironmentalTeam |
+| FK  | UserId    | GUID      | NN → User              |
+|     | IsLeader  | Boolean   | NN                     |
+|     | JoinedAt  | DateTime  | NN                     |
 
 ---
 
 ## StaffInvitation 🟢
 
-| Key | Attribute | Data Type | Constraint |
-|-----|-----------|-----------|------------|
-| PK | Id | GUID | NN |
-| FK | InvitedByUserId | GUID | NN → User (LEO) |
-| FK | InvitedUserId | GUID | NN → User (Citizen) |
-| FK | LocalOfficeId | GUID | NN → LocalOffice |
-| FK | *TeamId* | GUID | → EnvironmentalTeam |
-| | TargetRole | «UserRole» | NN |
-| | Status | «InvitationStatus» | NN |
-| | ExpiresAt | DateTime | NN |
-| | *RespondedAt* | DateTime | |
-| | Token | String | NN, UK |
-| | CreatedAt | DateTime | NN |
-| | *CreatedBy* | String | |
-| | *UpdatedAt* | DateTime | |
-| | *UpdatedBy* | String | |
+| Key | Attribute       | Data Type          | Constraint          |
+| --- | --------------- | ------------------ | ------------------- |
+| PK  | Id              | GUID               | NN                  |
+| FK  | InvitedByUserId | GUID               | NN → User (LEO)     |
+| FK  | InvitedUserId   | GUID               | NN → User (Citizen) |
+| FK  | LocalOfficeId   | GUID               | NN → LocalOffice    |
+| FK  | _TeamId_        | GUID               | → EnvironmentalTeam |
+|     | TargetRole      | «UserRole»         | NN                  |
+|     | Status          | «InvitationStatus» | NN                  |
+|     | ExpiresAt       | DateTime           | NN                  |
+|     | _RespondedAt_   | DateTime           |                     |
+|     | Token           | String             | NN, UK              |
+|     | CreatedAt       | DateTime           | NN                  |
+|     | _CreatedBy_     | String             |                     |
+|     | _UpdatedAt_     | DateTime           |                     |
+|     | _UpdatedBy_     | String             |                     |
 
 > **«InvitationStatus»**: Pending, Accepted, Declined, Cancelled, Expired
 
@@ -193,25 +193,25 @@
 
 ## EnvironmentalServiceCompany 🟢
 
-| Key | Attribute | Data Type | Constraint |
-|-----|-----------|-----------|------------|
-| PK | Id | GUID | NN |
-| | Name | String | NN |
-| | *TaxCode* | String | |
-| | *Address* | String | |
-| | *Phone* | String | |
-| | *Email* | String | |
-| | ContractNumber | String | NN |
-| | ContractStartDate | DateTime | NN |
-| | *ContractEndDate* | DateTime | |
-| | ContractType | «ContractType» | NN |
-| | Status | «CompanyStatus» | NN |
-| | *ActivatedAt* | DateTime | |
-| FK | DepartmentId | GUID | NN → Department |
-| | CreatedAt | DateTime | NN |
-| | *CreatedBy* | String | |
-| | *UpdatedAt* | DateTime | |
-| | *UpdatedBy* | String | |
+| Key | Attribute         | Data Type       | Constraint      |
+| --- | ----------------- | --------------- | --------------- |
+| PK  | Id                | GUID            | NN              |
+|     | Name              | String          | NN              |
+|     | _TaxCode_         | String          |                 |
+|     | _Address_         | String          |                 |
+|     | _Phone_           | String          |                 |
+|     | _Email_           | String          |                 |
+|     | ContractNumber    | String          | NN              |
+|     | ContractStartDate | DateTime        | NN              |
+|     | _ContractEndDate_ | DateTime        |                 |
+|     | ContractType      | «ContractType»  | NN              |
+|     | Status            | «CompanyStatus» | NN              |
+|     | _ActivatedAt_     | DateTime        |                 |
+| FK  | DepartmentId      | GUID            | NN → Department |
+|     | CreatedAt         | DateTime        | NN              |
+|     | _CreatedBy_       | String          |                 |
+|     | _UpdatedAt_       | DateTime        |                 |
+|     | _UpdatedBy_       | String          |                 |
 
 > **«ContractType»**: Subsidiary, Bidding (BR-CMP-001, BR-CMP-003)
 > **«CompanyStatus»**: PendingActivation, Active, Suspended, Expired, Terminated (BR-CMP-004)
@@ -220,31 +220,31 @@
 
 ## CompanyStaff 🟢
 
-| Key | Attribute | Data Type | Constraint |
-|-----|-----------|-----------|------------|
-| PK | Id | GUID | NN |
-| FK | UserId | GUID | NN → User |
-| FK | CompanyId | GUID | NN → EnvironmentalServiceCompany |
-| | *Position* | String | |
-| | IsActive | Boolean | NN |
-| | CreatedAt | DateTime | NN |
-| | *CreatedBy* | String | |
-| | *UpdatedAt* | DateTime | |
-| | *UpdatedBy* | String | |
+| Key | Attribute   | Data Type | Constraint                       |
+| --- | ----------- | --------- | -------------------------------- |
+| PK  | Id          | GUID      | NN                               |
+| FK  | UserId      | GUID      | NN → User                        |
+| FK  | CompanyId   | GUID      | NN → EnvironmentalServiceCompany |
+|     | _Position_  | String    |                                  |
+|     | IsActive    | Boolean   | NN                               |
+|     | CreatedAt   | DateTime  | NN                               |
+|     | _CreatedBy_ | String    |                                  |
+|     | _UpdatedAt_ | DateTime  |                                  |
+|     | _UpdatedBy_ | String    |                                  |
 
 ---
 
 ## CompanyServiceArea 🟢
 
-| Key | Attribute | Data Type | Constraint |
-|-----|-----------|-----------|------------|
-| PK | Id | GUID | NN |
-| FK | CompanyId | GUID | NN → EnvironmentalServiceCompany |
-| FK | WardCode | String(5) | NN → Ward |
-| | CreatedAt | DateTime | NN |
-| | *CreatedBy* | String | |
-| | *UpdatedAt* | DateTime | |
-| | *UpdatedBy* | String | |
+| Key | Attribute   | Data Type | Constraint                       |
+| --- | ----------- | --------- | -------------------------------- |
+| PK  | Id          | GUID      | NN                               |
+| FK  | CompanyId   | GUID      | NN → EnvironmentalServiceCompany |
+| FK  | WardCode    | String(5) | NN → Ward                        |
+|     | CreatedAt   | DateTime  | NN                               |
+|     | _CreatedBy_ | String    |                                  |
+|     | _UpdatedAt_ | DateTime  |                                  |
+|     | _UpdatedBy_ | String    |                                  |
 
 > **BR-CMP-014**: Company ↔ Ward là N–N
 
@@ -254,53 +254,53 @@
 
 ## Report 🟢
 
-| Key | Attribute | Data Type | Constraint |
-|-----|-----------|-----------|------------|
-| PK | Id | GUID | NN |
-| | Code | String | NN, UK |
-| FK | *ReporterId* | GUID | → User |
-| FK | CategoryId | GUID | NN → PollutionCategory |
-| | Severity | «Severity» | NN |
-| | SeveritySetBy | «SeveritySource» | NN |
-| | *Description* | String | |
-| | Latitude | Decimal | NN |
-| | Longitude | Decimal | NN |
-| | *Address* | String | |
-| | *WardCode* | String(5) | |
-| | *ProvinceCode* | String(2) | |
-| | Status | «ReportStatus» | NN |
-| FK | *AssignedOfficeId* | GUID | → LocalOffice |
-| FK | *AssignedDepartmentId* | GUID | → Department |
-| FK | *VerifiedBy* | GUID | → User (LEO) |
-| FK | *AssignedByOfficerId* | GUID | → User |
-| FK | *AssignedCompanyId* | GUID | → EnvironmentalServiceCompany |
-| | *DispatchedToCompanyAt* | DateTime | |
-| FK | *ParentReportId* | GUID | → Report (self-ref, duplicate) |
-| | ReporterCount | Integer | NN, default 1 |
-| | IsSuspicious | Boolean | NN |
-| | *SuspiciousReasons* | String | |
-| | AiPending | Boolean | NN |
-| | *AiClassifiedType* | String | |
-| | *AiConfidence* | Decimal | |
-| | *AiEstimatedSeverity* | «Severity» | |
-| | *AiSuggestedWasteTagCodes* | String | |
-| | PriorityScore | Decimal | NN |
-| | *VerifiedAt* | DateTime | |
-| | *RejectedReason* | String | |
-| | *StartedAt* | DateTime | |
-| | *ResolvedAt* | DateTime | |
-| | *ClosedAt* | DateTime | |
-| | ReopenedCount | Integer | NN |
-| | *SlaVerifyDueAt* | DateTime | |
-| | *SlaResolveDueAt* | DateTime | |
-| | SlaVerifyBreached | Boolean | NN |
-| | SlaResolveBreached | Boolean | NN |
-| | CreatedAt | DateTime | NN |
-| | *CreatedBy* | String | |
-| | *UpdatedAt* | DateTime | |
-| | *UpdatedBy* | String | |
-| | *DeletedAt* | DateTime | Soft delete |
-| | *DeletedBy* | String | |
+| Key | Attribute                  | Data Type        | Constraint                     |
+| --- | -------------------------- | ---------------- | ------------------------------ |
+| PK  | Id                         | GUID             | NN                             |
+|     | Code                       | String           | NN, UK                         |
+| FK  | _ReporterId_               | GUID             | → User                         |
+| FK  | CategoryId                 | GUID             | NN → PollutionCategory         |
+|     | Severity                   | «Severity»       | NN                             |
+|     | SeveritySetBy              | «SeveritySource» | NN                             |
+|     | _Description_              | String           |                                |
+|     | Latitude                   | Decimal          | NN                             |
+|     | Longitude                  | Decimal          | NN                             |
+|     | _Address_                  | String           |                                |
+|     | _WardCode_                 | String(5)        |                                |
+|     | _ProvinceCode_             | String(2)        |                                |
+|     | Status                     | «ReportStatus»   | NN                             |
+| FK  | _AssignedOfficeId_         | GUID             | → LocalOffice                  |
+| FK  | _AssignedDepartmentId_     | GUID             | → Department                   |
+| FK  | _VerifiedBy_               | GUID             | → User (LEO)                   |
+| FK  | _AssignedByOfficerId_      | GUID             | → User                         |
+| FK  | _AssignedCompanyId_        | GUID             | → EnvironmentalServiceCompany  |
+|     | _DispatchedToCompanyAt_    | DateTime         |                                |
+| FK  | _ParentReportId_           | GUID             | → Report (self-ref, duplicate) |
+|     | ReporterCount              | Integer          | NN, default 1                  |
+|     | IsSuspicious               | Boolean          | NN                             |
+|     | _SuspiciousReasons_        | String           |                                |
+|     | AiPending                  | Boolean          | NN                             |
+|     | _AiClassifiedType_         | String           |                                |
+|     | _AiConfidence_             | Decimal          |                                |
+|     | _AiEstimatedSeverity_      | «Severity»       |                                |
+|     | _AiSuggestedWasteTagCodes_ | String           |                                |
+|     | PriorityScore              | Decimal          | NN                             |
+|     | _VerifiedAt_               | DateTime         |                                |
+|     | _RejectedReason_           | String           |                                |
+|     | _StartedAt_                | DateTime         |                                |
+|     | _ResolvedAt_               | DateTime         |                                |
+|     | _ClosedAt_                 | DateTime         |                                |
+|     | ReopenedCount              | Integer          | NN                             |
+|     | _SlaVerifyDueAt_           | DateTime         |                                |
+|     | _SlaResolveDueAt_          | DateTime         |                                |
+|     | SlaVerifyBreached          | Boolean          | NN                             |
+|     | SlaResolveBreached         | Boolean          | NN                             |
+|     | CreatedAt                  | DateTime         | NN                             |
+|     | _CreatedBy_                | String           |                                |
+|     | _UpdatedAt_                | DateTime         |                                |
+|     | _UpdatedBy_                | String           |                                |
+|     | _DeletedAt_                | DateTime         | Soft delete                    |
+|     | _DeletedBy_                | String           |                                |
 
 > **«ReportStatus»**: Submitted, Verified, InProgress, Resolved, Closed, Rejected, Duplicate
 > **«Severity»**: Low, Medium, High, Critical
@@ -311,22 +311,22 @@
 
 ## ReportMedia 🟢
 
-| Key | Attribute | Data Type | Constraint |
-|-----|-----------|-----------|------------|
-| PK | Id | GUID | NN |
-| FK | ReportId | GUID | NN → Report |
-| | Type | «MediaType» | NN |
-| | Url | String | NN |
-| | *ThumbnailUrl* | String | |
-| | MimeType | String | NN |
-| | SizeBytes | Long | NN |
-| | *Width* | Integer | |
-| | *Height* | Integer | |
-| | *DurationSeconds* | Integer | |
-| | *PHash* | String | |
-| | *ExifData* | String | |
-| FK | *UploadedBy* | GUID | → User |
-| | UploadedAt | DateTime | NN |
+| Key | Attribute         | Data Type   | Constraint  |
+| --- | ----------------- | ----------- | ----------- |
+| PK  | Id                | GUID        | NN          |
+| FK  | ReportId          | GUID        | NN → Report |
+|     | Type              | «MediaType» | NN          |
+|     | Url               | String      | NN          |
+|     | _ThumbnailUrl_    | String      |             |
+|     | MimeType          | String      | NN          |
+|     | SizeBytes         | Long        | NN          |
+|     | _Width_           | Integer     |             |
+|     | _Height_          | Integer     |             |
+|     | _DurationSeconds_ | Integer     |             |
+|     | _PHash_           | String      |             |
+|     | _ExifData_        | String      |             |
+| FK  | _UploadedBy_      | GUID        | → User      |
+|     | UploadedAt        | DateTime    | NN          |
 
 > **«MediaType»**: Image, Video
 
@@ -334,16 +334,16 @@
 
 ## ReportStatusHistory 🟢
 
-| Key | Attribute | Data Type | Constraint |
-|-----|-----------|-----------|------------|
-| PK | Id | GUID | NN |
-| FK | ReportId | GUID | NN → Report |
-| | *FromStatus* | «ReportStatus» | |
-| | ToStatus | «ReportStatus» | NN |
-| FK | *ChangedBy* | GUID | → User |
-| | *Reason* | String | |
-| | *Metadata* | String | |
-| | CreatedAt | DateTime | NN |
+| Key | Attribute    | Data Type      | Constraint  |
+| --- | ------------ | -------------- | ----------- |
+| PK  | Id           | GUID           | NN          |
+| FK  | ReportId     | GUID           | NN → Report |
+|     | _FromStatus_ | «ReportStatus» |             |
+|     | ToStatus     | «ReportStatus» | NN          |
+| FK  | _ChangedBy_  | GUID           | → User      |
+|     | _Reason_     | String         |             |
+|     | _Metadata_   | String         |             |
+|     | CreatedAt    | DateTime       | NN          |
 
 ---
 
@@ -352,22 +352,22 @@
 > Đóng vai trò **CleanupTask** trong BR v1.2 (BR-OFF-011, BR-CLN-001).
 > Khi LEO gán đội dọn dẹp, thực chất tạo 1 ReportAssignment.
 
-| Key | Attribute | Data Type | Constraint |
-|-----|-----------|-----------|------------|
-| PK | Id | GUID | NN |
-| FK | ReportId | GUID | NN → Report |
-| FK | TeamId | GUID | NN → EnvironmentalTeam |
-| FK | AssignedById | GUID | NN → User |
-| | Status | «AssignmentStatus» | NN |
-| | *Note* | String | |
-| | *DeclineReason* | String | |
-| | AssignedAt | DateTime | NN |
-| | *StartedAt* | DateTime | |
-| | *CompletedAt* | DateTime | |
-| | ProgressPercent | Integer | NN |
-| | *ProgressNote* | String | |
-| | *ProgressUpdatedAt* | DateTime | |
-| FK | *ProgressUpdatedByUserId* | GUID | → User |
+| Key | Attribute                 | Data Type          | Constraint             |
+| --- | ------------------------- | ------------------ | ---------------------- |
+| PK  | Id                        | GUID               | NN                     |
+| FK  | ReportId                  | GUID               | NN → Report            |
+| FK  | TeamId                    | GUID               | NN → EnvironmentalTeam |
+| FK  | AssignedById              | GUID               | NN → User              |
+|     | Status                    | «AssignmentStatus» | NN                     |
+|     | _Note_                    | String             |                        |
+|     | _DeclineReason_           | String             |                        |
+|     | AssignedAt                | DateTime           | NN                     |
+|     | _StartedAt_               | DateTime           |                        |
+|     | _CompletedAt_             | DateTime           |                        |
+|     | ProgressPercent           | Integer            | NN                     |
+|     | _ProgressNote_            | String             |                        |
+|     | _ProgressUpdatedAt_       | DateTime           |                        |
+| FK  | _ProgressUpdatedByUserId_ | GUID               | → User                 |
 
 > **«AssignmentStatus»**: Assigned, InProgress, Completed, Declined
 
@@ -375,14 +375,14 @@
 
 ## ReportFlag 🟢
 
-| Key | Attribute | Data Type | Constraint |
-|-----|-----------|-----------|------------|
-| PK | Id | GUID | NN |
-| FK | ReportId | GUID | NN → Report |
-| FK | FlaggerId | GUID | NN → User |
-| | FlagType | «FlagType» | NN |
-| | *Reason* | String | |
-| | CreatedAt | DateTime | NN |
+| Key | Attribute | Data Type  | Constraint  |
+| --- | --------- | ---------- | ----------- |
+| PK  | Id        | GUID       | NN          |
+| FK  | ReportId  | GUID       | NN → Report |
+| FK  | FlaggerId | GUID       | NN → User   |
+|     | FlagType  | «FlagType» | NN          |
+|     | _Reason_  | String     |             |
+|     | CreatedAt | DateTime   | NN          |
 
 > UK: (ReportId, FlaggerId, FlagType) — BR-REP-033
 
@@ -390,15 +390,15 @@
 
 ## ReportSatisfaction 🟢
 
-| Key | Attribute | Data Type | Constraint |
-|-----|-----------|-----------|------------|
-| PK | Id | GUID | NN |
-| FK | ReportId | GUID | NN → Report |
-| FK | UserId | GUID | NN → User |
-| | IsSatisfied | Boolean | NN |
-| | *Rating* | Integer | |
-| | *Comment* | String | |
-| | CreatedAt | DateTime | NN |
+| Key | Attribute   | Data Type | Constraint  |
+| --- | ----------- | --------- | ----------- |
+| PK  | Id          | GUID      | NN          |
+| FK  | ReportId    | GUID      | NN → Report |
+| FK  | UserId      | GUID      | NN → User   |
+|     | IsSatisfied | Boolean   | NN          |
+|     | _Rating_    | Integer   |             |
+|     | _Comment_   | String    |             |
+|     | CreatedAt   | DateTime  | NN          |
 
 > **BR-REP-015, BR-REP-018**
 
@@ -406,13 +406,13 @@
 
 ## ReportDraft 🟢
 
-| Key | Attribute | Data Type | Constraint |
-|-----|-----------|-----------|------------|
-| PK | Id | GUID | NN |
-| FK | UserId | GUID | NN → User |
-| | Payload | String (JSON) | NN |
-| | CreatedAt | DateTime | NN |
-| | UpdatedAt | DateTime | NN |
+| Key | Attribute | Data Type     | Constraint |
+| --- | --------- | ------------- | ---------- |
+| PK  | Id        | GUID          | NN         |
+| FK  | UserId    | GUID          | NN → User  |
+|     | Payload   | String (JSON) | NN         |
+|     | CreatedAt | DateTime      | NN         |
+|     | UpdatedAt | DateTime      | NN         |
 
 > **BR-REP-019**: Tối đa 3 nháp/user, tự xóa sau 7 ngày.
 
@@ -423,14 +423,14 @@
 ## PollutionCategory 🟢
 
 | Key | Attribute | Data Type | Constraint |
-|-----|-----------|-----------|------------|
-| PK | Id | GUID | NN |
-| | Code | String | NN, UK |
-| | NameVi | String | NN |
-| | NameEn | String | NN |
-| | *IconUrl* | String | |
-| | IsActive | Boolean | NN |
-| | CreatedAt | DateTime | NN |
+| --- | --------- | --------- | ---------- |
+| PK  | Id        | GUID      | NN         |
+|     | Code      | String    | NN, UK     |
+|     | NameVi    | String    | NN         |
+|     | NameEn    | String    | NN         |
+|     | _IconUrl_ | String    |            |
+|     | IsActive  | Boolean   | NN         |
+|     | CreatedAt | DateTime  | NN         |
 
 > **BR-REP-005 (v1.2)**: Chỉ còn **3 loại**: Rác thải (`TRASH`), Nước thải (`WASTEWATER`), Hóa chất (`CHEMICAL`). Đã bỏ Không khí và Tiếng ồn.
 
@@ -438,28 +438,28 @@
 
 ## WasteTag 🟢
 
-| Key | Attribute | Data Type | Constraint |
-|-----|-----------|-----------|------------|
-| PK | Id | GUID | NN |
-| | Code | String | NN, UK |
-| | NameVi | String | NN |
-| | NameEn | String | NN |
-| | *IconUrl* | String | |
-| | *Description* | String | |
-| | DisplayOrder | Integer | NN |
-| | IsActive | Boolean | NN |
-| | CreatedAt | DateTime | NN |
+| Key | Attribute     | Data Type | Constraint |
+| --- | ------------- | --------- | ---------- |
+| PK  | Id            | GUID      | NN         |
+|     | Code          | String    | NN, UK     |
+|     | NameVi        | String    | NN         |
+|     | NameEn        | String    | NN         |
+|     | _IconUrl_     | String    |            |
+|     | _Description_ | String    |            |
+|     | DisplayOrder  | Integer   | NN         |
+|     | IsActive      | Boolean   | NN         |
+|     | CreatedAt     | DateTime  | NN         |
 
 ---
 
-## ReportWasteTag *(Join Table)* 🟢
+## ReportWasteTag _(Join Table)_ 🟢
 
-| Key | Attribute | Data Type | Constraint |
-|-----|-----------|-----------|------------|
-| FK | ReportId | GUID | NN → Report |
-| FK | WasteTagId | GUID | NN → WasteTag |
-| FK | TaggedById | GUID | NN → User |
-| | TaggedAt | DateTime | NN |
+| Key | Attribute  | Data Type | Constraint    |
+| --- | ---------- | --------- | ------------- |
+| FK  | ReportId   | GUID      | NN → Report   |
+| FK  | WasteTagId | GUID      | NN → WasteTag |
+| FK  | TaggedById | GUID      | NN → User     |
+|     | TaggedAt   | DateTime  | NN            |
 
 > PK: (ReportId, WasteTagId) — composite
 
@@ -469,30 +469,30 @@
 
 ## InspectionReport 🟢
 
-| Key | Attribute | Data Type | Constraint |
-|-----|-----------|-----------|------------|
-| PK | Id | GUID | NN |
-| FK | ReportId | GUID | NN → Report |
-| | Status | «InspectionStatus» | NN |
-| FK | *AssignedTeamId* | GUID | → EnvironmentalTeam |
-| FK | *ViolatingEntityId* | GUID | → ViolatingEntity |
-| | *ViolationDescription* | String | |
-| | *ViolationLevel* | «ViolationLevel» | |
-| | *PenaltyAmount* | Decimal | |
-| | *PenaltyDecisionNumber* | String | |
-| | *PenaltyIssuedAt* | DateTime | |
-| | *PenaltyDueDate* | DateTime | |
-| | *AdditionalPenaltyMeasures* | String | |
-| | IsRepeatOffender | Boolean | NN |
-| FK | CreatedByOfficerId | GUID | NN → User (LEO) |
-| FK | *IssuedByInspectorId* | GUID | → User (Inspector) |
-| | *ClosedAt* | DateTime | |
-| | *ClosedReason* | String | |
-| | *SlaInspectionDueAt* | DateTime | |
-| | CreatedAt | DateTime | NN |
-| | *CreatedBy* | String | |
-| | *UpdatedAt* | DateTime | |
-| | *UpdatedBy* | String | |
+| Key | Attribute                   | Data Type          | Constraint          |
+| --- | --------------------------- | ------------------ | ------------------- |
+| PK  | Id                          | GUID               | NN                  |
+| FK  | ReportId                    | GUID               | NN → Report         |
+|     | Status                      | «InspectionStatus» | NN                  |
+| FK  | _AssignedTeamId_            | GUID               | → EnvironmentalTeam |
+| FK  | _ViolatingEntityId_         | GUID               | → ViolatingEntity   |
+|     | _ViolationDescription_      | String             |                     |
+|     | _ViolationLevel_            | «ViolationLevel»   |                     |
+|     | _PenaltyAmount_             | Decimal            |                     |
+|     | _PenaltyDecisionNumber_     | String             |                     |
+|     | _PenaltyIssuedAt_           | DateTime           |                     |
+|     | _PenaltyDueDate_            | DateTime           |                     |
+|     | _AdditionalPenaltyMeasures_ | String             |                     |
+|     | IsRepeatOffender            | Boolean            | NN                  |
+| FK  | CreatedByOfficerId          | GUID               | NN → User (LEO)     |
+| FK  | _IssuedByInspectorId_       | GUID               | → User (Inspector)  |
+|     | _ClosedAt_                  | DateTime           |                     |
+|     | _ClosedReason_              | String             |                     |
+|     | _SlaInspectionDueAt_        | DateTime           |                     |
+|     | CreatedAt                   | DateTime           | NN                  |
+|     | _CreatedBy_                 | String             |                     |
+|     | _UpdatedAt_                 | DateTime           |                     |
+|     | _UpdatedBy_                 | String             |                     |
 
 > **«InspectionStatus»**: Draft, PenaltyIssued, Paid, PartiallyPaid, Overdue, Closed, ClosedNoViolation
 > **«ViolationLevel»**: Minor, Moderate, Severe, Critical
@@ -502,18 +502,18 @@
 
 ## ViolatingEntity 🔴 CHƯA IMPLEMENT
 
-| Key | Attribute | Data Type | Constraint |
-|-----|-----------|-----------|------------|
-| PK | Id | GUID | NN |
-| | Name | String | NN |
-| | *Address* | String | |
-| | *TaxCode* | String | UK |
-| | *PhoneNumber* | String | |
-| | Type | «ViolatorType» | NN |
-| | CreatedAt | DateTime | NN |
-| | *CreatedBy* | String | |
-| | *UpdatedAt* | DateTime | |
-| | *UpdatedBy* | String | |
+| Key | Attribute     | Data Type      | Constraint |
+| --- | ------------- | -------------- | ---------- |
+| PK  | Id            | GUID           | NN         |
+|     | Name          | String         | NN         |
+|     | _Address_     | String         |            |
+|     | _TaxCode_     | String         | UK         |
+|     | _PhoneNumber_ | String         |            |
+|     | Type          | «ViolatorType» | NN         |
+|     | CreatedAt     | DateTime       | NN         |
+|     | _CreatedBy_   | String         |            |
+|     | _UpdatedAt_   | DateTime       |            |
+|     | _UpdatedBy_   | String         |            |
 
 > **«ViolatorType»**: Individual, Business
 > **BR-INS-010**: Thông tin cơ sở vi phạm (tên, địa chỉ, MST/MSDN).
@@ -524,18 +524,18 @@
 
 ## PenaltyPayment 🔴 CHƯA IMPLEMENT
 
-| Key | Attribute | Data Type | Constraint |
-|-----|-----------|-----------|------------|
-| PK | Id | GUID | NN |
-| FK | InspectionReportId | GUID | NN → InspectionReport |
-| | Amount | Decimal | NN |
-| | PaidAt | DateTime | NN |
-| | *PaymentMethod* | String | |
-| | *EvidenceUrl* | String | |
-| | *Note* | String | |
-| FK | RecordedByUserId | GUID | NN → User |
-| | CreatedAt | DateTime | NN |
-| | *CreatedBy* | String | |
+| Key | Attribute          | Data Type | Constraint            |
+| --- | ------------------ | --------- | --------------------- |
+| PK  | Id                 | GUID      | NN                    |
+| FK  | InspectionReportId | GUID      | NN → InspectionReport |
+|     | Amount             | Decimal   | NN                    |
+|     | PaidAt             | DateTime  | NN                    |
+|     | _PaymentMethod_    | String    |                       |
+|     | _EvidenceUrl_      | String    |                       |
+|     | _Note_             | String    |                       |
+| FK  | RecordedByUserId   | GUID      | NN → User             |
+|     | CreatedAt          | DateTime  | NN                    |
+|     | _CreatedBy_        | String    |                       |
 
 > **BR-INS-020**: Ghi nhận nộp phạt — Paid / PartiallyPaid / Overdue. Kèm bằng chứng (ảnh biên lai/chuyển khoản).
 > Partial payment = nhiều record PenaltyPayment. Tổng `SUM(Amount)` so với `InspectionReport.PenaltyAmount` để xác định Paid hay PartiallyPaid.
@@ -547,28 +547,28 @@
 
 ## UserPoints 🟢
 
-| Key | Attribute | Data Type | Constraint |
-|-----|-----------|-----------|------------|
-| PK | Id | GUID | NN |
-| FK | UserId | GUID | NN, UK → User |
-| | TotalPoints | Integer | NN |
-| | IsLocked | Boolean | NN |
-| | *LockedUntil* | DateTime | |
-| | *LockedReason* | String | |
-| | CreatedAt | DateTime | NN |
+| Key | Attribute      | Data Type | Constraint    |
+| --- | -------------- | --------- | ------------- |
+| PK  | Id             | GUID      | NN            |
+| FK  | UserId         | GUID      | NN, UK → User |
+|     | TotalPoints    | Integer   | NN            |
+|     | IsLocked       | Boolean   | NN            |
+|     | _LockedUntil_  | DateTime  |               |
+|     | _LockedReason_ | String    |               |
+|     | CreatedAt      | DateTime  | NN            |
 
 ---
 
 ## PointTransaction 🟢
 
-| Key | Attribute | Data Type | Constraint |
-|-----|-----------|-----------|------------|
-| PK | Id | GUID | NN |
-| FK | UserPointsId | GUID | NN → UserPoints |
-| | Points | Integer | NN |
-| | Reason | «PointReason» | NN |
-| FK | *ReportId* | GUID | → Report |
-| | CreatedAt | DateTime | NN |
+| Key | Attribute    | Data Type     | Constraint      |
+| --- | ------------ | ------------- | --------------- |
+| PK  | Id           | GUID          | NN              |
+| FK  | UserPointsId | GUID          | NN → UserPoints |
+|     | Points       | Integer       | NN              |
+|     | Reason       | «PointReason» | NN              |
+| FK  | _ReportId_   | GUID          | → Report        |
+|     | CreatedAt    | DateTime      | NN              |
 
 > **«PointReason»**: ReportVerified (+10), ReportResolved (+20), PenaltyIssued (+20), DuplicateFound (+5), ReportRejected (-5), FraudPenalty
 
@@ -576,30 +576,30 @@
 
 ## Badge 🟢
 
-| Key | Attribute | Data Type | Constraint |
-|-----|-----------|-----------|------------|
-| PK | Id | GUID | NN |
-| | Code | String | NN, UK |
-| | NameVi | String | NN |
-| | NameEn | String | NN |
-| | *Description* | String | |
-| | *IconUrl* | String | |
-| | IsActive | Boolean | NN |
-| | *RequiredPoints* | Integer | |
-| | *RequiredReportCount* | Integer | |
-| | CreatedAt | DateTime | NN |
+| Key | Attribute             | Data Type | Constraint |
+| --- | --------------------- | --------- | ---------- |
+| PK  | Id                    | GUID      | NN         |
+|     | Code                  | String    | NN, UK     |
+|     | NameVi                | String    | NN         |
+|     | NameEn                | String    | NN         |
+|     | _Description_         | String    |            |
+|     | _IconUrl_             | String    |            |
+|     | IsActive              | Boolean   | NN         |
+|     | _RequiredPoints_      | Integer   |            |
+|     | _RequiredReportCount_ | Integer   |            |
+|     | CreatedAt             | DateTime  | NN         |
 
 ---
 
 ## UserBadge 🟢
 
-| Key | Attribute | Data Type | Constraint |
-|-----|-----------|-----------|------------|
-| PK | Id | GUID | NN |
-| FK | UserId | GUID | NN → User |
-| FK | BadgeId | GUID | NN → Badge |
-| | AwardedAt | DateTime | NN |
-| FK | *ReportId* | GUID | → Report |
+| Key | Attribute  | Data Type | Constraint |
+| --- | ---------- | --------- | ---------- |
+| PK  | Id         | GUID      | NN         |
+| FK  | UserId     | GUID      | NN → User  |
+| FK  | BadgeId    | GUID      | NN → Badge |
+|     | AwardedAt  | DateTime  | NN         |
+| FK  | _ReportId_ | GUID      | → Report   |
 
 > UK: (UserId, BadgeId)
 
@@ -610,17 +610,17 @@
 > **BR-GAM-005**: Leaderboard tuần/tháng/năm. Top 10 vinh danh.
 > Cần entity lưu snapshot xếp hạng để không tính lại mỗi lần.
 
-| Key | Attribute | Data Type | Constraint |
-|-----|-----------|-----------|------------|
-| PK | Id | GUID | NN |
-| FK | UserId | GUID | NN → User |
-| | Period | «LeaderboardPeriod» | NN |
-| | PeriodStart | DateTime | NN |
-| | PeriodEnd | DateTime | NN |
-| | Rank | Integer | NN |
-| | TotalPoints | Integer | NN |
-| | ReportCount | Integer | NN |
-| | CreatedAt | DateTime | NN |
+| Key | Attribute   | Data Type           | Constraint |
+| --- | ----------- | ------------------- | ---------- |
+| PK  | Id          | GUID                | NN         |
+| FK  | UserId      | GUID                | NN → User  |
+|     | Period      | «LeaderboardPeriod» | NN         |
+|     | PeriodStart | DateTime            | NN         |
+|     | PeriodEnd   | DateTime            | NN         |
+|     | Rank        | Integer             | NN         |
+|     | TotalPoints | Integer             | NN         |
+|     | ReportCount | Integer             | NN         |
+|     | CreatedAt   | DateTime            | NN         |
 
 > **«LeaderboardPeriod»**: Weekly, Monthly, Yearly
 > UK: (UserId, Period, PeriodStart)
@@ -631,21 +631,21 @@
 
 ## Notification 🟢
 
-| Key | Attribute | Data Type | Constraint |
-|-----|-----------|-----------|------------|
-| PK | Id | GUID | NN |
-| FK | RecipientId | GUID | NN → User |
-| | Type | «NotificationType» | NN |
-| | Title | String | NN |
-| | Message | String | NN |
-| FK | *ReferenceId* | GUID | |
-| | Channel | «NotificationChannel» | NN |
-| | IsRead | Boolean | NN |
-| | *ReadAt* | DateTime | |
-| | CreatedAt | DateTime | NN |
-| | *CreatedBy* | String | |
-| | *UpdatedAt* | DateTime | |
-| | *UpdatedBy* | String | |
+| Key | Attribute     | Data Type             | Constraint |
+| --- | ------------- | --------------------- | ---------- |
+| PK  | Id            | GUID                  | NN         |
+| FK  | RecipientId   | GUID                  | NN → User  |
+|     | Type          | «NotificationType»    | NN         |
+|     | Title         | String                | NN         |
+|     | Message       | String                | NN         |
+| FK  | _ReferenceId_ | GUID                  |            |
+|     | Channel       | «NotificationChannel» | NN         |
+|     | IsRead        | Boolean               | NN         |
+|     | _ReadAt_      | DateTime              |            |
+|     | CreatedAt     | DateTime              | NN         |
+|     | _CreatedBy_   | String                |            |
+|     | _UpdatedAt_   | DateTime              |            |
+|     | _UpdatedBy_   | String                |            |
 
 > **«NotificationType»**: ReportStatusChanged, TeamAssigned, SlaWarning, LevelUp, BadgeEarned, PenaltyIssued, ContractExpiring, ...
 > **«NotificationChannel»**: Push, Email, Both
@@ -654,17 +654,17 @@
 
 ## NotificationPreference 🟢
 
-| Key | Attribute | Data Type | Constraint |
-|-----|-----------|-----------|------------|
-| PK | Id | GUID | NN |
-| FK | UserId | GUID | NN → User |
-| | Type | «NotificationType» | NN |
-| | PushEnabled | Boolean | NN |
-| | EmailEnabled | Boolean | NN |
-| | CreatedAt | DateTime | NN |
-| | *CreatedBy* | String | |
-| | *UpdatedAt* | DateTime | |
-| | *UpdatedBy* | String | |
+| Key | Attribute    | Data Type          | Constraint |
+| --- | ------------ | ------------------ | ---------- |
+| PK  | Id           | GUID               | NN         |
+| FK  | UserId       | GUID               | NN → User  |
+|     | Type         | «NotificationType» | NN         |
+|     | PushEnabled  | Boolean            | NN         |
+|     | EmailEnabled | Boolean            | NN         |
+|     | CreatedAt    | DateTime           | NN         |
+|     | _CreatedBy_  | String             |            |
+|     | _UpdatedAt_  | DateTime           |            |
+|     | _UpdatedBy_  | String             |            |
 
 > UK: (UserId, Type)
 
@@ -676,22 +676,22 @@
 
 > **BR-CMT-001 ~ BR-CMT-004**: Bình luận trên báo cáo.
 
-| Key | Attribute | Data Type | Constraint |
-|-----|-----------|-----------|------------|
-| PK | Id | GUID | NN |
-| FK | ReportId | GUID | NN → Report |
-| FK | AuthorId | GUID | NN → User |
-| | Content | String(500) | NN, 1–500 chars |
-| | IsHidden | Boolean | NN, default false |
-| | *HiddenReason* | String | |
-| FK | *HiddenById* | GUID | → User (LEO/Admin) |
-| | *EditedAt* | DateTime | |
-| | CreatedAt | DateTime | NN |
-| | *CreatedBy* | String | |
-| | *UpdatedAt* | DateTime | |
-| | *UpdatedBy* | String | |
-| | *DeletedAt* | DateTime | Soft delete |
-| | *DeletedBy* | String | |
+| Key | Attribute      | Data Type   | Constraint         |
+| --- | -------------- | ----------- | ------------------ |
+| PK  | Id             | GUID        | NN                 |
+| FK  | ReportId       | GUID        | NN → Report        |
+| FK  | AuthorId       | GUID        | NN → User          |
+|     | Content        | String(500) | NN, 1–500 chars    |
+|     | IsHidden       | Boolean     | NN, default false  |
+|     | _HiddenReason_ | String      |                    |
+| FK  | _HiddenById_   | GUID        | → User (LEO/Admin) |
+|     | _EditedAt_     | DateTime    |                    |
+|     | CreatedAt      | DateTime    | NN                 |
+|     | _CreatedBy_    | String      |                    |
+|     | _UpdatedAt_    | DateTime    |                    |
+|     | _UpdatedBy_    | String      |                    |
+|     | _DeletedAt_    | DateTime    | Soft delete        |
+|     | _DeletedBy_    | String      |                    |
 
 > **BR-CMT-004**: Sửa/xóa trong 15 phút. LEO/Admin ẩn bất kỳ lúc nào.
 > **BR-CMT-003**: Vi phạm 3 lần → tạm khóa bình luận 7 ngày.
@@ -702,14 +702,14 @@
 
 > **BR-CMT-002**: Đính kèm tối đa 2 ảnh (≤ 5MB/ảnh) cho mỗi bình luận.
 
-| Key | Attribute | Data Type | Constraint |
-|-----|-----------|-----------|------------|
-| PK | Id | GUID | NN |
-| FK | CommentId | GUID | NN → Comment |
-| | Url | String | NN |
-| | MimeType | String | NN |
-| | SizeBytes | Long | NN |
-| | UploadedAt | DateTime | NN |
+| Key | Attribute  | Data Type | Constraint   |
+| --- | ---------- | --------- | ------------ |
+| PK  | Id         | GUID      | NN           |
+| FK  | CommentId  | GUID      | NN → Comment |
+|     | Url        | String    | NN           |
+|     | MimeType   | String    | NN           |
+|     | SizeBytes  | Long      | NN           |
+|     | UploadedAt | DateTime  | NN           |
 
 ---
 
@@ -719,18 +719,18 @@
 
 > **BR-ADM-010**: Mọi hành động nhạy cảm phải log. Giữ ≥ 12 tháng.
 
-| Key | Attribute | Data Type | Constraint |
-|-----|-----------|-----------|------------|
-| PK | Id | GUID | NN |
-| FK | *UserId* | GUID | → User |
-| | Action | String | NN |
-| | EntityType | String | NN |
-| | *EntityId* | String | |
-| | *OldValues* | String (JSON) | |
-| | *NewValues* | String (JSON) | |
-| | IpAddress | String | NN |
-| | *UserAgent* | String | |
-| | CreatedAt | DateTime | NN |
+| Key | Attribute   | Data Type     | Constraint |
+| --- | ----------- | ------------- | ---------- |
+| PK  | Id          | GUID          | NN         |
+| FK  | _UserId_    | GUID          | → User     |
+|     | Action      | String        | NN         |
+|     | EntityType  | String        | NN         |
+|     | _EntityId_  | String        |            |
+|     | _OldValues_ | String (JSON) |            |
+|     | _NewValues_ | String (JSON) |            |
+|     | IpAddress   | String        | NN         |
+|     | _UserAgent_ | String        |            |
+|     | CreatedAt   | DateTime      | NN         |
 
 ---
 
@@ -738,21 +738,21 @@
 
 > **BR-ADM-008, BR-INS-011**: Admin cấu hình khung mức phạt cho 4 cấp vi phạm theo loại ô nhiễm.
 
-| Key | Attribute | Data Type | Constraint |
-|-----|-----------|-----------|------------|
-| PK | Id | GUID | NN |
-| FK | *CategoryId* | GUID | → PollutionCategory |
-| | ViolationLevel | «ViolationLevel» | NN |
-| | MinAmount | Decimal | NN |
-| | MaxAmount | Decimal | NN |
-| | Currency | String | NN, default "VND" |
-| | EffectiveFrom | DateTime | NN |
-| | *EffectiveTo* | DateTime | |
-| | IsActive | Boolean | NN |
-| | CreatedAt | DateTime | NN |
-| | *CreatedBy* | String | |
-| | *UpdatedAt* | DateTime | |
-| | *UpdatedBy* | String | |
+| Key | Attribute      | Data Type        | Constraint          |
+| --- | -------------- | ---------------- | ------------------- |
+| PK  | Id             | GUID             | NN                  |
+| FK  | _CategoryId_   | GUID             | → PollutionCategory |
+|     | ViolationLevel | «ViolationLevel» | NN                  |
+|     | MinAmount      | Decimal          | NN                  |
+|     | MaxAmount      | Decimal          | NN                  |
+|     | Currency       | String           | NN, default "VND"   |
+|     | EffectiveFrom  | DateTime         | NN                  |
+|     | _EffectiveTo_  | DateTime         |                     |
+|     | IsActive       | Boolean          | NN                  |
+|     | CreatedAt      | DateTime         | NN                  |
+|     | _CreatedBy_    | String           |                     |
+|     | _UpdatedAt_    | DateTime         |                     |
+|     | _UpdatedBy_    | String           |                     |
 
 > **«ViolationLevel»**: Minor, Moderate, Severe, Critical
 
@@ -763,43 +763,43 @@
 ## AdministrativeRegion 🟢
 
 | Key | Attribute | Data Type | Constraint |
-|-----|-----------|-----------|------------|
-| PK | Id | Integer | NN |
-| | Name | String | NN |
+| --- | --------- | --------- | ---------- |
+| PK  | Id        | Integer   | NN         |
+|     | Name      | String    | NN         |
 
 ---
 
 ## AdministrativeUnit 🟢
 
-| Key | Attribute | Data Type | Constraint |
-|-----|-----------|-----------|------------|
-| PK | Id | Integer | NN |
-| | Name | String | NN |
-| | Abbreviation | String | NN |
+| Key | Attribute    | Data Type | Constraint |
+| --- | ------------ | --------- | ---------- |
+| PK  | Id           | Integer   | NN         |
+|     | Name         | String    | NN         |
+|     | Abbreviation | String    | NN         |
 
 ---
 
 ## Province 🟢
 
-| Key | Attribute | Data Type | Constraint |
-|-----|-----------|-----------|------------|
-| PK | Code | String(2) | NN |
-| | Name | String | NN |
-| FK | AdministrativeRegionId | Integer | NN → AdministrativeRegion |
-| FK | AdministrativeUnitId | Integer | NN → AdministrativeUnit |
-| | *BoundaryUrl* | String | |
+| Key | Attribute              | Data Type | Constraint                |
+| --- | ---------------------- | --------- | ------------------------- |
+| PK  | Code                   | String(2) | NN                        |
+|     | Name                   | String    | NN                        |
+| FK  | AdministrativeRegionId | Integer   | NN → AdministrativeRegion |
+| FK  | AdministrativeUnitId   | Integer   | NN → AdministrativeUnit   |
+|     | _BoundaryUrl_          | String    |                           |
 
 ---
 
 ## Ward 🟢
 
-| Key | Attribute | Data Type | Constraint |
-|-----|-----------|-----------|------------|
-| PK | Code | String(5) | NN |
-| | Name | String | NN |
-| FK | ProvinceCode | String(2) | NN → Province |
-| FK | AdministrativeUnitId | Integer | NN → AdministrativeUnit |
-| | *BoundaryUrl* | String | |
+| Key | Attribute            | Data Type | Constraint              |
+| --- | -------------------- | --------- | ----------------------- |
+| PK  | Code                 | String(5) | NN                      |
+|     | Name                 | String    | NN                      |
+| FK  | ProvinceCode         | String(2) | NN → Province           |
+| FK  | AdministrativeUnitId | Integer   | NN → AdministrativeUnit |
+|     | _BoundaryUrl_        | String    |                         |
 
 ---
 
@@ -1261,58 +1261,58 @@ erDiagram
 
 # Bảng tổng kết Entities
 
-| # | Entity | Module | PK Type | Base Class | Soft Delete | Status |
-|---|--------|--------|---------|------------|:-----------:|:------:|
-| 1 | User | Identity | GUID | SoftDeletableEntity | ✅ | 🟢 |
-| 2 | RefreshToken | Identity | GUID | BaseEntity | ❌ | 🟢 |
-| 3 | OtpCode | Identity | GUID | BaseEntity | ❌ | 🟢 |
-| 4 | PasswordHistory | Identity | GUID | BaseEntity | ❌ | 🟢 |
-| 5 | Department | Organization | GUID | AuditableEntity | ❌ | 🟢 |
-| 6 | LocalOffice | Organization | GUID | AuditableEntity | ❌ | 🟢 |
-| 7 | EnvironmentalTeam | Organization | GUID | AuditableEntity | ❌ | 🟢 |
-| 8 | TeamMember | Organization | GUID | BaseEntity | ❌ | 🟢 |
-| 9 | StaffInvitation | Organization | GUID | AuditableEntity | ❌ | 🟢 |
-| 10 | EnvironmentalServiceCompany | Company | GUID | AuditableEntity | ❌ | 🟢 |
-| 11 | CompanyStaff | Company | GUID | AuditableEntity | ❌ | 🟢 |
-| 12 | CompanyServiceArea | Company | GUID | AuditableEntity | ❌ | 🟢 |
-| 13 | Report | Report | GUID | SoftDeletableEntity | ✅ | 🟢 |
-| 14 | ReportMedia | Report | GUID | BaseEntity | ❌ | 🟢 |
-| 15 | ReportStatusHistory | Report | GUID | BaseEntity | ❌ | 🟢 |
-| 16 | ReportAssignment | Report | GUID | BaseEntity | ❌ | 🟢 |
-| 17 | ReportFlag | Report | GUID | BaseEntity | ❌ | 🟢 |
-| 18 | ReportSatisfaction | Report | GUID | BaseEntity | ❌ | 🟢 |
-| 19 | ReportDraft | Report | GUID | BaseEntity | ❌ | 🟢 |
-| 20 | ReportWasteTag | Report | Composite | — | ❌ | 🟢 |
-| 21 | PollutionCategory | Catalog | GUID | BaseEntity | ❌ | 🟢 |
-| 22 | WasteTag | Catalog | GUID | BaseEntity | ❌ | 🟢 |
-| 23 | InspectionReport | Inspection | GUID | AuditableEntity | ❌ | 🟢 |
-| 24 | UserPoints | Gamification | GUID | BaseEntity | ❌ | 🟢 |
-| 25 | PointTransaction | Gamification | GUID | BaseEntity | ❌ | 🟢 |
-| 26 | Badge | Gamification | GUID | BaseEntity | ❌ | 🟢 |
-| 27 | UserBadge | Gamification | GUID | BaseEntity | ❌ | 🟢 |
-| 28 | Notification | Notification | GUID | AuditableEntity | ❌ | 🟢 |
-| 29 | NotificationPreference | Notification | GUID | AuditableEntity | ❌ | 🟢 |
-| 30 | AdministrativeRegion | Location | Integer | — | ❌ | 🟢 |
-| 31 | AdministrativeUnit | Location | Integer | — | ❌ | 🟢 |
-| 32 | Province | Location | String(2) | — | ❌ | 🟢 |
-| 33 | Ward | Location | String(5) | — | ❌ | 🟢 |
-| 34 | **Comment** | **Comment** | GUID | SoftDeletableEntity | ✅ | 🔴 |
-| 35 | **CommentMedia** | **Comment** | GUID | BaseEntity | ❌ | 🔴 |
-| 36 | **AuditLog** | **Admin** | GUID | — | ❌ | 🔴 |
-| 37 | **LeaderboardSnapshot** | **Gamification** | GUID | BaseEntity | ❌ | 🔴 |
-| 38 | **PenaltyFramework** | **Admin** | GUID | AuditableEntity | ❌ | 🔴 |
+| #   | Entity                      | Module           | PK Type   | Base Class          | Soft Delete | Status |
+| --- | --------------------------- | ---------------- | --------- | ------------------- | :---------: | :----: |
+| 1   | User                        | Identity         | GUID      | SoftDeletableEntity |     ✅      |   🟢   |
+| 2   | RefreshToken                | Identity         | GUID      | BaseEntity          |     ❌      |   🟢   |
+| 3   | OtpCode                     | Identity         | GUID      | BaseEntity          |     ❌      |   🟢   |
+| 4   | PasswordHistory             | Identity         | GUID      | BaseEntity          |     ❌      |   🟢   |
+| 5   | Department                  | Organization     | GUID      | AuditableEntity     |     ❌      |   🟢   |
+| 6   | LocalOffice                 | Organization     | GUID      | AuditableEntity     |     ❌      |   🟢   |
+| 7   | EnvironmentalTeam           | Organization     | GUID      | AuditableEntity     |     ❌      |   🟢   |
+| 8   | TeamMember                  | Organization     | GUID      | BaseEntity          |     ❌      |   🟢   |
+| 9   | StaffInvitation             | Organization     | GUID      | AuditableEntity     |     ❌      |   🟢   |
+| 10  | EnvironmentalServiceCompany | Company          | GUID      | AuditableEntity     |     ❌      |   🟢   |
+| 11  | CompanyStaff                | Company          | GUID      | AuditableEntity     |     ❌      |   🟢   |
+| 12  | CompanyServiceArea          | Company          | GUID      | AuditableEntity     |     ❌      |   🟢   |
+| 13  | Report                      | Report           | GUID      | SoftDeletableEntity |     ✅      |   🟢   |
+| 14  | ReportMedia                 | Report           | GUID      | BaseEntity          |     ❌      |   🟢   |
+| 15  | ReportStatusHistory         | Report           | GUID      | BaseEntity          |     ❌      |   🟢   |
+| 16  | ReportAssignment            | Report           | GUID      | BaseEntity          |     ❌      |   🟢   |
+| 17  | ReportFlag                  | Report           | GUID      | BaseEntity          |     ❌      |   🟢   |
+| 18  | ReportSatisfaction          | Report           | GUID      | BaseEntity          |     ❌      |   🟢   |
+| 19  | ReportDraft                 | Report           | GUID      | BaseEntity          |     ❌      |   🟢   |
+| 20  | ReportWasteTag              | Report           | Composite | —                   |     ❌      |   🟢   |
+| 21  | PollutionCategory           | Catalog          | GUID      | BaseEntity          |     ❌      |   🟢   |
+| 22  | WasteTag                    | Catalog          | GUID      | BaseEntity          |     ❌      |   🟢   |
+| 23  | InspectionReport            | Inspection       | GUID      | AuditableEntity     |     ❌      |   🟢   |
+| 24  | UserPoints                  | Gamification     | GUID      | BaseEntity          |     ❌      |   🟢   |
+| 25  | PointTransaction            | Gamification     | GUID      | BaseEntity          |     ❌      |   🟢   |
+| 26  | Badge                       | Gamification     | GUID      | BaseEntity          |     ❌      |   🟢   |
+| 27  | UserBadge                   | Gamification     | GUID      | BaseEntity          |     ❌      |   🟢   |
+| 28  | Notification                | Notification     | GUID      | AuditableEntity     |     ❌      |   🟢   |
+| 29  | NotificationPreference      | Notification     | GUID      | AuditableEntity     |     ❌      |   🟢   |
+| 30  | AdministrativeRegion        | Location         | Integer   | —                   |     ❌      |   🟢   |
+| 31  | AdministrativeUnit          | Location         | Integer   | —                   |     ❌      |   🟢   |
+| 32  | Province                    | Location         | String(2) | —                   |     ❌      |   🟢   |
+| 33  | Ward                        | Location         | String(5) | —                   |     ❌      |   🟢   |
+| 34  | **Comment**                 | **Comment**      | GUID      | SoftDeletableEntity |     ✅      |   🔴   |
+| 35  | **CommentMedia**            | **Comment**      | GUID      | BaseEntity          |     ❌      |   🔴   |
+| 36  | **AuditLog**                | **Admin**        | GUID      | —                   |     ❌      |   🔴   |
+| 37  | **LeaderboardSnapshot**     | **Gamification** | GUID      | BaseEntity          |     ❌      |   🔴   |
+| 38  | **PenaltyFramework**        | **Admin**        | GUID      | AuditableEntity     |     ❌      |   🔴   |
 
 ---
 
 # Gap Analysis — Entity vs BR v1.2
 
-| Entity | BR References | Status | Ghi chú |
-|--------|---------------|:------:|---------|
-| **Comment** | BR-CMT-001~004 | 🔴 | User bình luận trên Report. Cần soft delete + moderation. |
-| **CommentMedia** | BR-CMT-002 | 🔴 | Ảnh đính kèm bình luận (max 2, ≤5MB). |
-| **AuditLog** | BR-ADM-010 | 🔴 | Log hành động nhạy cảm. Actor, action, target, time, IP, UA. Giữ ≥ 12 tháng. |
-| **LeaderboardSnapshot** | BR-GAM-005, Background Job `LeaderboardSnapshotJob` | 🔴 | Snapshot xếp hạng tuần/tháng/năm. |
-| **PenaltyFramework** | BR-ADM-008, BR-INS-011 | 🔴 | Khung tiền phạt cho 4 cấp vi phạm theo loại ô nhiễm. Admin cấu hình. |
+| Entity                  | BR References                                       | Status | Ghi chú                                                                      |
+| ----------------------- | --------------------------------------------------- | :----: | ---------------------------------------------------------------------------- |
+| **Comment**             | BR-CMT-001~004                                      |   🔴   | User bình luận trên Report. Cần soft delete + moderation.                    |
+| **CommentMedia**        | BR-CMT-002                                          |   🔴   | Ảnh đính kèm bình luận (max 2, ≤5MB).                                        |
+| **AuditLog**            | BR-ADM-010                                          |   🔴   | Log hành động nhạy cảm. Actor, action, target, time, IP, UA. Giữ ≥ 12 tháng. |
+| **LeaderboardSnapshot** | BR-GAM-005, Background Job `LeaderboardSnapshotJob` |   🔴   | Snapshot xếp hạng tuần/tháng/năm.                                            |
+| **PenaltyFramework**    | BR-ADM-008, BR-INS-011                              |   🔴   | Khung tiền phạt cho 4 cấp vi phạm theo loại ô nhiễm. Admin cấu hình.         |
 
 ---
 
@@ -1349,6 +1349,7 @@ classDiagram
 # Report State Machine (BR-REP-020, Phụ lục A)
 
 ## Nhánh dọn dẹp (umbrella)
+
 ```
 Submitted ──► Verified ──► InProgress ──► Resolved ──┬──► Closed
     │              │                          │       │
@@ -1358,6 +1359,7 @@ Submitted ──► Verified ──► InProgress ──► Resolved ──┬�
 ```
 
 ## Nhánh xử phạt (InspectionReport) — song song
+
 ```
 Draft ──► PenaltyIssued ──┬──► Paid ──► Closed
     │                      ├──► PartiallyPaid

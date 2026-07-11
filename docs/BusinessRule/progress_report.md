@@ -23,14 +23,14 @@ pie title Tiến độ theo Module (rules)
 | **Cleanup**                |    8    |    8    |    0    |    0    | **100%** |
 | **Inspection**             |   14    |   14    |    0    |    0    | **100%** |
 | **Company**                |   14    |   14    |    0    |    0    | **100%** |
-| **Notifications**          |    4    |   3    |    1    |    0    |   88%    |
+| **Notifications**          |    4    |    3    |    1    |    0    |   88%    |
 | **Comments**               |    4    |    0    |    0    |    4    |    0%    |
 | **Gamification**           |    6    |    4    |    2    |    0    |   83%    |
 | **AI Service**             |    7    |    1    |    0    |    6    |   14%    |
 | **Administration**         |   12    |   12    |    0    |    0    | **100%** |
 | **Data Privacy**           |    5    |    5    |    0    |    0    | **100%** |
 | **Non-functional**         |    6    |    0    |    0    |    6    |    0%    |
-| **TỔNG**                   | **158** | **124** | **6**  | **28**  | **~79%** |
+| **TỔNG**                   | **158** | **124** |  **6**  | **28**  | **~79%** |
 
 ---
 
@@ -108,7 +108,6 @@ Chưa có entity Comment. Cần: CRUD, moderation, file attachment.
 
 Có `GetPublicMapReports/` nhưng chưa verify. Thiếu: nearby 5km, clustering, hotspot, heatmap, GPS rounding, Redis cache 10'.
 
-
 ### AI Service (BR-AI) — 1/7
 
 Có: AnalyzeReportImage + AiClassificationService. Thiếu: fallback retry job, AI config cho 3 loại.
@@ -156,7 +155,7 @@ Branch: `feature/cleanup-inspection-brs` — các commits theo phase:
 
 | #   | Message                                                                                  | Files |
 | --- | ---------------------------------------------------------------------------------------- | :---: |
-| 1   | `feat(cleanup-inspection): add check-in, progress and SLA tracking properties to domain`  |  ~10  |
+| 1   | `feat(cleanup-inspection): add check-in, progress and SLA tracking properties to domain` |  ~10  |
 | 2   | `feat(cleanup-inspection): implement Cleanup features and endpoints`                     |  ~12  |
 | 3   | `feat(cleanup-inspection): implement Inspection features, SLA jobs and team KPI query`   |  ~15  |
 | 4   | `feat(cleanup-inspection): register recurring jobs and add EF Core migration`            |  ~5   |
@@ -184,7 +183,6 @@ Branch: `feature/cleanup-inspection-brs` — các commits theo phase:
 2. **EXIF validation** (BR-REP-011)
 3. **i18n en-US** (BR-NTF-004)
 4. **API Documentation v2.0**
-
 
 ---
 
