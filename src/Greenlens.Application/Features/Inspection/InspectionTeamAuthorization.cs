@@ -24,4 +24,21 @@ internal static class InspectionTeamAuthorization
 
         return null;
     }
+
+    /// <summary>Validate that the current user is a member (any role) of the assigned inspection team.</summary>
+    public static async Task<Error?> ValidateTeamMemberAsync(
+        InspectionReport inspection,
+        ITeamMemberRepository teamMembers,
+        ICurrentUser currentUser,
+        CancellationToken ct)
+    {
+        var member = await teamMembers.GetByUserIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
+        if (member is null)
+            return Errors.Inspections.NotAssignedToYourTeam;
+
+        if (inspection.AssignedTeamId != member.TeamId)
+            return Errors.Inspections.NotAssignedToYourTeam;
+
+        return null;
+    }
 }
