@@ -9,5 +9,8 @@ public enum AssignmentStatus
     Assigned,
     InProgress,
     Completed,
-    Declined
+    Declined,
+
+    /// <summary>Team escalated to LEO — beyond their capability. BR-CLN-006.</summary>
+    Escalated
 }

@@ -61,6 +61,19 @@ public sealed class InspectionReport : AuditableEntity
     // ── SLA (BR-INS-030) ──
     /// <summary>SLA deadline computed from report severity at creation time.</summary>
     public DateTime? SlaInspectionDueAt { get; private set; }
+    /// <summary>Flagged by SlaBreachInspectionJob when deadline exceeded.</summary>
+    public bool SlaInspectionBreached { get; private set; }
+
+    // ── Check-in (BR-INS-004) ──
+    public DateTime? CheckedInAt { get; private set; }
+    public decimal? CheckedInLatitude { get; private set; }
+    public decimal? CheckedInLongitude { get; private set; }
+    public string? CheckedInNote { get; private set; }
+
+    // ── Progress tracking (BR-INS-031) ──
+    public int ProgressPercent { get; private set; }
+    public string? ProgressNote { get; private set; }
+    public DateTime? ProgressUpdatedAt { get; private set; }
 
     // ── Navigation ──
     public Report? Report { get; private set; }
@@ -108,13 +121,62 @@ public sealed class InspectionReport : AuditableEntity
     /// <summary>Assign an Inspection Team to this report.</summary>
     public Result AssignTeam(Guid teamId)
     {
-        if (Status != InspectionStatus.Draft)
+        if (Status is not (InspectionStatus.Draft or InspectionStatus.InProgress))
             return Result.Failure(new Error(
                 "INSPECTION_INVALID_STATE",
-                $"Cannot assign team in status {Status}. Must be Draft.",
+                $"Cannot assign team in status {Status}. Must be Draft or InProgress.",
                 ErrorType.BusinessRule));
 
         AssignedTeamId = teamId;
+        UpdatedAt = DateTime.UtcNow;
+        return Result.Success();
+    }
+
+    /// <summary>
+    /// BR-INS-004: Team checks in at the site. Draft → InProgress.
+    /// Distance check (≤ 200m) is done in the handler via IGeoDistanceService.
+    /// </summary>
+    public Result CheckIn(decimal latitude, decimal longitude, string? note = null)
+    {
+        if (Status != InspectionStatus.Draft)
+            return Result.Failure(new Error(
+                "INSPECTION_INVALID_STATE",
+                $"Cannot check in from status {Status}. Must be Draft.",
+                ErrorType.BusinessRule));
+
+        if (AssignedTeamId is null)
+            return Result.Failure(new Error(
+                "INSPECTION_NO_TEAM",
+                "Cannot check in without an assigned team.",
+                ErrorType.BusinessRule));
+
+        Status = InspectionStatus.InProgress;
+        CheckedInAt = DateTime.UtcNow;
+        CheckedInLatitude = latitude;
+        CheckedInLongitude = longitude;
+        CheckedInNote = note;
+        UpdatedAt = DateTime.UtcNow;
+        return Result.Success();
+    }
+
+    /// <summary>BR-INS-031: Update progress while InProgress.</summary>
+    public Result UpdateProgress(int percent, string? note)
+    {
+        if (Status != InspectionStatus.InProgress)
+            return Result.Failure(new Error(
+                "INSPECTION_INVALID_STATE",
+                $"Cannot update progress from status {Status}. Must be InProgress.",
+                ErrorType.BusinessRule));
+
+        if (percent < 0 || percent > 100)
+            return Result.Failure(new Error(
+                "INVALID_PROGRESS",
+                "Progress must be 0–100.",
+                ErrorType.Validation));
+
+        ProgressPercent = percent;
+        ProgressNote = note;
+        ProgressUpdatedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
         return Result.Success();
     }
@@ -132,10 +194,10 @@ public sealed class InspectionReport : AuditableEntity
         string? additionalMeasures = null,
         bool isRepeatOffender = false)
     {
-        if (Status != InspectionStatus.Draft)
+        if (Status is not (InspectionStatus.Draft or InspectionStatus.InProgress))
             return Result.Failure(new Error(
                 "INSPECTION_INVALID_STATE",
-                $"Cannot issue penalty from status {Status}. Must be Draft.",
+                $"Cannot issue penalty from status {Status}. Must be Draft or InProgress.",
                 ErrorType.BusinessRule));
 
         if (amount <= 0)
@@ -224,10 +286,10 @@ public sealed class InspectionReport : AuditableEntity
     /// </summary>
     public Result CloseNoViolation(string reason)
     {
-        if (Status != InspectionStatus.Draft)
+        if (Status is not (InspectionStatus.Draft or InspectionStatus.InProgress))
             return Result.Failure(new Error(
                 "INSPECTION_INVALID_STATE",
-                $"Cannot close from status {Status}. Must be Draft.",
+                $"Cannot close from status {Status}. Must be Draft or InProgress.",
                 ErrorType.BusinessRule));
 
         if (string.IsNullOrWhiteSpace(reason) || reason.Length < 50)
@@ -250,10 +312,10 @@ public sealed class InspectionReport : AuditableEntity
         string? violatorAddress = null,
         string? violatorIdentity = null)
     {
-        if (Status != InspectionStatus.Draft)
+        if (Status is not (InspectionStatus.Draft or InspectionStatus.InProgress))
             return Result.Failure(new Error(
                 "INSPECTION_INVALID_STATE",
-                $"Cannot update details in status {Status}. Must be Draft.",
+                $"Cannot update details in status {Status}. Must be Draft or InProgress.",
                 ErrorType.BusinessRule));
 
         if (violationDescription is not null) ViolationDescription = violationDescription;
@@ -277,4 +339,18 @@ public sealed class InspectionReport : AuditableEntity
         Severity.Low => DateTime.UtcNow.AddDays(10),
         _ => DateTime.UtcNow.AddDays(7)
     };
+
+    /// <summary>BR-INS-030: Flag by SlaBreachInspectionJob when deadline exceeded.</summary>
+    public void MarkSlaInspectionBreached()
+    {
+        SlaInspectionBreached = true;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>BR-INS-003: Clear team assignment for LEO re-assignment after decline.</summary>
+    public void ClearTeam()
+    {
+        AssignedTeamId = null;
+        UpdatedAt = DateTime.UtcNow;
+    }
 }

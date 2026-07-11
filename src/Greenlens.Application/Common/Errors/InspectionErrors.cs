@@ -65,5 +65,30 @@ public static partial class Errors
             "INSPECTION_ALREADY_EXISTS",
             "Báo cáo này đã có hồ sơ xử phạt đang hoạt động.",
             ErrorType.Conflict);
+
+        public static Error TooFarFromSite => new(
+            "INSPECTION_TOO_FAR",
+            "Vị trí check-in cách hiện trường hơn 200m (BR-INS-004).",
+            ErrorType.BusinessRule);
+
+        public static Error CheckInRequired => new(
+            "INSPECTION_CHECKIN_REQUIRED",
+            "Phải check-in hiện trường trước khi thao tác (BR-INS-004).",
+            ErrorType.BusinessRule);
+
+        public static Error DeclineWindowExpired => new(
+            "INSPECTION_DECLINE_EXPIRED",
+            "Đã quá thời hạn 24 giờ để từ chối task (BR-INS-003).",
+            ErrorType.BusinessRule);
+
+        public static Error NoTeamAssigned => new(
+            "INSPECTION_NO_TEAM",
+            "Hồ sơ chưa được gán Inspection Team.",
+            ErrorType.BusinessRule);
+
+        public static Error ProgressUpdateRequired => new(
+            "INSPECTION_PROGRESS_STALE",
+            "Phải cập nhật tiến độ ít nhất 1 lần/ngày (BR-INS-031).",
+            ErrorType.BusinessRule);
     }
 }

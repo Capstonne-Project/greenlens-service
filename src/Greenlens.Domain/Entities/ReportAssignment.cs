@@ -22,6 +22,12 @@ public sealed class ReportAssignment : BaseEntity
     public DateTime? StartedAt { get; private set; }
     public DateTime? CompletedAt { get; private set; }
 
+    // ── Check-in (BR-CLN-002/003) ──
+    public DateTime? CheckedInAt { get; private set; }
+    public decimal? CheckedInLatitude { get; private set; }
+    public decimal? CheckedInLongitude { get; private set; }
+    public string? CheckedInNote { get; private set; }
+
     // ── Progress tracking (updated by team leader mid-task) ──
     public int ProgressPercent { get; private set; }
     public string? ProgressNote { get; private set; }
@@ -61,6 +67,35 @@ public sealed class ReportAssignment : BaseEntity
 
         Status = AssignmentStatus.InProgress;
         StartedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// BR-CLN-002/003: Team checks in at the site. Assigned → InProgress.
+    /// Records GPS location for distance verification.
+    /// </summary>
+    public void CheckIn(decimal latitude, decimal longitude, string? note = null)
+    {
+        if (Status != AssignmentStatus.Assigned)
+            throw new InvalidOperationException(
+                $"Cannot check in from status {Status}. Must be Assigned.");
+
+        CheckedInAt = DateTime.UtcNow;
+        CheckedInLatitude = latitude;
+        CheckedInLongitude = longitude;
+        CheckedInNote = note;
+        Status = AssignmentStatus.InProgress;
+        StartedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>BR-CLN-006: Team escalates to LEO — beyond their capability.</summary>
+    public void Escalate(string reason)
+    {
+        if (Status != AssignmentStatus.InProgress)
+            throw new InvalidOperationException(
+                $"Cannot escalate from status {Status}. Must be InProgress.");
+
+        Status = AssignmentStatus.Escalated;
+        ProgressNote = reason;
     }
 
     /// <summary>Team completes their part of the task.</summary>
