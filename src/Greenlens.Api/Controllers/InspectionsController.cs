@@ -2,11 +2,16 @@ using Greenlens.Api.Extensions;
 using Greenlens.Application.Common.Models;
 using Greenlens.Application.Features.Inspection.CloseInspection;
 using Greenlens.Application.Features.Inspection.CloseNoViolation;
+using Greenlens.Application.Features.Inspection.CheckInInspection;
+using Greenlens.Application.Features.Inspection.DeclineInspection;
 using Greenlens.Application.Features.Inspection.GetInspectionQueue;
 using Greenlens.Application.Features.Inspection.GetInspectionReportById;
+using Greenlens.Application.Features.Inspection.GetInspectionTeamKpi;
 using Greenlens.Application.Features.Inspection.IssuePenalty;
 using Greenlens.Application.Features.Inspection.RecordPayment;
 using Greenlens.Application.Features.Inspection.UpdateInspectionDetails;
+using Greenlens.Application.Features.Inspection.UpdateInspectionProgress;
+using Greenlens.Application.Features.Reports.GetOfficerKpi;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -150,6 +155,87 @@ public sealed class InspectionsController(ISender sender) : ControllerBase
         CancellationToken ct)
         => (await sender.Send(new CloseInspectionCommand(id, request?.Reason), ct))
             .ToHttpNoContent("Đã đóng hồ sơ xử phạt.");
+
+    // ═══════════════════════════════════════════
+    // ██  BR-INS-003: DECLINE TASK
+    // ═══════════════════════════════════════════
+
+    [HttpPost("{id:guid}/decline")]
+    [Authorize(Roles = "Inspector")]
+    [Tags("🔍 Inspection Dashboard")]
+    [SwaggerOperation(
+        Summary = "[Inspector] Từ chối hồ sơ xử phạt",
+        Description = "Inspector từ chối trong 24h sau khi được gán (BR-INS-003). " +
+            "Sau 24h coi như chấp nhận. Hồ sơ quay về Draft để LEO gán team khác.")]
+    [SwaggerResponse(200, "Đã từ chối", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Quá hạn 24h hoặc status không hợp lệ", typeof(ApiResponse))]
+    public async Task<IActionResult> DeclineAsync(
+        [FromRoute] Guid id,
+        [FromBody] DeclineInspectionRequest request,
+        CancellationToken ct)
+        => (await sender.Send(new DeclineInspectionCommand(id, request.Reason), ct))
+            .ToHttpNoContent("Đã từ chối hồ sơ xử phạt.");
+
+    // ═══════════════════════════════════════════
+    // ██  BR-INS-004: CHECK-IN (PostGIS)
+    // ═══════════════════════════════════════════
+
+    [HttpPost("{id:guid}/check-in")]
+    [Authorize(Roles = "Inspector")]
+    [Tags("🔍 Inspection Dashboard")]
+    [SwaggerOperation(
+        Summary = "[Inspector] Check-in hiện trường",
+        Description = "Check-in tại hiện trường ≤ 200m (PostGIS, BR-INS-004). " +
+            "Chuyển Draft → InProgress.")]
+    [SwaggerResponse(200, "Đã check-in", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Quá xa hoặc status không hợp lệ", typeof(ApiResponse))]
+    public async Task<IActionResult> CheckInAsync(
+        [FromRoute] Guid id,
+        [FromBody] CheckInInspectionRequest request,
+        CancellationToken ct)
+        => (await sender.Send(new CheckInInspectionCommand(
+            id, request.Latitude, request.Longitude, request.Note), ct))
+            .ToHttpNoContent("Đã check-in hiện trường.");
+
+    // ═══════════════════════════════════════════
+    // ██  BR-INS-031: UPDATE PROGRESS
+    // ═══════════════════════════════════════════
+
+    [HttpPut("{id:guid}/progress")]
+    [Authorize(Roles = "Inspector")]
+    [Tags("🔍 Inspection Dashboard")]
+    [SwaggerOperation(
+        Summary = "[Inspector] Cập nhật tiến độ",
+        Description = "Cập nhật tiến độ xử phạt (BR-INS-031). Yêu cầu ≥ 1 lần/ngày khi InProgress.")]
+    [SwaggerResponse(200, "Đã cập nhật", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Status không phải InProgress", typeof(ApiResponse))]
+    public async Task<IActionResult> UpdateProgressAsync(
+        [FromRoute] Guid id,
+        [FromBody] UpdateInspectionProgressRequest request,
+        CancellationToken ct)
+        => (await sender.Send(new UpdateInspectionProgressCommand(
+            id, request.Percent, request.Note), ct))
+            .ToHttpNoContent("Đã cập nhật tiến độ.");
+
+    // ═══════════════════════════════════════════
+    // ██  BR-INS-032: KPI INSPECTION TEAM
+    // ═══════════════════════════════════════════
+
+    [HttpGet("kpi")]
+    [Authorize(Roles = "Inspector,LEO,Admin")]
+    [Tags("🔍 Inspection Dashboard")]
+    [SwaggerOperation(
+        Summary = "[Inspector/LEO/Admin] KPI Inspection Team",
+        Description = "Tỷ lệ ban hành QĐ đúng hạn, tỷ lệ nộp phạt đúng hạn, tái phạm, SLA breach (BR-INS-032). " +
+            "Inspector xem team mình. LEO/Admin có thể chỉ định teamId.")]
+    [SwaggerResponse(200, "KPI data", typeof(ApiResponse<InspectionTeamKpiResponse>))]
+    public async Task<IActionResult> GetKpiAsync(
+        [FromQuery] Guid? teamId = null,
+        [FromQuery] DateTime? from = null,
+        [FromQuery] DateTime? to = null,
+        [FromQuery] KpiPeriod? period = null,
+        CancellationToken ct = default)
+        => (await sender.Send(new GetInspectionTeamKpiQuery(teamId, from, to, period), ct)).ToHttp();
 }
 
 // ── Request DTOs ──
@@ -171,3 +257,14 @@ public sealed record CloseNoViolationRequest(string Reason);
 public sealed record RecordPaymentRequest(decimal PaidAmount);
 
 public sealed record CloseInspectionRequest(string? Reason);
+
+public sealed record DeclineInspectionRequest(string Reason);
+
+public sealed record CheckInInspectionRequest(
+    decimal Latitude,
+    decimal Longitude,
+    string? Note = null);
+
+public sealed record UpdateInspectionProgressRequest(
+    int Percent,
+    string? Note = null);

@@ -1,6 +1,6 @@
-# 📊 Tổng hợp Tiến độ — GreenLens Backend
+# 📊 Báo cáo Tiến độ — GreenLens Backend
 
-> **Cập nhật:** 2026-07-10 16:40 · **Phiên:** 16 · **Tổng tiến độ ước tính: ~70%**
+> **Cập nhật:** 2026-07-11 17:15 · **Phiên:** 17 · **Tổng tiến độ ước tính: ~79%**
 
 ---
 
@@ -8,9 +8,9 @@
 
 ```mermaid
 pie title Tiến độ theo Module (rules)
-    "✅ Hoàn thành (93)" : 93
-    "⚠️ Một phần (8)" : 8
-    "❌ Chưa làm (27)" : 27
+    "✅ Hoàn thành (124)" : 124
+    "⚠️ Một phần (6)" : 6
+    "❌ Chưa làm (28)" : 28
 ```
 
 | Module                     |  Rules  |  Done   | Partial | Missing |    %     |
@@ -20,17 +20,17 @@ pie title Tiến độ theo Module (rules)
 | **Report**                 |   23    |   17    |    0    |    6    |   74%    |
 | **Map**                    |    8    |    0    |    3    |    5    |    0%    |
 | **Officer**                |   12    |   12    |    0    |    0    | **100%** |
-| **Cleanup**                |    8    |    1    |    2    |    5    |   13%    |
-| **Inspection**             |   14    |    6    |    2    |    6    |   43%    |
+| **Cleanup**                |    8    |    8    |    0    |    0    | **100%** |
+| **Inspection**             |   14    |   14    |    0    |    0    | **100%** |
 | **Company**                |   14    |   14    |    0    |    0    | **100%** |
-| **Notifications**          |    4    |    3    |    1    |    0    |   88%    |
+| **Notifications**          |    4    |   3    |    1    |    0    |   88%    |
 | **Comments**               |    4    |    0    |    0    |    4    |    0%    |
 | **Gamification**           |    6    |    4    |    2    |    0    |   83%    |
 | **AI Service**             |    7    |    1    |    0    |    6    |   14%    |
 | **Administration**         |   12    |   12    |    0    |    0    | **100%** |
 | **Data Privacy**           |    5    |    5    |    0    |    0    | **100%** |
 | **Non-functional**         |    6    |    0    |    0    |    6    |    0%    |
-| **TỔNG**                   | **158** | **109** | **10**  | **39**  | **~70%** |
+| **TỔNG**                   | **158** | **124** | **6**  | **28**  | **~79%** |
 
 ---
 
@@ -55,6 +55,14 @@ PenaltyFramework CRUD, AuditLog pipeline (MediatR behavior), content moderation 
 ### Data Privacy (BR-DAT) — 5/5
 
 bcrypt 12 rounds, DataRetentionJob (S3 2 năm + audit 12 tháng), ExportMyData (JSON+CSV), consent flow + migration.
+
+### Cleanup (BR-CLN) — 8/8 ⭐ **MỚI (phiên 17)**
+
+Phạm vi tiếp nhận, chỉ xem task được gán, Check-in GPS PostGIS ≤ 200m bắt đầu task, cập nhật tiến độ (SLA 24h/48h), ≥ 2 ảnh after khi Resolve (không kiểm tra góc chụp), leo thang (Escalate) lên LEO, từ chối task 24h, kiểm tra hiệu lực hợp đồng đối với đội công ty.
+
+### Inspection (BR-INS) — 14/14 ⭐ **MỚI (phiên 17)**
+
+Phạm vi xử lý mọi loại ô nhiễm, scope check theo team, từ chối task 24h, check-in hiện trường PostGIS ≤ 200m, lập biên bản vi phạm, khung tiền phạt configurable, ban hành quyết định xử phạt, đóng hồ sơ không vi phạm (lý do ≥ 50 ký tự), ghi nhận nộp phạt, tự động phạt quá hạn, tự động kiểm tra tái phạm nâng khung phạt, SLA xử lý theo mức độ vi phạm, cập nhật tiến độ hàng ngày, Dashboard KPI Inspection Team.
 
 ---
 
@@ -100,14 +108,6 @@ Chưa có entity Comment. Cần: CRUD, moderation, file attachment.
 
 Có `GetPublicMapReports/` nhưng chưa verify. Thiếu: nearby 5km, clustering, hotspot, heatmap, GPS rounding, Redis cache 10'.
 
-### Cleanup (BR-CLN) — 1/8
-
-Chỉ có tiếp nhận task. Thiếu: check-in ≤ 200m, daily update, ≥ 2 ảnh after, escalate.
-
-### Inspection (BR-INS) — 6/14
-
-Có: create, update details, issue penalty, close no violation, record payment, mark overdue.
-Thiếu: decline 2h, check-in, repeat offender, SLA, daily progress, KPI.
 
 ### AI Service (BR-AI) — 1/7
 
@@ -123,12 +123,12 @@ Rate limiting chưa implement. Còn lại: infra/DevOps concern.
 
 | Hạng mục                       | Số lượng                            |
 | ------------------------------ | ----------------------------------- |
-| **Background Jobs (Hangfire)** | 10/11 registered (thiếu AiRetryJob) |
+| **Background Jobs (Hangfire)** | 12/13 registered (thiếu AiRetryJob) |
 | **Domain Entities**            | ~35+ entities                       |
-| **Feature Slices**             | ~80+ (Command/Query)                |
-| **API Endpoints**              | ~90+                                |
+| **Feature Slices**             | ~90+ (Command/Query)                |
+| **API Endpoints**              | ~105+                               |
 | **Unit Tests**                 | ~150+                               |
-| **Migrations**                 | ~15+                                |
+| **Migrations**                 | ~16+                                |
 
 ### Background Jobs Status
 
@@ -144,22 +144,22 @@ Rate limiting chưa implement. Còn lại: infra/DevOps concern.
 | AccountHardDeleteJob         | Daily            |   ✅   |
 | LeaderboardSnapshotJob       | Daily 00:05      |   ✅   |
 | CompanyContractExpiryJob     | Daily 02:00      |   ✅   |
+| SlaBreachInspectionJob       | Every 30'        |   ✅   |
+| CleanupProgressSlaJob        | Hourly           |   ✅   |
 | AiRetryJob                   | Every 5'         |   ❌   |
 
 ---
 
-## 🗂️ Commit Guide (phiên 16)
+## 🗂️ Commit Guide (phiên 17)
 
-Branch: `feature/admin-module` — 4 commits theo phase:
+Branch: `feature/cleanup-inspection-brs` — các commits theo phase:
 
 | #   | Message                                                                                  | Files |
 | --- | ---------------------------------------------------------------------------------------- | :---: |
-| 1   | `feat(admin): add penalty framework CRUD and audit-log pipeline`                         |  ~22  |
-| 2   | `feat(admin): add content moderation (hide/unhide) and spam suspects dashboard`          |  ~11  |
-| 3   | `feat(admin): add notification template management and gamification config`              |  ~16  |
-| 4   | `feat(admin): add admin API endpoints, EF migration, and province-scoped company filter` |  ~10  |
-
-> Chi tiết file list: xem [commit_guide.md](file:///C:/Users/si/.gemini/antigravity-ide/brain/e6cd148a-8f8f-410f-9040-53289f2cf4cd/commit_guide.md)
+| 1   | `feat(cleanup-inspection): add check-in, progress and SLA tracking properties to domain`  |  ~10  |
+| 2   | `feat(cleanup-inspection): implement Cleanup features and endpoints`                     |  ~12  |
+| 3   | `feat(cleanup-inspection): implement Inspection features, SLA jobs and team KPI query`   |  ~15  |
+| 4   | `feat(cleanup-inspection): register recurring jobs and add EF Core migration`            |  ~5   |
 
 ---
 
@@ -171,22 +171,20 @@ Branch: `feature/admin-module` — 4 commits theo phase:
 2. **Comments** (BR-CMT-001..004) — entity + CRUD + moderation
 3. **Brute-force** (BR-AUTH-014) — sliding window + CAPTCHA
 4. **Rate Limiting** (BR-SYS-004, BR-REP-010) — Redis + middleware
-5. **Check-in ≤ 200m** (BR-CLN-002/003, BR-INS-004) — PostGIS ST_DWithin
 
 ### P2 — Enhancement
 
 1. **Map module** (BR-MAP) — nearby, clustering, hotspot, heatmap, cache
-2. **Cleanup gaps** (BR-CLN-004..006) — daily update, photos, escalate
-3. **Inspection gaps** (BR-INS) — decline, repeat offender, SLA, KPI
-4. **AI retry** (BR-AI-006) — AiRetryJob
-5. **Word filter** (BR-REP-004) — profanity check
+2. **AI retry** (BR-AI-006) — AiRetryJob
+3. **Word filter** (BR-REP-004) — profanity check
 
 ### P3 — Hardening
 
 1. **Integration tests** (Testcontainers Postgres)
 2. **EXIF validation** (BR-REP-011)
 3. **i18n en-US** (BR-NTF-004)
-4. **API Documentation v1.8+**
+4. **API Documentation v2.0**
+
 
 ---
 

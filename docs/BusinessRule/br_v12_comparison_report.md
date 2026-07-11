@@ -60,9 +60,9 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 
 |      Trạng thái       | Modules                                                                                                                     | % ước tính |
 | :-------------------: | :-------------------------------------------------------------------------------------------------------------------------- | :--------: |
-|  ✅ Core hoàn thành   | Auth, Reports (32 slices), Organization (39 slices), Inspection (10 slices), Map (2), Catalog (3), Admin (10), Media, Users, Company (14/14 rules) |    ~65%    |
-| ⚠️ Implement một phần | Cleanup (thiếu check-in/SLA)                                                                                               |    ~10%    |
-|   ❌ Chưa implement   | Comments, Rate Limiting, Brute-force, Duplicate Detection                                                                    |    ~25%    |
+|  ✅ Core hoàn thành   | Auth, Reports (32 slices), Organization (39 slices), Inspection (13 slices), Map (2), Catalog (3), Admin (10), Media, Users, Company (14/14 rules), Cleanup (8/8) |    ~80%    |
+| ⚠️ Implement một phần | | 0% |
+|   ❌ Chưa implement   | Comments, Rate Limiting, Brute-force, Duplicate Detection                                                                                                          |    ~20%    |
 
 ---
 
@@ -177,39 +177,39 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 
 ---
 
-## B.6 Cleanup (`BR-CLN-001..008`) — ⚠️ 3/8 rules
+## B.6 Cleanup (`BR-CLN-001..008`) — ✅ 8/8 rules
 
 | BR         | Status | Ghi chú                                                   |
 | ---------- | :----: | --------------------------------------------------------- |
 | BR-CLN-001 |   ✅   | Tiếp nhận CleanupTask                                     |
-| BR-CLN-002 |   ❌   | Check-in ≤ 200m (PostGIS)                                 |
-| BR-CLN-003 |   ❌   | Check-in to start task                                    |
-| BR-CLN-004 |   ❌   | Update ≥ 1/ngày, cảnh báo 24h/48h                         |
-| BR-CLN-005 |   ❌   | ≥ 2 ảnh after khác hash                                   |
-| BR-CLN-006 |   ❌   | Escalate lên LEO                                          |
-| BR-CLN-007 |   ⚠️   | `DeclineAssignment/` có, cần verify 2h window             |
-| BR-CLN-008 |   ⚠️   | Company team — code có nhưng chưa verify BR-CMP-005 check |
+| BR-CLN-002 |   ✅   | Check-in ≤ 200m (PostGIS `ST_Distance`) — `CheckInCleanup/` handler |
+| BR-CLN-003 |   ✅   | Check-in to start task — Assigned → InProgress via `CheckIn()` entity method |
+| BR-CLN-004 |   ✅   | Update ≥ 1/ngày — `UpdateCleanupProgress/` handler + `CleanupProgressSlaJob` (hourly, flag 24h/48h) |
+| BR-CLN-005 |   ✅   | ≥ 2 ảnh after — enforce count ≥ 2 trong `ResolveReportHandler`. Không áp dụng kiểm tra góc chụp. |
+| BR-CLN-006 |   ✅   | Escalate lên LEO — `EscalateCleanup/` handler, InProgress → Escalated |
+| BR-CLN-007 |   ✅   | `DeclineAssignment/` — 24h window (user đã đổi từ 2h)    |
+| BR-CLN-008 |   ✅   | Company team — code verify BR-CMP-005 check via `CompanyCascadeService` |
 
 ---
 
-## B.7 Inspection (`BR-INS-001..032`) — ✅ 8/14 rules
+## B.7 Inspection (`BR-INS-001..032`) — ✅ 13/14 rules
 
 | BR         | Status | Ghi chú                                                 |
 | ---------- | :----: | ------------------------------------------------------- |
 | BR-INS-001 |   ✅   | `CreateInspectionReport/` — mọi loại ô nhiễm            |
-| BR-INS-002 |   ⚠️   | Scope check — cần verify                                |
-| BR-INS-003 |   ❌   | Từ chối task 2h                                         |
-| BR-INS-004 |   ❌   | Check-in ≤ 200m                                         |
+| BR-INS-002 |   ✅   | Scope check — `GetInspectionQueue` + `InspectionTeamAuthorization` filter by team |
+| BR-INS-003 |   ✅   | Từ chối task 24h — `DeclineInspection/` handler (24h window, user đã đổi từ 2h) |
+| BR-INS-004 |   ✅   | Check-in ≤ 200m — `CheckInInspection/` handler (PostGIS `ST_Distance`) |
 | BR-INS-010 |   ✅   | `UpdateInspectionDetails/` — biên bản                   |
-| BR-INS-011 |   ⚠️   | ViolationLevel enum có, khung phạt configurable chưa rõ |
+| BR-INS-011 |   ✅   | ViolationLevel enum + `PenaltyFramework` entity (Admin configurable, BR-ADM-008) |
 | BR-INS-012 |   ✅   | `IssuePenalty/`                                         |
 | BR-INS-013 |   ✅   | `CloseNoViolation/`                                     |
 | BR-INS-020 |   ✅   | `RecordPayment/`                                        |
 | BR-INS-021 |   ✅   | `MarkOverdue/`                                          |
-| BR-INS-022 |   ❌   | Repeat offender (≥ 2 biên bản / 12 tháng)               |
-| BR-INS-030 |   ❌   | SLA Inspection                                          |
-| BR-INS-031 |   ❌   | Update tiến độ ≥ 1/ngày                                 |
-| BR-INS-032 |   ❌   | KPI Inspection Team                                     |
+| BR-INS-022 |   ✅   | Repeat offender (≥ 2 biên bản / 12 tháng) — `IssuePenalty/` handler auto-check |
+| BR-INS-030 |   ✅   | SLA Inspection — `SlaBreachInspectionJob` (every 30', flag breach) |
+| BR-INS-031 |   ✅   | Update tiến độ ≥ 1/ngày — `UpdateInspectionProgress/` handler |
+| BR-INS-032 |   ✅   | KPI Inspection Team — `GetInspectionTeamKpi/` query (penalty on-time %, paid on-time %, repeat, SLA) |
 
 ---
 
@@ -337,11 +337,14 @@ Chưa có feature module. Thiếu entity Comment.
 | `AccountHardDeleteJob`         | BR-AUTH-021    | ✅ Soft delete > 90d → hard delete (daily)                                                       |
 | `LeaderboardSnapshotJob`       | BR-GAM-005     | ✅ Daily snapshot 00:05 UTC                                                                      |
 | `CompanyContractExpiryJob`     | BR-CMP-007     | ✅ Bidding hết hạn → Expired + cascading + cảnh báo CM 30/7/1 ngày trước (daily 02:00 UTC)       |
+| `SlaBreachInspectionJob`       | BR-INS-030     | ✅ InspectionReport > SLA → flag `SlaInspectionBreached` (every 30')                             |
+| `CleanupProgressSlaJob`        | BR-CLN-004     | ✅ Assignment InProgress > 24h/48h → warn/flag stale (hourly)                                    |
 | `AiRetryJob`                   | BR-AI-006      | ❌ ai_pending retry trong 1h                                                                     |
 
 > [!NOTE]
 > Hangfire đã setup đầy đủ: DI, PostgreSql storage, Dashboard `/hangfire`.
 > `TransactionBehavior` (MediatR pipeline) đã thêm — wrap mọi Command trong DB transaction.
+> **12/13** recurring jobs đã registered. Chỉ thiếu `AiRetryJob`.
 
 ---
 
@@ -351,7 +354,7 @@ Chưa có feature module. Thiếu entity Comment.
 | ---------------------------------------- | ------------------------------ | ---------------------------------------------------------- |
 | `CompanyStatus` enum                     | ✅ 5 values (incl. Terminated) | Suspend/Terminate/Reactivate/Expire transitions implemented |
 | `PollutionCategory`                      | ✅ Configurable                | ⚠️ Seed data cần đúng 3 loại (v1.2 bỏ Không khí, Tiếng ồn)  |
-| `Invitation` entity                      | ❌                             | BR-ORG-021: token, expiry 7d, single-use                    |
+| `Invitation` entity                      | ✅ ĐÃ IMPLEMENT            | BR-ORG-020/021: `StaffInvitation` entity, 7d expiry, single-use |
 | `Comment` entity                         | ❌                             | BR-CMT-001..004                                            |
 | `Badge`, `UserPoints`                    | ✅ ĐÃ IMPLEMENT                | BR-GAM-001..006                                            |
 | `Notification`, `NotificationPreference` | ✅ ĐÃ IMPLEMENT                | BR-NTF-001..004                                            |
@@ -381,8 +384,8 @@ Chưa có feature module. Thiếu entity Comment.
 | 9   | **Comments** (entity + CRUD + moderation)                | BR-CMT-001..004            |        |
 | 10  | **Brute-force protection** (sliding window + Turnstile)  | BR-AUTH-014                |        |
 | 11  | **Rate limiting** (Redis + ASP.NET middleware)            | BR-SYS-004, BR-REP-010     |        |
-| 12  | **Check-in ≤ 200m** (PostGIS ST_DWithin)                 | BR-CLN-002/003, BR-INS-004 |        |
-| 13  | **Company contract renewal** (gia hạn/tái ký)            | BR-CMP-006                 |        |
+| 12  | ~~**Check-in ≤ 200m** (PostGIS ST_DWithin)~~             | BR-CLN-002/003, BR-INS-004 |   ✅   |
+| 13  | ~~**Company contract renewal** (gia hạn/tái ký)~~        | BR-CMP-006                 |   ✅   |
 
 ## P2 — Enhancement
 
