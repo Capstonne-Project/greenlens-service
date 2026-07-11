@@ -43,8 +43,8 @@ public sealed class DeclineAssignmentCommandHandler(
         if (assignment.Status != AssignmentStatus.Assigned)
             return Errors.Reports.InvalidStatusTransition;
 
-        // BR-CLN-007, BR-INS-003: 2h window
-        if ((DateTime.UtcNow - assignment.AssignedAt).TotalHours > 2)
+        // BR-CLN-007, BR-INS-003: 24h window (updated from 2h per business decision)
+        if ((DateTime.UtcNow - assignment.AssignedAt).TotalHours > 24)
             return Errors.Reports.DeclineWindowExpired;
 
         assignment.Decline(request.Reason);

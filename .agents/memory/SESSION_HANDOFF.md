@@ -1,13 +1,13 @@
 # Session Handoff — GreenLens Backend
 
-> **Cập nhật lần cuối:** 2026-07-10 16:40 · **Phiên bản:** 16 · **Agent:** Antigravity (Gemini 3.5 Flash)
+> **Cập nhật lần cuối:** 2026-07-11 17:15 · **Phiên bản:** 17 · **Agent:** Antigravity (Gemini 3.5 Flash)
 
 ## 0. TL;DR
-Backend .NET 9 GreenLens. Phiên 16 hoàn thành **Admin module 12/12 rules** (BR-ADM-001..012): PenaltyFramework CRUD, AuditLog pipeline, Content Moderation (hide/unhide), Spam Dashboard, GamificationConfig CRUD, NotificationTemplate CRUD+publish+test-send, DEO province scoping. Fix regex partial method error, fix 18 CS8602 build warnings, thêm SwaggerOperation cho admin endpoints. Tạo `docs/api-admin-module.md` (15 endpoints). Cập nhật `br_v12_comparison_report.md` (Admin 12/12). **Tổng tiến độ ~70%.**
+Backend .NET 9 GreenLens. Phiên 17 hoàn thành 100% **Cleanup module (8/8 rules)** và **Inspection module (14/14 rules)**: Tích hợp PostGIS `ST_Distance(::geography)` check-in ≤ 200m cho cả Cleaner/CompanyStaff và Inspector, gia hạn từ chối task từ 2h lên 24h, cập nhật tiến độ hàng ngày, 2 SLA background jobs (`SlaBreachInspectionJob`, `CleanupProgressSlaJob`), KPI dashboard Đội xử phạt (`GetInspectionTeamKpi`), và tạo tài liệu API thống nhất cho FE Mobile App (`docs/fe-mobile-app-cleanup-inspection-guide.md`). EF Core migration `202607111000_AddCheckInProgressSlaFields` đã được tạo. **Tổng tiến độ ~79%.**
 
 ## 1. Mục tiêu & Bối cảnh
 - **Mục tiêu tổng thể:** Backend .NET 9 cho ứng dụng báo cáo ô nhiễm môi trường (SU26SE049)
-- **Phạm vi phiên 16:** Admin module (BR-ADM-001..012) implement + API docs + build fixes
+- **Phạm vi phiên 17:** Cleanup và Inspection modules (BR-CLN-* & BR-INS-*) + PostGIS + SLA jobs + mobile API docs
 - **Ngôn ngữ:** Tiếng Việt (giao tiếp + XML doc BR), English (code)
 
 ## 2. Quyết định đã chốt (Locked Decisions)
@@ -51,8 +51,45 @@ Backend .NET 9 GreenLens. Phiên 16 hoàn thành **Admin module 12/12 rules** (B
 | 35 | **PenaltyFramework: unique index `(CategoryId, ViolationLevel)` chỉ cho active** | Cho phép deactivate rồi tạo mới cùng cặp — HasFilter("is_active = true") | 2026-07-10 |
 | 36 | **GamificationConfig: event handler đọc config trực tiếp từ DB** (không cache) | Tránh stale cache, config ít thay đổi | 2026-07-10 |
 | 37 | **NotificationTemplate: regex `GeneratedRegex` partial method dùng `[GeneratedRegex]`** | .NET 9 source gen — fix partial method error bằng đổi sang non-partial helper | 2026-07-10 |
+| 38 | **Thời gian từ chối task (Cleanup & Inspection): 24 giờ** | Người dùng yêu cầu thay đổi từ 2 giờ lên 24 giờ | 2026-07-11 |
+| 39 | **BR-CLN-005: Enforce ≥ 2 ảnh after, không kiểm tra góc chụp** | Đã thống nhất do DINOv2 chạy ở service ngoài | 2026-07-11 |
+| 40 | **Check-in PostGIS dùng raw SQL ST_Distance(::geography)** | Đo đạc chính xác theo mét trên WGS84 (ST_Distance) | 2026-07-11 |
+| 41 | **Tài liệu API mobile app thống nhất cho 4 roles** | Đảm bảo đồng bộ tích hợp cho Citizen, Cleaner, Inspector, CompanyStaff | 2026-07-11 |
 
 ## 3. Trạng thái hiện tại
+
+### ✅ Đã hoàn thành (phiên 17 — 2026-07-11)
+
+**Cleanup Module (BR-CLN-001..008) — 8/8 rules:**
+- BR-CLN-001: Tiếp nhận task dựa trên phân công của LEO (Rác/Nước/Hóa chất)
+- BR-CLN-002: Check-in hiện trường vị trí GPS ≤ 200m (PostGIS ST_Distance)
+- BR-CLN-003: Check-in bắt đầu dọn dẹp (Assigned → InProgress)
+- BR-CLN-004: SLA cập nhật tiến độ hàng ngày, cảnh báo và tự động gán cờ quá hạn (`CleanupProgressSlaJob` chạy hàng giờ)
+- BR-CLN-005: Enforce upload ≥ 2 ảnh after khi Resolve, không áp dụng check góc chụp
+- BR-CLN-006: Leo thang (Escalate) lên LEO kèm lý do ≥ 20 ký tự, tự động hoàn trả report về Verified nếu toàn bộ các team escalate
+- BR-CLN-007: Từ chối task trong 24 giờ (gia hạn từ 2h)
+- BR-CLN-008: Company team staff kiểm tra trạng thái hoạt động công ty (BR-CMP-005)
+
+**Inspection Module (BR-INS-001..032) — 14/14 rules:**
+- BR-INS-001: Tạo hồ sơ xử phạt cho mọi loại ô nhiễm
+- BR-INS-002: Lọc queue và scope check theo team
+- BR-INS-003: Từ chối hồ sơ trong 24 giờ kèm lý do ≥ 20 ký tự
+- BR-INS-004: Check-in hiện trường GPS ≤ 200m
+- BR-INS-010: Cập nhật biên bản điều tra hiện trường
+- BR-INS-011: Khung tiền phạt configurable theo ViolationLevel
+- BR-INS-012: Ban hành quyết định xử phạt (Draft/InProgress → PenaltyIssued), tự động check tái phạm trong 12 tháng qua để tăng khung phạt
+- BR-INS-013: Đóng hồ sơ không vi phạm (ClosedNoViolation) lý do ≥ 50 ký tự
+- BR-INS-020: Ghi nhận nộp phạt (Paid, PartiallyPaid)
+- BR-INS-021: Đánh cờ quá hạn nộp phạt (Overdue)
+- BR-INS-022: Gắn cờ tái phạm và nâng 1 bậc phạt
+- BR-INS-030: SLA xử phạt theo mức độ vi phạm, cảnh báo quá hạn (`SlaBreachInspectionJob` hàng giờ)
+- BR-INS-031: Cập nhật tiến độ hàng ngày
+- BR-INS-032: Dashboard KPI Inspection Team (tỉ lệ phạt đúng hạn, nộp đúng hạn, tái phạm, SLA breach)
+
+**Documentation & Migration:**
+- Tạo tài liệu tích hợp API cho FE Mobile App: `docs/fe-mobile-app-cleanup-inspection-guide.md`
+- Cập nhật tài liệu so sánh BR: `docs/BusinessRule/br_v12_comparison_report.md` (Cleanup 8/8, Inspection 14/14)
+- Tạo EF Core migration `202607111000_AddCheckInProgressSlaFields` và đã build compile thành công 100%
 
 ### ✅ Đã hoàn thành (phiên 16 — 2026-07-10)
 
@@ -92,34 +129,29 @@ Backend .NET 9 GreenLens. Phiên 16 hoàn thành **Admin module 12/12 rules** (B
 ## 4. Việc tiếp theo (Next Steps)
 - [ ] **BR-REP-030..033: Duplicate detection** — approve plan → implement (~15 files)
 - [ ] **Comments module** (BR-CMT-001..004) — entity + CRUD + moderation
-- [ ] **Cleanup module gaps** (BR-CLN-002..006): check-in ≤ 200m, update ≥ 1/ngày, ≥ 2 ảnh after
-- [ ] **Inspection gaps** (BR-INS-003/004/022/030..032): decline 2h, check-in, repeat offender, SLA, KPI
 - [ ] **Map module** (BR-MAP-001..012): heatmap, hotspot, nearby, clustering, Redis cache
 - [ ] **AI Service**: BR-AI-006 fallback retry job (AiRetryJob)
 - [ ] **BR-AUTH-014**: Brute-force lock (sliding window + Turnstile)
 - [ ] **BR-SYS-004/BR-REP-010**: Rate limiting (Redis + ASP.NET middleware)
 - [ ] **BR-REP-004**: Word filter (tục tĩu)
 - [ ] **BR-REP-011**: EXIF metadata validation
-- [ ] Cập nhật API Documentation lên v1.8+
+- [ ] Cập nhật API Documentation lên v2.1+
 - [ ] Unit tests cho invitation flow, escalate, reject re-queue (pending từ phiên 10)
 
 ## 5. File & Artefact quan trọng
 
 | Đường dẫn | Vai trò | Trạng thái |
 |---|---|---|
-| `docs/BusinessRule/br_v12_comparison_report.md` | So sánh BR v1.2 vs hệ thống | ✅ Updated (phiên 16: Admin 12/12) |
-| `docs/api-admin-module.md` | API docs cho 15 admin endpoints | ✅ Mới (phiên 16) |
-| `docs/ai-compare-images-spec.md` | Spec endpoint `/compare-images` cho Python AI service | ✅ Mới (phiên 15) |
-| `src/Greenlens.Domain/Entities/PenaltyFramework.cs` | Entity khung phạt | ✅ Mới (phiên 16) |
-| `src/Greenlens.Domain/Entities/AuditLog.cs` | Entity audit log | ✅ Mới (phiên 16) |
-| `src/Greenlens.Domain/Entities/NotificationTemplate.cs` | Entity template thông báo | ✅ Mới (phiên 16) |
-| `src/Greenlens.Domain/Entities/GamificationConfig.cs` | Entity cấu hình điểm | ✅ Mới (phiên 16) |
-| `src/Greenlens.Application/Common/Behaviors/AuditLogBehavior.cs` | Pipeline behavior auto audit | ✅ Mới (phiên 16) |
-| `src/Greenlens.Application/Common/Interfaces/IAuditable.cs` | Marker interface cho auditable commands | ✅ Mới (phiên 16) |
-| `src/Greenlens.Api/Controllers/AdminController.cs` | Admin API endpoints | ✅ Sửa (phiên 16: thêm 15 endpoints) |
-| `src/Greenlens.Domain/Entities/Report.cs` | Entity báo cáo — có ParentReportId, MarkDuplicate, ReportFlag, IsHidden | ✅ Sửa (phiên 16: +IsHidden) |
-| `src/Greenlens.Domain/Entities/ContractPeriod.cs` | Entity kỳ hợp đồng | ✅ Mới (phiên 14) |
-| `src/Greenlens.Infrastructure/AI/AiClassificationService.cs` | HTTP adapter cho Python AI | Cần thêm CompareAsync method |
+| `docs/BusinessRule/br_v12_comparison_report.md` | So sánh BR v1.2 vs hệ thống | ✅ Updated (phiên 17: Cleanup 8/8, Inspection 14/14) |
+| `docs/fe-mobile-app-cleanup-inspection-guide.md` | API docs cho 4 roles Mobile App | ✅ Mới (phiên 17) |
+| `src/Greenlens.Domain/Entities/ReportAssignment.cs` | Entity phân công nhiệm vụ | ✅ Sửa (phiên 17: check-in, progress) |
+| `src/Greenlens.Domain/Entities/InspectionReport.cs` | Entity hồ sơ xử phạt | ✅ Sửa (phiên 17: check-in, progress, SLA) |
+| `src/Greenlens.Application/Common/Interfaces/IGeoDistanceService.cs` | Interface tính khoảng cách địa lý | ✅ Mới (phiên 17) |
+| `src/Greenlens.Infrastructure/Geo/PostGisDistanceService.cs` | Impl dùng PostGIS ST_Distance | ✅ Mới (phiên 17) |
+| `src/Greenlens.Infrastructure/BackgroundJobs/SlaBreachInspectionJob.cs` | Job phạt SLA xử lý vi phạm | ✅ Mới (phiên 17) |
+| `src/Greenlens.Infrastructure/BackgroundJobs/CleanupProgressSlaJob.cs` | Job phạt SLA cập nhật tiến độ | ✅ Mới (phiên 17) |
+| `src/Greenlens.Api/Controllers/InspectionsController.cs` | Inspections API Controller | ✅ Sửa (phiên 17: check-in, progress, decline, KPI) |
+| `src/Greenlens.Api/Controllers/TeamsController.cs` | Teams API Controller | ✅ Sửa (phiên 17: check-in, progress, escalate) |
 
 ## 6. Kiến thức nền & Quy ước
 - **Tech stack:** .NET 9, ASP.NET Core, EF Core 9, PostgreSQL + PostGIS, Hangfire, MediatR, FluentValidation, Mapster, ClosedXML
@@ -151,10 +183,8 @@ Backend .NET 9 GreenLens. Phiên 16 hoàn thành **Admin module 12/12 rules** (B
 
 ## 7. Câu hỏi mở / Cần xác nhận
 - **BR-REP-030..033 plan chưa approved** — user cần review plan rồi confirm
-- Module tiếp theo sau duplicate detection: Comments? Map? Cleanup? Inspection?
 - Unit tests cho invitation flow, escalate, reject re-queue — pending từ phiên 10
 - Python AI service deploy: user cần xác nhận infra (Railway/Render/AWS) cho DINOv2-base (~1.5GB RAM min)
-- Admin module branch `feature/admin-module` — user cần commit theo 4-phase commit guide
 
 ## 8. Thuật ngữ
 | Thuật ngữ | Nghĩa |
@@ -167,7 +197,7 @@ Backend .NET 9 GreenLens. Phiên 16 hoàn thành **Admin module 12/12 rules** (B
 | KPI | Key Performance Indicator — chỉ số hiệu suất officer/company |
 | pHash | Perceptual Hash — so sánh pixel layout, fail khi khác góc > 30° |
 | CLIP | Contrastive Language-Image Pretraining (OpenAI) — image embedding model |
-| DINOv2 | Self-supervised Vision Transformer (Meta) — image embedding model, recommend cho GreenLens |
+| DINOv2 | Vision Transformer (Meta) — image embedding model, không áp dụng check góc chụp cho BR-CLN-005 |
 | Tier 1 | Duplicate detection bằng geo+time+category (SQL query) |
 | Tier 2 | Duplicate detection bằng AI image compare (CLIP/DINOv2) |
 
@@ -182,7 +212,8 @@ Backend .NET 9 GreenLens. Phiên 16 hoàn thành **Admin module 12/12 rules** (B
 - 2026-07-01 — System Documentation: Architecture Diagram (8 Mermaid), Conceptual ERD (33 entities), Activity Diagrams (6 flows)
 - 2026-07-07 — BR-OFF (11/12): SLA breach notifications, priority score job, KPI query, report export (CSV+XLSX). ClosedXML added
 - 2026-07-07 — BR-DAT (5/5): DataRetentionJob, ExportMyData (JSON+CSV), User consent flow + migration
-- 2026-07-08 — Fix DI startup: IReportDraftRepository + IReportSatisfactionRepository. Fix migration. BR-OFF-013 limit 10→6
-- 2026-07-10 — Company module 14/14 ✅ (CMP-006 ContractPeriod + RenewContract, CMP-020 KPI, CMP-021 audit). Migration AddContractPeriods. Build 0 errors
-- 2026-07-10 — Plan BR-REP-030..033 duplicate detection. Locked: Tier 1 inline + Tier 2 CLIP/DINOv2 via Python. Created ai-compare-images-spec.md. Plan pending approval
-- 2026-07-10 — Admin module 12/12 ✅ (BR-ADM-001..012). PenaltyFramework CRUD, AuditLogBehavior pipeline, ContentModeration hide/unhide, SpamDashboard, NotificationTemplate CRUD+publish+test, GamificationConfig CRUD. Fix regex partial method + 18 CS8602 warnings. SwaggerOperation added. docs/api-admin-module.md created. Build 0 warnings
+- 2026-07-08 — Fix DI startup: IReportDraftRepository + IReportSatisfactionRepository. Fix migration. BR-OFF-013 limit 10→6. Ignore PendingModelChangesWarning
+- 2026-07-10 — Company module 14/14 ✅ (ContractPeriod, KPI, audit). Migration AddContractPeriods. Build 0 errors
+- 2026-07-10 — Plan BR-REP-030..033 duplicate detection. Created ai-compare-images-spec.md. Plan pending approval
+- 2026-07-10 — Admin module 12/12 ✅ (BR-ADM-001..012). PenaltyFramework, AuditLogBehavior, ContentModeration, SpamDashboard, NotificationTemplate, GamificationConfig. Build 0 warnings
+- 2026-07-11 — Cleanup (8/8) và Inspection (14/14) modules hoàn thành 100%. Tích hợp PostGIS ST_Distance (≤ 200m) check-in, gia hạn từ chối task 24h, cập nhật tiến độ, SLA jobs (SlaBreachInspectionJob, CleanupProgressSlaJob), KPI dashboard Inspection Team, EF Core migration 202607111000, và tạo tài liệu API cho FE Mobile App (fe-mobile-app-cleanup-inspection-guide.md). Build 0 errors.

@@ -15,10 +15,13 @@ using Greenlens.Application.Features.Organization.TransferTeamMember;
 using Greenlens.Application.Features.Organization.UpdateCompanyTeam;
 using Greenlens.Application.Features.Organization.UpdateTeam;
 using Greenlens.Application.Features.Reports.AcceptAssignment;
+using Greenlens.Application.Features.Reports.CheckInCleanup;
 using Greenlens.Application.Features.Reports.DeclineAssignment;
+using Greenlens.Application.Features.Reports.EscalateCleanup;
 using Greenlens.Application.Features.Reports.GetMyAssignments;
 using Greenlens.Application.Features.Reports.GetMyProgressHistory;
 using Greenlens.Application.Features.Reports.GetMyTaskDetail;
+using Greenlens.Application.Features.Reports.UpdateCleanupProgress;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -112,6 +115,62 @@ public sealed class TeamsController(ISender sender) : ControllerBase
         [FromRoute] Guid reportId, [FromBody] DeclineTaskRequest request, CancellationToken ct)
         => (await sender.Send(new DeclineAssignmentCommand(reportId, request.TeamId, request.Reason), ct))
             .ToHttpNoContent("Đã từ chối task.");
+
+    // ═══════════════════════════════════════════
+    // ██  BR-CLN-002/003: CHECK-IN (PostGIS)
+    // ═══════════════════════════════════════════
+
+    [HttpPost("my-tasks/{reportId:guid}/check-in")]
+    [Authorize(Roles = "Cleaner,CompanyStaff")]
+    [Tags("🧹 Cleaner Dashboard")]
+    [SwaggerOperation(
+        Summary = "[Cleaner/CompanyStaff] Check-in hiện trường",
+        Description = "Team check-in tại vị trí hiện trường ≤ 200m (PostGIS, BR-CLN-002/003). " +
+            "Chuyển assignment: Assigned → InProgress. Ghi nhận GPS.")]
+    [SwaggerResponse(200, "Đã check-in", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Quá xa hoặc status không hợp lệ", typeof(ApiResponse))]
+    public async Task<IActionResult> CheckInAsync(
+        [FromRoute] Guid reportId, [FromBody] CheckInCleanupRequest request, CancellationToken ct)
+        => (await sender.Send(new CheckInCleanupCommand(
+            reportId, request.TeamId, request.Latitude, request.Longitude, request.Note), ct))
+            .ToHttpNoContent("Đã check-in hiện trường.");
+
+    // ═══════════════════════════════════════════
+    // ██  BR-CLN-004: UPDATE PROGRESS
+    // ═══════════════════════════════════════════
+
+    [HttpPut("my-tasks/{reportId:guid}/progress")]
+    [Authorize(Roles = "Cleaner,CompanyStaff")]
+    [Tags("🧹 Cleaner Dashboard")]
+    [SwaggerOperation(
+        Summary = "[Cleaner/CompanyStaff] Cập nhật tiến độ cleanup",
+        Description = "Team leader cập nhật tiến độ (BR-CLN-004). Phải update ≥ 1 lần/ngày khi InProgress.")]
+    [SwaggerResponse(200, "Đã cập nhật", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Assignment không InProgress hoặc percent ngoài 0–100", typeof(ApiResponse))]
+    public async Task<IActionResult> UpdateProgressAsync(
+        [FromRoute] Guid reportId, [FromBody] UpdateCleanupProgressRequest request, CancellationToken ct)
+        => (await sender.Send(new UpdateCleanupProgressCommand(
+            reportId, request.TeamId, request.Percent, request.Note), ct))
+            .ToHttpNoContent("Đã cập nhật tiến độ.");
+
+    // ═══════════════════════════════════════════
+    // ██  BR-CLN-006: ESCALATE TO LEO
+    // ═══════════════════════════════════════════
+
+    [HttpPost("my-tasks/{reportId:guid}/escalate")]
+    [Authorize(Roles = "Cleaner,CompanyStaff")]
+    [Tags("🧹 Cleaner Dashboard")]
+    [SwaggerOperation(
+        Summary = "[Cleaner/CompanyStaff] Escalate task lên LEO",
+        Description = "Team báo vượt khả năng xử lý (BR-CLN-006). " +
+            "Lý do ≥ 20 ký tự. Nếu tất cả team đều escalate → report quay về Verified.")]
+    [SwaggerResponse(200, "Đã escalate", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Lý do quá ngắn hoặc assignment không InProgress", typeof(ApiResponse))]
+    public async Task<IActionResult> EscalateAsync(
+        [FromRoute] Guid reportId, [FromBody] EscalateCleanupRequest request, CancellationToken ct)
+        => (await sender.Send(new EscalateCleanupCommand(
+            reportId, request.TeamId, request.Reason), ct))
+            .ToHttpNoContent("Đã escalate lên LEO.");
 
     [HttpGet("my-progress")]
     [Authorize(Roles = "Cleaner,CompanyStaff,Inspector,Admin")]
@@ -339,3 +398,18 @@ public sealed record DeclineTaskRequest(Guid TeamId, string Reason);
 public sealed record TransferMemberRequest(Guid NewTeamId, bool IsLeader = false);
 public sealed record UpdateCompanyTeamRequest(string Name);
 public sealed record AddCompanyTeamMemberRequest(Guid UserId, bool IsLeader = false);
+
+public sealed record CheckInCleanupRequest(
+    Guid TeamId,
+    decimal Latitude,
+    decimal Longitude,
+    string? Note = null);
+
+public sealed record UpdateCleanupProgressRequest(
+    Guid TeamId,
+    int Percent,
+    string? Note = null);
+
+public sealed record EscalateCleanupRequest(
+    Guid TeamId,
+    string Reason);

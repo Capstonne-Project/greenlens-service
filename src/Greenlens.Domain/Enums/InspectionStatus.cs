@@ -9,6 +9,10 @@ namespace Greenlens.Domain.Enums;
 public enum InspectionStatus
 {
     Draft,
+
+    /// <summary>Team has checked in at the site. BR-INS-004.</summary>
+    InProgress,
+
     PenaltyIssued,
     Paid,
     PartiallyPaid,

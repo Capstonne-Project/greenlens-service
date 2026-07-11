@@ -127,6 +127,9 @@ public static class DependencyInjection
         // ── Video Transcoding (FFmpeg) — BR-REP-002 ──
         services.AddScoped<IVideoTranscoder, Video.FFmpegVideoTranscoder>();
 
+        // ── Geo / PostGIS (BR-CLN-002, BR-INS-004) ──
+        services.AddScoped<IGeoDistanceService, Geo.PostGisDistanceService>();
+
         // ── AI Classification ─────────────────────────
         services.AddOptions<AiOptions>()
             .Bind(configuration.GetSection("Ai"))
@@ -346,5 +349,17 @@ public static class DependencyInjection
             "company-contract-expiry",
             job => job.ExecuteAsync(),
             "0 2 * * *"); // daily at 02:00 UTC
+
+        // BR-INS-030: Flag inspection reports exceeding SLA deadline
+        RecurringJob.AddOrUpdate<SlaBreachInspectionJob>(
+            "sla-breach-inspection",
+            job => job.ExecuteAsync(),
+            "*/30 * * * *"); // every 30 minutes
+
+        // BR-CLN-004: Flag stale cleanup progress (>24h / >48h)
+        RecurringJob.AddOrUpdate<CleanupProgressSlaJob>(
+            "cleanup-progress-sla",
+            job => job.ExecuteAsync(),
+            "0 * * * *"); // every hour
     }
 }
