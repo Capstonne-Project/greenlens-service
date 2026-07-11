@@ -92,7 +92,7 @@ public sealed class GetCompaniesQueryHandler(
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
-        var pagination = PaginationMeta.Create(totalCount, request.Page, request.PageSize);
+        var pagination = PaginationMeta.Create(request.Page, request.PageSize, totalCount);
 
         return new GetCompaniesResponse(items, pagination);
     }

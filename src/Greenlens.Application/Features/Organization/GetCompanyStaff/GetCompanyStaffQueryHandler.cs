@@ -86,7 +86,7 @@ public sealed class GetCompanyStaffQueryHandler(
                 s.CreatedAt);
         }).ToList();
 
-        var pagination = PaginationMeta.Create(totalCount, request.Page, request.PageSize);
+        var pagination = PaginationMeta.Create(request.Page, request.PageSize, totalCount);
 
         return new GetCompanyStaffResponse(items, pagination);
     }

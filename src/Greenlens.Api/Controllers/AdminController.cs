@@ -8,6 +8,7 @@ using Greenlens.Application.Features.Admin.CreateWasteTag;
 using Greenlens.Application.Features.Admin.ForceUpdateReportStatus;
 using Greenlens.Application.Features.Admin.GetAdminReports;
 using Greenlens.Application.Features.Admin.GetAdminWasteTags;
+using Greenlens.Application.Features.Admin.GetAdminPollutionCategories;
 using Greenlens.Application.Features.Admin.PenaltyFrameworks.CreatePenaltyFramework;
 using Greenlens.Application.Features.Admin.PenaltyFrameworks.DeactivatePenaltyFramework;
 using Greenlens.Application.Features.Admin.PenaltyFrameworks.GetPenaltyFrameworks;
@@ -143,6 +144,21 @@ public sealed class AdminController(ISender sender) : ControllerBase
     // ═══════════════════════════════════════════
     // ██  POLLUTION CATEGORIES
     // ═══════════════════════════════════════════
+
+    [HttpGet("pollution-categories")]
+    [SwaggerOperation(
+        Summary = "[Admin] Danh sách danh mục ô nhiễm (phân trang)",
+        Description = "Trả về tất cả pollution category (bao gồm inactive) cho Admin Dashboard. " +
+            "Hỗ trợ tìm kiếm (code, tên VN, tên EN), lọc theo trạng thái active, " +
+            "sắp xếp theo: code, nameVi, nameEn, isActive, reportCount, createdAt (mặc định: code). " +
+            "Mỗi category kèm reportCount (số báo cáo đang sử dụng category này).")]
+    [SwaggerResponse(200, "Danh sách category", typeof(ApiResponse<GetAdminPollutionCategoriesResponse>))]
+    public async Task<IActionResult> GetAllPollutionCategoriesAsync(
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
+        [FromQuery] string? search = null, [FromQuery] bool? isActive = null,
+        [FromQuery] string? sortBy = null, [FromQuery] bool sortDesc = false,
+        CancellationToken ct = default)
+        => (await sender.Send(new GetAdminPollutionCategoriesQuery(page, pageSize, search, isActive, sortBy, sortDesc), ct)).ToHttp();
 
     [HttpPost("pollution-categories")]
     [SwaggerOperation(Summary = "[Admin] Tạo danh mục ô nhiễm", Description = "Tạo loại ô nhiễm mới (code, tên VN, tên EN, icon URL).")]

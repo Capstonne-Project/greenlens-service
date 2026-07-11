@@ -289,10 +289,22 @@ Chưa có feature module. Thiếu entity Comment.
 - BR-AI-001 cập nhật: AI phân loại **3 loại** (thay vì 5) → cần verify AI service config
 - BR-AI-006: Fallback ai_pending ❌ — chưa có retry job
 
-### ⚠️ Administration (`BR-ADM-001..012`)
+### ✅ Administration (`BR-ADM-001..012`) — 12/12 rules
 
-- 10 admin features đã có (CRUD category, waste tags, force update, roles)
-- **Thiếu:** BR-ADM-004 (notification templates), BR-ADM-005 (gamification config), BR-ADM-006 (content moderation), BR-ADM-007 (spam dashboard), BR-ADM-008 (khung tiền phạt configurable), BR-ADM-010 (audit log đầy đủ), BR-ADM-012 (giám sát công ty)
+| BR         | Status | Ghi chú / Evidence |
+| ---------- | :----: | --------------------------------------------------------------------------------------------------------------------------------------- |
+| BR-ADM-001 |   ✅   | Admin quản lý user: `AdminController.CreateAccount/UpdateUser/DeleteUser` (soft-delete). Ghi audit log qua `AuditLogBehavior`. |
+| BR-ADM-002 |   ✅   | 8 roles hệ thống gán cho user qua `UserRole` enum. Admin đổi role qua `UpdateUserRoleCommand` (ghi audit log). |
+| BR-ADM-003 |   ✅   | CRUD Category: `CreateCategory/UpdateCategory/ArchiveCategory`. Loại đang sử dụng chỉ cho phép 'Archive' (ẩn khi chọn mới). |
+| BR-ADM-004 |   ✅   | Template thông báo i18n: `NotificationTemplate` entity + CRUD + publish flow. Placeholder whitelist regex validation + test-send API. |
+| BR-ADM-005 |   ✅   | Gamification config: `GamificationConfig` entity, CRUD endpoints. Event handler `ReportPointsHandlers` đọc cấu hình trực tiếp từ DB. |
+| BR-ADM-006 |   ✅   | Content moderation: Admin ẩn/bỏ ẩn báo cáo vi phạm qua `HideReport/UnhideReport` commands. Public queries lọc bỏ báo cáo bị ẩn. |
+| BR-ADM-007 |   ✅   | Spam dashboard: `GetSpamSuspectsQuery` lọc danh sách tài khoản nghi spam theo heuristic (submit/giờ, reject/tuần, AI flag) trên DB. |
+| BR-ADM-008 |   ✅   | Khung tiền phạt: `PenaltyFramework` entity + CRUD. Unique index cho `(CategoryId, ViolationLevel)` active. MinAmount <= MaxAmount. |
+| BR-ADM-009 |   ✅   | Phân quyền dữ liệu theo phạm vi: DEO lọc theo tỉnh, LEO lọc theo xã/phường, Company lọc theo CM/Staff (ví dụ: `GetCompaniesQuery`). |
+| BR-ADM-010 |   ✅   | Hệ thống Audit log: `AuditLogBehavior` tự động ghi log các `IAuditable` commands nhạy cảm. `AuditLogRetentionJob` dọn dẹp log > 12 tháng. |
+| BR-ADM-011 |   ✅   | Sao lưu dữ liệu tự động định kỳ hàng ngày (Infra / DevOps concern). |
+| BR-ADM-012 |   ✅   | Giám sát công ty: Admin xem toàn bộ (mọi tỉnh); DEO chỉ xem & quản lý công ty có ServiceArea thuộc tỉnh mình (`GetCompaniesQueryHandler`). |
 
 ### ✅ Data Privacy (`BR-DAT-001..005`) — 5/5 rules
 
@@ -389,9 +401,9 @@ Chưa có feature module. Thiếu entity Comment.
 | --- | ----------------------------------------------- | --------------- |
 | 18  | **Integration tests** (Testcontainers Postgres) | Testing pyramid |
 | 19  | **Security headers** (OwaspHeaders.Core)        | BR-DAT-001      |
-| 20  | **Audit log** (comprehensive)                   | BR-ADM-010      |
-| 21  | **Data privacy** (consent, export, retention)   | BR-DAT-002..005 |
-| 22  | **EXIF validation**                             | BR-REP-011      |
+| 20  | **Audit log** (comprehensive)                   | BR-ADM-010      |   ✅   |
+| 21  | **Data privacy** (consent, export, retention)   | BR-DAT-002..005 |        |
+| 22  | **EXIF validation**                             | BR-REP-011      |        |
 
 ---
 

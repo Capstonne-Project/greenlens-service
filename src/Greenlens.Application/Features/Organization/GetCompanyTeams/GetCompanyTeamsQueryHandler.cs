@@ -55,7 +55,7 @@ public sealed class GetCompanyTeamsQueryHandler(
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        var pagination = PaginationMeta.Create(totalCount, request.Page, request.PageSize);
+        var pagination = PaginationMeta.Create(request.Page, request.PageSize, totalCount);
 
         return new GetCompanyTeamsResponse(items, pagination);
     }

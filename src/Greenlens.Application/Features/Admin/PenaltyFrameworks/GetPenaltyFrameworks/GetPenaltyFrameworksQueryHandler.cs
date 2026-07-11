@@ -54,7 +54,7 @@ public sealed class GetPenaltyFrameworksQueryHandler(IApplicationDbContext db)
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
-        var pagination = PaginationMeta.Create(totalCount, request.Page, request.PageSize);
+        var pagination = PaginationMeta.Create(request.Page, request.PageSize, totalCount);
 
         return new GetPenaltyFrameworksResponse(items, pagination);
     }

@@ -1,13 +1,13 @@
 # Session Handoff — GreenLens Backend
 
-> **Cập nhật lần cuối:** 2026-07-10 02:53 · **Phiên bản:** 15 · **Agent:** Antigravity (Claude Opus 4.6)
+> **Cập nhật lần cuối:** 2026-07-10 16:40 · **Phiên bản:** 16 · **Agent:** Antigravity (Gemini 3.5 Flash)
 
 ## 0. TL;DR
-Backend .NET 9 GreenLens. Phiên 14 hoàn thành module Company **14/14 rules** (CMP-006 ContractPeriod, CMP-020 KPI, CMP-021 audit). Phiên 15 lên plan BR-REP-030..033 (duplicate detection): Tier 1 geo+time+category inline + Tier 2 CLIP/DINOv2 qua Python AI service. Tạo spec doc cho team Python. **Plan chưa approved — đang chờ user review.** Tổng tiến độ ~65%.
+Backend .NET 9 GreenLens. Phiên 16 hoàn thành **Admin module 12/12 rules** (BR-ADM-001..012): PenaltyFramework CRUD, AuditLog pipeline, Content Moderation (hide/unhide), Spam Dashboard, GamificationConfig CRUD, NotificationTemplate CRUD+publish+test-send, DEO province scoping. Fix regex partial method error, fix 18 CS8602 build warnings, thêm SwaggerOperation cho admin endpoints. Tạo `docs/api-admin-module.md` (15 endpoints). Cập nhật `br_v12_comparison_report.md` (Admin 12/12). **Tổng tiến độ ~70%.**
 
 ## 1. Mục tiêu & Bối cảnh
 - **Mục tiêu tổng thể:** Backend .NET 9 cho ứng dụng báo cáo ô nhiễm môi trường (SU26SE049)
-- **Phạm vi phiên 15:** Planning BR-REP-030..033 (duplicate detection), technical discussion about pHash vs CLIP/DINOv2
+- **Phạm vi phiên 16:** Admin module (BR-ADM-001..012) implement + API docs + build fixes
 - **Ngôn ngữ:** Tiếng Việt (giao tiếp + XML doc BR), English (code)
 
 ## 2. Quyết định đã chốt (Locked Decisions)
@@ -47,40 +47,59 @@ Backend .NET 9 GreenLens. Phiên 14 hoàn thành module Company **14/14 rules** 
 | 31 | **Duplicate check inline (Option A)** trong SubmitHandler | Citizen cần biết ngay "báo cáo có thể trùng" | 2026-07-10 |
 | 32 | **Tier 2 chạy trên Python AI service** (thêm endpoint `/api/v1/compare-images`), .NET chỉ gọi HTTP | Cùng pattern với `/classify-moderation-upload`. Team AI tự quản model. Không load ML model vào .NET process | 2026-07-10 |
 | 33 | **DINOv2-base recommend** cho production (~330MB RAM, ~200ms/cặp, free, CPU đủ) | Cân bằng accuracy/speed. DINOv2-small (~85MB) nếu cần tiết kiệm | 2026-07-10 |
+| 34 | **Admin AuditLog: MediatR pipeline behavior `AuditLogBehavior`** auto-ghi log cho commands implement `IAuditable` | Không ghi thủ công từng handler — cross-cutting concern | 2026-07-10 |
+| 35 | **PenaltyFramework: unique index `(CategoryId, ViolationLevel)` chỉ cho active** | Cho phép deactivate rồi tạo mới cùng cặp — HasFilter("is_active = true") | 2026-07-10 |
+| 36 | **GamificationConfig: event handler đọc config trực tiếp từ DB** (không cache) | Tránh stale cache, config ít thay đổi | 2026-07-10 |
+| 37 | **NotificationTemplate: regex `GeneratedRegex` partial method dùng `[GeneratedRegex]`** | .NET 9 source gen — fix partial method error bằng đổi sang non-partial helper | 2026-07-10 |
 
 ## 3. Trạng thái hiện tại
 
-### ⏳ Đang chờ approval (phiên 15 — 2026-07-10)
+### ✅ Đã hoàn thành (phiên 16 — 2026-07-10)
 
-**BR-REP-030..033 — Duplicate Detection:**
-- Implementation plan đã tạo → **chưa được user approve**
-- Spec doc cho Python AI service đã tạo: `docs/ai-compare-images-spec.md`
-- Discussion xong: pHash vs CLIP/DINOv2, deploy production feasibility, processing order
+**Admin Module (BR-ADM-001..012) — 12/12 rules:**
+- BR-ADM-001: Admin quản lý user (CreateAccount/UpdateUser/DeleteUser) + audit log
+- BR-ADM-002: 8 roles hệ thống, UpdateUserRoleCommand + audit log
+- BR-ADM-003: CRUD Category (CreateCategory/UpdateCategory/ArchiveCategory)
+- BR-ADM-004: NotificationTemplate entity + CRUD + publish flow + test-send API
+- BR-ADM-005: GamificationConfig entity + CRUD, event handler đọc config từ DB
+- BR-ADM-006: Content moderation: HideReport/UnhideReport + public queries filter
+- BR-ADM-007: Spam dashboard: GetSpamSuspectsQuery heuristic (submit/h, reject/week, AI flag)
+- BR-ADM-008: PenaltyFramework entity + CRUD + unique index (CategoryId, ViolationLevel) active
+- BR-ADM-009: Phân quyền dữ liệu theo scope (DEO tỉnh, LEO xã, CM company)
+- BR-ADM-010: AuditLogBehavior (MediatR pipeline) + AuditLogRetentionJob (12 tháng)
+- BR-ADM-011: Backup (infra/DevOps concern)
+- BR-ADM-012: DEO chỉ xem company có ServiceArea thuộc tỉnh mình (GetCompaniesQueryHandler)
 
-### ✅ Đã hoàn thành (phiên 14 — 2026-07-10)
-- BR-CMP-006: ContractPeriod entity + RenewContract + GetContractHistory + migration data seed
-- BR-CMP-020: GetCompanyKpi query (assigned/completed/declined, SLA, avg hours)
-- BR-CMP-021: Audit 11/11 CM handlers — không gap
-- Company module: **14/14 rules** ✅
-- br_v12_comparison_report.md: updated ~65%
+**Build fixes:**
+- Fix `PlaceholderRegex()` partial method error → đổi sang non-partial helper method
+- Fix 18 CS8602 warnings trong unit tests (null-forgiving operator `!`)
+- Thêm `[SwaggerOperation]` cho toàn bộ admin endpoints
 
-### ✅ Đã hoàn thành (phiên trước — tóm tắt)
-- Phiên 13: Fix DI startup (IReportDraftRepository + IReportSatisfactionRepository), fix migration, BR-OFF-013 limit 10→6
-- Phiên 12: BR-OFF (11/12: SLA breach, priority, KPI, export) + BR-DAT (5/5: retention, export, consent)
+**Documentation:**
+- `docs/api-admin-module.md` — 15 endpoints, 6 nhóm, request/response schemas, cURL
+- `br_v12_comparison_report.md` — cập nhật Admin 12/12
+
+### ✅ Đã hoàn thành (tóm tắt các phiên trước)
+- Phiên 15: Plan BR-REP-030..033 duplicate detection (pending approval)
+- Phiên 14: Company module 14/14 ✅ (ContractPeriod, KPI, audit)
+- Phiên 13: Fix DI startup, migration, BR-OFF-013 limit 10→6
+- Phiên 12: BR-OFF (11/12), BR-DAT (5/5)
 - Phiên 11: System Documentation (Architecture, ERD, Activity Diagrams)
-- Phiên 10: BR-AUTH (lockout, password history, ban, restore) + BR-ORG (invitation, reject, escalate)
-- Phiên 9: Gamification (BR-GAM-001..006), P0 Blocking, Notifications, Company Dispatch
+- Phiên 10: BR-AUTH batch + BR-ORG batch (invitation, reject, escalate)
+- Phiên 9: Gamification, P0 Blocking, Notifications, Company Dispatch
 - Phiên 8 trở về trước: API Docs v1.7, E2E tests, Hangfire, DomainEvent infra
 
 ## 4. Việc tiếp theo (Next Steps)
 - [ ] **BR-REP-030..033: Duplicate detection** — approve plan → implement (~15 files)
-- [ ] Comments module (BR-CMT-001..004)
-- [ ] AI Service: BR-AI-006 fallback retry job (AiRetryJob)
-- [ ] Map module: BR-MAP-001..012 (heatmap, hotspot, nearby — PostGIS queries)
-- [ ] Administration: BR-ADM-004..010, BR-ADM-012
-- [ ] Cleanup module: BR-CLN check-in, SLA
-- [ ] BR-AUTH-014: Brute-force lock
-- [ ] BR-INS remaining
+- [ ] **Comments module** (BR-CMT-001..004) — entity + CRUD + moderation
+- [ ] **Cleanup module gaps** (BR-CLN-002..006): check-in ≤ 200m, update ≥ 1/ngày, ≥ 2 ảnh after
+- [ ] **Inspection gaps** (BR-INS-003/004/022/030..032): decline 2h, check-in, repeat offender, SLA, KPI
+- [ ] **Map module** (BR-MAP-001..012): heatmap, hotspot, nearby, clustering, Redis cache
+- [ ] **AI Service**: BR-AI-006 fallback retry job (AiRetryJob)
+- [ ] **BR-AUTH-014**: Brute-force lock (sliding window + Turnstile)
+- [ ] **BR-SYS-004/BR-REP-010**: Rate limiting (Redis + ASP.NET middleware)
+- [ ] **BR-REP-004**: Word filter (tục tĩu)
+- [ ] **BR-REP-011**: EXIF metadata validation
 - [ ] Cập nhật API Documentation lên v1.8+
 - [ ] Unit tests cho invitation flow, escalate, reject re-queue (pending từ phiên 10)
 
@@ -88,15 +107,19 @@ Backend .NET 9 GreenLens. Phiên 14 hoàn thành module Company **14/14 rules** 
 
 | Đường dẫn | Vai trò | Trạng thái |
 |---|---|---|
-| `docs/BusinessRule/br_v12_comparison_report.md` | So sánh BR v1.2 vs hệ thống | ✅ Updated (phiên 14: CMP 14/14) |
+| `docs/BusinessRule/br_v12_comparison_report.md` | So sánh BR v1.2 vs hệ thống | ✅ Updated (phiên 16: Admin 12/12) |
+| `docs/api-admin-module.md` | API docs cho 15 admin endpoints | ✅ Mới (phiên 16) |
 | `docs/ai-compare-images-spec.md` | Spec endpoint `/compare-images` cho Python AI service | ✅ Mới (phiên 15) |
+| `src/Greenlens.Domain/Entities/PenaltyFramework.cs` | Entity khung phạt | ✅ Mới (phiên 16) |
+| `src/Greenlens.Domain/Entities/AuditLog.cs` | Entity audit log | ✅ Mới (phiên 16) |
+| `src/Greenlens.Domain/Entities/NotificationTemplate.cs` | Entity template thông báo | ✅ Mới (phiên 16) |
+| `src/Greenlens.Domain/Entities/GamificationConfig.cs` | Entity cấu hình điểm | ✅ Mới (phiên 16) |
+| `src/Greenlens.Application/Common/Behaviors/AuditLogBehavior.cs` | Pipeline behavior auto audit | ✅ Mới (phiên 16) |
+| `src/Greenlens.Application/Common/Interfaces/IAuditable.cs` | Marker interface cho auditable commands | ✅ Mới (phiên 16) |
+| `src/Greenlens.Api/Controllers/AdminController.cs` | Admin API endpoints | ✅ Sửa (phiên 16: thêm 15 endpoints) |
+| `src/Greenlens.Domain/Entities/Report.cs` | Entity báo cáo — có ParentReportId, MarkDuplicate, ReportFlag, IsHidden | ✅ Sửa (phiên 16: +IsHidden) |
 | `src/Greenlens.Domain/Entities/ContractPeriod.cs` | Entity kỳ hợp đồng | ✅ Mới (phiên 14) |
-| `src/Greenlens.Domain/Entities/EnvironmentalServiceCompany.cs` | Entity công ty | ✅ Sửa (+RenewContract, +ContractPeriods) |
-| `src/Greenlens.Domain/Entities/Report.cs` | Entity báo cáo — đã có ParentReportId, MarkDuplicate, ReportFlag | Cần sửa thêm (duplicate detection fields) |
-| `src/Greenlens.Domain/Entities/ReportFlag.cs` | Entity flag report (BR-REP-033) | ✅ Đã có sẵn |
-| `src/Greenlens.Domain/Enums/FlagType.cs` | Enum: Duplicate, Invalid, Spam, Inappropriate | ✅ Đã có sẵn |
 | `src/Greenlens.Infrastructure/AI/AiClassificationService.cs` | HTTP adapter cho Python AI | Cần thêm CompareAsync method |
-| `src/Greenlens.Infrastructure/Migrations/202607100100_AddContractPeriods.cs` | Migration contract periods | ✅ Mới (phiên 14) |
 
 ## 6. Kiến thức nền & Quy ước
 - **Tech stack:** .NET 9, ASP.NET Core, EF Core 9, PostgreSQL + PostGIS, Hangfire, MediatR, FluentValidation, Mapster, ClosedXML
@@ -122,12 +145,16 @@ Backend .NET 9 GreenLens. Phiên 14 hoàn thành module Company **14/14 rules** 
 - **CM data isolation:** Mọi CM handler resolve companyId từ token, KHÔNG nhận từ client
 - **Duplicate detection:** Tier 1 (geo+time+category, SQL, inline SubmitHandler) + Tier 2 (CLIP/DINOv2 via Python `/api/v1/compare-images`, optional, 5s timeout fallback)
 - **Report.Location:** dùng `decimal Latitude/Longitude`, KHÔNG phải `NetTopologySuite.Point`. Geo query dùng Haversine approximate rồi post-filter
+- **Admin AuditLog:** IAuditable marker → AuditLogBehavior pipeline → AuditLogger persists. Không ghi thủ công
+- **PenaltyFramework unique index:** `(CategoryId, ViolationLevel)` HasFilter `"is_active = true"` — cho phép deactivate rồi tạo mới
+- **GeneratedRegex trong .NET 9:** Nếu partial method gặp lỗi accessibility, đổi sang private static helper method thay vì dùng `[GeneratedRegex]` attribute trên partial method
 
 ## 7. Câu hỏi mở / Cần xác nhận
 - **BR-REP-030..033 plan chưa approved** — user cần review plan rồi confirm
-- Module tiếp theo sau duplicate detection: Comments? Map? Admin? Cleanup?
+- Module tiếp theo sau duplicate detection: Comments? Map? Cleanup? Inspection?
 - Unit tests cho invitation flow, escalate, reject re-queue — pending từ phiên 10
 - Python AI service deploy: user cần xác nhận infra (Railway/Render/AWS) cho DINOv2-base (~1.5GB RAM min)
+- Admin module branch `feature/admin-module` — user cần commit theo 4-phase commit guide
 
 ## 8. Thuật ngữ
 | Thuật ngữ | Nghĩa |
@@ -158,3 +185,4 @@ Backend .NET 9 GreenLens. Phiên 14 hoàn thành module Company **14/14 rules** 
 - 2026-07-08 — Fix DI startup: IReportDraftRepository + IReportSatisfactionRepository. Fix migration. BR-OFF-013 limit 10→6
 - 2026-07-10 — Company module 14/14 ✅ (CMP-006 ContractPeriod + RenewContract, CMP-020 KPI, CMP-021 audit). Migration AddContractPeriods. Build 0 errors
 - 2026-07-10 — Plan BR-REP-030..033 duplicate detection. Locked: Tier 1 inline + Tier 2 CLIP/DINOv2 via Python. Created ai-compare-images-spec.md. Plan pending approval
+- 2026-07-10 — Admin module 12/12 ✅ (BR-ADM-001..012). PenaltyFramework CRUD, AuditLogBehavior pipeline, ContentModeration hide/unhide, SpamDashboard, NotificationTemplate CRUD+publish+test, GamificationConfig CRUD. Fix regex partial method + 18 CS8602 warnings. SwaggerOperation added. docs/api-admin-module.md created. Build 0 warnings
