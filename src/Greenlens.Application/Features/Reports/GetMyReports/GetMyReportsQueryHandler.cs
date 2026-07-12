@@ -19,6 +19,7 @@ public sealed class GetMyReportsQueryHandler(
     {
         var query = reports.QueryAsNoTracking()
             .Include(r => r.Category)
+            .Include(r => r.Media)
             .Where(r => r.ReporterId == currentUser.UserId);
 
         if (request.Status.HasValue)
@@ -35,7 +36,11 @@ public sealed class GetMyReportsQueryHandler(
             .Select(r => new MyReportItem(
                 r.Id, r.Code, r.Category.NameVi,
                 r.Severity, r.Status, r.Address,
-                r.CreatedAt, r.ResolvedAt, r.ClosedAt))
+                r.CreatedAt, r.ResolvedAt, r.ClosedAt,
+                r.Media
+                    .OrderBy(m => m.UploadedAt)
+                    .Select(m => m.ThumbnailUrl ?? m.Url)
+                    .FirstOrDefault()))
             .ToListAsync(ct).ConfigureAwait(false);
 
         logger.LogInformation("Lấy danh sách báo cáo thành công. Số lượng: {Count}", items.Count);
