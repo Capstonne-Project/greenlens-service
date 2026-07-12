@@ -16,4 +16,5 @@ public sealed record MyReportItem(
     Guid Id, string Code, string CategoryName,
     Severity Severity, ReportStatus Status,
     string? Address, DateTime CreatedAt,
-    DateTime? ResolvedAt, DateTime? ClosedAt);
+    DateTime? ResolvedAt, DateTime? ClosedAt,
+    string? ImageUrl);
