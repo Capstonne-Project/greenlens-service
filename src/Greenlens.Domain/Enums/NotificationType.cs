@@ -19,5 +19,7 @@ public enum NotificationType
     /// <summary>BR-REP-009: Verified report unassigned > 24h.</summary>
     ReportUnassigned,
     /// <summary>BR-REP-016: Report auto-closed after 7 days.</summary>
-    ReportAutoClosed
+    ReportAutoClosed,
+    /// <summary>BR-REP-032/033: A report needs LEO review for possible duplicate (3+ citizen flags or AI-confirmed match).</summary>
+    DuplicateReviewNeeded
 }

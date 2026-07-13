@@ -259,6 +259,112 @@ public sealed class ReportTests
         Assert.Equal(2, report.ReporterCount);
     }
 
+    // ── Duplicate detection (BR-REP-030..033) ──
+
+    [Fact]
+    public void MarkPossibleDuplicate_Tier1_SetsFlagAndSource_BR_REP_030()
+    {
+        var report = CreateTestReport();
+        var candidateId = Guid.NewGuid();
+
+        report.MarkPossibleDuplicate(candidateId, "geo_time");
+
+        Assert.True(report.IsPossibleDuplicate);
+        Assert.Equal(candidateId, report.PossibleDuplicateOfReportId);
+        Assert.Equal("geo_time", report.DuplicateDetectionSource);
+        Assert.Null(report.AiSimilarityScore);
+    }
+
+    [Fact]
+    public void MarkPossibleDuplicate_RaisesFlaggedEvent_BR_REP_031()
+    {
+        var report = CreateTestReport();
+        var candidateId = Guid.NewGuid();
+
+        report.MarkPossibleDuplicate(candidateId, "geo_time");
+
+        var evt = Assert.Single(report.DomainEvents.OfType<ReportPossibleDuplicateFlaggedEvent>());
+        Assert.Equal(report.Id, evt.ReportId);
+        Assert.Equal(candidateId, evt.CandidateReportId);
+    }
+
+    [Fact]
+    public void DismissDuplicate_ClearsFlag_BR_REP_031()
+    {
+        var report = CreateTestReport();
+        report.MarkPossibleDuplicate(Guid.NewGuid(), "geo_time");
+
+        report.DismissDuplicate();
+
+        Assert.False(report.IsPossibleDuplicate);
+        Assert.Null(report.PossibleDuplicateOfReportId);
+        Assert.Null(report.DuplicateDetectionSource);
+        Assert.Null(report.AiSimilarityScore);
+    }
+
+    [Fact]
+    public void ApplyDuplicateAiResult_SameScene_UpgradesSourceAndScore_BR_AI_002()
+    {
+        var report = CreateTestReport();
+        report.MarkPossibleDuplicate(Guid.NewGuid(), "geo_time");
+
+        report.ApplyDuplicateAiResult(isSameScene: true, similarity: 0.87m);
+
+        Assert.True(report.IsPossibleDuplicate);
+        Assert.Equal("geo_time_ai", report.DuplicateDetectionSource);
+        Assert.Equal(0.87m, report.AiSimilarityScore);
+    }
+
+    [Fact]
+    public void ApplyDuplicateAiResult_DifferentScene_DismissesFlag_BR_AI_002()
+    {
+        var report = CreateTestReport();
+        report.MarkPossibleDuplicate(Guid.NewGuid(), "geo_time");
+
+        report.ApplyDuplicateAiResult(isSameScene: false, similarity: 0.20m);
+
+        Assert.False(report.IsPossibleDuplicate);
+        Assert.Null(report.PossibleDuplicateOfReportId);
+        Assert.Null(report.DuplicateDetectionSource);
+    }
+
+    [Fact]
+    public void ApplyDuplicateAiResult_WhenNotFlagged_IsNoOp_BR_AI_002()
+    {
+        var report = CreateTestReport();
+
+        report.ApplyDuplicateAiResult(isSameScene: true, similarity: 0.99m);
+
+        Assert.False(report.IsPossibleDuplicate);
+        Assert.Null(report.DuplicateDetectionSource);
+        Assert.Null(report.AiSimilarityScore);
+    }
+
+    [Fact]
+    public void MarkDuplicate_ClearsPossibleDuplicateFlag_BR_REP_032()
+    {
+        var report = CreateTestReport();
+        report.MarkPossibleDuplicate(Guid.NewGuid(), "geo_time");
+
+        report.MarkDuplicate(Guid.NewGuid());
+
+        Assert.Equal(ReportStatus.Duplicate, report.Status);
+        Assert.False(report.IsPossibleDuplicate);
+    }
+
+    [Fact]
+    public void MarkDuplicate_RaisesMergedEvent_BR_REP_032()
+    {
+        var report = CreateTestReport();
+        var primaryId = Guid.NewGuid();
+
+        report.MarkDuplicate(primaryId);
+
+        var evt = Assert.Single(report.DomainEvents.OfType<ReportMarkedDuplicateEvent>());
+        Assert.Equal(report.Id, evt.ReportId);
+        Assert.Equal(primaryId, evt.PrimaryReportId);
+    }
+
     // ── AI ──
 
     [Fact]

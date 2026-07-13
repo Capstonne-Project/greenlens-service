@@ -38,6 +38,10 @@ internal sealed class ReportConfiguration : IEntityTypeConfiguration<Report>
 
         builder.Property(r => r.RejectedReason).HasMaxLength(2000);
 
+        // ── Duplicate detection (BR-REP-030/031) ──
+        builder.Property(r => r.DuplicateDetectionSource).HasMaxLength(30);
+        builder.Property(r => r.AiSimilarityScore).HasPrecision(5, 4);
+
         // ── Relationships ──
         builder.HasOne(r => r.Reporter)
             .WithMany()
@@ -52,6 +56,12 @@ internal sealed class ReportConfiguration : IEntityTypeConfiguration<Report>
         builder.HasOne(r => r.ParentReport)
             .WithMany(r => r.DuplicateReports)
             .HasForeignKey(r => r.ParentReportId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // BR-REP-031: self-reference to the candidate this report may duplicate (no back-nav).
+        builder.HasOne<Report>()
+            .WithMany()
+            .HasForeignKey(r => r.PossibleDuplicateOfReportId)
             .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasOne(r => r.VerifiedByUser)
@@ -90,6 +100,8 @@ internal sealed class ReportConfiguration : IEntityTypeConfiguration<Report>
         builder.HasIndex(r => r.ProvinceCode);
         builder.HasIndex(r => r.CreatedAt);
         builder.HasIndex(r => r.ParentReportId);
+        builder.HasIndex(r => r.IsPossibleDuplicate);
+        builder.HasIndex(r => r.PossibleDuplicateOfReportId);
 
         // Soft delete query filter
         builder.HasQueryFilter(r => r.DeletedAt == null);

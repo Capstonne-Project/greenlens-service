@@ -35,7 +35,7 @@ internal sealed class GamificationConfigConfiguration : IEntityTypeConfiguration
             Seed(new Guid("a0000001-0000-0000-0000-000000000003"), PointReason.PenaltyIssued, 20,
                 "Biên bản xử phạt được ban hành", now),
             Seed(new Guid("a0000001-0000-0000-0000-000000000004"), PointReason.DuplicateReport, 5,
-                "Báo cáo trùng lặp được gộp vào báo cáo gốc", now),
+                "Báo cáo trùng được gộp: +50% điểm báo cáo gốc (ReportVerified). Giá trị Points chỉ mang tính tham chiếu; runtime tính động.", now),
             Seed(new Guid("a0000001-0000-0000-0000-000000000005"), PointReason.ReportRejected, -5,
                 "Báo cáo bị từ chối (không hợp lệ)", now),
             Seed(new Guid("a0000001-0000-0000-0000-000000000006"), PointReason.FraudPenalty, -100,

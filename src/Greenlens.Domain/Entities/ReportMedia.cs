@@ -76,4 +76,16 @@ public sealed class ReportMedia : SoftDeletableEntity
 
     /// <summary>Change media type (e.g. IMAGE → BEFORE/AFTER during resolve).</summary>
     public void ChangeType(MediaType newType) => Type = newType;
+
+    /// <summary>
+    /// Reassign this media row to another report (used when merging a duplicate into its primary).
+    /// </summary>
+    /// <remarks>Implements: BR-REP-032 (merge images into primary).</remarks>
+    public void ReassignToReport(Guid primaryReportId)
+    {
+        if (primaryReportId == Guid.Empty)
+            throw new ArgumentException("Primary report id is required.", nameof(primaryReportId));
+
+        ReportId = primaryReportId;
+    }
 }
