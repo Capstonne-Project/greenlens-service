@@ -25,9 +25,10 @@ builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.SetIsOriginAllowed(origin => true) // Thay cho AllowAnyOrigin để dùng được AllowCredentials
               .AllowAnyMethod()
-              .AllowAnyHeader();
+              .AllowAnyHeader()
+              .AllowCredentials(); // Bắt buộc đối với SignalR khi FE gọi từ domain khác
     });
 });
 
