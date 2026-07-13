@@ -9,7 +9,7 @@ internal sealed class BadgeRepository(ApplicationDbContext db)
 {
     public async Task<List<Badge>> GetAllActiveAsync(CancellationToken ct = default)
     {
-        return await db.Badges
+        return await Context.Badges
             .AsNoTracking()
             .Where(b => b.IsActive)
             .ToListAsync(ct)

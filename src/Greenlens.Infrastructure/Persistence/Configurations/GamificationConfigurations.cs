@@ -30,6 +30,9 @@ internal sealed class UserPointsConfiguration : IEntityTypeConfiguration<UserPoi
         // Composite index for leaderboard queries
         builder.HasIndex(x => new { x.IsLocked, x.TotalPoints })
             .HasDatabaseName("ix_user_points_leaderboard");
+
+        // ── Soft delete filter ──
+        builder.HasQueryFilter(x => x.DeletedAt == null);
     }
 }
 
@@ -52,6 +55,9 @@ internal sealed class PointTransactionConfiguration : IEntityTypeConfiguration<P
         // Period query index (leaderboard)
         builder.HasIndex(x => x.CreatedAt)
             .HasDatabaseName("ix_point_tx_created");
+
+        // ── Soft delete filter ──
+        builder.HasQueryFilter(x => x.DeletedAt == null);
     }
 }
 

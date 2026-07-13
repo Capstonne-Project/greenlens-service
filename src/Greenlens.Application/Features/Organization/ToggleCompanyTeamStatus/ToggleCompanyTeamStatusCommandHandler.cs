@@ -5,21 +5,21 @@ using Greenlens.Domain.Common;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
-namespace Greenlens.Application.Features.Organization.DeleteCompanyTeam;
+namespace Greenlens.Application.Features.Organization.ToggleCompanyTeamStatus;
 
 /// <summary>
-/// CM deactivates a company team (soft-delete — team may have active assignments).
-/// Validates team belongs to CM's company and is currently active.
+/// CM toggles active status of a company team.
+/// Validates team belongs to CM's company.
 /// </summary>
 /// <remarks>Implements: BR-CMP-004.</remarks>
-public sealed class DeleteCompanyTeamCommandHandler(
+public sealed class ToggleCompanyTeamStatusCommandHandler(
     ICompanyStaffRepository companyStaff,
     IEnvironmentalTeamRepository teams,
     IUnitOfWork uow,
     ICurrentUser currentUser,
-    ILogger<DeleteCompanyTeamCommandHandler> logger) : IRequestHandler<DeleteCompanyTeamCommand, Result>
+    ILogger<ToggleCompanyTeamStatusCommandHandler> logger) : IRequestHandler<ToggleCompanyTeamStatusCommand, Result>
 {
-    public async Task<Result> Handle(DeleteCompanyTeamCommand request, CancellationToken ct)
+    public async Task<Result> Handle(ToggleCompanyTeamStatusCommand request, CancellationToken ct)
     {
         // Resolve CM's company
         var staff = await companyStaff.GetByUserIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
@@ -33,13 +33,14 @@ public sealed class DeleteCompanyTeamCommandHandler(
         if (team.CompanyId != staff.CompanyId)
             return Errors.Organization.TeamNotInCompany;
 
-        if (!team.IsActive)
-            return Errors.Organization.TeamAlreadyDeactivated;
-
-        team.Deactivate();
+        if (request.IsActive)
+            team.Activate();
+        else
+            team.Deactivate();
+            
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 
-        logger.LogInformation("Company team {TeamId} deactivated by CM {UserId}", request.TeamId, currentUser.UserId);
+        logger.LogInformation("Company team {TeamId} status changed to {IsActive} by CM {UserId}", request.TeamId, request.IsActive, currentUser.UserId);
 
         return Result.Success();
     }

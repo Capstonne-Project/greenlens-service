@@ -17,6 +17,8 @@ public sealed record InspectionSummaryDto(
     decimal? PenaltyAmount,
     decimal? PaidAmount,
     bool IsRepeatOffender,
+    Guid? ViolatingEntityId,
+    string? ViolatingEntityName,
     Guid CreatedByOfficerId,
     string? CreatedByOfficerName,
     DateTime? SlaInspectionDueAt,

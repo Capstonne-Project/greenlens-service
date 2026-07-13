@@ -19,11 +19,37 @@ public sealed class GetInspectionReportByIdQueryHandler(
             .Include(x => x.CreatedByOfficer)
             .Include(x => x.IssuedByInspector)
             .Include(x => x.AssignedTeam)
+            .Include(x => x.ViolatingEntity)
+            .Include(x => x.Payments).ThenInclude(p => p.RecordedByUser)
             .FirstOrDefaultAsync(x => x.Id == request.InspectionId, ct)
             .ConfigureAwait(false);
 
         if (ir is null)
             return Errors.Inspections.InspectionNotFound;
+
+        var veDto = ir.ViolatingEntity is not null
+            ? new ViolatingEntityEmbeddedDto(
+                ir.ViolatingEntity.Id,
+                ir.ViolatingEntity.Name,
+                ir.ViolatingEntity.Type,
+                ir.ViolatingEntity.Address,
+                ir.ViolatingEntity.TaxCode,
+                ir.ViolatingEntity.IdentityNumber,
+                ir.ViolatingEntity.PhoneNumber)
+            : null;
+
+        var payments = ir.Payments
+            .OrderByDescending(p => p.PaidAt)
+            .Select(p => new PenaltyPaymentDto(
+                p.Id,
+                p.Amount,
+                p.PaidAt,
+                p.EvidenceUrl,
+                p.Note,
+                p.RecordedByUserId,
+                p.RecordedByUser?.FullName,
+                p.CreatedAt))
+            .ToList();
 
         return new InspectionReportDetailResponse(
             ir.Id,
@@ -44,6 +70,9 @@ public sealed class GetInspectionReportByIdQueryHandler(
             ir.PaidAmount,
             ir.AdditionalPenaltyMeasures,
             ir.IsRepeatOffender,
+            ir.ViolatingEntityId,
+            veDto,
+            payments,
             ir.CreatedByOfficerId,
             ir.CreatedByOfficer?.FullName,
             ir.IssuedByInspectorId,
@@ -61,3 +90,4 @@ public sealed class GetInspectionReportByIdQueryHandler(
             CanClose: ir.Status == InspectionStatus.Paid);
     }
 }
+

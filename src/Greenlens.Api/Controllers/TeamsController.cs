@@ -4,7 +4,8 @@ using Greenlens.Application.Features.Organization.AddCompanyTeamMember;
 using Greenlens.Application.Features.Organization.AddTeamMember;
 using Greenlens.Application.Features.Organization.CreateCompanyTeam;
 using Greenlens.Application.Features.Organization.CreateTeam;
-using Greenlens.Application.Features.Organization.DeleteCompanyTeam;
+using Greenlens.Application.Features.Organization.SoftDeleteCompanyTeam;
+using Greenlens.Application.Features.Organization.ToggleCompanyTeamStatus;
 using Greenlens.Application.Features.Organization.GetCompanyTeams;
 using Greenlens.Application.Features.Organization.GetMyTeamProfile;
 using Greenlens.Application.Features.Organization.GetTeamById;
@@ -343,21 +344,32 @@ public sealed class TeamsController(ISender sender) : ControllerBase
         => (await sender.Send(new UpdateCompanyTeamCommand(id, request.Name), ct))
             .ToHttpNoContent("Đã cập nhật team.");
 
+    [HttpPut("company-teams/{id:guid}/archive")]
+    [Authorize(Roles = "CompanyManager,Admin")]
+    [Tags("🏢 Company Dashboard")]
+    [SwaggerOperation(
+        Summary = "[CompanyManager] Đóng/Mở team công ty",
+        Description = "CM thay đổi trạng thái hoạt động của team thuộc công ty mình. " +
+            "Team bị vô hiệu hóa sẽ không nhận được task mới.")]
+    [SwaggerResponse(200, "Đã thay đổi", typeof(ApiResponse))]
+    [SwaggerResponse(404, "Không tìm thấy team", typeof(ApiResponse))]
+    public async Task<IActionResult> ToggleCompanyTeamAsync(
+        [FromRoute] Guid id, [FromBody] ToggleCompanyTeamRequest request, CancellationToken ct)
+        => (await sender.Send(new ToggleCompanyTeamStatusCommand(id, request.IsActive), ct))
+            .ToHttpNoContent("Đã thay đổi trạng thái team.");
+
     [HttpDelete("company-teams/{id:guid}")]
     [Authorize(Roles = "CompanyManager,Admin")]
     [Tags("🏢 Company Dashboard")]
     [SwaggerOperation(
-        Summary = "[CompanyManager] Vô hiệu hóa team công ty",
-        Description = "CM deactivate (soft-delete) team thuộc công ty mình. " +
-            "Team không bị xóa khỏi DB — chỉ set IsActive = false. " +
-            "Team đã deactivate không thể nhận task mới.")]
-    [SwaggerResponse(200, "Đã vô hiệu hóa", typeof(ApiResponse))]
+        Summary = "[CompanyManager] Xóa team công ty (Soft Delete)",
+        Description = "Xóa mềm team. Dữ liệu team không bị mất nhưng không còn xuất hiện trên hệ thống.")]
+    [SwaggerResponse(200, "Đã xóa", typeof(ApiResponse))]
     [SwaggerResponse(404, "Không tìm thấy team", typeof(ApiResponse))]
-    [SwaggerResponse(422, "Team đã bị vô hiệu hóa trước đó", typeof(ApiResponse))]
     public async Task<IActionResult> DeleteCompanyTeamAsync(
         [FromRoute] Guid id, CancellationToken ct)
-        => (await sender.Send(new DeleteCompanyTeamCommand(id), ct))
-            .ToHttpNoContent("Đã vô hiệu hóa team.");
+        => (await sender.Send(new SoftDeleteCompanyTeamCommand(id), ct))
+            .ToHttpNoContent("Đã xóa team.");
 
     // ── Company Team Members (CM) ──
 
@@ -397,6 +409,7 @@ public sealed record AddTeamMemberRequest(Guid UserId, bool IsLeader = false);
 public sealed record DeclineTaskRequest(Guid TeamId, string Reason);
 public sealed record TransferMemberRequest(Guid NewTeamId, bool IsLeader = false);
 public sealed record UpdateCompanyTeamRequest(string Name);
+public sealed record ToggleCompanyTeamRequest(bool IsActive);
 public sealed record AddCompanyTeamMemberRequest(Guid UserId, bool IsLeader = false);
 
 public sealed record CheckInCleanupRequest(

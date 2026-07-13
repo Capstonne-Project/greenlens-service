@@ -541,6 +541,14 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("created_by");
 
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("deleted_by");
+
                     b.Property<Guid>("DepartmentId")
                         .HasColumnType("uuid")
                         .HasColumnName("department_id");
@@ -621,6 +629,14 @@ namespace Greenlens.Infrastructure.Migrations
                     b.Property<string>("CreatedBy")
                         .HasColumnType("text")
                         .HasColumnName("created_by");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("deleted_by");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")
@@ -829,6 +845,14 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("created_by_officer_id");
 
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("deleted_by");
+
                     b.Property<bool>("IsRepeatOffender")
                         .HasColumnType("boolean")
                         .HasColumnName("is_repeat_offender");
@@ -898,6 +922,10 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("updated_by");
 
+                    b.Property<Guid?>("ViolatingEntityId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("violating_entity_id");
+
                     b.Property<string>("ViolationDescription")
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)")
@@ -940,6 +968,9 @@ namespace Greenlens.Infrastructure.Migrations
 
                     b.HasIndex("Status")
                         .HasDatabaseName("ix_inspection_reports_status");
+
+                    b.HasIndex("ViolatingEntityId")
+                        .HasDatabaseName("ix_inspection_reports_violating_entity_id");
 
                     b.HasIndex("ViolatorIdentity")
                         .HasDatabaseName("ix_inspection_reports_violator_identity");
@@ -1513,6 +1544,68 @@ namespace Greenlens.Infrastructure.Migrations
                     b.ToTable("penalty_frameworks", (string)null);
                 });
 
+            modelBuilder.Entity("Greenlens.Domain.Entities.PenaltyPayment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("EvidenceUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("evidence_url");
+
+                    b.Property<Guid>("InspectionReportId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("inspection_report_id");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("note");
+
+                    b.Property<DateTime>("PaidAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("paid_at");
+
+                    b.Property<Guid>("RecordedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("recorded_by_user_id");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_penalty_payments");
+
+                    b.HasIndex("InspectionReportId")
+                        .HasDatabaseName("ix_penalty_payments_inspection_report_id");
+
+                    b.HasIndex("RecordedByUserId")
+                        .HasDatabaseName("ix_penalty_payments_recorded_by_user_id");
+
+                    b.ToTable("penalty_payments", (string)null);
+                });
+
             modelBuilder.Entity("Greenlens.Domain.Entities.PointTransaction", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1523,6 +1616,18 @@ namespace Greenlens.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("deleted_by");
 
                     b.Property<int>("Points")
                         .HasColumnType("integer")
@@ -1537,6 +1642,14 @@ namespace Greenlens.Infrastructure.Migrations
                     b.Property<Guid?>("ReportId")
                         .HasColumnType("uuid")
                         .HasColumnName("report_id");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("updated_by");
 
                     b.Property<Guid>("UserPointsId")
                         .HasColumnType("uuid")
@@ -1573,6 +1686,18 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("deleted_by");
+
                     b.Property<string>("IconUrl")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
@@ -1593,6 +1718,14 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
                         .HasColumnName("name_vi");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("updated_by");
 
                     b.HasKey("Id")
                         .HasName("pk_pollution_categories");
@@ -1961,10 +2094,26 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("completed_at");
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("created_by");
+
                     b.Property<string>("DeclineReason")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
                         .HasColumnName("decline_reason");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("deleted_by");
 
                     b.Property<string>("Note")
                         .HasMaxLength(500)
@@ -2007,6 +2156,14 @@ namespace Greenlens.Infrastructure.Migrations
                     b.Property<Guid>("TeamId")
                         .HasColumnType("uuid")
                         .HasColumnName("team_id");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("updated_by");
 
                     b.HasKey("Id")
                         .HasName("pk_report_assignments");
@@ -2112,6 +2269,22 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("deleted_by");
+
                     b.Property<int?>("DurationSeconds")
                         .HasColumnType("integer")
                         .HasColumnName("duration_seconds");
@@ -2153,6 +2326,14 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasColumnName("type");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("updated_by");
 
                     b.Property<DateTime>("UploadedAt")
                         .HasColumnType("timestamp with time zone")
@@ -2637,6 +2818,18 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("deleted_by");
+
                     b.Property<bool>("IsLocked")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -2658,6 +2851,14 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasDefaultValue(0)
                         .HasColumnName("total_points");
 
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("updated_by");
+
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid")
                         .HasColumnName("user_id");
@@ -2673,6 +2874,87 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasDatabaseName("ix_user_points_leaderboard");
 
                     b.ToTable("user_points", (string)null);
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.ViolatingEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("address");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<string>("IdentityNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("identity_number");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("PhoneNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("phone_number");
+
+                    b.Property<string>("TaxCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("tax_code");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("type");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_violating_entities");
+
+                    b.HasIndex("IdentityNumber")
+                        .HasDatabaseName("ix_violating_entities_identity_number")
+                        .HasFilter("identity_number IS NOT NULL");
+
+                    b.HasIndex("Name")
+                        .HasDatabaseName("ix_violating_entities_name");
+
+                    b.HasIndex("TaxCode")
+                        .IsUnique()
+                        .HasDatabaseName("ix_violating_entities_tax_code")
+                        .HasFilter("tax_code IS NOT NULL");
+
+                    b.ToTable("violating_entities", (string)null);
                 });
 
             modelBuilder.Entity("Greenlens.Domain.Entities.WasteTag", b =>
@@ -2691,6 +2973,18 @@ namespace Greenlens.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("deleted_by");
 
                     b.Property<string>("Description")
                         .HasMaxLength(500)
@@ -2725,6 +3019,14 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
                         .HasColumnName("name_vi");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("updated_by");
 
                     b.HasKey("Id")
                         .HasName("pk_waste_tags");
@@ -3007,6 +3309,12 @@ namespace Greenlens.Infrastructure.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_inspection_reports_reports_report_id");
 
+                    b.HasOne("Greenlens.Domain.Entities.ViolatingEntity", "ViolatingEntity")
+                        .WithMany("InspectionReports")
+                        .HasForeignKey("ViolatingEntityId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_inspection_reports_violating_entities_violating_entity_id");
+
                     b.Navigation("AssignedTeam");
 
                     b.Navigation("CreatedByOfficer");
@@ -3014,6 +3322,8 @@ namespace Greenlens.Infrastructure.Migrations
                     b.Navigation("IssuedByInspector");
 
                     b.Navigation("Report");
+
+                    b.Navigation("ViolatingEntity");
                 });
 
             modelBuilder.Entity("Greenlens.Domain.Entities.LocalOffice", b =>
@@ -3133,6 +3443,27 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasConstraintName("fk_penalty_frameworks_pollution_categories_category_id");
 
                     b.Navigation("Category");
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.PenaltyPayment", b =>
+                {
+                    b.HasOne("Greenlens.Domain.Entities.InspectionReport", "InspectionReport")
+                        .WithMany("Payments")
+                        .HasForeignKey("InspectionReportId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_penalty_payments_inspection_reports_inspection_report_id");
+
+                    b.HasOne("Greenlens.Domain.Entities.User", "RecordedByUser")
+                        .WithMany()
+                        .HasForeignKey("RecordedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_penalty_payments_users_recorded_by_user_id");
+
+                    b.Navigation("InspectionReport");
+
+                    b.Navigation("RecordedByUser");
                 });
 
             modelBuilder.Entity("Greenlens.Domain.Entities.PointTransaction", b =>
@@ -3491,6 +3822,11 @@ namespace Greenlens.Infrastructure.Migrations
                     b.Navigation("Members");
                 });
 
+            modelBuilder.Entity("Greenlens.Domain.Entities.InspectionReport", b =>
+                {
+                    b.Navigation("Payments");
+                });
+
             modelBuilder.Entity("Greenlens.Domain.Entities.LocalOffice", b =>
                 {
                     b.Navigation("Teams");
@@ -3536,6 +3872,11 @@ namespace Greenlens.Infrastructure.Migrations
             modelBuilder.Entity("Greenlens.Domain.Entities.UserPoints", b =>
                 {
                     b.Navigation("Transactions");
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.ViolatingEntity", b =>
+                {
+                    b.Navigation("InspectionReports");
                 });
 
             modelBuilder.Entity("Greenlens.Domain.Entities.WasteTag", b =>

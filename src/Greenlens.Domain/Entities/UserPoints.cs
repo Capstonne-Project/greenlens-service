@@ -11,7 +11,7 @@ namespace Greenlens.Domain.Entities;
 /// Implements: BR-GAM-001 (points), BR-GAM-003 (levels), BR-GAM-006 (lock).
 /// Separated from User to respect SRP — gamification can be toggled independently.
 /// </remarks>
-public sealed class UserPoints : BaseEntity
+public sealed class UserPoints : SoftDeletableEntity
 {
     private readonly List<PointTransaction> _transactions = [];
 
@@ -28,8 +28,6 @@ public sealed class UserPoints : BaseEntity
     /// <summary>BR-GAM-006: Lock expires at this time. Null if not locked.</summary>
     public DateTime? LockedUntil { get; private set; }
     public string? LockedReason { get; private set; }
-
-    public DateTime CreatedAt { get; private set; }
 
     // ── Navigation ──
     public User? User { get; private set; }

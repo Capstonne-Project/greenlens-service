@@ -6,5 +6,8 @@ public enum MediaType
     Video,
     Before,
     Progress,
-    After
+    After,
+
+    /// <summary>Ảnh hiện trường do Inspection Team chụp (BR-INS-010).</summary>
+    Inspection
 }

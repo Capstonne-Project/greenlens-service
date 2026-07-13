@@ -42,6 +42,7 @@ internal sealed class OverdueReportNotificationJob(
             .Where(r => (r.Status == ReportStatus.Submitted || r.Status == ReportStatus.Verified)
                         && r.CreatedAt <= cutoff
                         && !r.IsOverdue)
+            .OrderBy(r => r.Id)
             .Take(BatchSize)
             .ToListAsync()
             .ConfigureAwait(false);
@@ -87,6 +88,7 @@ internal sealed class OverdueReportNotificationJob(
                         && r.VerifiedAt != null
                         && r.VerifiedAt <= cutoff
                         && r.AssignedByOfficerId == null)
+            .OrderBy(r => r.Id)
             .Take(BatchSize)
             .ToListAsync()
             .ConfigureAwait(false);

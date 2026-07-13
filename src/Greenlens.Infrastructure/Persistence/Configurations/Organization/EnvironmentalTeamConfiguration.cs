@@ -36,5 +36,8 @@ internal sealed class EnvironmentalTeamConfiguration : IEntityTypeConfiguration<
             .WithOne(m => m.Team)
             .HasForeignKey(m => m.TeamId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // ── Soft delete filter ──
+        builder.HasQueryFilter(t => t.DeletedAt == null);
     }
 }

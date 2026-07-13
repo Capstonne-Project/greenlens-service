@@ -20,6 +20,7 @@ public sealed class GetInspectionsByReportQueryHandler(
 
         var items = await inspections.QueryAsNoTracking()
             .Include(ir => ir.CreatedByOfficer)
+            .Include(ir => ir.ViolatingEntity)
             .Where(ir => ir.ReportId == request.ReportId)
             .OrderByDescending(ir => ir.CreatedAt)
             .Select(ir => new InspectionSummaryDto(
@@ -30,6 +31,8 @@ public sealed class GetInspectionsByReportQueryHandler(
                 ir.PenaltyAmount,
                 ir.PaidAmount,
                 ir.IsRepeatOffender,
+                ir.ViolatingEntityId,
+                ir.ViolatingEntity != null ? ir.ViolatingEntity.Name : null,
                 ir.CreatedByOfficerId,
                 ir.CreatedByOfficer!.FullName,
                 ir.SlaInspectionDueAt,

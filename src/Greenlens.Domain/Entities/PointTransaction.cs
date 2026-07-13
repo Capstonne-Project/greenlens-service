@@ -7,7 +7,7 @@ namespace Greenlens.Domain.Entities;
 /// Tracks a single point change for a user. Immutable after creation.
 /// </summary>
 /// <remarks>Implements: BR-GAM-001.</remarks>
-public sealed class PointTransaction : BaseEntity
+public sealed class PointTransaction : SoftDeletableEntity
 {
     private PointTransaction() { } // EF Core
 
@@ -17,8 +17,6 @@ public sealed class PointTransaction : BaseEntity
 
     /// <summary>The report that triggered this transaction. Null for fraud penalties.</summary>
     public Guid? ReportId { get; private set; }
-
-    public DateTime CreatedAt { get; private set; }
 
     // ── Navigation ──
     public UserPoints? UserPointsAggregate { get; private set; }

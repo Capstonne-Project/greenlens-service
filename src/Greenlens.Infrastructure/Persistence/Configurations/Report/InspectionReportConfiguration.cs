@@ -58,5 +58,9 @@ internal sealed class InspectionReportConfiguration : IEntityTypeConfiguration<I
         builder.HasIndex(ir => ir.CreatedByOfficerId);
         builder.HasIndex(ir => ir.AssignedTeamId);
         builder.HasIndex(ir => ir.ViolatorIdentity);
+        builder.HasIndex(ir => ir.ViolatingEntityId);
+
+        // ── Soft delete filter ──
+        builder.HasQueryFilter(ir => ir.DeletedAt == null);
     }
 }

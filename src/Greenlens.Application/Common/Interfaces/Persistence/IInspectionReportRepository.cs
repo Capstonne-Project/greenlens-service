@@ -8,4 +8,6 @@ public interface IInspectionReportRepository : IGenericRepository<InspectionRepo
 
     /// <summary>BR-INS-022: Count inspection reports for same violator identity within a period.</summary>
     Task<int> CountByViolatorInPeriodAsync(string violatorIdentity, int months, CancellationToken ct = default);
+
+    Task<InspectionReport?> GetByPaymentIdAsync(Guid paymentId, CancellationToken ct = default);
 }

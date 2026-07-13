@@ -33,5 +33,8 @@ internal sealed class ReportMediaConfiguration : IEntityTypeConfiguration<Report
         // ── Indexes ──
         builder.HasIndex(m => m.ReportId);
         builder.HasIndex(m => m.PHash);
+
+        // ── Soft delete filter ──
+        builder.HasQueryFilter(m => m.DeletedAt == null);
     }
 }

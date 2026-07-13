@@ -27,6 +27,7 @@ internal sealed class DraftCleanupJob(
         {
             var staleDrafts = await db.ReportDrafts
                 .Where(d => d.UpdatedAt <= cutoff)
+                .OrderBy(d => d.Id)
                 .Take(BatchSize)
                 .ToListAsync()
                 .ConfigureAwait(false);

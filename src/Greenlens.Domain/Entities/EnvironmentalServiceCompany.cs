@@ -14,7 +14,7 @@ namespace Greenlens.Domain.Entities;
 /// Onboarding: CM đặt mật khẩu lần đầu qua cơ chế reset-password chung (BR-CMP-002).
 /// BR-CMP-006: Lịch sử kỳ hợp đồng lưu qua ContractPeriod (1-N).
 /// </remarks>
-public sealed class EnvironmentalServiceCompany : AuditableEntity
+public sealed class EnvironmentalServiceCompany : SoftDeletableEntity
 {
     private EnvironmentalServiceCompany() { } // EF Core constructor
 

@@ -29,6 +29,11 @@ public sealed record InspectionReportDetailResponse(
     decimal? PaidAmount,
     string? AdditionalPenaltyMeasures,
     bool IsRepeatOffender,
+    // ViolatingEntity (linked)
+    Guid? ViolatingEntityId,
+    ViolatingEntityEmbeddedDto? ViolatingEntity,
+    // Payment history
+    List<PenaltyPaymentDto> Payments,
     // Officers
     Guid CreatedByOfficerId,
     string? CreatedByOfficerName,
@@ -45,3 +50,25 @@ public sealed record InspectionReportDetailResponse(
     bool CanCloseNoViolation,
     bool CanRecordPayment,
     bool CanClose);
+
+/// <summary>Embedded violating entity info within inspection detail.</summary>
+public sealed record ViolatingEntityEmbeddedDto(
+    Guid Id,
+    string Name,
+    ViolatorType Type,
+    string? Address,
+    string? TaxCode,
+    string? IdentityNumber,
+    string? PhoneNumber);
+
+/// <summary>Single payment record — BR-INS-020.</summary>
+public sealed record PenaltyPaymentDto(
+    Guid Id,
+    decimal Amount,
+    DateTime PaidAt,
+    string? EvidenceUrl,
+    string? Note,
+    Guid RecordedByUserId,
+    string? RecordedByUserName,
+    DateTime CreatedAt);
+

@@ -21,11 +21,14 @@ internal sealed class ReportVerifiedNotificationHandler(
         logger.LogDebug("Notification: Report {ReportId} verified → notify reporter {UserId}",
             notification.ReportId, notification.ReporterId);
 
-        await notificationService.SendAsync(
+        await notificationService.SendFromTemplateAsync(
             notification.ReporterId,
             NotificationType.ReportStatusChanged,
-            "Báo cáo đã được xác minh",
-            "Báo cáo ô nhiễm của bạn đã được xác minh bởi cán bộ môi trường và đang được xử lý.",
+            new Dictionary<string, string>
+            {
+                ["report_id"] = notification.ReportId.ToString(),
+                ["status"] = "Verified"
+            },
             notification.ReportId,
             ct).ConfigureAwait(false);
     }
@@ -41,11 +44,14 @@ internal sealed class ReportRejectedNotificationHandler(
         logger.LogDebug("Notification: Report {ReportId} rejected → notify reporter {UserId}",
             notification.ReportId, notification.ReporterId);
 
-        await notificationService.SendAsync(
+        await notificationService.SendFromTemplateAsync(
             notification.ReporterId,
             NotificationType.ReportStatusChanged,
-            "Báo cáo bị từ chối",
-            "Báo cáo ô nhiễm của bạn đã bị từ chối. Vui lòng kiểm tra lý do và gửi lại nếu cần.",
+            new Dictionary<string, string>
+            {
+                ["report_id"] = notification.ReportId.ToString(),
+                ["status"] = "Rejected"
+            },
             notification.ReportId,
             ct).ConfigureAwait(false);
     }
@@ -61,11 +67,14 @@ internal sealed class ReportResolvedNotificationHandler(
         logger.LogDebug("Notification: Report {ReportId} resolved → notify reporter {UserId}",
             notification.ReportId, notification.ReporterId);
 
-        await notificationService.SendAsync(
+        await notificationService.SendFromTemplateAsync(
             notification.ReporterId,
             NotificationType.ReportStatusChanged,
-            "Báo cáo đã được giải quyết",
-            "Báo cáo ô nhiễm của bạn đã được giải quyết. Vui lòng xác nhận hoặc mở lại trong 7 ngày.",
+            new Dictionary<string, string>
+            {
+                ["report_id"] = notification.ReportId.ToString(),
+                ["status"] = "Resolved"
+            },
             notification.ReportId,
             ct).ConfigureAwait(false);
     }

@@ -75,6 +75,7 @@ public static class DependencyInjection
 
         // ── Inspection module (v3.0) ──
         services.AddScoped<IInspectionReportRepository, InspectionReportRepository>();
+        services.AddScoped<IViolatingEntityRepository, ViolatingEntityRepository>();
 
         // ── Gamification module (v1.2) ──
         services.AddScoped<IUserPointsRepository, UserPointsRepository>();

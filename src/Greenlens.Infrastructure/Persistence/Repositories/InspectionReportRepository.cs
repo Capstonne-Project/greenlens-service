@@ -28,4 +28,10 @@ internal sealed class InspectionReportRepository(ApplicationDbContext context)
                 && ir.CreatedAt >= cutoff, ct)
             .ConfigureAwait(false);
     }
+
+    public async Task<InspectionReport?> GetByPaymentIdAsync(Guid paymentId, CancellationToken ct = default)
+        => await DbSet
+            .Include(ir => ir.Payments)
+            .FirstOrDefaultAsync(ir => ir.Payments.Any(p => p.Id == paymentId), ct)
+            .ConfigureAwait(false);
 }

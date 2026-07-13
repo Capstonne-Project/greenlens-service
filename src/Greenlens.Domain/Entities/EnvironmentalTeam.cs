@@ -14,7 +14,7 @@ namespace Greenlens.Domain.Entities;
 ///   InspectionTeam không thể thuộc company.
 /// </summary>
 /// <remarks>Implements: BR-ORG-003, BR-CLN-001, BR-INS-001.</remarks>
-public sealed class EnvironmentalTeam : AuditableEntity
+public sealed class EnvironmentalTeam : SoftDeletableEntity
 {
     private EnvironmentalTeam() { } // EF Core constructor
 

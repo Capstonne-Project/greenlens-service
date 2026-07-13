@@ -8,7 +8,7 @@ namespace Greenlens.Domain.Entities;
 /// assignments where each team has independent status tracking.
 /// </summary>
 /// <remarks>Implements: BR-OFF-011, BR-OFF-012, BR-CLN-007, BR-INS-003.</remarks>
-public sealed class ReportAssignment : BaseEntity
+public sealed class ReportAssignment : SoftDeletableEntity
 {
     private ReportAssignment() { } // EF Core constructor
 
