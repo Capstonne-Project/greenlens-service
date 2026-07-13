@@ -29,8 +29,6 @@ public sealed class UserPoints : SoftDeletableEntity
     public DateTime? LockedUntil { get; private set; }
     public string? LockedReason { get; private set; }
 
-    public DateTime CreatedAt { get; private set; }
-
     // ── Navigation ──
     public User? User { get; private set; }
     public IReadOnlyCollection<PointTransaction> Transactions => _transactions.AsReadOnly();

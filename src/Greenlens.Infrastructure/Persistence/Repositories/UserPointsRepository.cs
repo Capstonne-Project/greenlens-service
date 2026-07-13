@@ -9,19 +9,19 @@ internal sealed class UserPointsRepository(ApplicationDbContext db)
 {
     public async Task<UserPoints> GetOrCreateByUserIdAsync(Guid userId, CancellationToken ct = default)
     {
-        var local = db.ChangeTracker.Entries<UserPoints>()
+        var local = Context.ChangeTracker.Entries<UserPoints>()
             .Select(e => e.Entity)
             .FirstOrDefault(x => x.UserId == userId);
 
         if (local is not null)
         {
-            if (!db.Entry(local).Collection(x => x.Transactions).IsLoaded)
-                await db.Entry(local).Collection(x => x.Transactions).LoadAsync(ct).ConfigureAwait(false);
+            if (!Context.Entry(local).Collection(x => x.Transactions).IsLoaded)
+                await Context.Entry(local).Collection(x => x.Transactions).LoadAsync(ct).ConfigureAwait(false);
 
             return local;
         }
 
-        var existing = await db.UserPoints
+        var existing = await Context.UserPoints
             .Include(x => x.Transactions)
             .FirstOrDefaultAsync(x => x.UserId == userId, ct)
             .ConfigureAwait(false);
@@ -30,13 +30,13 @@ internal sealed class UserPointsRepository(ApplicationDbContext db)
             return existing;
 
         var userPoints = UserPoints.Create(userId);
-        db.UserPoints.Add(userPoints);
+        Context.UserPoints.Add(userPoints);
         return userPoints;
     }
 
     public async Task<UserPoints?> GetByUserIdAsync(Guid userId, CancellationToken ct = default)
     {
-        return await db.UserPoints
+        return await Context.UserPoints
             .AsNoTracking()
             .Include(x => x.Transactions)
             .FirstOrDefaultAsync(x => x.UserId == userId, ct)

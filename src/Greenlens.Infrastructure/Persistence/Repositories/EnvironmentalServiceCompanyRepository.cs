@@ -11,7 +11,7 @@ internal sealed class EnvironmentalServiceCompanyRepository(ApplicationDbContext
     /// <inheritdoc />
     public async Task<bool> ServesWardAsync(Guid companyId, string wardCode, CancellationToken ct)
     {
-        return await db.CompanyServiceAreas
+        return await Context.CompanyServiceAreas
             .AnyAsync(sa => sa.CompanyId == companyId && sa.WardCode == wardCode, ct)
             .ConfigureAwait(false);
     }

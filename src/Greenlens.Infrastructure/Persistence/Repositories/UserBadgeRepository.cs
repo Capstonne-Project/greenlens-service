@@ -9,7 +9,7 @@ internal sealed class UserBadgeRepository(ApplicationDbContext db)
 {
     public async Task<List<UserBadge>> GetByUserIdAsync(Guid userId, CancellationToken ct = default)
     {
-        return await db.UserBadges
+        return await Context.UserBadges
             .AsNoTracking()
             .Where(ub => ub.UserId == userId)
             .Include(ub => ub.Badge)
@@ -19,7 +19,7 @@ internal sealed class UserBadgeRepository(ApplicationDbContext db)
 
     public async Task<bool> HasBadgeAsync(Guid userId, Guid badgeId, CancellationToken ct = default)
     {
-        return await db.UserBadges
+        return await Context.UserBadges
             .AnyAsync(ub => ub.UserId == userId && ub.BadgeId == badgeId, ct)
             .ConfigureAwait(false);
     }

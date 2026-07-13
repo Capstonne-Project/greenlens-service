@@ -16,7 +16,6 @@ public sealed class PollutionCategory : SoftDeletableEntity
     public string NameEn { get; private set; } = default!;
     public string? IconUrl { get; private set; }
     public bool IsActive { get; private set; } = true;
-    public DateTime CreatedAt { get; private set; }
 
     // ── Navigation ──
     public ICollection<Report> Reports { get; private set; } = [];

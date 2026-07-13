@@ -37,7 +37,7 @@ internal sealed class ViolatingEntityRepository(ApplicationDbContext context)
         Guid violatingEntityId, int months, CancellationToken ct = default)
     {
         var cutoff = DateTime.UtcNow.AddMonths(-months);
-        return await context.InspectionReports
+        return await Context.InspectionReports
             .CountAsync(ir =>
                 ir.ViolatingEntityId == violatingEntityId
                 && ir.Status != InspectionStatus.ClosedNoViolation

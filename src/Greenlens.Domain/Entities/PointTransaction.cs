@@ -18,8 +18,6 @@ public sealed class PointTransaction : SoftDeletableEntity
     /// <summary>The report that triggered this transaction. Null for fraud penalties.</summary>
     public Guid? ReportId { get; private set; }
 
-    public DateTime CreatedAt { get; private set; }
-
     // ── Navigation ──
     public UserPoints? UserPointsAggregate { get; private set; }
 

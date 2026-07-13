@@ -19,7 +19,6 @@ public sealed class WasteTag : SoftDeletableEntity
     public string? Description { get; private set; }
     public int DisplayOrder { get; private set; }
     public bool IsActive { get; private set; } = true;
-    public DateTime CreatedAt { get; private set; }
 
     // ── Navigation ──
     public ICollection<ReportWasteTag> ReportWasteTags { get; private set; } = [];
