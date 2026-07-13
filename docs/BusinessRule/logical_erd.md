@@ -327,6 +327,12 @@
 |     | _ExifData_        | String      |             |
 | FK  | _UploadedBy_      | GUID        | → User      |
 |     | UploadedAt        | DateTime    | NN          |
+|     | CreatedAt         | DateTime    | NN          |
+|     | _CreatedBy_       | String      |             |
+|     | _UpdatedAt_       | DateTime    |             |
+|     | _UpdatedBy_       | String      |             |
+|     | _DeletedAt_       | DateTime    | Soft delete |
+|     | _DeletedBy_       | String      |             |
 
 > **«MediaType»**: Image, Video
 
@@ -368,6 +374,12 @@
 |     | _ProgressNote_            | String             |                        |
 |     | _ProgressUpdatedAt_       | DateTime           |                        |
 | FK  | _ProgressUpdatedByUserId_ | GUID               | → User                 |
+|     | CreatedAt                 | DateTime           | NN                     |
+|     | _CreatedBy_               | String             |                        |
+|     | _UpdatedAt_               | DateTime           |                        |
+|     | _UpdatedBy_               | String             |                        |
+|     | _DeletedAt_               | DateTime           | Soft delete            |
+|     | _DeletedBy_               | String             |                        |
 
 > **«AssignmentStatus»**: Assigned, InProgress, Completed, Declined
 
@@ -493,6 +505,8 @@
 |     | _CreatedBy_                 | String             |                     |
 |     | _UpdatedAt_                 | DateTime           |                     |
 |     | _UpdatedBy_                 | String             |                     |
+|     | _DeletedAt_                 | DateTime           | Soft delete         |
+|     | _DeletedBy_                 | String             |                     |
 
 > **«InspectionStatus»**: Draft, PenaltyIssued, Paid, PartiallyPaid, Overdue, Closed, ClosedNoViolation
 > **«ViolationLevel»**: Minor, Moderate, Severe, Critical
@@ -500,29 +514,33 @@
 
 ---
 
-## ViolatingEntity 🔴 CHƯA IMPLEMENT
+## ViolatingEntity 🟢
 
-| Key | Attribute     | Data Type      | Constraint |
-| --- | ------------- | -------------- | ---------- |
-| PK  | Id            | GUID           | NN         |
-|     | Name          | String         | NN         |
-|     | _Address_     | String         |            |
-|     | _TaxCode_     | String         | UK         |
-|     | _PhoneNumber_ | String         |            |
-|     | Type          | «ViolatorType» | NN         |
-|     | CreatedAt     | DateTime       | NN         |
-|     | _CreatedBy_   | String         |            |
-|     | _UpdatedAt_   | DateTime       |            |
-|     | _UpdatedBy_   | String         |            |
+| Key | Attribute        | Data Type      | Constraint |
+| --- | ---------------- | -------------- | ---------- |
+| PK  | Id               | GUID           | NN         |
+|     | Name             | String         | NN         |
+|     | _Address_        | String         |            |
+|     | _TaxCode_        | String         | UK (filtered) |
+|     | _IdentityNumber_ | String         |            |
+|     | _PhoneNumber_    | String         |            |
+|     | Type             | «ViolatorType» | NN         |
+|     | CreatedAt        | DateTime       | NN         |
+|     | _CreatedBy_      | String         |            |
+|     | _UpdatedAt_      | DateTime       |            |
+|     | _UpdatedBy_      | String         |            |
+|     | _DeletedAt_      | DateTime       | Soft delete |
+|     | _DeletedBy_      | String         |            |
 
-> **«ViolatorType»**: Individual, Business
-> **BR-INS-010**: Thông tin cơ sở vi phạm (tên, địa chỉ, MST/MSDN).
+> **«ViolatorType»**: Individual (cá nhân/hộ gia đình), Business (doanh nghiệp)
+> **BR-INS-010**: Thông tin đối tượng vi phạm (tên, địa chỉ, MST/MSDN hoặc CMND/CCCD).
 > **BR-INS-022**: Tái phạm — cùng ViolatingEntity bị lập biên bản ≥ 2 lần / 12 tháng → gắn cờ Repeat Offender. Query bằng `ViolatingEntityId` thay vì string-match.
-> UK trên TaxCode cho phép hệ thống tự detect repeat offender chính xác.
+> UK trên TaxCode cho phép hệ thống tự detect repeat offender chính xác cho doanh nghiệp.
+> IdentityNumber (CMND/CCCD) cho cá nhân — indexed cho lookup.
 
 ---
 
-## PenaltyPayment 🔴 CHƯA IMPLEMENT
+## PenaltyPayment 🟢
 
 | Key | Attribute          | Data Type | Constraint            |
 | --- | ------------------ | --------- | --------------------- |
@@ -530,16 +548,18 @@
 | FK  | InspectionReportId | GUID      | NN → InspectionReport |
 |     | Amount             | Decimal   | NN                    |
 |     | PaidAt             | DateTime  | NN                    |
-|     | _PaymentMethod_    | String    |                       |
 |     | _EvidenceUrl_      | String    |                       |
 |     | _Note_             | String    |                       |
 | FK  | RecordedByUserId   | GUID      | NN → User             |
 |     | CreatedAt          | DateTime  | NN                    |
 |     | _CreatedBy_        | String    |                       |
+|     | _UpdatedAt_        | DateTime  |                       |
+|     | _UpdatedBy_        | String    |                       |
 
-> **BR-INS-020**: Ghi nhận nộp phạt — Paid / PartiallyPaid / Overdue. Kèm bằng chứng (ảnh biên lai/chuyển khoản).
+> **BR-INS-020**: Ghi nhận nộp phạt — Paid / PartiallyPaid / Overdue. Kèm bằng chứng (ảnh biên lai).
 > Partial payment = nhiều record PenaltyPayment. Tổng `SUM(Amount)` so với `InspectionReport.PenaltyAmount` để xác định Paid hay PartiallyPaid.
 > InspectionReport.PaidAmount giữ lại làm computed/cached field = SUM(PenaltyPayment.Amount).
+> Hiện chỉ hỗ trợ nộp trực tiếp tại phường/xã. TODO: Bổ sung PaymentMethod enum (Cash/BankTransfer) khi cần.
 
 ---
 

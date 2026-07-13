@@ -192,7 +192,7 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 
 ---
 
-## B.7 Inspection (`BR-INS-001..032`) — ✅ 13/14 rules
+## B.7 Inspection (`BR-INS-001..032`) — ✅ 14/14 rules
 
 | BR         | Status | Ghi chú                                                                                              |
 | ---------- | :----: | ---------------------------------------------------------------------------------------------------- |
@@ -200,16 +200,18 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 | BR-INS-002 |   ✅   | Scope check — `GetInspectionQueue` + `InspectionTeamAuthorization` filter by team                    |
 | BR-INS-003 |   ✅   | Từ chối task 24h — `DeclineInspection/` handler (24h window, user đã đổi từ 2h)                      |
 | BR-INS-004 |   ✅   | Check-in ≤ 200m — `CheckInInspection/` handler (PostGIS `ST_Distance`)                               |
-| BR-INS-010 |   ✅   | `UpdateInspectionDetails/` — biên bản                                                                |
+| BR-INS-010 |   ✅   | `UpdateInspectionDetails/` + `ViolatingEntity` (Individual/Business, TaxCode/CCCD). `CreateViolatingEntity/`, `SearchViolatingEntities/`, `GetViolatingEntityById/` |
 | BR-INS-011 |   ✅   | ViolationLevel enum + `PenaltyFramework` entity (Admin configurable, BR-ADM-008)                     |
-| BR-INS-012 |   ✅   | `IssuePenalty/`                                                                                      |
+| BR-INS-012 |   ✅   | `IssuePenalty/` — repeat offender auto-detect bằng ViolatingEntityId FK (fallback string-match)      |
 | BR-INS-013 |   ✅   | `CloseNoViolation/`                                                                                  |
-| BR-INS-020 |   ✅   | `RecordPayment/`                                                                                     |
+| BR-INS-020 |   ✅   | `RecordPayment/` + `PenaltyPayment` entity — partial payment, evidence (ảnh biên lai), audit trail. Chỉ hỗ trợ nộp trực tiếp tại phường/xã |
 | BR-INS-021 |   ✅   | `MarkOverdue/`                                                                                       |
-| BR-INS-022 |   ✅   | Repeat offender (≥ 2 biên bản / 12 tháng) — `IssuePenalty/` handler auto-check                       |
+| BR-INS-022 |   ✅   | Repeat offender — `ViolatingEntityId` FK query (≥ 2 / 12 tháng), fallback `ViolatorIdentity` string  |
 | BR-INS-030 |   ✅   | SLA Inspection — `SlaBreachInspectionJob` (every 30', flag breach)                                   |
 | BR-INS-031 |   ✅   | Update tiến độ ≥ 1/ngày — `UpdateInspectionProgress/` handler                                        |
 | BR-INS-032 |   ✅   | KPI Inspection Team — `GetInspectionTeamKpi/` query (penalty on-time %, paid on-time %, repeat, SLA) |
+
+> **TODO (P3):** BR-INS-020 — Bổ sung `PaymentMethod` enum (Cash / BankTransfer) khi cần hỗ trợ thanh toán online. Hiện chỉ hỗ trợ nộp trực tiếp tại phường/xã (InPerson).
 
 ---
 
