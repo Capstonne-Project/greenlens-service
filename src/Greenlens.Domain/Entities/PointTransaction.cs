@@ -7,7 +7,7 @@ namespace Greenlens.Domain.Entities;
 /// Tracks a single point change for a user. Immutable after creation.
 /// </summary>
 /// <remarks>Implements: BR-GAM-001.</remarks>
-public sealed class PointTransaction : BaseEntity
+public sealed class PointTransaction : SoftDeletableEntity
 {
     private PointTransaction() { } // EF Core
 

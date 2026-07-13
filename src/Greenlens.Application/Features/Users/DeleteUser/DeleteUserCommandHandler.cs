@@ -15,6 +15,7 @@ namespace Greenlens.Application.Features.Users.DeleteUser;
 /// </remarks>
 public sealed class DeleteUserCommandHandler(
     IUserRepository users,
+    IUserPointsRepository userPointsRepo,
     IUnitOfWork uow,
     ICurrentUser currentUser,
     ILogger<DeleteUserCommandHandler> logger)
@@ -38,6 +39,10 @@ public sealed class DeleteUserCommandHandler(
 
         // Soft-delete the user (sets IsDeleted / DeletedAt)
         user.SoftDelete(currentUser.Email);
+
+        // Also soft-delete gamification points if exists
+        var userPoints = await userPointsRepo.GetByUserIdAsync(user.Id, cancellationToken).ConfigureAwait(false);
+        userPoints?.SoftDelete(currentUser.Email);
 
         await uow.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
