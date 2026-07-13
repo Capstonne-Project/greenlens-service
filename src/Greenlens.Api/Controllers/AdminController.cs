@@ -5,6 +5,8 @@ using Greenlens.Application.Features.Admin.AuditLogs.GetAuditLogById;
 using Greenlens.Application.Features.Admin.AuditLogs.GetAuditLogs;
 using Greenlens.Application.Features.Admin.CreateCategory;
 using Greenlens.Application.Features.Admin.CreateWasteTag;
+using Greenlens.Application.Features.Admin.DeleteCategory;
+using Greenlens.Application.Features.Admin.DeleteWasteTag;
 using Greenlens.Application.Features.Admin.ForceUpdateReportStatus;
 using Greenlens.Application.Features.Admin.GetAdminReports;
 using Greenlens.Application.Features.Admin.GetAdminWasteTags;
@@ -177,11 +179,11 @@ public sealed class AdminController(ISender sender) : ControllerBase
             new UpdateCategoryCommand(id, request.NameVi, request.NameEn, request.IconUrl), ct)).ToHttpNoContent("Đã cập nhật danh mục.");
 
     [HttpDelete("pollution-categories/{id:guid}")]
-    [SwaggerOperation(Summary = "[Admin] Xóa danh mục (soft-delete)", Description = "Deactivate danh mục. Các báo cáo cũ vẫn giữ reference. Danh mục sẽ không xuất hiện cho citizen nữa.")]
+    [SwaggerOperation(Summary = "[Admin] Xóa danh mục (soft-delete)", Description = "Xóa mềm danh mục. Các báo cáo cũ vẫn giữ reference. Danh mục sẽ không xuất hiện cho citizen nữa.")]
     [SwaggerResponse(200, "Đã xóa", typeof(ApiResponse))]
     [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
     public async Task<IActionResult> DeleteCategoryAsync([FromRoute] Guid id, CancellationToken ct)
-        => (await sender.Send(new ArchiveCategoryCommand(id, Archive: true), ct)).ToHttpNoContent("Đã xóa danh mục.");
+        => (await sender.Send(new DeleteCategoryCommand(id), ct)).ToHttpNoContent("Đã xóa danh mục.");
 
     [HttpPut("pollution-categories/{id:guid}/archive")]
     [SwaggerOperation(Summary = "[Admin] Archive/Unarchive danh mục", Description = "Toggle trạng thái active/inactive. Body: { archive: true/false }.")]
@@ -269,6 +271,14 @@ public sealed class AdminController(ISender sender) : ControllerBase
     public async Task<IActionResult> ToggleWasteTagAsync(
         [FromRoute] Guid id, [FromBody] ToggleWasteTagRequest request, CancellationToken ct)
         => (await sender.Send(new ToggleWasteTagCommand(id, request.IsActive), ct)).ToHttpNoContent("Đã thay đổi trạng thái tag.");
+
+    [HttpDelete("waste-tags/{id:guid}")]
+    [SwaggerOperation(Summary = "[Admin] Xóa tag loại rác (soft-delete)", Description = "Xóa mềm waste tag. Các báo cáo cũ vẫn giữ reference.")]
+    [SwaggerResponse(200, "Đã xóa", typeof(ApiResponse))]
+    [SwaggerResponse(404, "Tag không tồn tại", typeof(ApiResponse))]
+    public async Task<IActionResult> DeleteWasteTagAsync(
+        [FromRoute] Guid id, CancellationToken ct)
+        => (await sender.Send(new DeleteWasteTagCommand(id), ct)).ToHttpNoContent("Đã xóa tag loại rác.");
 
     // ═══════════════════════════════════════════
     // ██  PENALTY FRAMEWORKS (BR-ADM-008)

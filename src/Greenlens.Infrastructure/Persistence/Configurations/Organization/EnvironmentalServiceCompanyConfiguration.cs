@@ -44,5 +44,8 @@ internal sealed class EnvironmentalServiceCompanyConfiguration
         builder.HasIndex(c => c.DepartmentId);
         builder.HasIndex(c => c.Status);
         builder.HasIndex(c => c.TaxCode);
+
+        // ── Soft delete filter ──
+        builder.HasQueryFilter(c => c.DeletedAt == null);
     }
 }

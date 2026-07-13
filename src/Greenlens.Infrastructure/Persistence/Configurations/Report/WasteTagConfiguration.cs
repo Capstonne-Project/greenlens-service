@@ -37,6 +37,9 @@ internal sealed class WasteTagConfiguration : IEntityTypeConfiguration<WasteTag>
             Seed("TEXTILE",        "Vải, quần áo",         "Textile",              11, "Quần áo cũ, vải vụn, thảm, rèm cửa"),
             Seed("VEGETATION",     "Cây cỏ, lá",          "Yard/Vegetation",      12, "Cành cây, gốc cây, cỏ, lá khô số lượng lớn")
         );
+
+        // ── Soft delete filter ──
+        builder.HasQueryFilter(t => t.DeletedAt == null);
     }
 
     /// <summary>Deterministic GUID for stable seed data across environments.</summary>

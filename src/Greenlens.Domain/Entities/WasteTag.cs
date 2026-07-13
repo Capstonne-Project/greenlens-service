@@ -8,7 +8,7 @@ namespace Greenlens.Domain.Entities;
 /// know what equipment and protective gear to bring.
 /// </summary>
 /// <remarks>Seeded at startup. Admin can toggle <see cref="IsActive"/>.</remarks>
-public sealed class WasteTag : BaseEntity
+public sealed class WasteTag : SoftDeletableEntity
 {
     private WasteTag() { }
 

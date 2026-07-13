@@ -7,7 +7,7 @@ namespace Greenlens.Domain.Entities;
 /// Seeded at startup. Admin can toggle <see cref="IsActive"/>.
 /// </summary>
 /// <remarks>Implements: BR-REP-005.</remarks>
-public sealed class PollutionCategory : BaseEntity
+public sealed class PollutionCategory : SoftDeletableEntity
 {
     private PollutionCategory() { }
 

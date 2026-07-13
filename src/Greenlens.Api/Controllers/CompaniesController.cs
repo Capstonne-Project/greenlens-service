@@ -3,6 +3,7 @@ using Greenlens.Application.Common.Models;
 using Greenlens.Application.Features.Organization.CreateCompany;
 using Greenlens.Application.Features.Organization.CreateCompanyManager;
 using Greenlens.Application.Features.Organization.CreateCompanyStaff;
+using Greenlens.Application.Features.Organization.DeleteEnvironmentalCompany;
 using Greenlens.Application.Features.Organization.ResetCompanyManagerPassword;
 using Greenlens.Application.Features.Organization.GetCompanies;
 using Greenlens.Application.Features.Organization.GetOfficeCompanies;
@@ -171,6 +172,18 @@ public sealed class CompaniesController(ISender sender) : ControllerBase
     public async Task<IActionResult> ReactivateAsync(
         [FromRoute] Guid id, CancellationToken ct)
         => (await sender.Send(new ReactivateCompanyCommand(id), ct)).ToHttpNoContent("Đã kích hoạt lại công ty.");
+
+    [HttpDelete("{id:guid}")]
+    [Authorize(Roles = "DEO,Admin")]
+    [Tags("🔍 DEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[DEO] Xóa công ty (Soft Delete)",
+        Description = "Xóa mềm công ty khỏi hệ thống. Các liên kết cũ vẫn được giữ nhưng công ty sẽ không hiển thị nữa.")]
+    [SwaggerResponse(200, "Đã xóa", typeof(ApiResponse))]
+    [SwaggerResponse(404, "Công ty không tồn tại", typeof(ApiResponse))]
+    public async Task<IActionResult> DeleteCompanyAsync(
+        [FromRoute] Guid id, CancellationToken ct)
+        => (await sender.Send(new DeleteEnvironmentalCompanyCommand(id), ct)).ToHttpNoContent("Đã xóa công ty.");
 
     // ═══════════════════════════════════════════
     // ██  SERVICE AREAS (BR-CMP-008, BR-CMP-014)
