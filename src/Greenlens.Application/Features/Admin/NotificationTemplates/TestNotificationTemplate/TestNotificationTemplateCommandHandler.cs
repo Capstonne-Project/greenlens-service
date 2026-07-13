@@ -36,7 +36,7 @@ public sealed class TestNotificationTemplateCommandHandler(
         var renderedBody = RenderPlaceholders(template.BodyVi, request.SampleData);
 
         // Send test notification to the requesting admin
-        await notificationService.SendAsync(
+        await notificationService.SendRawAsync(
             currentUser.UserId,
             template.Type,
             $"[TEST] {renderedTitle}",

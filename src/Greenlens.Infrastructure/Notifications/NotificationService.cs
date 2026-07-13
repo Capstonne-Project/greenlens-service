@@ -22,8 +22,48 @@ internal sealed class NotificationService(
     ILogger<NotificationService> logger) : INotificationService
 {
     private const int MaxNotificationsPerTypePerDay = 20;
+    private static readonly System.Text.RegularExpressions.Regex PlaceholderPattern = new(@"\{[a-z_]+\}", System.Text.RegularExpressions.RegexOptions.Compiled);
 
-    public async Task SendAsync(
+    public async Task SendFromTemplateAsync(
+        Guid recipientId,
+        NotificationType type,
+        Dictionary<string, string> placeholders,
+        Guid? referenceId = null,
+        CancellationToken ct = default)
+    {
+        var template = await db.Set<NotificationTemplate>()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Type == type && t.IsPublished, ct)
+            .ConfigureAwait(false);
+
+        string title;
+        string message;
+
+        if (template is null)
+        {
+            logger.LogWarning("No published NotificationTemplate found for Type {Type}. Using generic fallback.", type);
+            title = $"Thông báo: {type}";
+            message = "Bạn có một thông báo mới từ hệ thống.";
+        }
+        else
+        {
+            title = RenderPlaceholders(template.TitleVi, placeholders);
+            message = RenderPlaceholders(template.BodyVi, placeholders);
+        }
+
+        await SendRawAsync(recipientId, type, title, message, referenceId, ct).ConfigureAwait(false);
+    }
+
+    private static string RenderPlaceholders(string template, Dictionary<string, string> data)
+    {
+        return PlaceholderPattern.Replace(template, match =>
+        {
+            var key = match.Value.Trim('{', '}');
+            return data.TryGetValue(key, out var value) ? value : match.Value;
+        });
+    }
+
+    public async Task SendRawAsync(
         Guid recipientId,
         NotificationType type,
         string title,
