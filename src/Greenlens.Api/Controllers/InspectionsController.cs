@@ -1,5 +1,6 @@
 using Greenlens.Api.Extensions;
 using Greenlens.Application.Common.Models;
+using Greenlens.Application.Features.Inspection.AssignInspectionTeam;
 using Greenlens.Application.Features.Inspection.CloseInspection;
 using Greenlens.Application.Features.Inspection.CloseNoViolation;
 using Greenlens.Application.Features.Inspection.CheckInInspection;
@@ -63,6 +64,27 @@ public sealed class InspectionsController(ISender sender) : ControllerBase
     public async Task<IActionResult> GetByIdAsync(
         [FromRoute] Guid id, CancellationToken ct)
         => (await sender.Send(new GetInspectionReportByIdQuery(id), ct)).ToHttp();
+
+    // ═══════════════════════════════════════════
+    // ██  ASSIGN TEAM
+    // ═══════════════════════════════════════════
+
+    [HttpPut("{id:guid}/assign-team")]
+    [Authorize(Roles = "LEO,Admin")]
+    [Tags("📌 LEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO] Gán Inspector Team cho hồ sơ xử phạt",
+        Description = "LEO gán một Inspection Team cho hồ sơ đang ở trạng thái Draft. " +
+            "Nếu Report gốc vẫn đang Verified, hệ thống tự động chuyển sang InProgress.")]
+    [SwaggerResponse(204, "Đã gán team")]
+    [SwaggerResponse(404, "Không tìm thấy hồ sơ hoặc team", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Team không hợp lệ hoặc status không cho phép", typeof(ApiResponse))]
+    public async Task<IActionResult> AssignTeamAsync(
+        [FromRoute] Guid id,
+        [FromBody] AssignInspectionTeamRequest request,
+        CancellationToken ct)
+        => (await sender.Send(new AssignInspectionTeamCommand(id, request.TeamId), ct))
+            .ToHttpNoContent("Đã gán Inspector Team thành công.");
 
     // ═══════════════════════════════════════════
     // ██  INSPECTION WORKFLOW
@@ -350,3 +372,5 @@ public sealed record CheckInInspectionRequest(
 public sealed record UpdateInspectionProgressRequest(
     int Percent,
     string? Note = null);
+
+public sealed record AssignInspectionTeamRequest(Guid TeamId);

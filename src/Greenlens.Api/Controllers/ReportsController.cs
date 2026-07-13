@@ -531,7 +531,7 @@ public sealed class ReportsController(ISender sender) : ControllerBase
 
     [HttpPost("{id:guid}/inspections")]
     [Authorize(Roles = "LEO,Admin")]
-    [Tags("🔍 Inspection Dashboard")]
+    [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(
         Summary = "[LEO] Lập hồ sơ xử phạt cho báo cáo",
         Description = "LEO lập InspectionReport (Draft) liên kết với Report đã Verified (BR-INS-001, BR-OFF-005). " +
