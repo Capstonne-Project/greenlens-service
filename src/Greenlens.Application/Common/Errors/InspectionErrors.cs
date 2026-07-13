@@ -90,5 +90,36 @@ public static partial class Errors
             "INSPECTION_PROGRESS_STALE",
             "Phải cập nhật tiến độ ít nhất 1 lần/ngày (BR-INS-031).",
             ErrorType.BusinessRule);
+
+        public static Error ViolatingEntityNotFound => new(
+            "VIOLATING_ENTITY_NOT_FOUND",
+            "Không tìm thấy đối tượng vi phạm.",
+            ErrorType.NotFound);
+
+        public static Error ViolatingEntityDuplicateTaxCode => new(
+            "VIOLATING_ENTITY_DUPLICATE_TAX_CODE",
+            "Mã số thuế đã tồn tại trong hệ thống.",
+            ErrorType.Conflict);
+
+        public static Error ViolatingEntityDuplicateIdentityNumber => new(
+            "VIOLATING_ENTITY_DUPLICATE_IDENTITY",
+            "Số CMND/CCCD đã tồn tại trong hệ thống.",
+            ErrorType.Conflict);
+
+        public static Error EvidenceImagesRequired => new(
+            "EVIDENCE_IMAGES_REQUIRED",
+            "Vui lòng upload ít nhất 1 ảnh hiện trường.",
+            ErrorType.Validation);
+
+        /// <summary>BR-INS-010: ≥ 2 ảnh hiện trường required before issuing penalty.</summary>
+        public static Error InsufficientEvidenceImages => new(
+            "INSUFFICIENT_EVIDENCE_IMAGES",
+            "Biên bản cần ít nhất 2 ảnh hiện trường trước khi ra quyết định xử phạt (BR-INS-010).",
+            ErrorType.BusinessRule);
+
+        public static Error PaymentNotFound => new(
+            "PAYMENT_NOT_FOUND",
+            "Không tìm thấy khoản thanh toán.",
+            ErrorType.NotFound);
     }
 }

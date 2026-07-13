@@ -8,9 +8,13 @@ using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Inspection.UpdateInspectionDetails;
 
-/// <summary>BR-INS-010: Inspector fills in field investigation details.</summary>
+/// <summary>
+/// BR-INS-010: Inspector fills in field investigation details.
+/// BR-INS-022: Optionally links a ViolatingEntity for repeat offender tracking.
+/// </summary>
 public sealed class UpdateInspectionDetailsCommandHandler(
     IInspectionReportRepository inspections,
+    IViolatingEntityRepository violatingEntities,
     ITeamMemberRepository teamMembers,
     ICurrentUser currentUser,
     IUnitOfWork uow,
@@ -36,8 +40,24 @@ public sealed class UpdateInspectionDetailsCommandHandler(
 
         if (result.IsFailure) return result;
 
+        // BR-INS-010/022: Link ViolatingEntity if provided
+        if (request.ViolatingEntityId is not null)
+        {
+            var veExists = await violatingEntities
+                .ExistsAsync(ve => ve.Id == request.ViolatingEntityId.Value, ct)
+                .ConfigureAwait(false);
+            if (!veExists)
+                return Errors.Inspections.ViolatingEntityNotFound;
+
+            var linkResult = inspection.LinkViolatingEntity(request.ViolatingEntityId.Value);
+            if (linkResult.IsFailure) return linkResult;
+        }
+
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
-        logger.LogInformation("InspectionReport {Id} details updated", request.InspectionId);
+        logger.LogInformation(
+            "InspectionReport {Id} details updated, violatingEntityId={VeId}",
+            request.InspectionId, request.ViolatingEntityId);
         return Result.Success();
     }
 }
+

@@ -13,7 +13,7 @@ namespace Greenlens.Domain.Entities;
 /// State machine: Draft → PenaltyIssued → (Paid / PartiallyPaid / Overdue) → Closed.
 /// Also: Draft → ClosedNoViolation (BR-INS-013).
 /// </remarks>
-public sealed class InspectionReport : AuditableEntity
+public sealed class InspectionReport : SoftDeletableEntity
 {
     private InspectionReport() { } // EF Core constructor
 
@@ -33,6 +33,10 @@ public sealed class InspectionReport : AuditableEntity
     public string? ViolatorAddress { get; private set; }
     /// <summary>Tax ID or business registration number of the violator.</summary>
     public string? ViolatorIdentity { get; private set; }
+
+    // ── Linked violating entity (BR-INS-010, BR-INS-022) ──
+    /// <summary>FK to ViolatingEntity for repeat offender detection. Null until linked.</summary>
+    public Guid? ViolatingEntityId { get; private set; }
 
     // ── Violation level & Penalty ──
     /// <summary>BR-INS-011: Minor / Moderate / Severe / Critical.</summary>
@@ -80,6 +84,8 @@ public sealed class InspectionReport : AuditableEntity
     public User? CreatedByOfficer { get; private set; }
     public User? IssuedByInspector { get; private set; }
     public EnvironmentalTeam? AssignedTeam { get; private set; }
+    public ViolatingEntity? ViolatingEntity { get; private set; }
+    public ICollection<PenaltyPayment> Payments { get; private set; } = [];
 
     // ────────────────────────────────────────────────────
     // Factory
@@ -220,9 +226,11 @@ public sealed class InspectionReport : AuditableEntity
     }
 
     /// <summary>
-    /// BR-INS-020: Record payment. PenaltyIssued/PartiallyPaid/Overdue → Paid or PartiallyPaid.
+    /// BR-INS-020: Record payment via PenaltyPayment entity.
+    /// PenaltyIssued/PartiallyPaid/Overdue → Paid or PartiallyPaid.
+    /// Supports partial payment (multiple PenaltyPayment records).
     /// </summary>
-    public Result RecordPayment(decimal paidAmount)
+    public Result RecordPayment(PenaltyPayment payment)
     {
         if (Status is not (InspectionStatus.PenaltyIssued
             or InspectionStatus.PartiallyPaid
@@ -232,17 +240,49 @@ public sealed class InspectionReport : AuditableEntity
                 $"Cannot record payment from status {Status}.",
                 ErrorType.BusinessRule));
 
-        if (paidAmount <= 0)
+        if (payment.Amount <= 0)
             return Result.Failure(new Error(
                 "INVALID_PAYMENT_AMOUNT",
                 "Payment amount must be greater than zero.",
                 ErrorType.Validation));
 
-        PaidAmount = (PaidAmount ?? 0) + paidAmount;
+        Payments.Add(payment);
+        PaidAmount = (PaidAmount ?? 0) + payment.Amount;
 
         Status = PaidAmount >= PenaltyAmount
             ? InspectionStatus.Paid
             : InspectionStatus.PartiallyPaid;
+
+        UpdatedAt = DateTime.UtcNow;
+        return Result.Success();
+    }
+
+    /// <summary>
+    /// Reverse a payment (e.g. soft delete). Adjusts PaidAmount and Status.
+    /// </summary>
+    public Result RemovePayment(PenaltyPayment payment)
+    {
+        if (!Payments.Contains(payment))
+            return Result.Failure(new Error(
+                "INSPECTION_PAYMENT_NOT_FOUND",
+                "Payment does not belong to this inspection report.",
+                ErrorType.NotFound));
+
+        Payments.Remove(payment);
+        PaidAmount = Math.Max(0, (PaidAmount ?? 0) - payment.Amount);
+
+        if (PaidAmount == 0)
+        {
+            Status = DateTime.UtcNow > PenaltyDueDate ? InspectionStatus.Overdue : InspectionStatus.PenaltyIssued;
+        }
+        else if (PaidAmount < PenaltyAmount)
+        {
+            Status = InspectionStatus.PartiallyPaid;
+        }
+        else
+        {
+            Status = InspectionStatus.Paid;
+        }
 
         UpdatedAt = DateTime.UtcNow;
         return Result.Success();
@@ -352,5 +392,19 @@ public sealed class InspectionReport : AuditableEntity
     {
         AssignedTeamId = null;
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>BR-INS-010/022: Link a ViolatingEntity for repeat offender tracking.</summary>
+    public Result LinkViolatingEntity(Guid violatingEntityId)
+    {
+        if (Status is InspectionStatus.Closed or InspectionStatus.ClosedNoViolation)
+            return Result.Failure(new Error(
+                "INSPECTION_INVALID_STATE",
+                $"Cannot link violating entity in status {Status}.",
+                ErrorType.BusinessRule));
+
+        ViolatingEntityId = violatingEntityId;
+        UpdatedAt = DateTime.UtcNow;
+        return Result.Success();
     }
 }

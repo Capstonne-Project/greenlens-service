@@ -2,12 +2,16 @@ using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
+using Greenlens.Domain.Entities;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Inspection.RecordPayment;
 
-/// <summary>BR-INS-020: Record payment. Auto-determines Paid vs PartiallyPaid.</summary>
+/// <summary>
+/// BR-INS-020: Record in-person penalty payment at ward/commune office.
+/// Creates a PenaltyPayment record with evidence and updates InspectionReport status.
+/// </summary>
 public sealed class RecordPaymentCommandHandler(
     IInspectionReportRepository inspections,
     ITeamMemberRepository teamMembers,
@@ -27,14 +31,24 @@ public sealed class RecordPaymentCommandHandler(
         if (authError is not null)
             return authError;
 
-        var result = inspection.RecordPayment(request.PaidAmount);
+        // Create PenaltyPayment record (in-person at ward office)
+        var payment = PenaltyPayment.Create(
+            inspection.Id,
+            request.PaidAmount,
+            request.PaidAt,
+            currentUser.UserId,
+            request.EvidenceUrl,
+            request.Note);
+
+        var result = inspection.RecordPayment(payment);
         if (result.IsFailure) return result;
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 
         logger.LogInformation(
-            "Payment {Amount} recorded on InspectionReport {Id}. New status: {Status}",
-            request.PaidAmount, inspection.Id, inspection.Status);
+            "Payment {Amount} VND recorded on InspectionReport {Id} (paid at {PaidAt}). New status: {Status}, total paid: {TotalPaid}/{Total}",
+            request.PaidAmount, inspection.Id, request.PaidAt, inspection.Status,
+            inspection.PaidAmount, inspection.PenaltyAmount);
 
         return Result.Success();
     }

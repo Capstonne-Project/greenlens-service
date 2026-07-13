@@ -7,10 +7,13 @@ using Greenlens.Application.Features.Inspection.DeclineInspection;
 using Greenlens.Application.Features.Inspection.GetInspectionQueue;
 using Greenlens.Application.Features.Inspection.GetInspectionReportById;
 using Greenlens.Application.Features.Inspection.GetInspectionTeamKpi;
+using Greenlens.Application.Features.Inspection.DeletePenaltyPayment;
+using Greenlens.Application.Features.Inspection.GetPaymentHistory;
 using Greenlens.Application.Features.Inspection.IssuePenalty;
 using Greenlens.Application.Features.Inspection.RecordPayment;
 using Greenlens.Application.Features.Inspection.UpdateInspectionDetails;
 using Greenlens.Application.Features.Inspection.UpdateInspectionProgress;
+using Greenlens.Application.Features.Inspection.UploadInspectionEvidence;
 using Greenlens.Application.Features.Reports.GetOfficerKpi;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -83,8 +86,56 @@ public sealed class InspectionsController(ISender sender) : ControllerBase
             request.ViolationDescription,
             request.ViolatorName,
             request.ViolatorAddress,
-            request.ViolatorIdentity), ct))
+            request.ViolatorIdentity,
+            request.ViolatingEntityId), ct))
             .ToHttpNoContent("Đã cập nhật biên bản hiện trường.");
+
+    // ═══════════════════════════════════════════
+    // ██  BR-INS-010: UPLOAD EVIDENCE PHOTOS
+    // ═══════════════════════════════════════════
+
+    [HttpPost("{id:guid}/evidence-images")]
+    [Authorize(Roles = "Inspector")]
+    [Tags("🔍 Inspection Dashboard")]
+    [Consumes("multipart/form-data")]
+    [SwaggerOperation(
+        Summary = "[Inspector] Upload ảnh hiện trường biên bản",
+        Description = "Inspector upload ảnh hiện trường cho biên bản (BR-INS-010). " +
+            "Cần ít nhất 2 ảnh trước khi ban hành QĐ xử phạt. Tối đa 5 ảnh, mỗi ảnh ≤ 20MB.")]
+    [SwaggerResponse(200, "Đã upload", typeof(ApiResponse<UploadInspectionEvidenceResponse>))]
+    [SwaggerResponse(422, "Status không hợp lệ hoặc không thuộc team", typeof(ApiResponse))]
+    public async Task<IActionResult> UploadEvidenceImagesAsync(
+        [FromRoute] Guid id,
+        [FromForm] List<IFormFile> images,
+        CancellationToken ct)
+    {
+        if (images is null || images.Count == 0)
+            return BadRequest(new ApiResponse
+            {
+                Code = "FILE_REQUIRED",
+                Message = "Vui lòng chọn ít nhất 1 ảnh.",
+                Status = 400
+            });
+
+        var imageFiles = new List<InspectionEvidenceFile>();
+        foreach (var img in images)
+        {
+            if (img.Length > 20 * 1024 * 1024)
+                return StatusCode(413, new ApiResponse
+                {
+                    Code = "FILE_TOO_LARGE",
+                    Message = $"File '{img.FileName}' vượt quá 20MB.",
+                    Status = 413
+                });
+
+            using var ms = new MemoryStream();
+            await img.CopyToAsync(ms, ct);
+            imageFiles.Add(new InspectionEvidenceFile(ms.ToArray(), img.FileName, img.ContentType));
+        }
+
+        var command = new UploadInspectionEvidenceCommand(id, imageFiles);
+        return (await sender.Send(command, ct)).ToHttp();
+    }
 
     [HttpPut("{id:guid}/issue-penalty")]
     [Authorize(Roles = "Inspector,Admin")]
@@ -138,8 +189,34 @@ public sealed class InspectionsController(ISender sender) : ControllerBase
         [FromRoute] Guid id,
         [FromBody] RecordPaymentRequest request,
         CancellationToken ct)
-        => (await sender.Send(new RecordPaymentCommand(id, request.PaidAmount), ct))
+        => (await sender.Send(new RecordPaymentCommand(
+                id, request.PaidAmount, request.PaidAt, request.EvidenceUrl, request.Note), ct))
             .ToHttpNoContent("Đã ghi nhận nộp phạt.");
+
+    [HttpGet("{id:guid}/payments")]
+    [Authorize(Roles = "Inspector,LEO,Admin")]
+    [Tags("🔍 Inspection Dashboard")]
+    [SwaggerOperation(
+        Summary = "[Inspector/LEO] Lịch sử nộp phạt",
+        Description = "Xem toàn bộ lịch sử các lần nộp phạt của hồ sơ (BR-INS-020). " +
+            "Bao gồm tổng tiền phạt, đã nộp, còn lại, và từng lần nộp.")]
+    [SwaggerResponse(200, "Lịch sử nộp phạt", typeof(ApiResponse<GetPaymentHistoryResponse>))]
+    [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
+    public async Task<IActionResult> GetPaymentsAsync(
+        [FromRoute] Guid id, CancellationToken ct)
+        => (await sender.Send(new GetPaymentHistoryQuery(id), ct)).ToHttp();
+
+    [HttpDelete("payments/{paymentId:guid}")]
+    [Authorize(Roles = "Inspector,LEO,Admin")]
+    [Tags("🔍 Inspection Dashboard")]
+    [SwaggerOperation(
+        Summary = "[Inspector/LEO] Xóa khoản nộp phạt (Soft Delete)",
+        Description = "Xóa mềm khoản thanh toán nộp phạt. Tự động tính toán lại số tiền đã đóng và có thể đẩy hồ sơ về lại trạng thái chưa đóng đủ.")]
+    [SwaggerResponse(200, "Đã xóa", typeof(ApiResponse))]
+    [SwaggerResponse(404, "Không tìm thấy thanh toán", typeof(ApiResponse))]
+    public async Task<IActionResult> DeletePaymentAsync(
+        [FromRoute] Guid paymentId, CancellationToken ct)
+        => (await sender.Send(new DeletePenaltyPaymentCommand(paymentId), ct)).ToHttpNoContent("Đã xóa khoản nộp phạt.");
 
     [HttpPut("{id:guid}/close")]
     [Authorize(Roles = "Inspector,Admin")]
@@ -243,7 +320,8 @@ public sealed record UpdateInspectionDetailsRequest(
     string? ViolationDescription,
     string? ViolatorName,
     string? ViolatorAddress,
-    string? ViolatorIdentity);
+    string? ViolatorIdentity,
+    Guid? ViolatingEntityId = null);
 
 public sealed record IssuePenaltyRequest(
     ViolationLevel ViolationLevel,
@@ -254,7 +332,11 @@ public sealed record IssuePenaltyRequest(
 
 public sealed record CloseNoViolationRequest(string Reason);
 
-public sealed record RecordPaymentRequest(decimal PaidAmount);
+public sealed record RecordPaymentRequest(
+    decimal PaidAmount,
+    DateTime PaidAt,
+    string? EvidenceUrl = null,
+    string? Note = null);
 
 public sealed record CloseInspectionRequest(string? Reason);
 
