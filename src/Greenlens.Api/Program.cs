@@ -6,6 +6,7 @@ using Greenlens.Infrastructure.Seeders.Administrator;
 using Hangfire;
 using Microsoft.AspNetCore.HttpOverrides;
 using Serilog;
+using Greenlens.Infrastructure.Notifications.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -68,6 +69,7 @@ builder.Services.AddControllers(options =>
     });
 
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddSignalR();
 
 // ── Swagger ──────────────────────────────────────────
 builder.Services.AddEndpointsApiExplorer();
@@ -157,6 +159,7 @@ app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<NotificationHub>("/hubs/notifications");
 app.MapHealthChecks("/health");
 
 // ── Hangfire Dashboard (admin only in production) ──

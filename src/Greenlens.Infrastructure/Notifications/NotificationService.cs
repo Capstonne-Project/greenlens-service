@@ -2,8 +2,10 @@ using Greenlens.Application.Common.Interfaces;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using Greenlens.Infrastructure.Persistence;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Greenlens.Infrastructure.Notifications.Hubs;
 
 namespace Greenlens.Infrastructure.Notifications;
 
@@ -19,6 +21,7 @@ internal sealed class NotificationService(
     IChangeTrackerCleaner changeTrackerCleaner,
     IPushNotificationSender pushSender,
     IEmailSender emailSender,
+    IHubContext<NotificationHub, INotificationClient> hubContext,
     ILogger<NotificationService> logger) : INotificationService
 {
     private const int MaxNotificationsPerTypePerDay = 20;
@@ -163,8 +166,26 @@ internal sealed class NotificationService(
             }
         }
 
+        // Web Dashboard Real-Time Push (SignalR)
+        try
+        {
+            var payload = new RealTimeNotificationPayload(
+                notification.Id,
+                notification.Type,
+                notification.Title,
+                notification.Message,
+                notification.ReferenceId,
+                notification.CreatedAt);
+
+            await hubContext.Clients.User(recipientId.ToString()).ReceiveNotification(payload);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "SignalR notification failed for user {UserId}", recipientId);
+        }
+
         logger.LogInformation(
-            "Notification sent: {Type} to user {UserId} via {Channel}",
+            "Notification sent: {Type} to user {UserId} via {Channel} and SignalR",
             type, recipientId, channel);
     }
 }

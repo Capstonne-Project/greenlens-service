@@ -56,3 +56,29 @@
   - Cập nhật `ReportStatusNotificationHandler` (và các handler liên quan): Xóa bỏ các dòng mã hardcode câu chữ bằng tiếng Việt. Thay vào đó, gọi `SendFromTemplateAsync` và truyền vào bộ dữ liệu (placeholders) tương ứng với báo cáo.
 - **Admin Test Notification:**
   - Chỉnh sửa `TestNotificationTemplateCommandHandler` để gọi hàm `SendRawAsync` thay vì `SendAsync` đã cũ.
+
+---
+
+# Báo cáo thay đổi: Cấu hình SignalR Real-time Notifications & Dọn dẹp Code
+
+## 1. Tích hợp SignalR cho Web Dashboard
+
+- **Khởi tạo SignalR:**
+  - Đăng ký `builder.Services.AddSignalR()` và khai báo route `app.MapHub<NotificationHub>("/hubs/notifications")` trong `Program.cs`.
+  - Thêm `FrameworkReference` tới `Microsoft.AspNetCore.App` trong `Greenlens.Infrastructure.csproj`.
+- **Bảo mật (Authentication):**
+  - Cập nhật cấu hình JWT trong `DependencyInjection.cs`: Thêm xử lý `OnMessageReceived` để đọc token trực tiếp từ Query String (`?access_token=`) do WebSockets không hỗ trợ truyền qua Header.
+- **Xử lý sự kiện gửi thông báo (Hub & Service):**
+  - Tạo `NotificationHub` với `[Authorize]` để quản lý các client (Admin, Officer, Company) đang trực tuyến.
+  - Sửa `NotificationService`: Nhúng `IHubContext` vào để sau khi lưu Database và bắn FCM/Email, hệ thống sẽ gọi hàm `ReceiveNotification` qua SignalR đẩy dữ liệu xuống thẳng UI.
+- **Tài liệu cho FE & Mobile:**
+  - Viết tài liệu [frontend_mobile_notifications_guide.md](file:///d:/LEARNING/S9SU26/SEP490/greenlens-service/docs/Guides/frontend_mobile_notifications_guide.md) hướng dẫn hai team cách móc nối sự kiện Notification mới.
+
+## 2. Fix Build Warnings (Chore)
+
+- **Fix CS0108 (Thuộc tính bị ẩn):**
+  - Xóa bỏ việc khai báo lặp lại cột `CreatedAt` trong các thực thể `PollutionCategory`, `PointTransaction`, `WasteTag`, `UserPoints` vì các class này đã kế thừa sẵn từ `SoftDeletableEntity`/`AuditableEntity`.
+- **Fix CS9107 (Lỗi Capture Primary Constructor trong Repositories):**
+  - Chuyển toàn bộ các lệnh truy vấn `db.Set<T>()` thành thuộc tính `Context` có sẵn ở class cha (`GenericRepository`) trong các file `BadgeRepository`, `UserPointsRepository`, `UserBadgeRepository`, `EnvironmentalServiceCompanyRepository`, `ViolatingEntityRepository`. Việc này giải phóng bộ nhớ không bị bắt chết trong Primary Constructor.
+- **Fix EF Core Runtime Warning (Skip/Take without OrderBy):**
+  - Bổ sung lệnh `.OrderBy(r => r.Id)` vào trước hàm `.Take(BatchSize)` trong 2 Background Jobs (`DraftCleanupJob` và `OverdueReportNotificationJob`) để ngăn chặn cảnh báo runtime liên quan đến thứ tự phân trang (paging).

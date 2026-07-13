@@ -236,6 +236,17 @@ public static class DependencyInjection
 
             options.Events = new JwtBearerEvents
             {
+                // SignalR: support token passing in query string
+                OnMessageReceived = context =>
+                {
+                    var accessToken = context.Request.Query["access_token"];
+                    var path = context.HttpContext.Request.Path;
+                    if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                    {
+                        context.Token = accessToken;
+                    }
+                    return Task.CompletedTask;
+                },
                 // 401 Unauthorized — no token or invalid token
                 OnChallenge = async context =>
                 {
