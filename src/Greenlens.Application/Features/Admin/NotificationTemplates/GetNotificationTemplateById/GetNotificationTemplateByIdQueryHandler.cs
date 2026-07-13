@@ -1,7 +1,6 @@
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
-using Mapster;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -18,10 +17,25 @@ public sealed class GetNotificationTemplateByIdQueryHandler(
     public async Task<Result<NotificationTemplateDetailResponse>> Handle(
         GetNotificationTemplateByIdQuery request, CancellationToken ct)
     {
+        // Filter on entity first, then project — ProjectToType then Where is not EF-translatable
         var template = await db.Set<NotificationTemplate>()
             .AsNoTracking()
-            .ProjectToType<NotificationTemplateDetailResponse>()
-            .FirstOrDefaultAsync(t => t.Id == request.Id, ct);
+            .Where(t => t.Id == request.Id)
+            .Select(t => new NotificationTemplateDetailResponse(
+                t.Id,
+                t.TemplateKey,
+                t.TitleVi,
+                t.BodyVi,
+                t.TitleEn,
+                t.BodyEn,
+                t.Channel,
+                t.Type,
+                t.IsPublished,
+                t.IsActive,
+                t.CreatedAt,
+                t.UpdatedAt))
+            .FirstOrDefaultAsync(ct)
+            .ConfigureAwait(false);
 
         if (template is null)
             return Result<NotificationTemplateDetailResponse>.Failure(
