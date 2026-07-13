@@ -40,5 +40,8 @@ internal sealed class ReportAssignmentConfiguration : IEntityTypeConfiguration<R
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.Property(a => a.ProgressUpdatedByUserId).IsRequired(false);
+
+        // ── Soft delete filter ──
+        builder.HasQueryFilter(a => a.DeletedAt == null);
     }
 }

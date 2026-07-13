@@ -7,7 +7,7 @@ namespace Greenlens.Domain.Entities;
 /// Image or video attached to a report. Stores URL, metadata, and AI analysis results.
 /// </summary>
 /// <remarks>Implements: BR-REP-001, 002, 011 (suspicious detection via pHash).</remarks>
-public sealed class ReportMedia : BaseEntity
+public sealed class ReportMedia : SoftDeletableEntity
 {
     private ReportMedia() { }
 
