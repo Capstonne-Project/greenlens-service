@@ -368,6 +368,10 @@ public sealed class Report : SoftDeletableEntity
         if (!IsPossibleDuplicate)
             return;
 
+        // No-op once LEO confirmed duplicate or report was rejected/dismissed concurrently.
+        if (Status is ReportStatus.Duplicate or ReportStatus.Rejected)
+            return;
+
         if (!isSameScene)
         {
             DismissDuplicate();

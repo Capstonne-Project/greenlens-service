@@ -27,32 +27,20 @@ internal sealed class CompareDuplicateImagesJob(
 {
     public async Task ExecuteAsync(Guid reportId, Guid candidateReportId, CancellationToken ct = default)
     {
-        var report = await db.Reports
-            .Include(r => r.Media)
-            .FirstOrDefaultAsync(r => r.Id == reportId, ct)
-            .ConfigureAwait(false);
-
-        // Idempotency: skip if already resolved/dismissed or already upgraded by a prior run.
-        if (report is null
-            || !report.IsPossibleDuplicate
-            || report.DuplicateDetectionSource != "geo_time")
+        if (!await StillNeedsTier2CompareAsync(reportId, ct).ConfigureAwait(false))
         {
             logger.LogDebug("CompareDuplicateImagesJob: report {Id} no longer needs Tier 2, skipping", reportId);
             return;
         }
 
-        var candidate = await db.Reports
-            .Include(r => r.Media)
-            .FirstOrDefaultAsync(r => r.Id == candidateReportId, ct)
-            .ConfigureAwait(false);
-        if (candidate is null)
+        if (!await db.Reports.AsNoTracking().AnyAsync(r => r.Id == candidateReportId, ct).ConfigureAwait(false))
         {
             logger.LogDebug("CompareDuplicateImagesJob: candidate {Id} not found, keeping Tier 1", candidateReportId);
             return;
         }
 
-        var reportImage = FirstImageUrl(report.Media);
-        var candidateImage = FirstImageUrl(candidate.Media);
+        var reportImage = await GetFirstImageUrlAsync(reportId, ct).ConfigureAwait(false);
+        var candidateImage = await GetFirstImageUrlAsync(candidateReportId, ct).ConfigureAwait(false);
         if (reportImage is null || candidateImage is null)
         {
             logger.LogDebug("CompareDuplicateImagesJob: missing image URL, keeping Tier 1 for {Id}", reportId);
@@ -67,6 +55,19 @@ internal sealed class CompareDuplicateImagesJob(
             return;
         }
 
+        // Re-load after the async AI call so concurrent confirm/dismiss is not overwritten.
+        var report = await db.Reports
+            .FirstOrDefaultAsync(r => r.Id == reportId, ct)
+            .ConfigureAwait(false);
+
+        if (report is null || !StillNeedsTier2Compare(report))
+        {
+            logger.LogInformation(
+                "CompareDuplicateImagesJob: report {Id} state changed during AI compare, skipping apply",
+                reportId);
+            return;
+        }
+
         report.ApplyDuplicateAiResult(result.IsSameScene, result.Similarity);
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
 
@@ -75,6 +76,30 @@ internal sealed class CompareDuplicateImagesJob(
             reportId, result.Similarity, result.IsSameScene, result.Model);
     }
 
-    private static string? FirstImageUrl(IEnumerable<Domain.Entities.ReportMedia> media)
-        => media.Where(m => m.Type == MediaType.Image).Select(m => m.Url).FirstOrDefault();
+    private static bool StillNeedsTier2Compare(Domain.Entities.Report? report) =>
+        report is not null
+        && report.IsPossibleDuplicate
+        && report.DuplicateDetectionSource == "geo_time"
+        && report.Status is not (ReportStatus.Duplicate or ReportStatus.Rejected);
+
+    private async Task<bool> StillNeedsTier2CompareAsync(Guid reportId, CancellationToken ct)
+    {
+        var state = await db.Reports.AsNoTracking()
+            .Where(r => r.Id == reportId)
+            .Select(r => new { r.IsPossibleDuplicate, r.DuplicateDetectionSource, r.Status })
+            .FirstOrDefaultAsync(ct)
+            .ConfigureAwait(false);
+
+        return state is not null
+               && state.IsPossibleDuplicate
+               && state.DuplicateDetectionSource == "geo_time"
+               && state.Status is not (ReportStatus.Duplicate or ReportStatus.Rejected);
+    }
+
+    private async Task<string?> GetFirstImageUrlAsync(Guid reportId, CancellationToken ct)
+        => await db.ReportMedia.AsNoTracking()
+            .Where(m => m.ReportId == reportId && m.Type == MediaType.Image)
+            .Select(m => m.Url)
+            .FirstOrDefaultAsync(ct)
+            .ConfigureAwait(false);
 }

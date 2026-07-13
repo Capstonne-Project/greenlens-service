@@ -270,21 +270,10 @@ public sealed class SubmitPollutionReportCommandHandler(
             .ConfigureAwait(false);
 
         var match = candidates.FirstOrDefault(c =>
-            HaversineMeters(report.Latitude, report.Longitude, c.Latitude, c.Longitude) <= radiusMeters);
+            GeoMath.HaversineMeters(report.Latitude, report.Longitude, c.Latitude, c.Longitude) <= radiusMeters);
 
         if (match is not null)
             report.MarkPossibleDuplicate(match.Id, "geo_time");
-    }
-
-    private static double HaversineMeters(decimal lat1, decimal lng1, decimal lat2, decimal lng2)
-    {
-        const double earthRadiusMeters = 6_371_000.0;
-        var dLat = (double)(lat2 - lat1) * Math.PI / 180.0;
-        var dLng = (double)(lng2 - lng1) * Math.PI / 180.0;
-        var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2)
-                + Math.Cos((double)lat1 * Math.PI / 180.0) * Math.Cos((double)lat2 * Math.PI / 180.0)
-                  * Math.Sin(dLng / 2) * Math.Sin(dLng / 2);
-        return earthRadiusMeters * 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
     }
 
     private async Task<string> GenerateUniqueCodeAsync(CancellationToken ct)

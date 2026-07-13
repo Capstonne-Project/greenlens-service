@@ -341,6 +341,21 @@ public sealed class ReportTests
     }
 
     [Fact]
+    public void ApplyDuplicateAiResult_WhenAlreadyDuplicate_IsNoOp_BR_REP_031()
+    {
+        var report = CreateTestReport();
+        report.MarkPossibleDuplicate(Guid.NewGuid(), "geo_time");
+        report.MarkDuplicate(Guid.NewGuid());
+
+        report.ApplyDuplicateAiResult(isSameScene: true, similarity: 0.99m);
+
+        Assert.Equal(ReportStatus.Duplicate, report.Status);
+        Assert.False(report.IsPossibleDuplicate);
+        Assert.Equal("geo_time", report.DuplicateDetectionSource);
+        Assert.Null(report.AiSimilarityScore);
+    }
+
+    [Fact]
     public void MarkDuplicate_ClearsPossibleDuplicateFlag_BR_REP_032()
     {
         var report = CreateTestReport();
