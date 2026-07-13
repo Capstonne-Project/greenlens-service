@@ -25,9 +25,12 @@ using Greenlens.Application.Features.Admin.SpamDashboard.GetSpamSuspects;
 using Greenlens.Application.Features.Admin.GamificationConfigs.GetGamificationConfigs;
 using Greenlens.Application.Features.Admin.GamificationConfigs.UpdateGamificationConfig;
 using Greenlens.Application.Features.Admin.NotificationTemplates.CreateNotificationTemplate;
+using Greenlens.Application.Features.Admin.NotificationTemplates.DeleteNotificationTemplate;
+using Greenlens.Application.Features.Admin.NotificationTemplates.GetNotificationTemplateById;
 using Greenlens.Application.Features.Admin.NotificationTemplates.GetNotificationTemplates;
 using Greenlens.Application.Features.Admin.NotificationTemplates.PublishNotificationTemplate;
 using Greenlens.Application.Features.Admin.NotificationTemplates.TestNotificationTemplate;
+using Greenlens.Application.Features.Admin.NotificationTemplates.UpdateNotificationTemplate;
 using Greenlens.Application.Features.Reports.GetReportById;
 using Greenlens.Application.Features.Users;
 using Greenlens.Application.Features.Users.CreateAccount;
@@ -440,8 +443,32 @@ public sealed class AdminController(ISender sender) : ControllerBase
         [FromRoute] Guid id, [FromBody] Dictionary<string, string> sampleData, CancellationToken ct)
         => (await sender.Send(new TestNotificationTemplateCommand(id, sampleData), ct)).ToHttp();
 
-    // ── Helpers ──
+    [HttpGet("notification-templates/{id:guid}")]
+    [SwaggerOperation(Summary = "[Admin] Chi tiết template", Description = "Lấy chi tiết 1 template theo ID.")]
+    [SwaggerResponse(200, "Chi tiết template", typeof(ApiResponse<NotificationTemplateDetailResponse>))]
+    [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
+    public async Task<IActionResult> GetNotificationTemplateByIdAsync([FromRoute] Guid id, CancellationToken ct)
+        => (await sender.Send(new GetNotificationTemplateByIdQuery(id), ct)).ToHttp();
 
+    [HttpPut("notification-templates/{id:guid}")]
+    [SwaggerOperation(Summary = "[Admin] Cập nhật template", Description = "Cập nhật nội dung template. Khi cập nhật xong hệ thống sẽ tự động set IsPublished = false.")]
+    [SwaggerResponse(200, "Đã cập nhật", typeof(ApiResponse))]
+    [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
+    public async Task<IActionResult> UpdateNotificationTemplateAsync(
+        [FromRoute] Guid id, [FromBody] UpdateTemplateRequest request, CancellationToken ct)
+        => (await sender.Send(
+            new UpdateNotificationTemplateCommand(id, request.TitleVi, request.BodyVi, request.TitleEn, request.BodyEn), ct))
+            .ToHttpNoContent("Đã cập nhật template.");
+
+    [HttpDelete("notification-templates/{id:guid}")]
+    [SwaggerOperation(Summary = "[Admin] Xóa (vô hiệu hóa) template", Description = "Vô hiệu hóa (Deactivate) template không còn dùng nữa.")]
+    [SwaggerResponse(200, "Đã xóa", typeof(ApiResponse))]
+    [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
+    public async Task<IActionResult> DeleteNotificationTemplateAsync([FromRoute] Guid id, CancellationToken ct)
+        => (await sender.Send(new DeleteNotificationTemplateCommand(id), ct))
+            .ToHttpNoContent("Đã xóa template.");
+
+    // ── Helpers ──
     private static string GetRoleDescription(UserRole role) => role switch
     {
         UserRole.Citizen => "Người dân — tạo và theo dõi báo cáo ô nhiễm",
@@ -470,3 +497,4 @@ public sealed record TogglePenaltyFrameworkRequest(bool Activate);
 public sealed record HideReportRequest(string Reason);
 public sealed record UpdateGamificationConfigRequest(int Points, string Description, bool IsActive);
 public sealed record PublishTemplateRequest(bool Publish = true);
+public sealed record UpdateTemplateRequest(string TitleVi, string BodyVi, string? TitleEn, string? BodyEn);

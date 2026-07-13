@@ -36,7 +36,7 @@ internal sealed class NotificationService(
     {
         var template = await db.Set<NotificationTemplate>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(t => t.Type == type && t.IsPublished, ct)
+            .FirstOrDefaultAsync(t => t.Type == type && t.IsPublished && t.IsActive, ct)
             .ConfigureAwait(false);
 
         string title;
