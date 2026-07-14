@@ -363,7 +363,7 @@ public sealed class Report : SoftDeletableEntity
     /// Tier 2 result from the AI image compare service (BR-AI-002).
     /// Same scene → upgrade source to "geo_time_ai" and record score; different scene → dismiss.
     /// </summary>
-    public void ApplyDuplicateAiResult(bool isSameScene, decimal similarity)
+    public void ApplyDuplicateAiResult(bool isSameScene, decimal confidence)
     {
         if (!IsPossibleDuplicate)
             return;
@@ -379,7 +379,7 @@ public sealed class Report : SoftDeletableEntity
         }
 
         DuplicateDetectionSource = "geo_time_ai";
-        AiSimilarityScore = similarity;
+        AiSimilarityScore = confidence;
     }
 
     // ────────────────────────────────────────────────────

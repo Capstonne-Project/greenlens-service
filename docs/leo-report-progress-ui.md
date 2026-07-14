@@ -4,6 +4,8 @@
 > **Role:** Officer (LEO — Local Environmental Officer)
 > **Mục đích:** LEO theo dõi tiến trình xử lý của các team sau khi đã phân công
 
+> **Tham chiếu:** [`fe-leo-duplicate-detection-guide.md`](./fe-leo-duplicate-detection-guide.md) (queue nghi ngờ trùng lặp)
+
 ---
 
 ## Luồng dẫn đến màn hình này

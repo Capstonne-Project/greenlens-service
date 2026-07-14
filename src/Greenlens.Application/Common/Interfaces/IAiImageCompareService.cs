@@ -21,7 +21,7 @@ public interface IAiImageCompareService
 
 /// <summary>Result of an AI image comparison.</summary>
 public sealed record ImageCompareResult(
-    decimal Similarity,
+    decimal Confidence,
     bool IsSameScene,
     string Model,
     int ProcessingTimeMs);

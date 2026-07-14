@@ -308,7 +308,7 @@ public sealed class ReportTests
         var report = CreateTestReport();
         report.MarkPossibleDuplicate(Guid.NewGuid(), "geo_time");
 
-        report.ApplyDuplicateAiResult(isSameScene: true, similarity: 0.87m);
+        report.ApplyDuplicateAiResult(isSameScene: true, confidence: 0.87m);
 
         Assert.True(report.IsPossibleDuplicate);
         Assert.Equal("geo_time_ai", report.DuplicateDetectionSource);
@@ -321,7 +321,7 @@ public sealed class ReportTests
         var report = CreateTestReport();
         report.MarkPossibleDuplicate(Guid.NewGuid(), "geo_time");
 
-        report.ApplyDuplicateAiResult(isSameScene: false, similarity: 0.20m);
+        report.ApplyDuplicateAiResult(isSameScene: false, confidence: 0.20m);
 
         Assert.False(report.IsPossibleDuplicate);
         Assert.Null(report.PossibleDuplicateOfReportId);
@@ -333,7 +333,7 @@ public sealed class ReportTests
     {
         var report = CreateTestReport();
 
-        report.ApplyDuplicateAiResult(isSameScene: true, similarity: 0.99m);
+        report.ApplyDuplicateAiResult(isSameScene: true, confidence: 0.99m);
 
         Assert.False(report.IsPossibleDuplicate);
         Assert.Null(report.DuplicateDetectionSource);
@@ -347,7 +347,7 @@ public sealed class ReportTests
         report.MarkPossibleDuplicate(Guid.NewGuid(), "geo_time");
         report.MarkDuplicate(Guid.NewGuid());
 
-        report.ApplyDuplicateAiResult(isSameScene: true, similarity: 0.99m);
+        report.ApplyDuplicateAiResult(isSameScene: true, confidence: 0.99m);
 
         Assert.Equal(ReportStatus.Duplicate, report.Status);
         Assert.False(report.IsPossibleDuplicate);

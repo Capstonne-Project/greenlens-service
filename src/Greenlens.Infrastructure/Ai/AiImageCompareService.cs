@@ -12,7 +12,8 @@ namespace Greenlens.Infrastructure.Ai;
 /// </summary>
 /// <remarks>
 /// Implements: BR-AI-002 (image similarity for duplicate detection),
-/// BR-AI-006 (5s timeout → return null so caller falls back to Tier 1 geo_time).
+/// BR-AI-006 (timeout → return null so caller falls back to Tier 1 geo_time).
+/// Uses CompareTimeoutSeconds (default 15s) — background job, HEIC inference often &gt;5s.
 /// Endpoint: POST /api/v1/compare-images  body: { image_url_a, image_url_b }.
 /// Reuses the named "AiService" HttpClient (same BaseUrl as classify/moderation).
 /// </remarks>
@@ -37,7 +38,7 @@ internal sealed class AiImageCompareService(
 
         var client = httpClientFactory.CreateClient("AiService");
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(TimeSpan.FromSeconds(options.Value.TimeoutSeconds));
+        cts.CancelAfter(TimeSpan.FromSeconds(options.Value.CompareTimeoutSeconds));
 
         var payload = new { image_url_a = imageUrlA, image_url_b = imageUrlB };
 
@@ -60,12 +61,12 @@ internal sealed class AiImageCompareService(
             if (dto is null)
                 return null;
 
-            return new ImageCompareResult(dto.Similarity, dto.IsSameScene, dto.Model, dto.ProcessingTimeMs);
+            return new ImageCompareResult(dto.Confidence, dto.IsSameScene, dto.Model, dto.ProcessingTimeMs);
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
-            // BR-AI-006: our own 5s timeout, not a caller abort.
-            logger.LogWarning("AI compare-images timed out after {Seconds}s", options.Value.TimeoutSeconds);
+            // BR-AI-006: our own timeout, not a caller abort.
+            logger.LogWarning("AI compare-images timed out after {Seconds}s", options.Value.CompareTimeoutSeconds);
             return null;
         }
         catch (HttpRequestException ex)
@@ -77,7 +78,7 @@ internal sealed class AiImageCompareService(
 
     private sealed class CompareImagesResponseDto
     {
-        [JsonPropertyName("similarity")] public decimal Similarity { get; init; }
+        [JsonPropertyName("confidence")] public decimal Confidence { get; init; }
         [JsonPropertyName("is_same_scene")] public bool IsSameScene { get; init; }
         [JsonPropertyName("model")] public string Model { get; init; } = "";
         [JsonPropertyName("processing_time_ms")] public int ProcessingTimeMs { get; init; }

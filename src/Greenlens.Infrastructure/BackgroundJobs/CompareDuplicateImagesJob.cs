@@ -15,7 +15,7 @@ namespace Greenlens.Infrastructure.BackgroundJobs;
 /// Implements: BR-REP-030, BR-REP-031, BR-AI-002 (image similarity), BR-AI-006 (timeout → keep Tier 1).
 /// Idempotent: only acts while the report is still a "geo_time" possible duplicate.
 /// Decision matrix:
-///   AI same scene   → upgrade source to "geo_time_ai" + record similarity
+///   AI same scene   → upgrade source to "geo_time_ai" + record confidence
 ///   AI different    → dismiss the possible-duplicate flag
 ///   AI null/timeout → keep Tier 1 (geo_time)
 /// </remarks>
@@ -68,12 +68,12 @@ internal sealed class CompareDuplicateImagesJob(
             return;
         }
 
-        report.ApplyDuplicateAiResult(result.IsSameScene, result.Similarity);
+        report.ApplyDuplicateAiResult(result.IsSameScene, result.Confidence);
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
 
         logger.LogInformation(
-            "CompareDuplicateImagesJob: report {Id} — similarity {Similarity}, sameScene {SameScene}, model {Model}",
-            reportId, result.Similarity, result.IsSameScene, result.Model);
+            "CompareDuplicateImagesJob: report {Id} — confidence {Confidence}, sameScene {SameScene}, model {Model}",
+            reportId, result.Confidence, result.IsSameScene, result.Model);
     }
 
     private static bool StillNeedsTier2Compare(Domain.Entities.Report? report) =>

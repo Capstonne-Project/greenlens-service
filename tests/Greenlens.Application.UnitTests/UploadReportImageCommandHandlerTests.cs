@@ -48,6 +48,7 @@ public sealed class UploadReportImageCommandHandlerTests
     [InlineData("image/png")]
     [InlineData("image/webp")]
     [InlineData("image/heic")]
+    [InlineData("image/heif")]
     public async Task Handle_AllowedContentTypes_ShouldAccept(string contentType)
     {
         _fileStorage.UploadAsync(Arg.Any<Stream>(), Arg.Any<string>(),
@@ -57,6 +58,36 @@ public sealed class UploadReportImageCommandHandlerTests
         var result = await _sut.Handle(CreateCommand(contentType: contentType), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
+    }
+
+    [Theory]
+    [InlineData("application/octet-stream", "IMG_0536.HEIC", "image/heic")]
+    [InlineData("application/octet-stream", "photo.heif", "image/heif")]
+    [InlineData("", "scan.JPEG", "image/jpeg")]
+    [InlineData("application/vnd.apple.heic", "IMG_0536.HEIC", "image/heic")]
+    [InlineData("image/heic-sequence", "blob", "image/heic")]
+    public async Task Handle_UntrustedMimeWithValidExtension_ShouldAccept(
+        string contentType, string fileName, string expectedMime)
+    {
+        _fileStorage.UploadAsync(Arg.Any<Stream>(), Arg.Any<string>(),
+                Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(new FileUploadResult("url", "key"));
+
+        var result = await _sut.Handle(CreateCommand(contentType: contentType, fileName: fileName), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(expectedMime, result.Value!.MimeType);
+    }
+
+    [Fact]
+    public async Task Handle_OctetStreamWithoutExtension_ShouldReturnError()
+    {
+        var result = await _sut.Handle(
+            CreateCommand(contentType: "application/octet-stream", fileName: "noextension"),
+            CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("INVALID_IMAGE_TYPE", result.Error!.Code);
     }
 
     // ── Validation errors ──
