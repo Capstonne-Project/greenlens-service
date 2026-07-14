@@ -28,6 +28,9 @@ public sealed class Report : SoftDeletableEntity
     // ── Reporter ──
     public Guid? ReporterId { get; private set; }
 
+    /// <summary>BR-REP-012: Citizen opts to hide display name on public report views.</summary>
+    public bool HideReporterName { get; private set; }
+
     // ── Classification ──
     public Guid CategoryId { get; private set; }
     public Severity Severity { get; private set; } = Severity.Medium;
@@ -127,6 +130,7 @@ public sealed class Report : SoftDeletableEntity
     public ICollection<Report> DuplicateReports { get; private set; } = [];
     public ICollection<ReportAssignment> Assignments { get; private set; } = [];
     public ICollection<ReportWasteTag> WasteTags { get; private set; } = [];
+    public ICollection<Comment> Comments { get; private set; } = [];
 
     // ── AI-suggested waste tags (set by AI service, officer can override) ──
     /// <summary>Comma-separated tag codes suggested by AI, e.g. "HOUSEHOLD,MEDICAL,ANIMAL_CARCASS".</summary>
@@ -146,12 +150,14 @@ public sealed class Report : SoftDeletableEntity
         decimal longitude,
         string? address,
         string? wardCode,
-        string? provinceCode)
+        string? provinceCode,
+        bool hideReporterName = false)
     {
         var report = new Report
         {
             Code = code,
             ReporterId = reporterId,
+            HideReporterName = hideReporterName,
             CategoryId = categoryId,
             Severity = severity,
             SeveritySetBy = SeveritySource.User,

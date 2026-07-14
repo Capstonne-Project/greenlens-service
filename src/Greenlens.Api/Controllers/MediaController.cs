@@ -1,5 +1,6 @@
 using Greenlens.Api.Extensions;
 using Greenlens.Application.Common.Models;
+using Greenlens.Application.Features.Media.UploadCommentImage;
 using Greenlens.Application.Features.Media.UploadReportImage;
 using Greenlens.Application.Features.Media.UploadReportVideo;
 using MediatR;
@@ -47,6 +48,42 @@ public sealed class MediaController(ISender sender) : ControllerBase
             fileName = "upload";
 
         var command = new UploadReportImageCommand(
+            stream,
+            fileName,
+            file.ContentType,
+            file.Length);
+
+        return (await sender.Send(command, ct)).ToHttp();
+    }
+
+    [HttpPost("comments/images")]
+    [SwaggerOperation(
+        Summary = "Upload Comment Image (BR-CMT-002)",
+        Description = "Upload ảnh đính kèm bình luận (jpg/png/webp/heic, max 5MB). " +
+            "Dùng url/mimeType/sizeBytes trong POST /v1/reports/{id}/comments.")]
+    [SwaggerResponse(200, "Image uploaded", typeof(ApiResponse<UploadCommentImageResponse>))]
+    [SwaggerResponse(401, "Unauthorized", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Invalid image type or too large", typeof(ApiResponse))]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> UploadCommentImageAsync(
+        IFormFile file,
+        CancellationToken ct)
+    {
+        if (file is null || file.Length == 0)
+            return BadRequest(new ApiResponse
+            {
+                Code = "FILE_REQUIRED",
+                Message = "Vui lòng chọn file ảnh.",
+                Status = 400
+            });
+
+        await using var stream = file.OpenReadStream();
+
+        var fileName = Path.GetFileName(file.FileName);
+        if (string.IsNullOrWhiteSpace(fileName))
+            fileName = "upload";
+
+        var command = new UploadCommentImageCommand(
             stream,
             fileName,
             file.ContentType,

@@ -299,7 +299,7 @@ sequenceDiagram
 
 | Tính năng                   | Trạng thái BE               |
 | --------------------------- | --------------------------- |
-| Comment trên báo cáo        | Chưa có API                 |
+| Comment trên báo cáo        | ✅ `GET/POST /v1/reports/{id}/comments` — xem [`fe-comments-api-guide.md`](./fe-comments-api-guide.md) |
 | Đánh giá sao / satisfaction | Entity DB có, **chưa** HTTP |
 | Báo trùng từ map            | Officer/AI flow             |
 | Sửa/xóa báo cáo sau khi gửi | Chưa có                     |

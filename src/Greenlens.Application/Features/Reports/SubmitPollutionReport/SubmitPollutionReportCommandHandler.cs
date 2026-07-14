@@ -125,7 +125,8 @@ public sealed class SubmitPollutionReportCommandHandler(
             code, reporterId,
             request.CategoryId, request.Severity, request.Description,
             request.Latitude, request.Longitude,
-            request.Address, wardCode, provinceCode);
+            request.Address, wardCode, provinceCode,
+            request.HideReporterName);
 
         // Manual flow: AiPending already = true from Report.Create
         // AI flow:     AiPending = true from Create, set to false after we record the result below
