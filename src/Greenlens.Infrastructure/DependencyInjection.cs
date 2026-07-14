@@ -144,7 +144,11 @@ public static class DependencyInjection
         });
 
         services.AddScoped<IAiClassificationService, AiClassificationService>();
+        services.AddScoped<IAiImageCompareService, AiImageCompareService>();
         services.AddSingleton<ITempImageStore, TempImageStore>();
+
+        // ── Duplicate detection Tier 2 scheduler (BR-REP-030, BR-AI-002) ──
+        services.AddScoped<IDuplicateCompareScheduler, DuplicateCompareScheduler>();
 
         // ── Audit (BR-ADM-010) ─────────────────────────────
         services.AddScoped<IAuditLogger, AuditLogger>();

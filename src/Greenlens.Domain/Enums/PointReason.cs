@@ -14,7 +14,7 @@ public enum PointReason
     /// <summary>Penalty issued via InspectionReport: +20 points.</summary>
     PenaltyIssued,
 
-    /// <summary>Duplicate report merged with primary: +5 points.</summary>
+    /// <summary>Duplicate report merged with primary: +50% of ReportVerified points (BR-REP-032).</summary>
     DuplicateReport,
 
     /// <summary>Report rejected (invalid/false): -5 points.</summary>

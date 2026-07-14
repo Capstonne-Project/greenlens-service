@@ -66,6 +66,16 @@ public sealed class Report : SoftDeletableEntity
     public Guid? ParentReportId { get; private set; }
     public int ReporterCount { get; private set; } = 1;
 
+    // ── Duplicate detection (BR-REP-030/031) ──
+    /// <summary>AI/geo flagged this report as a possible duplicate awaiting LEO decision.</summary>
+    public bool IsPossibleDuplicate { get; private set; }
+    /// <summary>The oldest candidate report this one likely duplicates.</summary>
+    public Guid? PossibleDuplicateOfReportId { get; private set; }
+    /// <summary>How the duplicate was detected: "geo_time" (Tier 1) or "geo_time_ai" (Tier 2 CLIP/DINOv2).</summary>
+    public string? DuplicateDetectionSource { get; private set; }
+    /// <summary>Image similarity score 0.0–1.0 from the AI compare service (Tier 2 only).</summary>
+    public decimal? AiSimilarityScore { get; private set; }
+
     // ── AI Analysis ──
     public bool IsSuspicious { get; private set; }
     public string? SuspiciousReasons { get; private set; }
@@ -306,7 +316,7 @@ public sealed class Report : SoftDeletableEntity
         return true;
     }
 
-    /// <summary>Mark as duplicate of another report. BR-REP-030.</summary>
+    /// <summary>Mark as duplicate of another report. BR-REP-030, BR-REP-032.</summary>
     public void MarkDuplicate(Guid primaryReportId)
     {
         if (Status is not (ReportStatus.Submitted or ReportStatus.Verified))
@@ -314,10 +324,63 @@ public sealed class Report : SoftDeletableEntity
 
         Status = ReportStatus.Duplicate;
         ParentReportId = primaryReportId;
+        IsPossibleDuplicate = false;
+
+        if (ReporterId.HasValue)
+            AddDomainEvent(new ReportMarkedDuplicateEvent(Id, ReporterId.Value, primaryReportId));
     }
 
     /// <summary>Increment reporter count when duplicates merge. BR-REP-032.</summary>
     public void IncrementReporterCount() => ReporterCount++;
+
+    // ── Duplicate detection (BR-REP-030/031) ──
+
+    /// <summary>
+    /// Tier 1 flag: same category + within 50m + within 24h of an existing report.
+    /// Raises an event so Tier 2 (AI image compare) can run in the background.
+    /// </summary>
+    /// <remarks>Implements: BR-REP-030 (definition), BR-REP-031 (possible_duplicate flag).</remarks>
+    public void MarkPossibleDuplicate(Guid candidateReportId, string source, decimal? aiScore = null)
+    {
+        IsPossibleDuplicate = true;
+        PossibleDuplicateOfReportId = candidateReportId;
+        DuplicateDetectionSource = source;
+        AiSimilarityScore = aiScore;
+
+        AddDomainEvent(new ReportPossibleDuplicateFlaggedEvent(Id, candidateReportId));
+    }
+
+    /// <summary>Clear the possible-duplicate flag (LEO dismiss, or AI says different scene). BR-REP-031.</summary>
+    public void DismissDuplicate()
+    {
+        IsPossibleDuplicate = false;
+        PossibleDuplicateOfReportId = null;
+        DuplicateDetectionSource = null;
+        AiSimilarityScore = null;
+    }
+
+    /// <summary>
+    /// Tier 2 result from the AI image compare service (BR-AI-002).
+    /// Same scene → upgrade source to "geo_time_ai" and record score; different scene → dismiss.
+    /// </summary>
+    public void ApplyDuplicateAiResult(bool isSameScene, decimal confidence)
+    {
+        if (!IsPossibleDuplicate)
+            return;
+
+        // No-op once LEO confirmed duplicate or report was rejected/dismissed concurrently.
+        if (Status is ReportStatus.Duplicate or ReportStatus.Rejected)
+            return;
+
+        if (!isSameScene)
+        {
+            DismissDuplicate();
+            return;
+        }
+
+        DuplicateDetectionSource = "geo_time_ai";
+        AiSimilarityScore = confidence;
+    }
 
     // ────────────────────────────────────────────────────
     // AI

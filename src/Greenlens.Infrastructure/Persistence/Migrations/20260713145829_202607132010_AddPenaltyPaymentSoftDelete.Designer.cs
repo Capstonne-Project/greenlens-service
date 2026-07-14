@@ -3,17 +3,20 @@ using System;
 using Greenlens.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace Greenlens.Infrastructure.Migrations
+namespace Greenlens.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260713145829_202607132010_AddPenaltyPaymentSoftDelete")]
+    partial class _202607132010_AddPenaltyPaymentSoftDelete
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -768,7 +771,7 @@ namespace Greenlens.Infrastructure.Migrations
                             Id = new Guid("a0000001-0000-0000-0000-000000000004"),
                             ActionType = "DuplicateReport",
                             CreatedAt = new DateTime(2026, 7, 10, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Báo cáo trùng được gộp: +50% điểm báo cáo gốc (ReportVerified). Giá trị Points chỉ mang tính tham chiếu; runtime tính động.",
+                            Description = "Báo cáo trùng lặp được gộp vào báo cáo gốc",
                             IsActive = true,
                             Points = 5
                         },
@@ -1827,11 +1830,6 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("ai_pending");
 
-                    b.Property<decimal?>("AiSimilarityScore")
-                        .HasPrecision(5, 4)
-                        .HasColumnType("numeric(5,4)")
-                        .HasColumnName("ai_similarity_score");
-
                     b.Property<string>("AiSuggestedWasteTagCodes")
                         .HasColumnType("text")
                         .HasColumnName("ai_suggested_waste_tag_codes");
@@ -1891,11 +1889,6 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("dispatched_to_company_at");
 
-                    b.Property<string>("DuplicateDetectionSource")
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)")
-                        .HasColumnName("duplicate_detection_source");
-
                     b.Property<DateTime?>("HiddenAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("hidden_at");
@@ -1916,10 +1909,6 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_overdue");
 
-                    b.Property<bool>("IsPossibleDuplicate")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_possible_duplicate");
-
                     b.Property<bool>("IsSuspicious")
                         .HasColumnType("boolean")
                         .HasColumnName("is_suspicious");
@@ -1937,10 +1926,6 @@ namespace Greenlens.Infrastructure.Migrations
                     b.Property<Guid?>("ParentReportId")
                         .HasColumnType("uuid")
                         .HasColumnName("parent_report_id");
-
-                    b.Property<Guid?>("PossibleDuplicateOfReportId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("possible_duplicate_of_report_id");
 
                     b.Property<decimal>("PriorityScore")
                         .HasPrecision(8, 2)
@@ -2061,14 +2046,8 @@ namespace Greenlens.Infrastructure.Migrations
                     b.HasIndex("CreatedAt")
                         .HasDatabaseName("ix_reports_created_at");
 
-                    b.HasIndex("IsPossibleDuplicate")
-                        .HasDatabaseName("ix_reports_is_possible_duplicate");
-
                     b.HasIndex("ParentReportId")
                         .HasDatabaseName("ix_reports_parent_report_id");
-
-                    b.HasIndex("PossibleDuplicateOfReportId")
-                        .HasDatabaseName("ix_reports_possible_duplicate_of_report_id");
 
                     b.HasIndex("ProvinceCode")
                         .HasDatabaseName("ix_reports_province_code");
@@ -3542,12 +3521,6 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasForeignKey("ParentReportId")
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_reports_reports_parent_report_id");
-
-                    b.HasOne("Greenlens.Domain.Entities.Report", null)
-                        .WithMany()
-                        .HasForeignKey("PossibleDuplicateOfReportId")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .HasConstraintName("fk_reports_reports_possible_duplicate_of_report_id");
 
                     b.HasOne("Greenlens.Domain.Entities.User", "Reporter")
                         .WithMany()

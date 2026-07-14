@@ -34,4 +34,6 @@ public sealed record SubmitPollutionReportResponse(
     DateTime CreatedAt,
     DateTime? SlaVerifyDueAt,
     bool AiPending,
-    IReadOnlyList<SubmitPollutionReportImageInfo> Images);
+    IReadOnlyList<SubmitPollutionReportImageInfo> Images,
+    bool IsPossibleDuplicate,
+    Guid? PossibleDuplicateOfReportId);

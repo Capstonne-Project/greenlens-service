@@ -9,9 +9,13 @@ using Greenlens.Application.Features.Reports.GetCompanyQueue;
 using Greenlens.Application.Features.Reports.GetCompanyAssignments;
 using Greenlens.Application.Features.Reports.GetCompanyReportDetail;
 using Greenlens.Application.Features.Reports.CloseReport;
+using Greenlens.Application.Features.Reports.ConfirmDuplicate;
 using Greenlens.Application.Features.Reports.DeleteDraft;
 using Greenlens.Application.Features.Reports.DeleteReport;
+using Greenlens.Application.Features.Reports.DismissDuplicate;
 using Greenlens.Application.Features.Reports.ExportReports;
+using Greenlens.Application.Features.Reports.FlagReport;
+using Greenlens.Application.Features.Reports.GetDuplicateCandidates;
 using Greenlens.Application.Features.Reports.GetMyDrafts;
 using Greenlens.Application.Features.Reports.GetMyReports;
 using Greenlens.Application.Features.Reports.GetOfficerKpi;
@@ -445,6 +449,66 @@ public sealed class ReportsController(ISender sender) : ControllerBase
         => (await sender.Send(new GetWasteTagsQuery(), ct)).ToHttp();
 
     // ═══════════════════════════════════════════
+    // ██  DUPLICATE DETECTION (BR-REP-030..033)
+    // ═══════════════════════════════════════════
+
+    [HttpGet("duplicate-candidates")]
+    [Authorize(Roles = "LEO,DEO,Admin")]
+    [Tags("📌 LEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO/DEO] Danh sách báo cáo nghi ngờ trùng lặp",
+        Description = "BR-REP-031: Trả về các báo cáo bị gắn cờ possible_duplicate (Tier 1 geo/time hoặc Tier 2 AI) " +
+            "kèm thông tin báo cáo gốc để LEO so sánh và quyết định gộp/bác bỏ.")]
+    [SwaggerResponse(200, "Danh sách nghi ngờ trùng lặp", typeof(ApiResponse<GetDuplicateCandidatesResponse>))]
+    public async Task<IActionResult> GetDuplicateCandidatesAsync(
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
+        => (await sender.Send(new GetDuplicateCandidatesQuery(page, pageSize), ct)).ToHttp();
+
+    [HttpPost("{id:guid}/confirm-duplicate")]
+    [Authorize(Roles = "LEO,DEO,Admin")]
+    [Tags("📌 LEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO/DEO] Xác nhận & gộp báo cáo trùng lặp",
+        Description = "BR-REP-032: LEO xác nhận báo cáo là trùng lặp của một báo cáo gốc. " +
+            "Báo cáo chuyển sang Duplicate, tăng reporter count của báo cáo gốc, và cộng điểm cho người gửi.")]
+    [SwaggerResponse(200, "Đã gộp báo cáo trùng", typeof(ApiResponse))]
+    [SwaggerResponse(404, "Không tìm thấy báo cáo hoặc báo cáo gốc", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Trạng thái không hợp lệ hoặc gộp vào chính nó", typeof(ApiResponse))]
+    public async Task<IActionResult> ConfirmDuplicateAsync(
+        [FromRoute] Guid id, [FromBody] ConfirmDuplicateRequest request, CancellationToken ct)
+        => (await sender.Send(new ConfirmDuplicateCommand(id, request.PrimaryReportId), ct))
+            .ToHttpNoContent("Đã gộp báo cáo trùng lặp.");
+
+    [HttpPost("{id:guid}/dismiss-duplicate")]
+    [Authorize(Roles = "LEO,DEO,Admin")]
+    [Tags("📌 LEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO/DEO] Bác bỏ cờ nghi ngờ trùng lặp",
+        Description = "BR-REP-031: LEO xem xét và xác định báo cáo KHÔNG trùng lặp → xóa cờ possible_duplicate.")]
+    [SwaggerResponse(200, "Đã bác bỏ", typeof(ApiResponse))]
+    [SwaggerResponse(404, "Không tìm thấy báo cáo", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Báo cáo không ở trạng thái nghi ngờ trùng lặp", typeof(ApiResponse))]
+    public async Task<IActionResult> DismissDuplicateAsync(
+        [FromRoute] Guid id, CancellationToken ct)
+        => (await sender.Send(new DismissDuplicateCommand(id), ct)).ToHttpNoContent("Đã bác bỏ cờ nghi ngờ trùng lặp.");
+
+    [HttpPost("{id:guid}/flag")]
+    [Authorize]
+    [Tags("📋 Reports — Citizen Flow")]
+    [SwaggerOperation(
+        Summary = "[Citizen] Gắn cờ báo cáo",
+        Description = "BR-REP-033: Citizen gắn cờ báo cáo (duplicate/invalid/spam/inappropriate). " +
+            "Mỗi người chỉ gắn 1 cờ/loại. Khi đủ 3 cờ khác nhau cùng loại → thông báo cho LEO xem xét.")]
+    [SwaggerResponse(200, "Đã gắn cờ", typeof(ApiResponse))]
+    [SwaggerResponse(404, "Không tìm thấy báo cáo", typeof(ApiResponse))]
+    [SwaggerResponse(409, "Bạn đã gắn cờ báo cáo này rồi", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Không thể gắn cờ báo cáo của chính mình", typeof(ApiResponse))]
+    public async Task<IActionResult> FlagAsync(
+        [FromRoute] Guid id, [FromBody] FlagReportRequest request, CancellationToken ct)
+        => (await sender.Send(new FlagReportCommand(id, request.Type, request.Reason), ct))
+            .ToHttpNoContent("Đã gắn cờ báo cáo.");
+
+    // ═══════════════════════════════════════════
     // ██  CITIZEN WORKFLOW
     // ═══════════════════════════════════════════
 
@@ -701,3 +765,5 @@ public sealed record CreateInspectionRequest(
 public sealed record EscalateReportRequest(string Reason);
 public sealed record RateReportRequest(bool IsSatisfied, int? Rating, string? Comment);
 public sealed record SaveDraftRequest(Guid? DraftId, string Payload);
+public sealed record ConfirmDuplicateRequest(Guid PrimaryReportId);
+public sealed record FlagReportRequest(FlagType Type, string? Reason = null);

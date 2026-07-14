@@ -41,9 +41,14 @@ public sealed class MediaController(ISender sender) : ControllerBase
 
         await using var stream = file.OpenReadStream();
 
+        // Strip path segments — some clients send full local path as FileName.
+        var fileName = Path.GetFileName(file.FileName);
+        if (string.IsNullOrWhiteSpace(fileName))
+            fileName = "upload";
+
         var command = new UploadReportImageCommand(
             stream,
-            file.FileName,
+            fileName,
             file.ContentType,
             file.Length);
 

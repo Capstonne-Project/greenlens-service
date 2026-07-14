@@ -1,4 +1,5 @@
 using FluentValidation;
+using Greenlens.Application.Common;
 
 namespace Greenlens.Application.Features.Reports.SubmitPollutionReport;
 
@@ -7,10 +8,7 @@ public sealed class SubmitPollutionReportCommandValidator : AbstractValidator<Su
     public const int MaxImagesPerReport = 5;
     public const long MaxImageSizeBytes = 10 * 1024 * 1024;
 
-    private static readonly HashSet<string> AllowedMimeTypes = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "image/jpeg", "image/png", "image/webp", "image/heic"
-    };
+    private static readonly HashSet<string> AllowedMimeTypes = ReportImageContentTypes.Allowed;
 
     public SubmitPollutionReportCommandValidator()
     {
@@ -75,7 +73,7 @@ public sealed class SubmitPollutionReportCommandValidator : AbstractValidator<Su
                 img.RuleFor(i => i.MimeType)
                     .NotEmpty()
                     .Must(t => AllowedMimeTypes.Contains(t))
-                    .WithMessage("MimeType phải là image/jpeg, image/png, image/webp, hoặc image/heic.");
+                    .WithMessage("MimeType phải là image/jpeg, image/png, image/webp, image/heic, hoặc image/heif.");
 
                 img.RuleFor(i => i.SizeBytes)
                     .InclusiveBetween(1, MaxImageSizeBytes)

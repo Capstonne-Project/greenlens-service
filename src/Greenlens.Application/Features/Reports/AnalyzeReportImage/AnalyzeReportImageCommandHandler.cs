@@ -30,10 +30,13 @@ public sealed class AnalyzeReportImageCommandHandler(
         AnalyzeReportImageCommand request,
         CancellationToken cancellationToken)
     {
+        if (!ReportImageContentTypes.TryResolve(request.FileName, request.ContentType, out var contentType))
+            return Errors.Media.InvalidImageType;
+
         // Call AI Service — timeout/down returns null (BR-AI-006)
         using var stream = new MemoryStream(request.ImageBytes);
         var aiResult = await aiService.ClassifyAsync(
-            stream, request.FileName, request.ContentType, cancellationToken)
+            stream, request.FileName, contentType, cancellationToken)
             .ConfigureAwait(false);
 
         if (aiResult is null)
@@ -44,7 +47,7 @@ public sealed class AnalyzeReportImageCommandHandler(
 
         // Save temp regardless of AI decision (FE needs to show the result to user)
         var tempId = await tempStore.SaveAsync(
-            request.ImageBytes, request.FileName, request.ContentType, cancellationToken)
+            request.ImageBytes, request.FileName, contentType, cancellationToken)
             .ConfigureAwait(false);
 
         var suggestedCategory = await ResolveSuggestedCategoryAsync(

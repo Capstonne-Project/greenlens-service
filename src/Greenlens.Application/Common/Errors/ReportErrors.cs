@@ -218,5 +218,35 @@ public static partial class Errors
             "DRAFT_NOT_FOUND",
             "Không tìm thấy bản nháp.",
             ErrorType.NotFound);
+
+        /// <summary>BR-REP-032: Primary (target) report of a merge not found.</summary>
+        public static Error PrimaryReportNotFound => new(
+            "PRIMARY_REPORT_NOT_FOUND",
+            "Không tìm thấy báo cáo gốc để gộp.",
+            ErrorType.NotFound);
+
+        /// <summary>BR-REP-031: Report is not flagged as a possible duplicate.</summary>
+        public static Error NotPossibleDuplicate => new(
+            "NOT_POSSIBLE_DUPLICATE",
+            "Báo cáo không ở trạng thái nghi ngờ trùng lặp.",
+            ErrorType.BusinessRule);
+
+        /// <summary>BR-REP-032: A report cannot be marked as a duplicate of itself.</summary>
+        public static Error CannotMergeIntoSelf => new(
+            "CANNOT_MERGE_INTO_SELF",
+            "Không thể gộp một báo cáo vào chính nó.",
+            ErrorType.Validation);
+
+        /// <summary>BR-REP-033: Users cannot flag their own report.</summary>
+        public static Error CannotFlagOwnReport => new(
+            "CANNOT_FLAG_OWN_REPORT",
+            "Bạn không thể gắn cờ báo cáo của chính mình.",
+            ErrorType.BusinessRule);
+
+        /// <summary>BR-REP-033: The user already flagged this report with the same type.</summary>
+        public static Error AlreadyFlagged => new(
+            "ALREADY_FLAGGED",
+            "Bạn đã gắn cờ báo cáo này rồi.",
+            ErrorType.Conflict);
     }
 }

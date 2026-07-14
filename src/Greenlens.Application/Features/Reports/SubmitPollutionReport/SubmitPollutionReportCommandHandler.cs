@@ -206,6 +206,11 @@ public sealed class SubmitPollutionReportCommandHandler(
             reportWasteTags.AddRange(newTags);
         }
 
+        // ── Tier 1 duplicate detection (BR-REP-030): same category + within 50m + within 24h ──
+        // Runs inline (fast, free). Tier 2 (AI image compare) is triggered out-of-band via a
+        // background job (see ReportPossibleDuplicateFlaggedEvent) to keep submit under p95<2s (BR-SYS-001).
+        await FlagPossibleDuplicateAsync(report, cancellationToken).ConfigureAwait(false);
+
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         logger.LogInformation(
@@ -231,7 +236,44 @@ public sealed class SubmitPollutionReportCommandHandler(
             report.Address, report.WardCode, report.ProvinceCode,
             reporterId,
             report.Status, report.CreatedAt, report.SlaVerifyDueAt,
-            report.AiPending, imageInfos);
+            report.AiPending, imageInfos,
+            report.IsPossibleDuplicate, report.PossibleDuplicateOfReportId);
+    }
+
+    /// <summary>
+    /// BR-REP-030: Tier 1 duplicate check — find the oldest active report with the same
+    /// category within ~50m and 24h, then flag this report as a possible duplicate.
+    /// Uses a decimal bounding box (reports store lat/lng, not a PostGIS geometry column),
+    /// refined with an exact Haversine distance to reject bounding-box corners.
+    /// </summary>
+    private async Task FlagPossibleDuplicateAsync(Report report, CancellationToken ct)
+    {
+        const double radiusMeters = 50.0;
+        // 1 deg latitude ≈ 111_320 m. Longitude shrinks by cos(latitude).
+        var latDelta = (decimal)(radiusMeters / 111_320.0);
+        var cosLat = Math.Max(Math.Cos((double)report.Latitude * Math.PI / 180.0), 1e-6);
+        var lngDelta = (decimal)(radiusMeters / (111_320.0 * cosLat));
+
+        var since = report.CreatedAt.AddHours(-24);
+
+        var candidates = await reports.QueryAsNoTracking()
+            .Where(r => r.CategoryId == report.CategoryId)
+            .Where(r => r.Id != report.Id)
+            .Where(r => r.Status != ReportStatus.Duplicate && r.Status != ReportStatus.Rejected)
+            .Where(r => r.CreatedAt >= since)
+            .Where(r => r.Latitude >= report.Latitude - latDelta && r.Latitude <= report.Latitude + latDelta)
+            .Where(r => r.Longitude >= report.Longitude - lngDelta && r.Longitude <= report.Longitude + lngDelta)
+            .OrderBy(r => r.CreatedAt)
+            .Select(r => new { r.Id, r.Latitude, r.Longitude })
+            .Take(10)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        var match = candidates.FirstOrDefault(c =>
+            GeoMath.HaversineMeters(report.Latitude, report.Longitude, c.Latitude, c.Longitude) <= radiusMeters);
+
+        if (match is not null)
+            report.MarkPossibleDuplicate(match.Id, "geo_time");
     }
 
     private async Task<string> GenerateUniqueCodeAsync(CancellationToken ct)

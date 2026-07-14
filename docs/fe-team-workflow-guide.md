@@ -550,3 +550,13 @@ GET /v1/teams/my-profile
 6. **Pagination:** Mặc định `pageSize=20`. Gợi ý dùng infinite scroll hoặc "load more" thay vì số trang cứng.
 
 7. **SLA countdown:** `slaResolveDueAt` là UTC. FE tự convert sang giờ local và hiển thị cảnh báo đỏ khi còn < 24h.
+
+---
+
+## Tài liệu liên quan (LEO / Officer)
+
+| Doc | Đối tượng |
+|-----|-----------|
+| [`fe-leo-duplicate-detection-guide.md`](./fe-leo-duplicate-detection-guide.md) | LEO Dashboard — queue nghi ngờ trùng, confirm/dismiss duplicate (BR-REP-030..033) |
+| [`leo-report-progress-ui.md`](./leo-report-progress-ui.md) | LEO — màn hình tiến trình team sau assign |
+| [`fe-inspection-api-guide.md`](./fe-inspection-api-guide.md) | Inspector team API |
