@@ -85,11 +85,15 @@ public sealed class FlagReportCommandHandler(
 
         foreach (var reviewerId in reviewerIds)
         {
-            await notifications.SendRawAsync(
+            await notifications.SendFromTemplateAsync(
                 reviewerId,
                 NotificationType.DuplicateReviewNeeded,
-                "Báo cáo cần xem xét",
-                $"Báo cáo {report.Code} đã nhận {count} cờ báo ({type}). Vui lòng xem xét.",
+                new Dictionary<string, string>
+                {
+                    ["report_code"] = report.Code,
+                    ["flag_count"] = count.ToString(),
+                    ["flag_type"] = type.ToString()
+                },
                 report.Id,
                 ct).ConfigureAwait(false);
         }
