@@ -19,6 +19,10 @@ using Greenlens.Application.Features.Admin.ToggleWasteTag;
 using Greenlens.Application.Features.Admin.UpdateCategory;
 using Greenlens.Application.Features.Admin.UpdateWasteTag;
 using Greenlens.Application.Features.Admin.UpdateUserRole;
+using Greenlens.Application.Features.Admin.BlockedWords.CreateBlockedWord;
+using Greenlens.Application.Features.Admin.BlockedWords.DeleteBlockedWord;
+using Greenlens.Application.Features.Admin.BlockedWords.GetBlockedWords;
+using Greenlens.Application.Features.Admin.BlockedWords.UpdateBlockedWord;
 using Greenlens.Application.Features.Admin.ContentModeration.HideReport;
 using Greenlens.Application.Features.Admin.ContentModeration.UnhideReport;
 using Greenlens.Application.Features.Admin.SpamDashboard.GetSpamSuspects;
@@ -468,6 +472,55 @@ public sealed class AdminController(ISender sender) : ControllerBase
         => (await sender.Send(new DeleteNotificationTemplateCommand(id), ct))
             .ToHttpNoContent("Đã xóa template.");
 
+    // ═══════════════════════════════════════════
+    // ██  BLOCKED WORDS (BR-REP-004, BR-CMT-003)
+    // ═══════════════════════════════════════════
+
+    [HttpGet("blocked-words")]
+    [SwaggerOperation(
+        Summary = "[Admin] Danh sách từ bị chặn",
+        Description = "Quản lý bộ lọc tục tĩu cho mô tả báo cáo (BR-REP-004) và bình luận (BR-CMT-003).")]
+    [SwaggerResponse(200, "Danh sách từ", typeof(ApiResponse<GetBlockedWordsResponse>))]
+    public async Task<IActionResult> GetBlockedWordsAsync(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string? search = null,
+        [FromQuery] bool? isActive = null,
+        CancellationToken ct = default)
+        => (await sender.Send(new GetBlockedWordsQuery(page, pageSize, search, isActive), ct)).ToHttp();
+
+    [HttpPost("blocked-words")]
+    [SwaggerOperation(Summary = "[Admin] Thêm từ bị chặn", Description = "Thêm từ/cụm từ vào bộ lọc. Áp dụng ngay sau khi lưu.")]
+    [SwaggerResponse(201, "Đã tạo", typeof(ApiResponse<CreateBlockedWordResponse>))]
+    [SwaggerResponse(409, "Từ đã tồn tại", typeof(ApiResponse))]
+    public async Task<IActionResult> CreateBlockedWordAsync(
+        [FromBody] CreateBlockedWordRequest request,
+        CancellationToken ct)
+        => (await sender.Send(new CreateBlockedWordCommand(request.Word, request.Note), ct)).ToHttpCreated();
+
+    [HttpPut("blocked-words/{id:guid}")]
+    [SwaggerOperation(Summary = "[Admin] Cập nhật từ bị chặn", Description = "Sửa nội dung từ, ghi chú, hoặc bật/tắt.")]
+    [SwaggerResponse(200, "Đã cập nhật", typeof(ApiResponse))]
+    [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
+    [SwaggerResponse(409, "Trùng từ", typeof(ApiResponse))]
+    public async Task<IActionResult> UpdateBlockedWordAsync(
+        [FromRoute] Guid id,
+        [FromBody] UpdateBlockedWordRequest request,
+        CancellationToken ct)
+        => (await sender.Send(
+            new UpdateBlockedWordCommand(id, request.Word, request.Note, request.IsActive), ct))
+            .ToHttpNoContent("Đã cập nhật từ bị chặn.");
+
+    [HttpDelete("blocked-words/{id:guid}")]
+    [SwaggerOperation(
+        Summary = "[Admin] Vô hiệu hóa từ bị chặn",
+        Description = "Đặt IsActive = false. Từ vẫn lưu trong DB để audit; không còn chặn nội dung.")]
+    [SwaggerResponse(200, "Đã vô hiệu hóa", typeof(ApiResponse))]
+    [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
+    public async Task<IActionResult> DeleteBlockedWordAsync([FromRoute] Guid id, CancellationToken ct)
+        => (await sender.Send(new DeleteBlockedWordCommand(id), ct))
+            .ToHttpNoContent("Đã vô hiệu hóa từ bị chặn.");
+
     // ── Helpers ──
     private static string GetRoleDescription(UserRole role) => role switch
     {
@@ -498,3 +551,5 @@ public sealed record HideReportRequest(string Reason);
 public sealed record UpdateGamificationConfigRequest(int Points, string Description, bool IsActive);
 public sealed record PublishTemplateRequest(bool Publish = true);
 public sealed record UpdateTemplateRequest(string TitleVi, string BodyVi, string? TitleEn, string? BodyEn);
+public sealed record CreateBlockedWordRequest(string Word, string? Note);
+public sealed record UpdateBlockedWordRequest(string Word, string? Note, bool IsActive);

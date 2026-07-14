@@ -64,6 +64,7 @@ internal sealed class ApplicationDbContext(
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<GamificationConfig> GamificationConfigs => Set<GamificationConfig>();
     public DbSet<NotificationTemplate> NotificationTemplates => Set<NotificationTemplate>();
+    public DbSet<BlockedWord> BlockedWords => Set<BlockedWord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
