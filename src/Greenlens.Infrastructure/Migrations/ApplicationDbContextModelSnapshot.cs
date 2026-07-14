@@ -17,7 +17,7 @@ namespace Greenlens.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.17")
+                .HasAnnotation("ProductVersion", "9.0.18")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -288,6 +288,257 @@ namespace Greenlens.Infrastructure.Migrations
                             NameVi = "Huyền Thoại Xanh",
                             RequiredPoints = 5000
                         });
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.BlockedWord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("created_by");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("note");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("updated_by");
+
+                    b.Property<string>("Word")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("word");
+
+                    b.HasKey("Id")
+                        .HasName("pk_blocked_words");
+
+                    b.HasIndex("IsActive")
+                        .HasDatabaseName("ix_blocked_words_is_active");
+
+                    b.HasIndex("Word")
+                        .IsUnique()
+                        .HasDatabaseName("ix_blocked_words_word");
+
+                    b.ToTable("blocked_words", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("b1000001-0000-0000-0000-000000000001"),
+                            CreatedAt = new DateTime(2026, 7, 15, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            Word = "địt"
+                        },
+                        new
+                        {
+                            Id = new Guid("b1000001-0000-0000-0000-000000000002"),
+                            CreatedAt = new DateTime(2026, 7, 15, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            Word = "đụ"
+                        },
+                        new
+                        {
+                            Id = new Guid("b1000001-0000-0000-0000-000000000003"),
+                            CreatedAt = new DateTime(2026, 7, 15, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            Word = "lồn"
+                        },
+                        new
+                        {
+                            Id = new Guid("b1000001-0000-0000-0000-000000000004"),
+                            CreatedAt = new DateTime(2026, 7, 15, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            Word = "cặc"
+                        },
+                        new
+                        {
+                            Id = new Guid("b1000001-0000-0000-0000-000000000005"),
+                            CreatedAt = new DateTime(2026, 7, 15, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            Word = "đéo"
+                        },
+                        new
+                        {
+                            Id = new Guid("b1000001-0000-0000-0000-000000000006"),
+                            CreatedAt = new DateTime(2026, 7, 15, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            Word = "vcl"
+                        },
+                        new
+                        {
+                            Id = new Guid("b1000001-0000-0000-0000-000000000007"),
+                            CreatedAt = new DateTime(2026, 7, 15, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            Word = "vl"
+                        },
+                        new
+                        {
+                            Id = new Guid("b1000001-0000-0000-0000-000000000008"),
+                            CreatedAt = new DateTime(2026, 7, 15, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            Word = "fuck"
+                        },
+                        new
+                        {
+                            Id = new Guid("b1000001-0000-0000-0000-000000000009"),
+                            CreatedAt = new DateTime(2026, 7, 15, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            Word = "shit"
+                        },
+                        new
+                        {
+                            Id = new Guid("b1000001-0000-0000-0000-00000000000a"),
+                            CreatedAt = new DateTime(2026, 7, 15, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            Word = "bitch"
+                        });
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.Comment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AuthorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("author_id");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("content");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<DateTime?>("HiddenAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("hidden_at");
+
+                    b.Property<Guid?>("HiddenBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("hidden_by");
+
+                    b.Property<string>("HiddenReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("hidden_reason");
+
+                    b.Property<bool>("IsHidden")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_hidden");
+
+                    b.Property<Guid>("ReportId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("report_id");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_comments");
+
+                    b.HasIndex("AuthorId")
+                        .HasDatabaseName("ix_comments_author_id");
+
+                    b.HasIndex("ReportId", "CreatedAt")
+                        .HasDatabaseName("ix_comments_report_id_created_at");
+
+                    b.ToTable("comments", (string)null);
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.CommentMedia", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CommentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("comment_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("MimeType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("mime_type");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("size_bytes");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("updated_by");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("url");
+
+                    b.HasKey("Id")
+                        .HasName("pk_comment_media");
+
+                    b.HasIndex("CommentId")
+                        .HasDatabaseName("ix_comment_media_comment_id");
+
+                    b.ToTable("comment_media", (string)null);
                 });
 
             modelBuilder.Entity("Greenlens.Domain.Entities.CompanyServiceArea", b =>
@@ -1908,6 +2159,10 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("hidden_reason");
 
+                    b.Property<bool>("HideReporterName")
+                        .HasColumnType("boolean")
+                        .HasColumnName("hide_reporter_name");
+
                     b.Property<bool>("IsHidden")
                         .HasColumnType("boolean")
                         .HasColumnName("is_hidden");
@@ -2666,6 +2921,16 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasColumnType("character varying(1000)")
                         .HasColumnName("avatar_url");
 
+                    b.Property<DateTime?>("CommentBannedUntil")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("comment_banned_until");
+
+                    b.Property<int>("CommentViolationCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("comment_violation_count");
+
                     b.Property<DateTime?>("ConsentAcceptedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("consent_accepted_at");
@@ -3214,6 +3479,39 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasConstraintName("fk_audit_logs_users_user_id");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.Comment", b =>
+                {
+                    b.HasOne("Greenlens.Domain.Entities.User", "Author")
+                        .WithMany()
+                        .HasForeignKey("AuthorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_comments_users_author_id");
+
+                    b.HasOne("Greenlens.Domain.Entities.Report", "Report")
+                        .WithMany("Comments")
+                        .HasForeignKey("ReportId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_comments_reports_report_id");
+
+                    b.Navigation("Author");
+
+                    b.Navigation("Report");
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.CommentMedia", b =>
+                {
+                    b.HasOne("Greenlens.Domain.Entities.Comment", "Comment")
+                        .WithMany("Media")
+                        .HasForeignKey("CommentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_comment_media_comments_comment_id");
+
+                    b.Navigation("Comment");
                 });
 
             modelBuilder.Entity("Greenlens.Domain.Entities.CompanyServiceArea", b =>
@@ -3841,6 +4139,11 @@ namespace Greenlens.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Greenlens.Domain.Entities.Comment", b =>
+                {
+                    b.Navigation("Media");
+                });
+
             modelBuilder.Entity("Greenlens.Domain.Entities.Department", b =>
                 {
                     b.Navigation("LocalOffices");
@@ -3895,6 +4198,8 @@ namespace Greenlens.Infrastructure.Migrations
             modelBuilder.Entity("Greenlens.Domain.Entities.Report", b =>
                 {
                     b.Navigation("Assignments");
+
+                    b.Navigation("Comments");
 
                     b.Navigation("DuplicateReports");
 

@@ -27,5 +27,8 @@ public sealed record SubmitPollutionReportCommand(
     IReadOnlyList<SubmitPollutionReportImageItem>? Images,
 
     /// <summary>Optional: citizen tự chọn loại rác khi submit (có thể bổ sung/thay đổi bởi DEO sau).</summary>
-    IReadOnlyList<Guid>? WasteTagIds
+    IReadOnlyList<Guid>? WasteTagIds,
+
+    /// <summary>BR-REP-012: hide reporter display name on public views.</summary>
+    bool HideReporterName = false
 ) : IRequest<Result<SubmitPollutionReportResponse>>;

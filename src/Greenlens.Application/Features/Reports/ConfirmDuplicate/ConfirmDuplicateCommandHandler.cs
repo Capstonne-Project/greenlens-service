@@ -17,13 +17,13 @@ namespace Greenlens.Application.Features.Reports.ConfirmDuplicate;
 /// </summary>
 /// <remarks>
 /// Implements: BR-REP-031 (LEO makes the final duplicate decision),
-/// BR-REP-032 (link to primary, merge images, +50% points, +1 reporter count).
-/// Comments merge is deferred — Comment entity is not yet in the Domain.
+/// BR-REP-032 (link to primary, merge images + comments, +50% points, +1 reporter count).
 /// </remarks>
 public sealed class ConfirmDuplicateCommandHandler(
     IReportRepository reports,
     IReportMediaRepository reportMedia,
     IReportStatusHistoryRepository statusHistory,
+    IApplicationDbContext db,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     ILogger<ConfirmDuplicateCommandHandler> logger) : IRequestHandler<ConfirmDuplicateCommand, Result>
@@ -55,6 +55,14 @@ public sealed class ConfirmDuplicateCommandHandler(
 
         foreach (var media in mediaToMerge)
             media.ReassignToReport(primary.Id);
+
+        // BR-REP-032: merge comments into primary
+        var commentsToMerge = await db.Set<Comment>()
+            .Where(c => c.ReportId == report.Id)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+        foreach (var comment in commentsToMerge)
+            comment.ReassignToReport(primary.Id);
 
         report.MarkDuplicate(primary.Id); // raises ReportMarkedDuplicateEvent → points + notification
         primary.IncrementReporterCount();

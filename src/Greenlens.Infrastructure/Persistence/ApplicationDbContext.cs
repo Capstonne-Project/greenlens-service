@@ -25,6 +25,8 @@ internal sealed class ApplicationDbContext(
     public DbSet<ReportAssignment> ReportAssignments => Set<ReportAssignment>();
     public DbSet<WasteTag> WasteTags => Set<WasteTag>();
     public DbSet<ReportWasteTag> ReportWasteTags => Set<ReportWasteTag>();
+    public DbSet<Comment> Comments => Set<Comment>();
+    public DbSet<CommentMedia> CommentMedia => Set<CommentMedia>();
 
     // ── Organization module (v1.1) ──
     public DbSet<Department> Departments => Set<Department>();
@@ -62,6 +64,7 @@ internal sealed class ApplicationDbContext(
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<GamificationConfig> GamificationConfigs => Set<GamificationConfig>();
     public DbSet<NotificationTemplate> NotificationTemplates => Set<NotificationTemplate>();
+    public DbSet<BlockedWord> BlockedWords => Set<BlockedWord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

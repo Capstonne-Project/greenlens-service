@@ -1,3 +1,4 @@
+using Greenlens.Application.Features.Reports;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
@@ -7,6 +8,7 @@ using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Text.Json;
 
 namespace Greenlens.Application.Features.Reports.SubmitPollutionReport;
 
@@ -20,7 +22,9 @@ namespace Greenlens.Application.Features.Reports.SubmitPollutionReport;
 /// </summary>
 /// <remarks>
 /// Implements: BR-REP-001 (≥1 photo), BR-REP-003 (GPS bounds — validator),
-/// BR-REP-005 (category), BR-REP-013 (initial Submitted state),
+/// BR-REP-004 (description length + profanity), BR-REP-005 (category),
+/// BR-REP-010 (submit rate limit), BR-REP-011 (EXIF timestamp quality),
+/// BR-REP-013 (initial Submitted state),
 /// BR-AI-001 (AI decision on AI flow), BR-AI-006 (AiPending on manual flow),
 /// BR-ORG-010, BR-ORG-011 (auto-routing to LocalOffice by GPS).
 /// </remarks>
@@ -39,6 +43,11 @@ public sealed class SubmitPollutionReportCommandHandler(
     ICurrentUser currentUser,
     ITempImageStore tempStore,
     IFileStorageService fileStorage,
+    IProfanityFilter profanityFilter,
+    IReportSubmissionRateLimiter rateLimiter,
+    IImageExifAnalyzer exifAnalyzer,
+    IImageBytesFetcher imageBytesFetcher,
+    IDateTimeProvider clock,
     ILogger<SubmitPollutionReportCommandHandler> logger)
     : IRequestHandler<SubmitPollutionReportCommand, Result<SubmitPollutionReportResponse>>
 {
@@ -48,6 +57,17 @@ public sealed class SubmitPollutionReportCommandHandler(
     {
         if (!currentUser.IsAuthenticated)
             return Errors.Reports.LoginRequired;
+
+        // ── BR-REP-010: sliding-window submit quota (5/h, 20/24h) ─────────
+        var rateLimit = await rateLimiter.TryAcquireAsync(currentUser.UserId, cancellationToken)
+            .ConfigureAwait(false);
+        if (!rateLimit.IsAllowed)
+            return Errors.Reports.RateLimitExceeded(rateLimit.RetryAfterMinutes);
+
+        // ── BR-REP-004: profanity filter when description provided ─────────
+        if (!string.IsNullOrWhiteSpace(request.Description)
+            && profanityFilter.ContainsProfanity(request.Description))
+            return Errors.Reports.InappropriateDescription;
 
         // ── BR-DAT-005: Consent check ────────────────────────────────────────
         var submitter = await users.GetByIdAsync(currentUser.UserId, cancellationToken)
@@ -104,18 +124,22 @@ public sealed class SubmitPollutionReportCommandHandler(
                 MimeType: tempEntry.ContentType,
                 SizeBytes: tempEntry.Bytes.LongLength,
                 IsAiFlow: true,
-                TempImageId: request.TempImageId);
+                TempImageId: request.TempImageId,
+                ImageBytes: tempEntry.Bytes);
         }
         else
         {
             // Manual flow: dùng URL đã upload sẵn, AI xử lý sau (AiPending = true)
             var first = request.Images![0];
+            var manualBytes = await imageBytesFetcher.TryFetchAsync(first.Url.Trim(), cancellationToken)
+                .ConfigureAwait(false);
             resolvedImage = new ResolvedImage(
                 Url: first.Url.Trim(),
                 MimeType: first.MimeType.Trim(),
                 SizeBytes: first.SizeBytes,
                 IsAiFlow: false,
-                TempImageId: null);
+                TempImageId: null,
+                ImageBytes: manualBytes);
         }
 
         // ── Create Report ───────────────────────────────────────────────────
@@ -125,7 +149,8 @@ public sealed class SubmitPollutionReportCommandHandler(
             code, reporterId,
             request.CategoryId, request.Severity, request.Description,
             request.Latitude, request.Longitude,
-            request.Address, wardCode, provinceCode);
+            request.Address, wardCode, provinceCode,
+            request.HideReporterName);
 
         // Manual flow: AiPending already = true from Report.Create
         // AI flow:     AiPending = true from Create, set to false after we record the result below
@@ -165,6 +190,26 @@ public sealed class SubmitPollutionReportCommandHandler(
             resolvedImage.Url, resolvedImage.MimeType, resolvedImage.SizeBytes,
             reporterId);
         reportMedia.Add(primaryMedia);
+
+        // ── BR-REP-011: EXIF timestamp/GPS quality check on primary image ───
+        string? exifWarning = null;
+        if (resolvedImage.ImageBytes is { Length: > 0 } bytes)
+        {
+            var submittedAtUtc = clock.UtcNow;
+            var exif = exifAnalyzer.Analyze(bytes, submittedAtUtc);
+
+            if (!string.IsNullOrEmpty(exif.ExifJson))
+                primaryMedia.SetExifData(exif.ExifJson);
+
+            if (exif.IsSuspicious && exif.SuspiciousReasonCode is not null)
+            {
+                report.FlagSuspicious(JsonSerializer.Serialize(new[] { exif.SuspiciousReasonCode }));
+                exifWarning = ExifSuspicionEvaluator.StaleWarningMessage;
+                logger.LogWarning(
+                    "Report {ReportCode} flagged suspicious: {Reason}",
+                    report.Code, exif.SuspiciousReasonCode);
+            }
+        }
 
         var persistedImages = new List<ReportMedia> { primaryMedia };
 
@@ -237,7 +282,8 @@ public sealed class SubmitPollutionReportCommandHandler(
             reporterId,
             report.Status, report.CreatedAt, report.SlaVerifyDueAt,
             report.AiPending, imageInfos,
-            report.IsPossibleDuplicate, report.PossibleDuplicateOfReportId);
+            report.IsPossibleDuplicate, report.PossibleDuplicateOfReportId,
+            report.IsSuspicious, exifWarning);
     }
 
     /// <summary>
@@ -295,5 +341,6 @@ public sealed class SubmitPollutionReportCommandHandler(
         string MimeType,
         long SizeBytes,
         bool IsAiFlow,
-        string? TempImageId);
+        string? TempImageId,
+        byte[]? ImageBytes);
 }

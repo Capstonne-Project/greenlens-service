@@ -248,5 +248,23 @@ public static partial class Errors
             "ALREADY_FLAGGED",
             "Bạn đã gắn cờ báo cáo này rồi.",
             ErrorType.Conflict);
+
+        /// <summary>BR-REP-004: Description shorter than 10 characters when provided.</summary>
+        public static Error DescriptionTooShort => new(
+            "DESCRIPTION_TOO_SHORT",
+            "Mô tả phải từ 10–1000 ký tự.",
+            ErrorType.Validation);
+
+        /// <summary>BR-REP-004: Description contains blocked words.</summary>
+        public static Error InappropriateDescription => new(
+            "INAPPROPRIATE_CONTENT",
+            "Mô tả chứa nội dung không phù hợp.",
+            ErrorType.Validation);
+
+        /// <summary>BR-REP-010: Citizen exceeded 5/h or 20/24h submit quota.</summary>
+        public static Error RateLimitExceeded(int retryAfterMinutes) => new(
+            "RATE_LIMIT_EXCEEDED",
+            $"Bạn đã đạt giới hạn gửi báo cáo. Thử lại sau {retryAfterMinutes} phút.",
+            ErrorType.RateLimited);
     }
 }

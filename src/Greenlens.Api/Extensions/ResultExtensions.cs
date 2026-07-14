@@ -71,6 +71,7 @@ public static class ResultExtensions
             ErrorType.Conflict     => (409, error.Code),
             ErrorType.Forbidden    => (403, error.Code),
             ErrorType.BusinessRule => (422, error.Code),
+            ErrorType.RateLimited  => (429, error.Code),
             ErrorType.Unexpected   => (500, error.Code),
             _ => (500, "INTERNAL_ERROR"),
         };

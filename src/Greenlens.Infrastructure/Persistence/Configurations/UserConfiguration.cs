@@ -41,6 +41,9 @@ internal sealed class UserConfiguration : IEntityTypeConfiguration<User>
         // ── Data Consent (BR-DAT-005) ──
         builder.Property(u => u.HasDataConsent).HasDefaultValue(false);
 
+        // ── Comment moderation (BR-CMT-003) ──
+        builder.Property(u => u.CommentViolationCount).HasDefaultValue(0);
+
         // Soft delete query filter
         builder.HasQueryFilter(u => u.DeletedAt == null);
     }

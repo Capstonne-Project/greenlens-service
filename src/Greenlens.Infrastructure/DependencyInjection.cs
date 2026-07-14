@@ -14,10 +14,12 @@ using Greenlens.Infrastructure.Persistence.Repositories;
 using Greenlens.Infrastructure.Persistence.Repositories.Location;
 using Greenlens.Infrastructure.BackgroundJobs;
 using Greenlens.Infrastructure.DomainEvents;
+using Greenlens.Infrastructure.Moderation;
 using Greenlens.Infrastructure.Notifications;
 using Greenlens.Infrastructure.Services;
 using Hangfire;
 using Hangfire.PostgreSql;
+using StackExchange.Redis;
 
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -85,6 +87,7 @@ public static class DependencyInjection
         // ── Administration module (BR-ADM-*) ──
         services.AddScoped<IPenaltyFrameworkRepository, PenaltyFrameworkRepository>();
         services.AddScoped<IGamificationConfigRepository, GamificationConfigRepository>();
+        services.AddScoped<IBlockedWordRepository, BlockedWordRepository>();
         services.AddScoped<INotificationTemplateRepository, NotificationTemplateRepository>();
 
         // ── Notification module (BR-NTF-001..004) ──
@@ -143,9 +146,35 @@ public static class DependencyInjection
             client.BaseAddress = new Uri(opts.BaseUrl);
         });
 
+        services.AddHttpClient("ImageFetch", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(15);
+        });
+
         services.AddScoped<IAiClassificationService, AiClassificationService>();
         services.AddScoped<IAiImageCompareService, AiImageCompareService>();
         services.AddSingleton<ITempImageStore, TempImageStore>();
+        services.AddSingleton<IImageExifAnalyzer, Imaging.MetadataExtractorImageExifAnalyzer>();
+        services.AddScoped<IImageBytesFetcher, Imaging.HttpImageBytesFetcher>();
+
+        // ── Report submit rate limit (BR-REP-010) ──
+        var redisConnection = configuration.GetConnectionString("Redis");
+        if (!string.IsNullOrWhiteSpace(redisConnection))
+        {
+            services.AddSingleton<IConnectionMultiplexer>(_ =>
+                ConnectionMultiplexer.Connect(redisConnection));
+            services.AddSingleton<IReportSubmissionRateLimiter, RateLimiting.RedisReportSubmissionRateLimiter>();
+        }
+        else
+        {
+            services.AddSingleton<IReportSubmissionRateLimiter, RateLimiting.InMemoryReportSubmissionRateLimiter>();
+        }
+
+        // ── Comment moderation (BR-CMT-003 phase 1, BR-REP-004) ──
+        services.AddSingleton<BlockedWordCache>();
+        services.AddSingleton<IBlockedWordCache>(sp => sp.GetRequiredService<BlockedWordCache>());
+        services.AddHostedService(sp => sp.GetRequiredService<BlockedWordCache>());
+        services.AddSingleton<IProfanityFilter, ProfanityFilter>();
 
         // ── Duplicate detection Tier 2 scheduler (BR-REP-030, BR-AI-002) ──
         services.AddScoped<IDuplicateCompareScheduler, DuplicateCompareScheduler>();
@@ -377,5 +406,11 @@ public static class DependencyInjection
             "cleanup-progress-sla",
             job => job.ExecuteAsync(),
             "0 * * * *"); // every hour
+
+        // BR-AI-006: Retry ai_pending classifications within 1h window
+        RecurringJob.AddOrUpdate<AiRetryJob>(
+            "ai-retry",
+            job => job.ExecuteAsync(),
+            "*/5 * * * *"); // every 5 minutes
     }
 }

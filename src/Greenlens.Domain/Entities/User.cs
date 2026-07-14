@@ -46,6 +46,10 @@ public sealed class User : SoftDeletableEntity
     /// <summary>Preferred language for notifications (BR-NTF-004). Default: vi-VN.</summary>
     public string Language { get; private set; } = "vi-VN";
 
+    // ── Comment moderation (BR-CMT-003) ──
+    public int CommentViolationCount { get; private set; }
+    public DateTime? CommentBannedUntil { get; private set; }
+
     // ── Organization assignment (v1.1) ──
     public Guid? DepartmentId { get; private set; }
     public Guid? LocalOfficeId { get; private set; }
@@ -252,4 +256,16 @@ public sealed class User : SoftDeletableEntity
         HasDataConsent = true;
         ConsentAcceptedAt = DateTime.UtcNow;
     }
+
+    /// <summary>BR-CMT-003: Track profanity violations; ban commenting for 7 days at 3 strikes.</summary>
+    public void RecordCommentViolation()
+    {
+        CommentViolationCount++;
+        if (CommentViolationCount >= 3)
+            CommentBannedUntil = DateTime.UtcNow.AddDays(7);
+    }
+
+    /// <summary>BR-CMT-003: Whether the user is temporarily banned from commenting.</summary>
+    public bool IsCommentBanned() =>
+        CommentBannedUntil.HasValue && CommentBannedUntil.Value > DateTime.UtcNow;
 }
