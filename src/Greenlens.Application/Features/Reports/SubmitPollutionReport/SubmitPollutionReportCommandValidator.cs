@@ -16,7 +16,9 @@ public sealed class SubmitPollutionReportCommandValidator : AbstractValidator<Su
         RuleFor(x => x.Severity).IsInEnum();
 
         RuleFor(x => x.Description)
-            .MaximumLength(1000).WithMessage("Description must not exceed 1000 characters.");
+            .MaximumLength(1000).WithMessage("Description must not exceed 1000 characters.")
+            .Must(d => string.IsNullOrWhiteSpace(d) || d.Trim().Length >= 10)
+            .WithMessage("Mô tả phải từ 10–1000 ký tự.");
 
         // BR-REP-003: Vietnam GPS bounds
         RuleFor(x => x.Latitude)

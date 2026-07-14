@@ -104,4 +104,26 @@ public sealed class SubmitPollutionReportCommandValidatorTests
         var cmd = ManualBase() with { ProvinceCode = "A", WardCode = "12345" };
         Assert.False(_sut.Validate(cmd).IsValid);
     }
+
+    // ── Description BR-REP-004 ────────────────────────────────────────────
+
+    [Fact]
+    public void Validate_EmptyDescription_IsValid_BR_REP_004()
+    {
+        Assert.True(_sut.Validate(ManualBase()).IsValid);
+    }
+
+    [Fact]
+    public void Validate_DescriptionTooShort_IsInvalid_BR_REP_004()
+    {
+        var cmd = ManualBase() with { Description = "ngắn" };
+        Assert.False(_sut.Validate(cmd).IsValid);
+    }
+
+    [Fact]
+    public void Validate_DescriptionMinLength_IsValid_BR_REP_004()
+    {
+        var cmd = ManualBase() with { Description = "1234567890" };
+        Assert.True(_sut.Validate(cmd).IsValid);
+    }
 }
