@@ -161,7 +161,7 @@ Authorization: Bearer {token}
 | 422  | `REOPEN_LIMIT_REACHED`      | "Đã hết 2 lần mở lại"                       |
 | 404  | `REPORT_NOT_FOUND`          | —                                           |
 
-> **Lưu ý BE (tạm thời):** Server **chưa** chặn `reporterId` trên `close`/`reopen`. FE **bắt buộc** chỉ hiện nút khi `data.reporterId === currentUser.id` để tránh user bấm nhầm trên pin người khác.
+> Server kiểm tra `reporterId` trên `close`/`reopen`/`rate` (`NOT_REPORT_OWNER` nếu không phải người gửi). FE vẫn nên ẩn nút khi `data.reporterId !== currentUser.id` để UX rõ ràng.
 
 ---
 
@@ -299,8 +299,8 @@ sequenceDiagram
 
 | Tính năng                   | Trạng thái BE               |
 | --------------------------- | --------------------------- |
-| Comment trên báo cáo        | ✅ `GET/POST /v1/reports/{id}/comments` — xem [`fe-comments-api-guide.md`](./fe-comments-api-guide.md) |
-| Đánh giá sao / satisfaction | Entity DB có, **chưa** HTTP |
+| Comment trên báo cáo        | ✅ `GET/POST /v1/reports/{id}/comments` — xem [`fe-comments-api-guide.md`](./Changelogs/fe-comments-api-guide.md) |
+| Đánh giá sao / satisfaction | ✅ `POST /v1/reports/{id}/rate` — xem [`fe-citizen-satisfaction-api-guide.md`](./Changelogs/fe-citizen-satisfaction-api-guide.md) |
 | Báo trùng từ map            | Officer/AI flow             |
 | Sửa/xóa báo cáo sau khi gửi | Chưa có                     |
 | Auto-close 7 ngày           | Job nền (user không bấm)    |
@@ -331,6 +331,7 @@ sequenceDiagram
 | [`MOBILE_AUTH_INTEGRATION.md`](./MOBILE_AUTH_INTEGRATION.md)             | JWT, role `Citizen`                     |
 | [`report_workflow_v2_NEW.md`](./report_workflow_v2_NEW.md)               | State machine đầy đủ (PM/BA)            |
 | [`fe-citizen-reports-tab-detail.md`](./fe-citizen-reports-tab-detail.md) | Tab Báo cáo → list `/my` → Chi tiết     |
+| [`fe-citizen-satisfaction-api-guide.md`](./Changelogs/fe-citizen-satisfaction-api-guide.md) | Đánh giá sao, đóng/mở lại sau Resolved |
 
 ---
 

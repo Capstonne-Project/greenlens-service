@@ -162,10 +162,11 @@ Rating: 1–5 sao, 1 lần duy nhất/report, chỉ khi Resolved hoặc Closed.
 ### 2.8 Xác nhận hoặc mở lại (BR-REP-015)
 
 ```http
-POST /v1/reports/{id}/confirm    # Citizen hài lòng → Closed
-POST /v1/reports/{id}/reopen     # Chưa hài lòng → InProgress (max 2 lần, 7 ngày)
-{ "reason": "Vẫn còn rác..." }
+PUT /v1/reports/{id}/close       # Citizen hài lòng → Closed (không body)
+PUT /v1/reports/{id}/reopen      # Chưa hài lòng → InProgress (max 2 lần, 7 ngày, không body)
 ```
+
+Chi tiết + đánh giá sao: [`fe-citizen-satisfaction-api-guide.md`](./Changelogs/fe-citizen-satisfaction-api-guide.md)
 
 ### 2.9 Bản đồ công khai
 

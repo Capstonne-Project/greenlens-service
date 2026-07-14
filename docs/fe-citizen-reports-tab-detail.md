@@ -19,7 +19,7 @@ Tài liệu cho **mobile/web FE** implement luồng **Tab Reports / Báo cáo c�
 | 5    | Xem ảnh, mô tả, tiến độ team, timeline                                                          |
 | 6    | Khi báo cáo **đã xử lý xong** → bấm **Đóng** (hài lòng) hoặc **Mở lại** (chưa ổn, tối đa 2 lần) |
 
-**Không có trong tab này (phase hiện tại):** sửa nội dung báo cáo, xóa báo cáo, bình luận, đánh giá sao.
+**Không có trong tab này (phase hiện tại):** sửa nội dung báo cáo, xóa báo cáo. Bình luận và đánh giá sao có API riêng — xem [`fe-comments-api-guide.md`](./Changelogs/fe-comments-api-guide.md), [`fe-citizen-satisfaction-api-guide.md`](./Changelogs/fe-citizen-satisfaction-api-guide.md).
 
 ---
 

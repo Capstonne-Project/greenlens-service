@@ -9,6 +9,7 @@ Tài liệu chi tiết từng module:
 |--------|-----|
 | Duplicate (LEO) | [`fe-leo-duplicate-detection-guide.md`](./fe-leo-duplicate-detection-guide.md) |
 | Comments | [`fe-comments-api-guide.md`](./fe-comments-api-guide.md) |
+| Citizen satisfaction (rate/close/reopen) | [`fe-citizen-satisfaction-api-guide.md`](./fe-citizen-satisfaction-api-guide.md) |
 | Blocked words (Admin) | [`api-admin-blocked-words.md`](./api-admin-blocked-words.md) |
 
 ---
