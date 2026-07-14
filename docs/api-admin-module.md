@@ -29,6 +29,12 @@
 | 13 | `/notification-templates` | POST | Tạo template thông báo |
 | 14 | `/notification-templates/{id}/publish` | PATCH | Publish / Unpublish template |
 | 15 | `/notification-templates/{id}/test` | POST | Test gửi template |
+| 16 | `/blocked-words` | GET | Danh sách từ bị chặn (profanity) |
+| 17 | `/blocked-words` | POST | Thêm từ bị chặn |
+| 18 | `/blocked-words/{id}` | PUT | Cập nhật từ bị chặn |
+| 19 | `/blocked-words/{id}` | DELETE | Vô hiệu hóa từ bị chặn |
+
+> Chi tiết mục 16–19: [`api-admin-blocked-words.md`](./api-admin-blocked-words.md)
 
 ---
 
