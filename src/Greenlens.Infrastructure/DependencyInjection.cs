@@ -14,6 +14,7 @@ using Greenlens.Infrastructure.Persistence.Repositories;
 using Greenlens.Infrastructure.Persistence.Repositories.Location;
 using Greenlens.Infrastructure.BackgroundJobs;
 using Greenlens.Infrastructure.DomainEvents;
+using Greenlens.Infrastructure.Moderation;
 using Greenlens.Infrastructure.Notifications;
 using Greenlens.Infrastructure.Services;
 using Hangfire;
@@ -146,6 +147,11 @@ public static class DependencyInjection
         services.AddScoped<IAiClassificationService, AiClassificationService>();
         services.AddScoped<IAiImageCompareService, AiImageCompareService>();
         services.AddSingleton<ITempImageStore, TempImageStore>();
+
+        // ── Comment moderation (BR-CMT-003 phase 1) ──
+        services.AddOptions<ModerationOptions>()
+            .Bind(configuration.GetSection(ModerationOptions.SectionName));
+        services.AddSingleton<IProfanityFilter, ProfanityFilter>();
 
         // ── Duplicate detection Tier 2 scheduler (BR-REP-030, BR-AI-002) ──
         services.AddScoped<IDuplicateCompareScheduler, DuplicateCompareScheduler>();
@@ -377,5 +383,11 @@ public static class DependencyInjection
             "cleanup-progress-sla",
             job => job.ExecuteAsync(),
             "0 * * * *"); // every hour
+
+        // BR-AI-006: Retry ai_pending classifications within 1h window
+        RecurringJob.AddOrUpdate<AiRetryJob>(
+            "ai-retry",
+            job => job.ExecuteAsync(),
+            "*/5 * * * *"); // every 5 minutes
     }
 }

@@ -257,9 +257,15 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 - `NotificationsController.cs` — 6 API endpoints
 - Migration: `202606280900_AddNotificationsAndSlaBreachFields`
 
-### ❌ Comments (`BR-CMT-001..004`)
+### ✅ Comments (`BR-CMT-001..004`) — ĐÃ IMPLEMENT
 
-Chưa có feature module. Thiếu entity Comment.
+- BR-CMT-001: Auth bắt buộc; báo cáo `hideReporterName` chỉ LEO/DEO/Admin + người gửi gốc
+- BR-CMT-002: 1–500 ký tự, max 2 ảnh ≤5MB (`POST /v1/media/comments/images`)
+- BR-CMT-003: Word filter phase 1 (`ProfanityFilter`); 3 strike → khóa bình luận 7 ngày (AI text deferred)
+- BR-CMT-004: Sửa/xóa trong 15 phút; LEO ẩn bình luận (`POST /v1/comments/{id}/hide`)
+- BR-REP-032: Merge comments khi `ConfirmDuplicate`
+- API: `CommentsController` + 5 endpoints; docs `fe-comments-api-guide.md`
+- Migration: `AddCommentModule` (comments, comment_media, user ban fields, hide_reporter_name)
 
 ### ✅ Gamification (`BR-GAM-001..006`) — ĐÃ IMPLEMENT (branch `feature/gamification-module`)
 
@@ -289,7 +295,7 @@ Chưa có feature module. Thiếu entity Comment.
 
 - `AnalyzeReportImage/` ✅ + `AiClassificationService.cs` ✅
 - BR-AI-001 cập nhật: AI phân loại **3 loại** (thay vì 5) → cần verify AI service config
-- BR-AI-006: Fallback ai_pending ❌ — chưa có retry job
+- BR-AI-006: Fallback ai_pending ✅ — `AiRetryJob` every 5', batch 50, 1h window
 
 ### ✅ Administration (`BR-ADM-001..012`) — 12/12 rules
 
@@ -341,12 +347,12 @@ Chưa có feature module. Thiếu entity Comment.
 | `CompanyContractExpiryJob`     | BR-CMP-007     | ✅ Bidding hết hạn → Expired + cascading + cảnh báo CM 30/7/1 ngày trước (daily 02:00 UTC) |
 | `SlaBreachInspectionJob`       | BR-INS-030     | ✅ InspectionReport > SLA → flag `SlaInspectionBreached` (every 30')                       |
 | `CleanupProgressSlaJob`        | BR-CLN-004     | ✅ Assignment InProgress > 24h/48h → warn/flag stale (hourly)                              |
-| `AiRetryJob`                   | BR-AI-006      | ❌ ai_pending retry trong 1h                                                               |
+| `AiRetryJob`                   | BR-AI-006      | ✅ ai_pending retry trong 1h (every 5')                                                    |
 
 > [!NOTE]
 > Hangfire đã setup đầy đủ: DI, PostgreSql storage, Dashboard `/hangfire`.
 > `TransactionBehavior` (MediatR pipeline) đã thêm — wrap mọi Command trong DB transaction.
-> **12/13** recurring jobs đã registered. Chỉ thiếu `AiRetryJob`.
+> **13/13** recurring jobs đã registered (bao gồm `AiRetryJob`).
 
 ---
 
@@ -357,7 +363,7 @@ Chưa có feature module. Thiếu entity Comment.
 | `CompanyStatus` enum                     | ✅ 5 values (incl. Terminated) | Suspend/Terminate/Reactivate/Expire transitions implemented     |
 | `PollutionCategory`                      | ✅ Configurable                | ⚠️ Seed data cần đúng 3 loại (v1.2 bỏ Không khí, Tiếng ồn)      |
 | `Invitation` entity                      | ✅ ĐÃ IMPLEMENT                | BR-ORG-020/021: `StaffInvitation` entity, 7d expiry, single-use |
-| `Comment` entity                         | ❌                             | BR-CMT-001..004                                                 |
+| `Comment` entity                         | ✅                             | BR-CMT-001..004, BR-REP-032 merge                               |
 | `Badge`, `UserPoints`                    | ✅ ĐÃ IMPLEMENT                | BR-GAM-001..006                                                 |
 | `Notification`, `NotificationPreference` | ✅ ĐÃ IMPLEMENT                | BR-NTF-001..004                                                 |
 | `ReportDraft`                            | ✅                             | Thiếu max 3 check + cleanup job                                 |
