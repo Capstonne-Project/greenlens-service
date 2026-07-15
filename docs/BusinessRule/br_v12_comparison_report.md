@@ -45,12 +45,12 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 
 ## A.3 Thiếu ý quan trọng trong OVERVIEW
 
-| Ý trong BR v1.2 | Mô tả                                                  | Section cần bổ sung                                            |
-| --------------- | ------------------------------------------------------ | -------------------------------------------------------------- |
-| **BR-ORG-016**  | Escalation tuyến cấp TP (cờ admin cấu hình)            | §5 State Machine — đã nhắc nhưng chưa đủ chi tiết về cơ chế cờ |
-| **BR-REP-018**  | Citizen đánh giá sau Resolved                          | Chưa mention                                                   |
-| **BR-CMP-013**  | Khi Suspend/Terminate company → push tasks về LEO      | Chưa mention — critical cho task reassignment                  |
-| **BR-INS-022**  | Tái phạm (≥ 2 biên bản / 12 tháng → nâng mức phạt)     | Chưa mention — business logic phức tạp                         |
+| Ý trong BR v1.2 | Mô tả                                                  | Section cần bổ sung                                                                     |
+| --------------- | ------------------------------------------------------ | --------------------------------------------------------------------------------------- |
+| **BR-ORG-016**  | Escalation tuyến cấp TP (cờ admin cấu hình)            | §5 State Machine — đã nhắc nhưng chưa đủ chi tiết về cơ chế cờ                          |
+| **BR-REP-018**  | Citizen đánh giá sau Resolved                          | Chưa mention                                                                            |
+| **BR-CMP-013**  | Khi Suspend/Terminate company → push tasks về LEO      | Chưa mention — critical cho task reassignment                                           |
+| **BR-INS-022**  | Tái phạm (≥ 2 biên bản / 12 tháng → nâng mức phạt)     | Chưa mention — business logic phức tạp                                                  |
 | **BR-REP-033**  | Flag duplicate bởi người dùng (≥ 3 flag → LEO xem xét) | ✅ Codebase: `FlagReport/` + template `duplicate_review_needed` — OVERVIEW chưa mention |
 
 ---
@@ -59,11 +59,11 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 
 ## Tổng quan nhanh
 
-|      Trạng thái       | Modules                                                                                                                                                                                                 | % ước tính |
-| :-------------------: | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--------: |
-|  ✅ Core hoàn thành   | Auth, Reports (36+ slices), Comments, Duplicate Detection, Organization, Inspection, Cleanup, Company, Admin, Gamification, Notifications, Map (2), Catalog, Media, Users |   ~89%     |
-| ⚠️ Implement một phần | Map (6 rules còn lại), AI (BR-AI-002/004/005/007), Global API rate limit middleware (BR-SYS-004)                                                                      |    ~6%     |
-|   ❌ Chưa implement   | Brute-force + CAPTCHA (BR-AUTH-014)                                                                                                                                    |    ~3%     |
+|      Trạng thái       | Modules                                                                                                                                                                   | % ước tính |
+| :-------------------: | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :--------: |
+|  ✅ Core hoàn thành   | Auth, Reports (36+ slices), Comments, Duplicate Detection, Organization, Inspection, Cleanup, Company, Admin, Gamification, Notifications, Map (2), Catalog, Media, Users |    ~89%    |
+| ⚠️ Implement một phần | Map (6 rules còn lại), AI (BR-AI-002/004/005/007), Global API rate limit middleware (BR-SYS-004)                                                                          |    ~6%     |
+|   ❌ Chưa implement   | Brute-force + CAPTCHA (BR-AUTH-014)                                                                                                                                       |    ~3%     |
 
 > **Cập nhật 2026-07-15:** BR-REP-004 (mô tả 10–1000 + profanity), BR-REP-010 (Redis rate limit 5/h, 20/24h), BR-REP-011 (EXIF stale → Suspicious). Comments, Duplicate, AiRetryJob.
 
@@ -120,41 +120,41 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 
 ## B.3 Report (`BR-REP-001..033`) — ✅ 21/23 rules
 
-| BR              | Mô tả                                    | Status | Evidence                                                                          |
-| --------------- | ---------------------------------------- | :----: | --------------------------------------------------------------------------------- |
-| BR-REP-001      | Ảnh 1-5, ≤ 10MB                          |   ✅   | Validator + `UploadReportImage/`                                                  |
-| BR-REP-002      | Video 1, mp4/mov                         |   ✅   | `UploadReportVideo/` + `FFmpegVideoTranscoder` (H.264 720p CRF 28, max 100MB/60s) |
-| BR-REP-003      | GPS Vietnam bounds                       |   ✅   | Validator                                                                         |
-| BR-REP-004      | Mô tả: 10–1000 ký tự + filter tục tĩu   |   ✅   | `IProfanityFilter` + Admin CRUD `blocked_words` (`/v1/admin/blocked-words`) |
-| BR-REP-005      | **3 loại** ô nhiễm (Rác, Nước, Hóa chất) |   ✅   | `PollutionCategorySeeder` seed 3 loại, SMOKE deactivated                          |
-| BR-REP-006      | Severity 4 mức                           |   ✅   | `Severity.cs` enum                                                                |
-| BR-REP-008      | Cảnh báo tồn đọng 72h                    |   ✅   | `OverdueReportNotificationJob` + `IsOverdue` flag                                 |
-| BR-REP-009      | Cảnh báo chưa phân công 24h              |   ✅   | `OverdueReportNotificationJob` (dedup 24h notification)                           |
-| BR-REP-010      | Rate limit 5/h, 20/24h                   |   ✅   | `RedisReportSubmissionRateLimiter` (fallback in-memory khi không có Redis)       |
-| BR-REP-011      | EXIF metadata validation                 |   ✅   | `MetadataExtractorImageExifAnalyzer` → `FlagSuspicious` + `ExifWarning` response   |
-| BR-REP-012      | Bắt buộc đăng nhập + tùy chọn ẩn tên     |   ✅   | `LoginRequired` + `HideReporterName` trên submit (BR-REP-012 + comment guard CMT-001) |
-| BR-REP-013      | Initial status = Submitted               |   ✅   | `Report.cs` factory                                                               |
-| BR-REP-014      | Ảnh before/after khi Resolved            |   ✅   | `UploadBeforeImages/` + enforce ≥ 1 before trên `ResolveReportHandler`            |
-| BR-REP-015      | Citizen xác nhận (7d, max 2 re-open)     |   ✅   | `TryReopen()` 7-day window + max 2. `ReopenWindowExpired` error                   |
-| BR-REP-016      | Auto-close 7 ngày                        |   ✅   | `AutoCloseResolvedReportJob` + StatusHistory + Notification                       |
-| BR-REP-017      | Không xóa report đã verified             |   ✅   | `DeleteReport/` + `CanDelete()` guard (Submitted only, no AI/Officer)             |
-| BR-REP-018      | Đánh giá của Citizen sau Resolved        |   ✅   | `RateReport/` — check Resolved/Closed, 1 lần/report. `POST /reports/{id}/rate`    |
-| BR-REP-019      | Draft max 3, xóa 7d                      |   ✅   | `SaveDraft/`, `GetMyDrafts/`, `DeleteDraft/` + `DraftCleanupJob` (daily 03:00)    |
-| BR-REP-020/021  | State machine + role transitions         |   ✅   | `Report.cs` state machine methods                                                 |
-| BR-REP-022      | Reject reason ≥ 20 chars                 |   ✅   | `RejectReport/` validator                                                         |
-| BR-REP-030      | Duplicate Tier 1 (geo ≤50m + category + 24h) | ✅ | Inline trong `SubmitPollutionReportCommandHandler` — `GeoMath.HaversineMeters` + bbox |
-| BR-REP-031      | LEO xác nhận / bác bỏ nghi ngờ trùng      |   ✅   | `ConfirmDuplicate/`, `DismissDuplicate/`, `GetDuplicateCandidates/`               |
-| BR-REP-032      | Merge duplicate (+50% điểm, media + comments) | ✅ | `ConfirmDuplicate` merge media + comments; `DuplicateMergedPointsHandler` (+50% ReportVerified) |
-| BR-REP-033      | Citizen flag ≥3 → LEO review              |   ✅   | `FlagReport/` + `DuplicateReviewNeeded` template + `SendFromTemplateAsync`        |
+| BR             | Mô tả                                         | Status | Evidence                                                                                        |
+| -------------- | --------------------------------------------- | :----: | ----------------------------------------------------------------------------------------------- |
+| BR-REP-001     | Ảnh 1-5, ≤ 10MB                               |   ✅   | Validator + `UploadReportImage/`                                                                |
+| BR-REP-002     | Video 1, mp4/mov                              |   ✅   | `UploadReportVideo/` + `FFmpegVideoTranscoder` (H.264 720p CRF 28, max 100MB/60s)               |
+| BR-REP-003     | GPS Vietnam bounds                            |   ✅   | Validator                                                                                       |
+| BR-REP-004     | Mô tả: 10–1000 ký tự + filter tục tĩu         |   ✅   | `IProfanityFilter` + Admin CRUD `blocked_words` (`/v1/admin/blocked-words`)                     |
+| BR-REP-005     | **3 loại** ô nhiễm (Rác, Nước, Hóa chất)      |   ✅   | `PollutionCategorySeeder` seed 3 loại, SMOKE deactivated                                        |
+| BR-REP-006     | Severity 4 mức                                |   ✅   | `Severity.cs` enum                                                                              |
+| BR-REP-008     | Cảnh báo tồn đọng 72h                         |   ✅   | `OverdueReportNotificationJob` + `IsOverdue` flag                                               |
+| BR-REP-009     | Cảnh báo chưa phân công 24h                   |   ✅   | `OverdueReportNotificationJob` (dedup 24h notification)                                         |
+| BR-REP-010     | Rate limit 5/h, 20/24h                        |   ✅   | `RedisReportSubmissionRateLimiter` (fallback in-memory khi không có Redis)                      |
+| BR-REP-011     | EXIF metadata validation                      |   ✅   | `MetadataExtractorImageExifAnalyzer` → `FlagSuspicious` + `ExifWarning` response                |
+| BR-REP-012     | Bắt buộc đăng nhập + tùy chọn ẩn tên          |   ✅   | `LoginRequired` + `HideReporterName` trên submit (BR-REP-012 + comment guard CMT-001)           |
+| BR-REP-013     | Initial status = Submitted                    |   ✅   | `Report.cs` factory                                                                             |
+| BR-REP-014     | Ảnh before/after khi Resolved                 |   ✅   | `UploadBeforeImages/` + enforce ≥ 1 before trên `ResolveReportHandler`                          |
+| BR-REP-015     | Citizen xác nhận (7d, max 2 re-open)          |   ✅   | `TryReopen()` 7-day window + max 2. `ReopenWindowExpired` error                                 |
+| BR-REP-016     | Auto-close 7 ngày                             |   ✅   | `AutoCloseResolvedReportJob` + StatusHistory + Notification                                     |
+| BR-REP-017     | Không xóa report đã verified                  |   ✅   | `DeleteReport/` + `CanDelete()` guard (Submitted only, no AI/Officer)                           |
+| BR-REP-018     | Đánh giá của Citizen sau Resolved             |   ✅   | `RateReport/` — check Resolved/Closed, 1 lần/report. `POST /reports/{id}/rate`                  |
+| BR-REP-019     | Draft max 3, xóa 7d                           |   ✅   | `SaveDraft/`, `GetMyDrafts/`, `DeleteDraft/` + `DraftCleanupJob` (daily 03:00)                  |
+| BR-REP-020/021 | State machine + role transitions              |   ✅   | `Report.cs` state machine methods                                                               |
+| BR-REP-022     | Reject reason ≥ 20 chars                      |   ✅   | `RejectReport/` validator                                                                       |
+| BR-REP-030     | Duplicate Tier 1 (geo ≤50m + category + 24h)  |   ✅   | Inline trong `SubmitPollutionReportCommandHandler` — `GeoMath.HaversineMeters` + bbox           |
+| BR-REP-031     | LEO xác nhận / bác bỏ nghi ngờ trùng          |   ✅   | `ConfirmDuplicate/`, `DismissDuplicate/`, `GetDuplicateCandidates/`                             |
+| BR-REP-032     | Merge duplicate (+50% điểm, media + comments) |   ✅   | `ConfirmDuplicate` merge media + comments; `DuplicateMergedPointsHandler` (+50% ReportVerified) |
+| BR-REP-033     | Citizen flag ≥3 → LEO review                  |   ✅   | `FlagReport/` + `DuplicateReviewNeeded` template + `SendFromTemplateAsync`                      |
 
 **Duplicate detection — chi tiết triển khai (branch `feature/duplicate-ai-compare-image`):**
 
-| Tầng | Cơ chế | Files chính |
-|------|--------|---------------|
-| Tier 1 | Inline submit: ≤50m + cùng category + ≤24h → `MarkPossibleDuplicate("geo_time")` | `GeoMath.cs`, `SubmitPollutionReportCommandHandler` |
-| Tier 2 | Hangfire `CompareDuplicateImagesJob` → Python `POST /api/v1/compare-images` (DINOv2) | `AiImageCompareService`, `EnqueueDuplicateCompareHandler` |
+| Tầng       | Cơ chế                                                                                      | Files chính                                                     |
+| ---------- | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| Tier 1     | Inline submit: ≤50m + cùng category + ≤24h → `MarkPossibleDuplicate("geo_time")`            | `GeoMath.cs`, `SubmitPollutionReportCommandHandler`             |
+| Tier 2     | Hangfire `CompareDuplicateImagesJob` → Python `POST /api/v1/compare-images` (DINOv2)        | `AiImageCompareService`, `EnqueueDuplicateCompareHandler`       |
 | LEO review | `GET duplicate-candidates`, `POST confirm-duplicate`, `POST dismiss-duplicate`, `POST flag` | `ReportsController`, docs `fe-leo-duplicate-detection-guide.md` |
-| Migrations | `AddDuplicateDetectionFields`, `AddPenaltyPaymentSoftDelete` | Chưa apply DB dev (cần `dotnet ef database update`) |
+| Migrations | `AddDuplicateDetectionFields`, `AddPenaltyPaymentSoftDelete`                                | Chưa apply DB dev (cần `dotnet ef database update`)             |
 
 ---
 
@@ -209,22 +209,22 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 
 ## B.7 Inspection (`BR-INS-001..032`) — ✅ 14/14 rules
 
-| BR         | Status | Ghi chú                                                                                              |
-| ---------- | :----: | ---------------------------------------------------------------------------------------------------- |
-| BR-INS-001 |   ✅   | `CreateInspectionReport/` — mọi loại ô nhiễm                                                         |
-| BR-INS-002 |   ✅   | Scope check — `GetInspectionQueue` + `InspectionTeamAuthorization` filter by team                    |
-| BR-INS-003 |   ✅   | Từ chối task 24h — `DeclineInspection/` handler (24h window, user đã đổi từ 2h)                      |
-| BR-INS-004 |   ✅   | Check-in ≤ 200m — `CheckInInspection/` handler (PostGIS `ST_Distance`)                               |
+| BR         | Status | Ghi chú                                                                                                                                                             |
+| ---------- | :----: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| BR-INS-001 |   ✅   | `CreateInspectionReport/` — mọi loại ô nhiễm                                                                                                                        |
+| BR-INS-002 |   ✅   | Scope check — `GetInspectionQueue` + `InspectionTeamAuthorization` filter by team                                                                                   |
+| BR-INS-003 |   ✅   | Từ chối task 24h — `DeclineInspection/` handler (24h window, user đã đổi từ 2h)                                                                                     |
+| BR-INS-004 |   ✅   | Check-in ≤ 200m — `CheckInInspection/` handler (PostGIS `ST_Distance`)                                                                                              |
 | BR-INS-010 |   ✅   | `UpdateInspectionDetails/` + `ViolatingEntity` (Individual/Business, TaxCode/CCCD). `CreateViolatingEntity/`, `SearchViolatingEntities/`, `GetViolatingEntityById/` |
-| BR-INS-011 |   ✅   | ViolationLevel enum + `PenaltyFramework` entity (Admin configurable, BR-ADM-008)                     |
-| BR-INS-012 |   ✅   | `IssuePenalty/` — repeat offender auto-detect bằng ViolatingEntityId FK (fallback string-match)      |
-| BR-INS-013 |   ✅   | `CloseNoViolation/`                                                                                  |
-| BR-INS-020 |   ✅   | `RecordPayment/` + `PenaltyPayment` entity — partial payment, evidence (ảnh biên lai), audit trail. Chỉ hỗ trợ nộp trực tiếp tại phường/xã |
-| BR-INS-021 |   ✅   | `MarkOverdue/`                                                                                       |
-| BR-INS-022 |   ✅   | Repeat offender — `ViolatingEntityId` FK query (≥ 2 / 12 tháng), fallback `ViolatorIdentity` string  |
-| BR-INS-030 |   ✅   | SLA Inspection — `SlaBreachInspectionJob` (every 30', flag breach)                                   |
-| BR-INS-031 |   ✅   | Update tiến độ ≥ 1/ngày — `UpdateInspectionProgress/` handler                                        |
-| BR-INS-032 |   ✅   | KPI Inspection Team — `GetInspectionTeamKpi/` query (penalty on-time %, paid on-time %, repeat, SLA) |
+| BR-INS-011 |   ✅   | ViolationLevel enum + `PenaltyFramework` entity (Admin configurable, BR-ADM-008)                                                                                    |
+| BR-INS-012 |   ✅   | `IssuePenalty/` — repeat offender auto-detect bằng ViolatingEntityId FK (fallback string-match)                                                                     |
+| BR-INS-013 |   ✅   | `CloseNoViolation/`                                                                                                                                                 |
+| BR-INS-020 |   ✅   | `RecordPayment/` + `PenaltyPayment` entity — partial payment, evidence (ảnh biên lai), audit trail. Chỉ hỗ trợ nộp trực tiếp tại phường/xã                          |
+| BR-INS-021 |   ✅   | `MarkOverdue/`                                                                                                                                                      |
+| BR-INS-022 |   ✅   | Repeat offender — `ViolatingEntityId` FK query (≥ 2 / 12 tháng), fallback `ViolatorIdentity` string                                                                 |
+| BR-INS-030 |   ✅   | SLA Inspection — `SlaBreachInspectionJob` (every 30', flag breach)                                                                                                  |
+| BR-INS-031 |   ✅   | Update tiến độ ≥ 1/ngày — `UpdateInspectionProgress/` handler                                                                                                       |
+| BR-INS-032 |   ✅   | KPI Inspection Team — `GetInspectionTeamKpi/` query (penalty on-time %, paid on-time %, repeat, SLA)                                                                |
 
 > **TODO (P3):** BR-INS-020 — Bổ sung `PaymentMethod` enum (Cash / BankTransfer) khi cần hỗ trợ thanh toán online. Hiện chỉ hỗ trợ nộp trực tiếp tại phường/xã (InPerson).
 
@@ -274,12 +274,12 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 
 ### ✅ Comments (`BR-CMT-001..004`) — ĐÃ IMPLEMENT
 
-| BR | Mô tả | Evidence |
-|----|-------|----------|
-| BR-CMT-001 | Auth + guard báo cáo `hideReporterName` | `CommentAccess.cs`, `AddCommentCommandHandler` |
-| BR-CMT-002 | 1–500 ký tự, max 2 ảnh ≤5MB | Validators + `UploadCommentImage/` |
+| BR         | Mô tả                                        | Evidence                                                              |
+| ---------- | -------------------------------------------- | --------------------------------------------------------------------- |
+| BR-CMT-001 | Auth + guard báo cáo `hideReporterName`      | `CommentAccess.cs`, `AddCommentCommandHandler`                        |
+| BR-CMT-002 | 1–500 ký tự, max 2 ảnh ≤5MB                  | Validators + `UploadCommentImage/`                                    |
 | BR-CMT-003 | Word filter (phase 1); 3 strike → ban 7 ngày | `ProfanityFilter`, `User.RecordCommentViolation()` — AI text deferred |
-| BR-CMT-004 | Sửa/xóa 15 phút; LEO hide | `EditComment/`, `DeleteComment/`, `HideComment/` |
+| BR-CMT-004 | Sửa/xóa 15 phút; LEO hide                    | `EditComment/`, `DeleteComment/`, `HideComment/`                      |
 
 **API & docs:**
 
@@ -288,7 +288,7 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 - `fe-comments-api-guide.md`, link từ `fe-citizen-map-report-detail.md`
 - BR-REP-032: merge comments trong `ConfirmDuplicateCommandHandler`
 - Migration: `20260714184414_AddCommentModule`
-- Tests: `CommentTests`, `CommentAccessTests`, `ProfanityFilterTests` (BR-CMT-*)
+- Tests: `CommentTests`, `CommentAccessTests`, `ProfanityFilterTests` (BR-CMT-\*)
 
 ### ✅ Gamification (`BR-GAM-001..006`) — ĐÃ IMPLEMENT (branch `feature/gamification-module`)
 
@@ -316,15 +316,15 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 
 ### ⚠️ AI Service (`BR-AI-001..007`) — 5/7 rules
 
-| BR         | Mô tả                                      | Status | Evidence                                                                 |
-| ---------- | ------------------------------------------ | :----: | ------------------------------------------------------------------------ |
-| BR-AI-001  | Phân loại ảnh (3 loại v1.2)                |   ✅   | `AnalyzeReportImage/`, `AiClassificationService`                         |
-| BR-AI-002  | Image similarity (duplicate Tier 2)        |   ✅   | `AiImageCompareService` → Python DINOv2 `/api/v1/compare-images`         |
-| BR-AI-003  | Severity estimation                        |   ⚠️   | AI trả severity; mapper `AiSeverityMapper` — cần verify model output     |
-| BR-AI-004  | Anti-fraud / irrelevant image              |   ✅   | `AnalyzeReportImage` decision `IRRELEVANT_OR_SUSPECTED_ABUSIVE`          |
-| BR-AI-005  | Confidence threshold                       |   ⚠️   | Có `confidence` field; ngưỡng reject chưa document rõ trong handler      |
-| BR-AI-006  | Fallback `ai_pending` retry trong 1h       |   ✅   | `AiRetryJob` (every 5', batch 50) + `AiPending` trên manual submit flow    |
-| BR-AI-007  | Strip EXIF GPS trước khi gửi AI              |   ❌   | Chưa implement — ảnh gửi AI chưa strip EXIF nhạy cảm                      |
+| BR        | Mô tả                                | Status | Evidence                                                                |
+| --------- | ------------------------------------ | :----: | ----------------------------------------------------------------------- |
+| BR-AI-001 | Phân loại ảnh (3 loại v1.2)          |   ✅   | `AnalyzeReportImage/`, `AiClassificationService`                        |
+| BR-AI-002 | Image similarity (duplicate Tier 2)  |   ✅   | `AiImageCompareService` → Python DINOv2 `/api/v1/compare-images`        |
+| BR-AI-003 | Severity estimation                  |   ⚠️   | AI trả severity; mapper `AiSeverityMapper` — cần verify model output    |
+| BR-AI-004 | Anti-fraud / irrelevant image        |   ✅   | `AnalyzeReportImage` decision `IRRELEVANT_OR_SUSPECTED_ABUSIVE`         |
+| BR-AI-005 | Confidence threshold                 |   ⚠️   | Có `confidence` field; ngưỡng reject chưa document rõ trong handler     |
+| BR-AI-006 | Fallback `ai_pending` retry trong 1h |   ✅   | `AiRetryJob` (every 5', batch 50) + `AiPending` trên manual submit flow |
+| BR-AI-007 | Strip EXIF GPS trước khi gửi AI      |   ❌   | Chưa implement — ảnh gửi AI chưa strip EXIF nhạy cảm                    |
 
 ### ✅ Administration (`BR-ADM-001..012`) — 12/12 rules
 
@@ -362,22 +362,22 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 
 ## B.15 Background Jobs — ✅ 13/13 recurring + 1 on-demand
 
-| Job                            | BR             | Lịch / Trigger | Mô tả                                                                                      |
-| ------------------------------ | -------------- | -------------- | ------------------------------------------------------------------------------------------ |
-| `AutoCloseResolvedReportJob`   | BR-REP-016     | hourly         | ✅ Resolved → Closed sau 7 ngày (batch 100)                                                |
-| `SlaBreachVerificationJob`     | BR-OFF-002     | every 15'      | ✅ Submitted > 24h → flag breached + notification                                          |
-| `SlaBreachResolutionJob`       | BR-OFF-020     | every 30'      | ✅ InProgress > SLA → flag breached + notification                                           |
-| `OverdueReportNotificationJob` | BR-REP-008/009 | hourly         | ✅ Pending > 72h, Verified > 24h                                                            |
-| `PriorityScoreRefreshJob`      | BR-OFF-010     | every 30'      | ✅ Recalculate priority scores                                                             |
-| `DraftCleanupJob`              | BR-REP-019     | daily 03:00    | ✅ Draft > 7 ngày → xóa                                                                      |
-| `DataRetentionJob`             | BR-DAT-002     | weekly Sun 04:00 | ✅ Xóa ảnh S3 >2 năm, audit log >12 tháng                                                  |
-| `AccountHardDeleteJob`         | BR-AUTH-021    | daily          | ✅ Soft delete > 90d → hard delete                                                           |
-| `LeaderboardSnapshotJob`       | BR-GAM-005     | daily 00:05    | ✅ Leaderboard snapshot                                                                    |
-| `CompanyContractExpiryJob`     | BR-CMP-007     | daily 02:00    | ✅ Bidding hết hạn → Expired + cảnh báo CM 30/7/1 ngày                                     |
-| `SlaBreachInspectionJob`       | BR-INS-030     | every 30'      | ✅ InspectionReport > SLA → flag breach                                                      |
-| `CleanupProgressSlaJob`        | BR-CLN-004     | hourly         | ✅ Assignment InProgress > 24h/48h → warn/flag stale                                         |
-| `AiRetryJob`                   | BR-AI-006      | every 5'       | ✅ `ai_pending` retry trong 1h (batch 50)                                                   |
-| `CompareDuplicateImagesJob`    | BR-REP-030/AI-002 | **on-demand** | ✅ Enqueue sau Tier 1 flag — không phải recurring cron                                      |
+| Job                            | BR                | Lịch / Trigger   | Mô tả                                                  |
+| ------------------------------ | ----------------- | ---------------- | ------------------------------------------------------ |
+| `AutoCloseResolvedReportJob`   | BR-REP-016        | hourly           | ✅ Resolved → Closed sau 7 ngày (batch 100)            |
+| `SlaBreachVerificationJob`     | BR-OFF-002        | every 15'        | ✅ Submitted > 24h → flag breached + notification      |
+| `SlaBreachResolutionJob`       | BR-OFF-020        | every 30'        | ✅ InProgress > SLA → flag breached + notification     |
+| `OverdueReportNotificationJob` | BR-REP-008/009    | hourly           | ✅ Pending > 72h, Verified > 24h                       |
+| `PriorityScoreRefreshJob`      | BR-OFF-010        | every 30'        | ✅ Recalculate priority scores                         |
+| `DraftCleanupJob`              | BR-REP-019        | daily 03:00      | ✅ Draft > 7 ngày → xóa                                |
+| `DataRetentionJob`             | BR-DAT-002        | weekly Sun 04:00 | ✅ Xóa ảnh S3 >2 năm, audit log >12 tháng              |
+| `AccountHardDeleteJob`         | BR-AUTH-021       | daily            | ✅ Soft delete > 90d → hard delete                     |
+| `LeaderboardSnapshotJob`       | BR-GAM-005        | daily 00:05      | ✅ Leaderboard snapshot                                |
+| `CompanyContractExpiryJob`     | BR-CMP-007        | daily 02:00      | ✅ Bidding hết hạn → Expired + cảnh báo CM 30/7/1 ngày |
+| `SlaBreachInspectionJob`       | BR-INS-030        | every 30'        | ✅ InspectionReport > SLA → flag breach                |
+| `CleanupProgressSlaJob`        | BR-CLN-004        | hourly           | ✅ Assignment InProgress > 24h/48h → warn/flag stale   |
+| `AiRetryJob`                   | BR-AI-006         | every 5'         | ✅ `ai_pending` retry trong 1h (batch 50)              |
+| `CompareDuplicateImagesJob`    | BR-REP-030/AI-002 | **on-demand**    | ✅ Enqueue sau Tier 1 flag — không phải recurring cron |
 
 > [!NOTE]
 > Hangfire: DI + PostgreSql storage + Dashboard `/hangfire`.
@@ -396,7 +396,7 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 | `Comment` entity                         | ✅                             | BR-CMT-001..004, BR-REP-032 merge                               |
 | `Badge`, `UserPoints`                    | ✅ ĐÃ IMPLEMENT                | BR-GAM-001..006                                                 |
 | `Notification`, `NotificationPreference` | ✅ ĐÃ IMPLEMENT                | BR-NTF-001..004                                                 |
-| `ReportDraft`                            | ✅                             | Max 3 + `DraftCleanupJob` đã có                                     |
+| `ReportDraft`                            | ✅                             | Max 3 + `DraftCleanupJob` đã có                                 |
 
 ---
 
@@ -413,41 +413,41 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 
 ## P1 — Core Business Value
 
-| #   | Task                                                     | BRs                        | Status |
-| --- | -------------------------------------------------------- | -------------------------- | :----: |
-| 5   | **Notifications** (FCM + Email templates + preferences)  | BR-NTF-001..004            |   ✅   |
-| 6   | **Company lifecycle** (Suspend/Terminate/Reactivate)     | BR-CMP-004, BR-CMP-013     |   ✅   |
-| 7   | **Company contract expiry job** (auto-expire + warnings) | BR-CMP-007                 |   ✅   |
-| 8   | **Workload limit** (6 task/team, warn at 5)              | BR-OFF-013                 |   ✅   |
-| 9   | **Comments** (entity + CRUD + moderation)                | BR-CMT-001..004            |   ✅   |
-| 10  | **Brute-force protection** (sliding window + Turnstile)  | BR-AUTH-014                |        |
+| #   | Task                                                     | BRs                        |                             Status                             |
+| --- | -------------------------------------------------------- | -------------------------- | :------------------------------------------------------------: |
+| 5   | **Notifications** (FCM + Email templates + preferences)  | BR-NTF-001..004            |                               ✅                               |
+| 6   | **Company lifecycle** (Suspend/Terminate/Reactivate)     | BR-CMP-004, BR-CMP-013     |                               ✅                               |
+| 7   | **Company contract expiry job** (auto-expire + warnings) | BR-CMP-007                 |                               ✅                               |
+| 8   | **Workload limit** (6 task/team, warn at 5)              | BR-OFF-013                 |                               ✅                               |
+| 9   | **Comments** (entity + CRUD + moderation)                | BR-CMT-001..004            |                               ✅                               |
+| 10  | **Brute-force protection** (sliding window + Turnstile)  | BR-AUTH-014                |                                                                |
 | 11  | **Rate limiting** (Redis + ASP.NET middleware)           | BR-SYS-004, BR-REP-010     | ⚠️ BR-REP-010 submit quota ✅; BR-SYS-004 global middleware ❌ |
-| 12  | ~~**Check-in ≤ 200m** (PostGIS ST_DWithin)~~             | BR-CLN-002/003, BR-INS-004 |   ✅   |
-| 13  | ~~**Company contract renewal** (gia hạn/tái ký)~~        | BR-CMP-006                 |   ✅   |
-| 14  | ~~**Duplicate detection** (geo Tier 1 + AI Tier 2)~~     | BR-REP-030..033            |   ✅   |
+| 12  | ~~**Check-in ≤ 200m** (PostGIS ST_DWithin)~~             | BR-CLN-002/003, BR-INS-004 |                               ✅                               |
+| 13  | ~~**Company contract renewal** (gia hạn/tái ký)~~        | BR-CMP-006                 |                               ✅                               |
+| 14  | ~~**Duplicate detection** (geo Tier 1 + AI Tier 2)~~     | BR-REP-030..033            |                               ✅                               |
 
 ## P2 — Enhancement
 
-| #   | Task                                           | BRs                                    | Status |
-| --- | ---------------------------------------------- | -------------------------------------- | :----: |
-| 12  | ~~**Gamification** (points, badges, leaderboard)~~ | BR-GAM-001..006                    |   ✅   |
-| 13  | ~~**Duplicate detection** (geo + AI DINOv2)~~  | BR-REP-030..033                        |   ✅   |
-| 14  | ~~**Priority score formula**~~                 | BR-OFF-010                             |   ✅   |
-| 15  | ~~**KPI / Analytics / Export**~~               | BR-OFF-021/022, BR-CMP-020, BR-INS-032 |   ✅   |
-| 16  | **Content moderation** (word filter report desc + AI text) | BR-REP-004, BR-CMT-003 (AI) | ✅ word filter comment + report desc |
-| 17  | ~~**Invitation entity** (7d expiry, single-use)~~ | BR-ORG-021                          |   ✅   |
-| 18  | **Map enhancements** (hotspot, cache, heatmap) | BR-MAP-004..012                        |        |
-| 19  | **EXIF strip** trước AI                        | BR-AI-007, BR-REP-011                  |        |
+| #   | Task                                                       | BRs                                    |                Status                |
+| --- | ---------------------------------------------------------- | -------------------------------------- | :----------------------------------: |
+| 12  | ~~**Gamification** (points, badges, leaderboard)~~         | BR-GAM-001..006                        |                  ✅                  |
+| 13  | ~~**Duplicate detection** (geo + AI DINOv2)~~              | BR-REP-030..033                        |                  ✅                  |
+| 14  | ~~**Priority score formula**~~                             | BR-OFF-010                             |                  ✅                  |
+| 15  | ~~**KPI / Analytics / Export**~~                           | BR-OFF-021/022, BR-CMP-020, BR-INS-032 |                  ✅                  |
+| 16  | **Content moderation** (word filter report desc + AI text) | BR-REP-004, BR-CMT-003 (AI)            | ✅ word filter comment + report desc |
+| 17  | ~~**Invitation entity** (7d expiry, single-use)~~          | BR-ORG-021                             |                  ✅                  |
+| 18  | **Map enhancements** (hotspot, cache, heatmap)             | BR-MAP-004..012                        |                                      |
+| 19  | **EXIF strip** trước AI                                    | BR-AI-007, BR-REP-011                  |                                      |
 
 ## P3 — Hardening & Compliance
 
-| #   | Task                                            | BRs             | Status |
-| --- | ----------------------------------------------- | --------------- | :----: |
-| 20  | **Integration tests** (Testcontainers Postgres) | Testing pyramid |        |
-| 21  | **Security headers** (OwaspHeaders.Core)        | BR-DAT-001      |        |
-| 22  | ~~**Audit log** (comprehensive)~~               | BR-ADM-010      |   ✅   |
+| #   | Task                                              | BRs             | Status |
+| --- | ------------------------------------------------- | --------------- | :----: |
+| 20  | **Integration tests** (Testcontainers Postgres)   | Testing pyramid |        |
+| 21  | **Security headers** (OwaspHeaders.Core)          | BR-DAT-001      |        |
+| 22  | ~~**Audit log** (comprehensive)~~                 | BR-ADM-010      |   ✅   |
 | 23  | ~~**Data privacy** (consent, export, retention)~~ | BR-DAT-002..005 |   ✅   |
-| 24  | **EXIF validation**                             | BR-REP-011      | ✅     |
+| 24  | **EXIF validation**                               | BR-REP-011      |   ✅   |
 
 ---
 

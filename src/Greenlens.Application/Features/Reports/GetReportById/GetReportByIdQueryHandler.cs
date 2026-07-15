@@ -1,4 +1,5 @@
 using Greenlens.Application.Common;
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using MediatR;
@@ -7,8 +8,16 @@ using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.GetReportById;
 
+/// <summary>
+/// Return full report detail including satisfaction feedback.
+/// </summary>
+/// <remarks>
+/// Implements: BR-REP-018 (satisfaction in response).
+/// </remarks>
 public sealed class GetReportByIdQueryHandler(
     IReportRepository reports,
+    IReportSatisfactionRepository satisfactions,
+    ICurrentUser currentUser,
     ILogger<GetReportByIdQueryHandler> logger)
     : IRequestHandler<GetReportByIdQuery, Result<ReportDetailResponse>>
 {
@@ -47,6 +56,20 @@ public sealed class GetReportByIdQueryHandler(
                 wt.WasteTag.IconUrl))
             .ToList();
 
+        // ── Satisfaction (BR-REP-018) ──
+        // Fetch reporter's satisfaction (there is at most one per report per user).
+        var reporterSatisfaction = await satisfactions.QueryAsNoTracking()
+            .Where(s => s.ReportId == request.Id && s.UserId == r.ReporterId)
+            .Select(s => new ReportSatisfactionInfo(
+                s.IsSatisfied, s.Rating, s.Comment, s.CreatedAt))
+            .FirstOrDefaultAsync(ct)
+            .ConfigureAwait(false);
+
+        var hasCurrentUserRated = currentUser.IsAuthenticated
+            && await satisfactions.ExistsAsync(
+                s => s.ReportId == request.Id && s.UserId == currentUser.UserId, ct)
+                .ConfigureAwait(false);
+
         logger.LogInformation("Lấy chi tiết báo cáo thành công. Mã báo cáo: {ReportCode}", r.Code);
         return new ReportDetailResponse(
             r.Id, r.Code, r.ReporterId,
@@ -61,6 +84,8 @@ public sealed class GetReportByIdQueryHandler(
             r.AiSuggestedWasteTagCodes,
             r.CreatedAt, r.VerifiedAt, r.StartedAt,
             r.ResolvedAt, r.ClosedAt,
-            r.SlaVerifyDueAt, r.SlaResolveDueAt);
+            r.SlaVerifyDueAt, r.SlaResolveDueAt,
+            reporterSatisfaction,
+            hasCurrentUserRated);
     }
 }
