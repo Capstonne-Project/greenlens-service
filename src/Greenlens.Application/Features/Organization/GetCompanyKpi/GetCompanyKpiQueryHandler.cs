@@ -155,28 +155,33 @@ public sealed class GetCompanyKpiQueryHandler(
     private static (DateTime from, DateTime to) ResolvePeriod(GetCompanyKpiQuery request)
     {
         if (request.From.HasValue && request.To.HasValue)
-            return (request.From.Value, request.To.Value);
+            return (DateTime.SpecifyKind(request.From.Value, DateTimeKind.Utc),
+                    DateTime.SpecifyKind(request.To.Value, DateTimeKind.Utc));
 
         var now = DateTime.UtcNow;
 
         return request.Period switch
         {
-            KpiPeriod.ThisMonth => (new DateTime(now.Year, now.Month, 1), now),
-            KpiPeriod.LastMonth => (new DateTime(now.Year, now.Month, 1).AddMonths(-1),
-                                   new DateTime(now.Year, now.Month, 1).AddSeconds(-1)),
+            KpiPeriod.ThisMonth => (Utc(now.Year, now.Month, 1), now),
+            KpiPeriod.LastMonth => (Utc(now.Year, now.Month, 1).AddMonths(-1),
+                                   Utc(now.Year, now.Month, 1).AddSeconds(-1)),
             KpiPeriod.ThisQuarter => (GetQuarterStart(now), now),
             KpiPeriod.LastQuarter => (GetQuarterStart(now).AddMonths(-3),
                                      GetQuarterStart(now).AddSeconds(-1)),
-            KpiPeriod.ThisYear => (new DateTime(now.Year, 1, 1), now),
-            KpiPeriod.LastYear => (new DateTime(now.Year - 1, 1, 1),
-                                  new DateTime(now.Year, 1, 1).AddSeconds(-1)),
-            _ => (new DateTime(now.Year, now.Month, 1), now)
+            KpiPeriod.ThisYear => (Utc(now.Year, 1, 1), now),
+            KpiPeriod.LastYear => (Utc(now.Year - 1, 1, 1),
+                                  Utc(now.Year, 1, 1).AddSeconds(-1)),
+            _ => (Utc(now.Year, now.Month, 1), now)
         };
     }
+
+    /// <summary>Shorthand for creating a UTC DateTime.</summary>
+    private static DateTime Utc(int year, int month, int day)
+        => new(year, month, day, 0, 0, 0, DateTimeKind.Utc);
 
     private static DateTime GetQuarterStart(DateTime date)
     {
         var quarterMonth = ((date.Month - 1) / 3) * 3 + 1;
-        return new DateTime(date.Year, quarterMonth, 1);
+        return new DateTime(date.Year, quarterMonth, 1, 0, 0, 0, DateTimeKind.Utc);
     }
 }

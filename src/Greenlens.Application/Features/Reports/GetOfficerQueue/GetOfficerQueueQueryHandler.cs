@@ -64,10 +64,10 @@ public sealed class GetOfficerQueueQueryHandler(
             query = query.Where(r => r.WardCode == request.WardCode);
 
         if (request.FromDate.HasValue)
-            query = query.Where(r => r.CreatedAt >= request.FromDate.Value);
+            query = query.Where(r => r.CreatedAt >= DateTime.SpecifyKind(request.FromDate.Value, DateTimeKind.Utc));
 
         if (request.ToDate.HasValue)
-            query = query.Where(r => r.CreatedAt <= request.ToDate.Value);
+            query = query.Where(r => r.CreatedAt <= DateTime.SpecifyKind(request.ToDate.Value, DateTimeKind.Utc));
 
         if (request.SlaBreached == true)
         {

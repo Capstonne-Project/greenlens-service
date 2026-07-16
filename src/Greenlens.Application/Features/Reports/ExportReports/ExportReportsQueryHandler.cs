@@ -48,9 +48,9 @@ public sealed class ExportReportsQueryHandler(
         if (request.Severity.HasValue)
             query = query.Where(r => r.Severity == request.Severity.Value);
         if (request.From.HasValue)
-            query = query.Where(r => r.CreatedAt >= request.From.Value);
+            query = query.Where(r => r.CreatedAt >= DateTime.SpecifyKind(request.From.Value, DateTimeKind.Utc));
         if (request.To.HasValue)
-            query = query.Where(r => r.CreatedAt <= request.To.Value);
+            query = query.Where(r => r.CreatedAt <= DateTime.SpecifyKind(request.To.Value, DateTimeKind.Utc));
 
         // Project to export DTO
         var isAdmin = role == "Admin";

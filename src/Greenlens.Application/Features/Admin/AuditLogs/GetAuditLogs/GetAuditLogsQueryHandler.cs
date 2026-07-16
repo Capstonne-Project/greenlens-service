@@ -32,10 +32,10 @@ public sealed class GetAuditLogsQueryHandler(IApplicationDbContext db)
             query = query.Where(a => a.Action.Contains(request.Action));
 
         if (request.FromDate.HasValue)
-            query = query.Where(a => a.CreatedAt >= request.FromDate.Value);
+            query = query.Where(a => a.CreatedAt >= DateTime.SpecifyKind(request.FromDate.Value, DateTimeKind.Utc));
 
         if (request.ToDate.HasValue)
-            query = query.Where(a => a.CreatedAt <= request.ToDate.Value);
+            query = query.Where(a => a.CreatedAt <= DateTime.SpecifyKind(request.ToDate.Value, DateTimeKind.Utc));
 
         query = query.OrderByDescending(a => a.CreatedAt);
 
