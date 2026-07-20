@@ -37,7 +37,7 @@ public sealed record MyTaskDetailResponse(
     // SLA
     DateTime? SlaResolveDueAt,
 
-    // Original report images (before)
+    // Original report images (citizen)
     IReadOnlyList<TaskImageItem> ReportImages,
 
     // Current progress of this team
@@ -50,7 +50,19 @@ public sealed record MyTaskDetailResponse(
     string? AssignmentNote,
 
     // Waste tags on the report (so team knows what to prepare)
-    IReadOnlyList<TaskWasteTagItem> WasteTags
+    IReadOnlyList<TaskWasteTagItem> WasteTags,
+
+    // Timing helpers for mobile countdown UI
+    /// <summary>AssignedAt + 24h — deadline to decline while still Assigned.</summary>
+    DateTime DeclineDeadlineAt,
+    /// <summary>True when at least 1 MediaType.Before exists for this report.</summary>
+    bool HasBeforeImages,
+    int BeforeImageCount,
+    /// <summary>
+    /// Soft SLA: team should update progress at least once / 24h while InProgress.
+    /// = (ProgressUpdatedAt ?? StartedAt) + 24h. Null when not InProgress.
+    /// </summary>
+    DateTime? ProgressRequiredByAt
 );
 
 public sealed record TaskImageItem(string Url, string MimeType);

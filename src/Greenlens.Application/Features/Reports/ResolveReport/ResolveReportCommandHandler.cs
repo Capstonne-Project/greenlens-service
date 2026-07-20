@@ -20,6 +20,7 @@ public sealed class ResolveReportCommandHandler(
     ITeamMemberRepository teamMembers,
     IReportStatusHistoryRepository statusHistory,
     IReportMediaRepository reportMedia,
+    IFileStorageService fileStorage,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     ILogger<ResolveReportCommandHandler> logger) : IRequestHandler<ResolveReportCommand, Result>
@@ -29,6 +30,12 @@ public sealed class ResolveReportCommandHandler(
         // BR-CLN-005: at least 2 after images
         if (request.AfterImageUrls.Count < 2)
             return Errors.Reports.InsufficientAfterImages;
+
+        foreach (var url in request.AfterImageUrls)
+        {
+            if (!fileStorage.IsOwnedPublicUrl(url))
+                return Errors.Media.InvalidStorageUrl;
+        }
 
         var leader = await teamMembers.GetLeaderByUserIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
         if (leader is null)

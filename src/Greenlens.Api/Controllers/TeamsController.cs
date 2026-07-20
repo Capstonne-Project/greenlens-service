@@ -108,10 +108,10 @@ public sealed class TeamsController(ISender sender) : ControllerBase
     [Tags("🧹 Cleaner Dashboard")]
     [SwaggerOperation(
         Summary = "[Cleaner/CompanyStaff/Inspector] Từ chối task",
-        Description = "Team từ chối task trong vòng 2 giờ sau khi được phân công. Yêu cầu lý do ≥ 20 ký tự. " +
+        Description = "Team từ chối task trong vòng 24 giờ sau khi được phân công. Yêu cầu lý do ≥ 20 ký tự. " +
             "Nếu tất cả team đều từ chối → report quay về `Verified` để LEO/CM phân công lại.")]
     [SwaggerResponse(200, "Đã từ chối", typeof(ApiResponse))]
-    [SwaggerResponse(422, "Quá 2h, lý do quá ngắn, hoặc assignment không ở trạng thái Assigned", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Quá 24h, lý do quá ngắn, hoặc assignment không ở trạng thái Assigned", typeof(ApiResponse))]
     public async Task<IActionResult> DeclineTaskAsync(
         [FromRoute] Guid reportId, [FromBody] DeclineTaskRequest request, CancellationToken ct)
         => (await sender.Send(new DeclineAssignmentCommand(reportId, request.TeamId, request.Reason), ct))
