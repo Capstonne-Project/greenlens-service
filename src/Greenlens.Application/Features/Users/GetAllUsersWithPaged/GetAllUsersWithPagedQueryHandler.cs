@@ -3,6 +3,7 @@ using Greenlens.Application.Common.Models;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
 
 namespace Greenlens.Application.Features.Users.GetAllUsersWithPaged;
@@ -10,7 +11,8 @@ namespace Greenlens.Application.Features.Users.GetAllUsersWithPaged;
 /// <summary>
 /// Fetch users with pagination, search, and filtering. Admin only.
 /// </summary>
-public sealed class GetAllUsersWithPagedQueryHandler(IUserRepository users)
+public sealed class GetAllUsersWithPagedQueryHandler(IUserRepository users,
+    ILogger<GetAllUsersWithPagedQueryHandler> logger)
     : IRequestHandler<GetAllUsersWithPagedQuery, Result<PagedList<UserListItemDto>>>
 {
     public async Task<Result<PagedList<UserListItemDto>>> Handle(
@@ -56,6 +58,7 @@ public sealed class GetAllUsersWithPagedQueryHandler(IUserRepository users)
 
         var pagination = PaginationMeta.Create(request.Page, request.PageSize, totalItems);
 
+        logger.LogInformation("Lấy danh sách người dùng thành công. Số lượng: {Count}", items.Count);
         return new PagedList<UserListItemDto>(items, pagination);
     }
 }

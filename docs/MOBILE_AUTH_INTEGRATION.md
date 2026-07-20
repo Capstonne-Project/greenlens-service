@@ -10,12 +10,12 @@
 
 ## 1. Base URL theo môi trường
 
-| Môi trường | Base URL |
-|------------|----------|
-| Local | `http://localhost:5000/v1` |
-| Dev | `https://api-dev.greenlens.com.vn/v1` |
-| Staging | `https://api-stg.greenlens.com.vn/v1` |
-| Production | `https://api.greenlens.com.vn/v1` |
+| Môi trường | Base URL                              |
+| ---------- | ------------------------------------- |
+| Local      | `http://localhost:5000/v1`            |
+| Dev        | `https://api-dev.greenlens.com.vn/v1` |
+| Staging    | `https://api-stg.greenlens.com.vn/v1` |
+| Production | `https://api.greenlens.com.vn/v1`     |
 
 **Auth paths:** cộng thêm `/auth/...` sau base URL.  
 Ví dụ đăng nhập: `POST {baseUrl}/auth/login`.
@@ -31,16 +31,16 @@ Mọi response thành công và lỗi đều có dạng:
   "code": "SUCCESS",
   "message": "Human readable",
   "status": 200,
-  "data": { }
+  "data": {}
 }
 ```
 
-| Field | Ý nghĩa |
-|-------|---------|
-| `code` | Mã nghiệp vụ `UPPER_SNAKE_CASE` (vd: `SUCCESS`, `INVALID_CREDENTIALS`) |
-| `message` | Thông báo (i18n theo `Accept-Language`) |
-| `status` | HTTP status trùng với status line |
-| `data` | Payload; có thể `null` khi lỗi |
+| Field     | Ý nghĩa                                                                |
+| --------- | ---------------------------------------------------------------------- |
+| `code`    | Mã nghiệp vụ `UPPER_SNAKE_CASE` (vd: `SUCCESS`, `INVALID_CREDENTIALS`) |
+| `message` | Thông báo (i18n theo `Accept-Language`)                                |
+| `status`  | HTTP status trùng với status line                                      |
+| `data`    | Payload; có thể `null` khi lỗi                                         |
 
 **Mobile nên:** luôn đọc `code` + `status`; không chỉ dựa vào HTTP status.
 
@@ -52,9 +52,7 @@ Mọi response thành công và lỗi đều có dạng:
   "message": "Dữ liệu không hợp lệ",
   "status": 422,
   "data": {
-    "errors": [
-      { "field": "email", "code": "INVALID_FORMAT", "message": "..." }
-    ]
+    "errors": [{ "field": "email", "code": "INVALID_FORMAT", "message": "..." }]
   }
 }
 ```
@@ -88,11 +86,11 @@ Server có thể tự sinh nếu client không gửi.
 
 ## 4. Vòng đời token (BR-AUTH-013)
 
-| | Access Token | Refresh Token |
-|---|--------------|---------------|
-| **Thời gian sống** | 24 giờ | 30 ngày |
-| **Lưu trữ gợi ý (mobile)** | Bộ nhớ trong phiên (RAM) hoặc secure storage ngắn hạn | **Secure storage** (Keychain / EncryptedSharedPreferences / Keystore) |
-| **Luân chuyển** | Gửi mỗi request API cần auth | **Rotation:** mỗi lần refresh thành công nhận **cặp token mới** — luôn ghi đè refresh token cũ |
+|                            | Access Token                                          | Refresh Token                                                                                  |
+| -------------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| **Thời gian sống**         | 24 giờ                                                | 30 ngày                                                                                        |
+| **Lưu trữ gợi ý (mobile)** | Bộ nhớ trong phiên (RAM) hoặc secure storage ngắn hạn | **Secure storage** (Keychain / EncryptedSharedPreferences / Keystore)                          |
+| **Luân chuyển**            | Gửi mỗi request API cần auth                          | **Rotation:** mỗi lần refresh thành công nhận **cặp token mới** — luôn ghi đè refresh token cũ |
 
 **Quy tắc cho app:**
 
@@ -122,7 +120,33 @@ Cấu trúc tham khảo (theo `00_API_CONVENTIONS.md`):
 }
 ```
 
-**Role** (chuỗi, khớp backend): `Citizen`, `Officer`, `CleanupTeam`, `Admin` — dùng cho UI/phân quyền màn hình (server vẫn là nguồn sự thật qua policy).
+**Role** (chuỗi PascalCase từ login/refresh — **nguồn sự thật BE v3.0**):
+
+`Citizen`, `DEO`, `LEO`, `Cleaner`, `CompanyManager`, `CompanyStaff`, `Inspector`, `Admin`
+
+> Legacy docs có thể ghi `Officer` / `CleanupTeam` — **không** còn dùng trong JWT hiện tại.
+
+**JWT/profile:** không có claim `teamId`, `companyId`, `teamName`. Mobile resolve qua:
+
+- Cleaner / CompanyStaff → `GET /v1/teams/my-tasks`
+- CompanyManager → `GET /v1/companies/my`
+- Inspector → `GET /v1/inspections/queue`
+- Profile chung → `GET /v1/users/profile` (không phải `/users/me`)
+
+### Ma trận role → API chính
+
+| Role | APIs chính |
+|------|------------|
+| `Citizen` | `/reports`, `/map/*`, close/reopen report |
+| `Cleaner` | `/teams/my-tasks`, `/reports/{id}/progress`, `/resolve` |
+| `CompanyStaff` | Giống Cleaner (company team) |
+| `Inspector` | `/inspections/queue`, `/inspections/{id}/*` |
+| `CompanyManager` | `/companies/my`, `/reports/company-*`, `/teams/company-teams` |
+| `LEO` / `DEO` / `Admin` | Web dashboard (ngoài scope mobile shell) |
+
+**Seed mobile QA:** [`SEED_ACCOUNTS.md`](./SEED_ACCOUNTS.md) — `*@greenlens.dev` / `Lualua123@`
+
+Dùng cho UI/phân quyền màn hình (server vẫn là nguồn sự thật qua policy).
 
 ---
 
@@ -130,17 +154,17 @@ Cấu trúc tham khảo (theo `00_API_CONVENTIONS.md`):
 
 Prefix: **`POST/GET base + /auth/...`** (với base = `/v1`).
 
-| Method | Path | Auth | Mô tả ngắn |
-|--------|------|------|------------|
-| POST | `/auth/register` | Anonymous | Đăng ký, gửi OTP xác email |
-| POST | `/auth/login` | Anonymous | Email + password → tokens |
-| POST | `/auth/request-otp` | Anonymous | Gửi OTP 6 số (email) |
-| POST | `/auth/verify-otp` | Anonymous | Xác thực OTP |
-| POST | `/auth/forgot-password` | Anonymous | Gửi OTP reset (không lộ email có tồn tại hay không) |
-| POST | `/auth/reset-password` | Anonymous | Đặt lại mật khẩu bằng OTP; **thu hồi mọi refresh token** |
-| POST | `/auth/change-password` | **Bearer** | Đổi mật khẩu khi đã đăng nhập |
-| POST | `/auth/refresh-token` | Anonymous | Body gửi refresh token → cặp token mới (rotation) |
-| POST | `/auth/google-login` | Anonymous | Đăng nhập bằng Google (Firebase ID token) |
+| Method | Path                    | Auth       | Mô tả ngắn                                               |
+| ------ | ----------------------- | ---------- | -------------------------------------------------------- |
+| POST   | `/auth/register`        | Anonymous  | Đăng ký, gửi OTP xác email                               |
+| POST   | `/auth/login`           | Anonymous  | Email + password → tokens                                |
+| POST   | `/auth/request-otp`     | Anonymous  | Gửi OTP 6 số (email)                                     |
+| POST   | `/auth/verify-otp`      | Anonymous  | Xác thực OTP                                             |
+| POST   | `/auth/forgot-password` | Anonymous  | Gửi OTP reset (không lộ email có tồn tại hay không)      |
+| POST   | `/auth/reset-password`  | Anonymous  | Đặt lại mật khẩu bằng OTP; **thu hồi mọi refresh token** |
+| POST   | `/auth/change-password` | **Bearer** | Đổi mật khẩu khi đã đăng nhập                            |
+| POST   | `/auth/refresh-token`   | Anonymous  | Body gửi refresh token → cặp token mới (rotation)        |
+| POST   | `/auth/google-login`    | Anonymous  | Đăng nhập bằng Google (Firebase ID token)                |
 
 Chi tiết body/response từng API ở các mục dưới.
 
@@ -160,8 +184,8 @@ Chi tiết body/response từng API ở các mục dưới.
 
 **Quy tắc mật khẩu (BR-AUTH-005, khớp validator):**
 
-- Tối thiểu 8 ký tự  
-- Có chữ hoa, chữ thường, chữ số, ký tự đặc biệt  
+- Tối thiểu 8 ký tự
+- Có chữ hoa, chữ thường, chữ số, ký tự đặc biệt
 
 **Response `data` (RegisterResponse):**
 
@@ -210,11 +234,11 @@ Chi tiết body/response từng API ở các mục dưới.
 
 **Mã lỗi nghiệp vụ (trong `code`):**
 
-| `code` | Ý nghĩa |
-|--------|---------|
-| `INVALID_CREDENTIALS` | Sai email/mật khẩu |
-| `ACCOUNT_LOCKED` | Khóa sau nhiều lần đăng nhập sai (BR-AUTH-011: 5 lần / 15 phút → khóa 30 phút) |
-| `EMAIL_NOT_VERIFIED` | Chưa xác thực email — điều hướng sang luồng OTP |
+| `code`                | Ý nghĩa                                                                        |
+| --------------------- | ------------------------------------------------------------------------------ |
+| `INVALID_CREDENTIALS` | Sai email/mật khẩu                                                             |
+| `ACCOUNT_LOCKED`      | Khóa sau nhiều lần đăng nhập sai (BR-AUTH-011: 5 lần / 15 phút → khóa 30 phút) |
+| `EMAIL_NOT_VERIFIED`  | Chưa xác thực email — điều hướng sang luồng OTP                                |
 
 **Rate limit đăng nhập:** theo spec dự án, failed login có giới hạn; hiển thị thông báo từ `message` và có thể bật CAPTCHA từ lần thử thứ 3 (BR-AUTH-011 — tùy backend/mobile triển khai).
 
@@ -390,13 +414,13 @@ App nên backoff khi nhận **429** và đọc `Retry-After` nếu có.
 
 ## 17. Tham chiếu mã nguồn backend
 
-| Nội dung | File |
-|----------|------|
-| Routes & Swagger | `src/Greenlens.Api/Controllers/AuthController.cs` |
-| Login / Refresh response | `LoginResponse.cs`, `UserDto` |
-| Register | `RegisterCommand.cs`, `RegisterResponse.cs` |
-| Lỗi auth | `src/Greenlens.Application/Common/Errors.cs` → `Errors.Auth` |
-| Convention API | `00_API_CONVENTIONS.md` |
+| Nội dung                 | File                                                         |
+| ------------------------ | ------------------------------------------------------------ |
+| Routes & Swagger         | `src/Greenlens.Api/Controllers/AuthController.cs`            |
+| Login / Refresh response | `LoginResponse.cs`, `UserDto`                                |
+| Register                 | `RegisterCommand.cs`, `RegisterResponse.cs`                  |
+| Lỗi auth                 | `src/Greenlens.Application/Common/Errors.cs` → `Errors.Auth` |
+| Convention API           | `00_API_CONVENTIONS.md`                                      |
 
 ---
 

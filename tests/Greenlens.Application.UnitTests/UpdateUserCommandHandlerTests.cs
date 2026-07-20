@@ -1,8 +1,8 @@
-using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Features.Users.UpdateUser;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 
 namespace Greenlens.Application.UnitTests;
@@ -15,7 +15,7 @@ public sealed class UpdateUserCommandHandlerTests
 
     public UpdateUserCommandHandlerTests()
     {
-        _sut = new UpdateUserCommandHandler(_users, _uow);
+        _sut = new UpdateUserCommandHandler(_users, _uow, NullLogger<UpdateUserCommandHandler>.Instance);
     }
 
     [Fact]
@@ -26,13 +26,13 @@ public sealed class UpdateUserCommandHandlerTests
         _users.GetByIdAsync(userId, Arg.Any<CancellationToken>()).Returns(user);
 
         var result = await _sut.Handle(
-            new UpdateUserCommand(userId, "New Name", "0901234567", UserRole.Officer, true),
+            new UpdateUserCommand(userId, "New Name", "0901234567", UserRole.LEO, true),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.Equal("New Name", user.FullName);
         Assert.Equal("0901234567", user.PhoneNumber);
-        Assert.Equal(UserRole.Officer, user.Role);
+        Assert.Equal(UserRole.LEO, user.Role);
         Assert.True(user.IsEmailVerified);
         await _uow.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
@@ -62,6 +62,6 @@ public sealed class UpdateUserCommandHandlerTests
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal("USER_NOT_FOUND", result.Error.Code);
+        Assert.Equal("USER_NOT_FOUND", result.Error!.Code);
     }
 }

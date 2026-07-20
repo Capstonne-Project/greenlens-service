@@ -23,6 +23,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Greenlens.Application\Greenlens.Application.csproj" />
     <ProjectReference Include="..\..\src\Greenlens.Domain\Greenlens.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Greenlens.Infrastructure\Greenlens.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

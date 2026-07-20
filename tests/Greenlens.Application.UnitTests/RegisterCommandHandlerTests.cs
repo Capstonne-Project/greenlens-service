@@ -2,6 +2,7 @@ using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Features.Auth.Register;
 using Greenlens.Domain.Entities;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 
 namespace Greenlens.Application.UnitTests;
@@ -17,7 +18,7 @@ public sealed class RegisterCommandHandlerTests
 
     public RegisterCommandHandlerTests()
     {
-        _sut = new RegisterCommandHandler(_users, _otps, _uow, _hasher, _email);
+        _sut = new RegisterCommandHandler(_users, _otps, _uow, _hasher, _email, NullLogger<RegisterCommandHandler>.Instance);
         _hasher.Hash(Arg.Any<string>()).Returns("hashed");
     }
 
@@ -28,11 +29,11 @@ public sealed class RegisterCommandHandlerTests
             .Returns(false);
 
         var result = await _sut.Handle(
-            new RegisterCommand("new@test.com", "Password123!", "New User"),
+            new RegisterCommand("new@test.com", "Password123!", "New User", true),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal("new@test.com", result.Value.Email);
+        Assert.Equal("new@test.com", result.Value!.Email);
         _users.Received(1).Add(Arg.Any<User>());
         _otps.Received(1).Add(Arg.Any<OtpCode>());
         await _uow.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
@@ -45,7 +46,7 @@ public sealed class RegisterCommandHandlerTests
             .Returns(false);
 
         await _sut.Handle(
-            new RegisterCommand("new@test.com", "Pass123!", "Test"),
+            new RegisterCommand("new@test.com", "Pass123!", "Test", true),
             CancellationToken.None);
 
         await _email.Received(1).SendOtpAsync(
@@ -62,11 +63,11 @@ public sealed class RegisterCommandHandlerTests
             .Returns(true);
 
         var result = await _sut.Handle(
-            new RegisterCommand("exists@test.com", "Pass123!", "User"),
+            new RegisterCommand("exists@test.com", "Pass123!", "User", true),
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal("EMAIL_TAKEN", result.Error.Code);
+        Assert.Equal("EMAIL_TAKEN", result.Error!.Code);
     }
 
     [Fact]
@@ -76,7 +77,7 @@ public sealed class RegisterCommandHandlerTests
             .Returns(true);
 
         await _sut.Handle(
-            new RegisterCommand("exists@test.com", "Pass123!", "User"),
+            new RegisterCommand("exists@test.com", "Pass123!", "User", true),
             CancellationToken.None);
 
         _users.DidNotReceive().Add(Arg.Any<User>());

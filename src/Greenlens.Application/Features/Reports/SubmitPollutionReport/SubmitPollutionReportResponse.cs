@@ -29,10 +29,13 @@ public sealed record SubmitPollutionReportResponse(
     string? Address,
     string? WardCode,
     string? ProvinceCode,
-    bool IsAnonymous,
-    Guid? ReporterId,
+    Guid ReporterId,
     ReportStatus Status,
     DateTime CreatedAt,
     DateTime? SlaVerifyDueAt,
     bool AiPending,
-    IReadOnlyList<SubmitPollutionReportImageInfo> Images);
+    IReadOnlyList<SubmitPollutionReportImageInfo> Images,
+    bool IsPossibleDuplicate,
+    Guid? PossibleDuplicateOfReportId,
+    bool IsSuspicious,
+    string? ExifWarning);

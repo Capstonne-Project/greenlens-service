@@ -27,6 +27,23 @@ internal sealed class UserConfiguration : IEntityTypeConfiguration<User>
 
         builder.Property(u => u.Role).HasConversion<string>().HasMaxLength(50);
 
+        // ── Organization assignment (v1.1) ──
+        builder.HasOne(u => u.Department)
+            .WithMany()
+            .HasForeignKey(u => u.DepartmentId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne(u => u.LocalOffice)
+            .WithMany()
+            .HasForeignKey(u => u.LocalOfficeId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // ── Data Consent (BR-DAT-005) ──
+        builder.Property(u => u.HasDataConsent).HasDefaultValue(false);
+
+        // ── Comment moderation (BR-CMT-003) ──
+        builder.Property(u => u.CommentViolationCount).HasDefaultValue(0);
+
         // Soft delete query filter
         builder.HasQueryFilter(u => u.DeletedAt == null);
     }

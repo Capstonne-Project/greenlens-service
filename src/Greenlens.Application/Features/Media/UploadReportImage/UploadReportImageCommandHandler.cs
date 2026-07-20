@@ -15,21 +15,19 @@ public sealed class UploadReportImageCommandHandler(
     : IRequestHandler<UploadReportImageCommand, Result<UploadReportImageResponse>>
 {
     private const long MaxFileSizeBytes = 10 * 1024 * 1024; // 10MB
-    private static readonly HashSet<string> AllowedContentTypes = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "image/jpeg",
-        "image/png",
-        "image/webp",
-        "image/heic"
-    };
 
     public async Task<Result<UploadReportImageResponse>> Handle(
         UploadReportImageCommand request,
         CancellationToken cancellationToken)
     {
-        // ── Validate ──
-        if (!AllowedContentTypes.Contains(request.ContentType))
+        // ── Validate MIME (extension fallback for HEIC/octet-stream from Swagger) ──
+        if (!ReportImageContentTypes.TryResolve(request.FileName, request.ContentType, out var contentType))
+        {
+            logger.LogWarning(
+                "Rejected report image upload: fileName={FileName}, contentType={ContentType}",
+                request.FileName, request.ContentType);
             return Errors.Media.InvalidImageType;
+        }
 
         if (request.FileSize > MaxFileSizeBytes)
             return Errors.Media.ImageTooLarge;
@@ -41,7 +39,7 @@ public sealed class UploadReportImageCommandHandler(
             uploadResult = await fileStorage.UploadAsync(
                 request.FileStream,
                 request.FileName,
-                request.ContentType,
+                contentType,
                 "reports/images",
                 cancellationToken).ConfigureAwait(false);
         }
@@ -55,7 +53,7 @@ public sealed class UploadReportImageCommandHandler(
             uploadResult.Url,
             uploadResult.Key,
             "Tải ảnh báo cáo thành công.",
-            request.ContentType,
+            contentType,
             request.FileSize);
     }
 }

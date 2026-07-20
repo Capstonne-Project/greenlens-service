@@ -1,0 +1,46 @@
+using Greenlens.Application.Common.Interfaces;
+using Greenlens.Domain.Common;
+using Greenlens.Domain.Entities;
+using MediatR;
+using Microsoft.EntityFrameworkCore;
+
+namespace Greenlens.Application.Features.Admin.NotificationTemplates.GetNotificationTemplateById;
+
+/// <summary>
+/// Retrieves a single notification template by ID.
+/// </summary>
+/// <remarks>Implements: BR-ADM-004.</remarks>
+public sealed class GetNotificationTemplateByIdQueryHandler(
+    IApplicationDbContext db)
+    : IRequestHandler<GetNotificationTemplateByIdQuery, Result<NotificationTemplateDetailResponse>>
+{
+    public async Task<Result<NotificationTemplateDetailResponse>> Handle(
+        GetNotificationTemplateByIdQuery request, CancellationToken ct)
+    {
+        // Filter on entity first, then project — ProjectToType then Where is not EF-translatable
+        var template = await db.Set<NotificationTemplate>()
+            .AsNoTracking()
+            .Where(t => t.Id == request.Id)
+            .Select(t => new NotificationTemplateDetailResponse(
+                t.Id,
+                t.TemplateKey,
+                t.TitleVi,
+                t.BodyVi,
+                t.TitleEn,
+                t.BodyEn,
+                t.Channel,
+                t.Type,
+                t.IsPublished,
+                t.IsActive,
+                t.CreatedAt,
+                t.UpdatedAt))
+            .FirstOrDefaultAsync(ct)
+            .ConfigureAwait(false);
+
+        if (template is null)
+            return Result<NotificationTemplateDetailResponse>.Failure(
+                new Error("NotificationTemplate.NotFound", "Template không tồn tại.", ErrorType.NotFound));
+
+        return template;
+    }
+}

@@ -4,6 +4,7 @@ using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Users.CreateAccount;
 
@@ -17,7 +18,8 @@ namespace Greenlens.Application.Features.Users.CreateAccount;
 public sealed class CreateAccountCommandHandler(
     IUserRepository users,
     IUnitOfWork uow,
-    IPasswordHasher passwordHasher)
+    IPasswordHasher passwordHasher,
+    ILogger<CreateAccountCommandHandler> logger)
     : IRequestHandler<CreateAccountCommand, Result<CreateAccountResponse>>
 {
     public async Task<Result<CreateAccountResponse>> Handle(
@@ -43,6 +45,9 @@ public sealed class CreateAccountCommandHandler(
 
         users.Add(user);
         await uow.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        logger.LogInformation("Admin created account {UserId} ({Email}) with role {Role}",
+            user.Id, user.Email, user.Role);
 
         return new CreateAccountResponse(
             user.Id,

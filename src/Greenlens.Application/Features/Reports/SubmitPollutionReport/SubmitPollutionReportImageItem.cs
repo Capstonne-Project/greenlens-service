@@ -6,4 +6,5 @@ namespace Greenlens.Application.Features.Reports.SubmitPollutionReport;
 public sealed record SubmitPollutionReportImageItem(
     string Url,
     string MimeType,
-    long SizeBytes);
+    long SizeBytes,
+    string? Key = null);

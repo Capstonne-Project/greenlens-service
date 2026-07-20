@@ -38,7 +38,7 @@ internal sealed class R2FileStorageService : IFileStorageService, IDisposable
         string folder,
         CancellationToken ct = default)
     {
-        var key = $"{folder}/{Guid.NewGuid():N}_{fileName}";
+        var key = BuildObjectKey(folder, fileName);
 
         var request = new PutObjectRequest
         {
@@ -51,11 +51,115 @@ internal sealed class R2FileStorageService : IFileStorageService, IDisposable
 
         await _s3.PutObjectAsync(request, ct).ConfigureAwait(false);
 
-        var url = $"{_options.PublicUrl.TrimEnd('/')}/{key}";
+        var url = BuildPublicUrl(key);
 
         _logger.LogInformation("Uploaded file {Key} to R2 bucket {Bucket}", key, _options.BucketName);
 
         return new FileUploadResult(url, key);
+    }
+
+    public Task<PresignedUploadResult> CreatePresignedUploadAsync(
+        string fileName,
+        string contentType,
+        string folder,
+        TimeSpan expiresIn,
+        CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        var key = BuildObjectKey(folder, fileName);
+        var expiresSeconds = Math.Clamp((int)expiresIn.TotalSeconds, 60, 3600);
+
+        var request = new GetPreSignedUrlRequest
+        {
+            BucketName = _options.BucketName,
+            Key = key,
+            Verb = HttpVerb.PUT,
+            Expires = DateTime.UtcNow.AddSeconds(expiresSeconds),
+            ContentType = contentType
+        };
+
+        // AWSSDK.S3 GetPreSignedURL is CPU-bound signing — wrap for interface async contract.
+        var uploadUrl = _s3.GetPreSignedURL(request);
+        var publicUrl = BuildPublicUrl(key);
+
+        _logger.LogInformation(
+            "Created R2 presigned PUT for {Key}, expiresIn={ExpiresInSeconds}s",
+            key, expiresSeconds);
+
+        return Task.FromResult(new PresignedUploadResult(
+            uploadUrl,
+            publicUrl,
+            key,
+            contentType,
+            expiresSeconds));
+    }
+
+    public bool IsOwnedPublicUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return false;
+
+        if (!Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri))
+            return false;
+
+        if (!string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        if (!Uri.TryCreate(_options.PublicUrl.TrimEnd('/') + "/", UriKind.Absolute, out var publicBase))
+            return false;
+
+        return publicBase.IsBaseOf(uri);
+    }
+
+    public bool IsOwnedPublicUrl(string url, string key)
+    {
+        if (!IsOwnedPublicUrl(url))
+            return false;
+
+        return string.Equals(
+            url.Trim(),
+            BuildPublicUrl(key),
+            StringComparison.Ordinal);
+    }
+
+    public async Task<StoredFileDownload?> DownloadAsync(
+        string key,
+        long maxSizeBytes,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(key) || maxSizeBytes <= 0)
+            return null;
+
+        try
+        {
+            using var response = await _s3.GetObjectAsync(
+                    new GetObjectRequest
+                    {
+                        BucketName = _options.BucketName,
+                        Key = key.Trim()
+                    },
+                    ct)
+                .ConfigureAwait(false);
+
+            if (response.ContentLength <= 0 || response.ContentLength > maxSizeBytes)
+                return null;
+
+            using var buffer = new MemoryStream((int)response.ContentLength);
+            await response.ResponseStream.CopyToAsync(buffer, ct).ConfigureAwait(false);
+
+            if (buffer.Length <= 0 || buffer.Length > maxSizeBytes)
+                return null;
+
+            return new StoredFileDownload(
+                buffer.ToArray(),
+                response.Headers.ContentType ?? "application/octet-stream",
+                buffer.Length);
+        }
+        catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return null;
+        }
     }
 
     public async Task DeleteAsync(string fileKey, CancellationToken ct = default)
@@ -72,4 +176,17 @@ internal sealed class R2FileStorageService : IFileStorageService, IDisposable
     }
 
     public void Dispose() => _s3.Dispose();
+
+    private string BuildPublicUrl(string key)
+        => $"{_options.PublicUrl.TrimEnd('/')}/{key}";
+
+    private static string BuildObjectKey(string folder, string fileName)
+    {
+        var safeName = Path.GetFileName(fileName);
+        if (string.IsNullOrWhiteSpace(safeName))
+            safeName = "upload.bin";
+
+        var cleanFolder = folder.Trim().Trim('/');
+        return $"{cleanFolder}/{Guid.NewGuid():N}_{safeName}";
+    }
 }

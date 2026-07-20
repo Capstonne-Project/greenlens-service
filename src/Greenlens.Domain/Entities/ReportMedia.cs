@@ -7,7 +7,7 @@ namespace Greenlens.Domain.Entities;
 /// Image or video attached to a report. Stores URL, metadata, and AI analysis results.
 /// </summary>
 /// <remarks>Implements: BR-REP-001, 002, 011 (suspicious detection via pHash).</remarks>
-public sealed class ReportMedia : BaseEntity
+public sealed class ReportMedia : SoftDeletableEntity
 {
     private ReportMedia() { }
 
@@ -19,6 +19,8 @@ public sealed class ReportMedia : BaseEntity
     public long SizeBytes { get; private set; }
     public int? Width { get; private set; }
     public int? Height { get; private set; }
+    /// <summary>Video duration in seconds. Null for images.</summary>
+    public int? DurationSeconds { get; private set; }
     public string? PHash { get; private set; }
     public string? ExifData { get; private set; }
     public Guid? UploadedBy { get; private set; }
@@ -38,6 +40,7 @@ public sealed class ReportMedia : BaseEntity
         string? thumbnailUrl = null,
         int? width = null,
         int? height = null,
+        int? durationSeconds = null,
         string? pHash = null,
         string? exifData = null)
     {
@@ -51,6 +54,7 @@ public sealed class ReportMedia : BaseEntity
             SizeBytes = sizeBytes,
             Width = width,
             Height = height,
+            DurationSeconds = durationSeconds,
             PHash = pHash,
             ExifData = exifData,
             UploadedBy = uploadedBy,
@@ -72,4 +76,16 @@ public sealed class ReportMedia : BaseEntity
 
     /// <summary>Change media type (e.g. IMAGE → BEFORE/AFTER during resolve).</summary>
     public void ChangeType(MediaType newType) => Type = newType;
+
+    /// <summary>
+    /// Reassign this media row to another report (used when merging a duplicate into its primary).
+    /// </summary>
+    /// <remarks>Implements: BR-REP-032 (merge images into primary).</remarks>
+    public void ReassignToReport(Guid primaryReportId)
+    {
+        if (primaryReportId == Guid.Empty)
+            throw new ArgumentException("Primary report id is required.", nameof(primaryReportId));
+
+        ReportId = primaryReportId;
+    }
 }

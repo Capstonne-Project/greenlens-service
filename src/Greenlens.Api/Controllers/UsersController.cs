@@ -1,6 +1,8 @@
 using Greenlens.Api.Extensions;
 using Greenlens.Application.Common.Models;
 using Greenlens.Application.Features.Users;
+using Greenlens.Application.Features.Users.AcceptDataConsent;
+using Greenlens.Application.Features.Users.ExportMyData;
 using Greenlens.Application.Features.Users.GetProfile;
 using Greenlens.Application.Features.Users.UpdateUserProfile;
 using Greenlens.Application.Features.Users.UploadUserAvatar;
@@ -16,6 +18,7 @@ namespace Greenlens.Api.Controllers;
 [Route("v1/users")]
 [Authorize]
 [Produces("application/json")]
+[Tags("👤 Users — User Profile")]
 public sealed class UsersController(ISender sender) : ControllerBase
 {
     [HttpGet("profile")]
@@ -89,5 +92,46 @@ public sealed class UsersController(ISender sender) : ControllerBase
         [FromBody] VerifyPhoneFirebaseCommand command,
         CancellationToken ct)
         => (await sender.Send(command, ct)).ToHttp();
+
+    // ═══════════════════════════════════════════
+    // ██  DATA CONSENT (BR-DAT-005)
+    // ═══════════════════════════════════════════
+
+    /// <summary>User explicitly accepts data processing consent (photos, GPS).</summary>
+    [HttpPost("me/consent")]
+    [Tags("🔒 Data Privacy")]
+    [SwaggerOperation(
+        Summary = "Accept Data Consent",
+        Description = "Hiển thị khi mở app lần đầu. User bấm Đồng ý → gọi API này. " +
+            "Phải accept trước khi gửi báo cáo. Idempotent — gọi lại không lỗi.")]
+    [SwaggerResponse(200, "Consent accepted")]
+    public async Task<IActionResult> AcceptDataConsentAsync(CancellationToken ct)
+        => (await sender.Send(new AcceptDataConsentCommand(), ct)).ToHttpNoContent("Đã chấp nhận chính sách xử lý dữ liệu.");
+
+    // ═══════════════════════════════════════════
+    // ██  EXPORT PERSONAL DATA (BR-DAT-003)
+    // ═══════════════════════════════════════════
+
+    /// <summary>Download all personal data (GDPR / NĐ-13/2023).</summary>
+    [HttpGet("me/data-export")]
+    [Tags("🔒 Data Privacy")]
+    [SwaggerOperation(
+        Summary = "Export My Personal Data",
+        Description = "Tải xuống toàn bộ dữ liệu cá nhân: profile, reports, notifications, " +
+            "gamification. Hỗ trợ JSON (mặc định) và CSV.")]
+    [SwaggerResponse(200, "File download")]
+    public async Task<IActionResult> ExportMyDataAsync(
+        [FromQuery] ExportMyDataFormat format,
+        CancellationToken ct)
+    {
+        var result = await sender.Send(
+            new ExportMyDataQuery(format), ct);
+
+        if (!result.IsSuccess)
+            return result.ToHttp();
+
+        var data = result.Value!;
+        return File(data.Content, data.ContentType, data.FileName);
+    }
 }
 

@@ -1,4 +1,5 @@
 using Greenlens.Domain.Common;
+using Greenlens.Application.Common.Interfaces;
 using MediatR;
 
 namespace Greenlens.Application.Features.Media.UploadReportImage;
@@ -10,4 +11,4 @@ public sealed record UploadReportImageCommand(
     Stream FileStream,
     string FileName,
     string ContentType,
-    long FileSize) : IRequest<Result<UploadReportImageResponse>>;
+    long FileSize) : IRequest<Result<UploadReportImageResponse>>, INoTransaction;

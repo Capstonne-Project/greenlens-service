@@ -16,16 +16,22 @@
 
 Hệ thống crowdsourcing cho phép công dân gửi báo cáo ô nhiễm môi trường (có ảnh + GPS), trực quan hóa hotspot trên bản đồ, và theo dõi tiến độ xử lý minh bạch. Backend chịu trách nhiệm xử lý nghiệp vụ cốt lõi: authentication, report lifecycle, geo-queries, gamification, AI integration, notifications, và analytics.
 
-### Actors (6)
+### Actors (8 human + AI + Community = 10)
 
-| Actor | Vai trò chính |
-|---|---|
-| **Citizen** | Gửi báo cáo, xem map, theo dõi trạng thái, gamification |
-| **Environmental Officer** | Xác minh, phân loại, giao việc, quản lý SLA |
-| **Cleanup Team** | Nhận task thực địa, check-in, upload ảnh before/after, đóng task |
-| **System Administrator** | Quản lý user/role, danh mục, cấu hình, audit |
-| **AI Service** (automated) | Phân loại ảnh, phát hiện trùng, ước lượng severity, anti-fraud |
-| **Community Organization** (optional) | Xem map công khai, xuất open data |
+> **Thay đổi v1.2:** tách `Environmental Officer` thành **DEO** (cấp tỉnh/thành) và **LEO** (cấp xã/phường). Auto-routing GPS→Ward→LocalOffice. LEO xác minh & điều phối (assign community team trực tiếp HOẶC dispatch sang company). CompanyManager CRUD + quản lý team công ty. Danh mục ô nhiễm giảm từ 5 → **3 loại** (Rác thải, Nước thải, Hóa chất — bỏ Không khí, Tiếng ồn). Phân luồng theo **nhu cầu** (dọn dẹp vs xử phạt) thay cho theo loại ô nhiễm. Inspection Team xử phạt **mọi loại**.
+
+| Actor                                                         | Vai trò chính                                                                                                                                                                                   |
+| ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Citizen**                                                   | Gửi báo cáo, xem map, theo dõi trạng thái, gamification                                                                                                                                         |
+| **DEO** — Department of Environmental Management (tỉnh/thành) | Tạo tài khoản Công ty DVMT (trực thuộc/đấu thầu), onboarding LEO, fallback queue khi phường chưa onboard, xuất open data cấp tỉnh                                                               |
+| **LEO** — Local Environmental Office (xã/phường)              | Xác minh báo cáo, phân công **đội cộng đồng** trực tiếp, **điều phối task sang công ty** (dispatch-to-company), quản lý InspectionTeam (đội xử phạt phường/xã), mời Citizen → Cleaner/Inspector |
+| **Company Manager (CM)**                                      | Nhận task từ LEO, **CRUD + quản lý team công ty** (tạo/sửa/xóa team), phân công team xử lý task, quản lý nhân sự công ty                                                                        |
+| **Company Staff (CS)**                                        | Nhân viên hiện trường thuộc đội công ty: check-in, upload ảnh before/after, đóng task (luồng giống Cleaner)                                                                                     |
+| **Cleaner** (thành viên CleanupTeam cộng đồng hoặc công ty)   | Nhận task thực địa, check-in, upload ảnh before/after, đóng task. Role `Cleaner` đại diện cho thành viên CleanupTeam                                                                            |
+| **Inspection Team**                                           | Đội xử phạt **cấp phường/xã** (do LEO quản lý, KHÔNG thuộc company). Xử lý xử phạt cho mọi loại ô nhiễm khi LEO lập InspectionReport                                                            |
+| **System Administrator**                                      | Quản lý user/role, danh mục, cấu hình, audit                                                                                                                                                    |
+| **AI Service** (automated)                                    | Phân loại ảnh, phát hiện trùng, ước lượng severity, anti-fraud                                                                                                                                  |
+| **Community Organization** (optional)                         | Xem map công khai, xuất open data                                                                                                                                                               |
 
 ### Non-functional targets
 
@@ -35,31 +41,104 @@ Hệ thống crowdsourcing cho phép công dân gửi báo cáo ô nhiễm môi 
 - RPO ≤ 24h, RTO ≤ 4h (BR-DAT-004)
 - i18n: vi-VN, en-US (BR-SYS-006)
 
+### 1.1 Domain Knowledge — Vận hành thu gom rác thải tại Việt Nam
+
+> Hệ thống cần thiết kế sát thực tế vận hành, bao phủ từ đô thị lớn đến tỉnh lẻ và nông thôn.
+
+#### A. Phân tầng lực lượng thu gom (3 tầng)
+
+| Tầng                                | Đơn vị                                                                       | Phạm vi                                                                 | Mapping trong GreenLens                                                                                                  |
+| ----------------------------------- | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| **Tầng 1 — Cấp Thành phố**          | CITENCO (TP.HCM), URENCO (Hà Nội)                                            | Trục đường huyết mạch, chất thải nguy hại/y tế — phủ nhiều phường       | `EnvironmentalServiceCompany` + `ContractType.Subsidiary`; báo cáo trên **tuyến cấp TP** (cờ) → escalate DEO             |
+| **Tầng 2 — Công ty đầu mối phường** | Các công ty DVCI cũ, công ty đấu thầu, Công ty CPMT Đô thị cấp tỉnh          | Quét dọn, gom rác trong phường                                          | `EnvironmentalServiceCompany` (`Subsidiary`/`Bidding`); `CompanyServiceArea` = các phường công ty phục vụ; LEO điều phối |
+| **Tầng 3 — Dân lập**                | HTX vệ sinh môi trường, Tổ tự quản (Hội LHPN, Hội Nông dân, Đoàn Thanh niên) | Thu gom rác hộ gia đình trong hẻm sâu, ngõ nhỏ → chở ra trạm tập kết xã | `EnvironmentalTeam` + `CompanyId == null` = **community team** (LEO quản lý)                                             |
+
+**Lưu ý:** Xử lý cuối nguồn (VWS, Vietstar, Tâm Sinh Nghĩa, Tasco) **không tham gia trực tiếp trên app**.
+
+> **Loại công ty (tên chuẩn, dùng nhất quán toàn hệ thống):** `ContractType.Subsidiary` (trực thuộc chủ lực, **vô thời hạn**) và `ContractType.Bidding` (đấu thầu, **có thời hạn**).
+>
+> **Phạm vi mô hình hóa (quan trọng):** GreenLens chạy trên cơ cấu hành chính **2 cấp** (Tỉnh/TP + Xã/Phường) theo Luật Tổ chức CQĐP 2025 — KHÔNG còn cấp Quận/Huyện. Hệ thống chỉ mô hình hóa **định tuyến** (đưa báo cáo tới đúng đơn vị) ở mức phường + cờ "tuyến cấp TP"; **KHÔNG** mô hình hóa cơ chế hợp đồng/đấu thầu/khối lượng/nghiệm thu của dịch vụ công ích. Danh mục đơn vị & địa bàn do DEO/phường cấu hình theo thực tế, **không hardcode**.
+
+#### B. Cơ chế đấu thầu dịch vụ công ích
+
+- **Chủ đầu tư:** UBND cấp Quận/Huyện hoặc UBND cấp Phường/Xã (mô hình mới tại Hà Nội).
+- **Tiêu chí trúng thầu:** Năng lực thiết bị (xe ép rác, cơ giới), nhân sự, giá cạnh tranh nhất.
+- **Thời hạn hợp đồng (gói thầu):**
+  - Ngắn hạn (**1 năm**): giai đoạn chuyển tiếp, sáp nhập phường/xã.
+  - Trung hạn (**3–5 năm**): phổ biến nhất, giúp công ty an tâm đầu tư xe cộ.
+- **Mapping:** `EnvironmentalServiceCompany.ContractStartDate / ContractEndDate` + `ContractType.Bidding`.
+
+#### C. TP.HCM — Thị trường mục tiêu chính (168 phường/xã sau sáp nhập)
+
+**CITENCO** (Tầng 1): Không gom rác hẻm. Chịu trách nhiệm trục đường huyết mạch liên quận, hệ thống trạm trung chuyển lớn, bãi chôn lấp (Đa Phước), xử lý chất thải nguy hại/y tế toàn thành phố.
+
+**Các công ty DVCI** (Tầng 2) — _bảng dưới là bối cảnh tham khảo trước 1/7/2025; từ 1/7/2025 bỏ cấp quận, hợp đồng chuyển về cấp xã/phường nên hệ thống KHÔNG hardcode mapping này:_
+
+| Công ty DVCI                                      | Phường/xã phụ trách (sau sáp nhập)                     |
+| ------------------------------------------------- | ------------------------------------------------------ |
+| DVCI Quận 1                                       | P. Sài Gòn, P. Tân Định, P. Bến Thành, P. Cầu Ông Lãnh |
+| DVCI Quận 3                                       | P. Bàn Cờ, P. Xuân Hòa, P. Nhiêu Lộc                   |
+| DVCI Quận 4                                       | P. Xóm Chiếu, P. Khánh Hội, P. Vĩnh Hội                |
+| DVCI Quận 5                                       | P. Chợ Quán, P. An Đông, P. Chợ Lớn                    |
+| DVCI Quận 6                                       | P. Bình Tây, P. Bình Tiên, P. Bình Phú, P. Phú Lâm     |
+| DVCI Quận 10                                      | P. Diên Hồng, P. Vườn Lài, P. Hòa Hưng                 |
+| DVCI Quận 11                                      | P. Minh Phụng, P. Bình Thới, P. Hòa Bình, P. Phú Thọ   |
+| DVCI Q7, Q8, Q12, BT, GV, PN, TB, TP, BTân        | Toàn bộ phường mới thuộc quận tương ứng                |
+| DVCI Bình Chánh, Hóc Môn, Củ Chi, Nhà Bè, Cần Giờ | Toàn bộ xã/thị trấn thuộc huyện                        |
+
+**TP. Thủ Đức** (trường hợp đặc biệt): 3 công ty DVCI cũ (Q2 + Q9 + Thủ Đức) sáp nhập → 1 thực thể duy nhất phụ trách 34 phường.
+
+**Lực lượng rác dân lập** (Tầng 3): HTX, Tổ tự quản → thu gom rác hộ dân trong hẻm → chở ra trạm tập kết.
+
+#### D. Hà Nội và các TP trực thuộc Trung ương
+
+- **Hà Nội:** URENCO chủ lực quận lõi + nhiều công ty tư nhân đấu thầu ngoại thành. Đấu thầu mạnh ở cấp Phường/Xã.
+- **Đà Nẵng / Cần Thơ / Hải Phòng:** Chủ yếu do Công ty CP Môi trường Đô thị lớn chi phối toàn thành phố.
+
+#### E. Tỉnh lẻ và nông thôn
+
+- **Thành phố/thị xã trung tâm:** Thường 1 Công ty CP Môi trường Đô thị cấp tỉnh duy nhất (VD: CP Đô thị Tân An, CP MT Kon Tum). Ngân sách nhà nước chi trả qua đặt hàng.
+- **Huyện vùng xa / xã nông thôn:** Doanh nghiệp "rút lui" (không có lãi). Thu gom hoàn toàn dựa vào **mô hình tự quản cộng đồng**:
+  - HTX vệ sinh môi trường (người dân tự lập, tự mua xe lôi/xe tải nhỏ).
+  - Tổ tự quản (Hội LHPN, Hội Nông dân, Đoàn Thanh niên xã tổ chức).
+  - **Cơ chế:** Tự đi thu tiền rác hàng tháng từ hộ dân → trả công người thu gom → chở ra điểm tập kết xã.
+  - **Mapping:** `EnvironmentalTeam` + `CompanyId == null` (community team, LEO quản lý).
+
+#### F. Quy tắc vận hành quan trọng cho hệ thống
+
+1. **1 phường có thể có nhiều đơn vị thu gom cùng lúc** (CITENCO trục chính + DVCI đường nhỏ + HTX hẻm).
+2. **Từ 1/7/2025 bỏ cấp quận/huyện** (chính quyền 2 cấp) → hợp đồng dịch vụ công ích chuyển về **cấp xã/phường** làm chủ thể; công ty cũ tiếp tục theo hợp đồng hiện hữu trong giai đoạn chuyển tiếp.
+3. **Hợp đồng có thời hạn** → khi hết hạn, công ty khác có thể trúng thầu thay thế.
+4. **Nông thôn thường không có company nào** → chỉ có community team.
+5. **LEO nắm rõ địa bàn** → LEO tự quyết dispatch report đến đúng đơn vị phụ trách.
+6. **Quan hệ Company ↔ Ward là N–N** (1 công ty phủ nhiều phường; 1 phường có nhiều đơn vị — bình thường). GreenLens chỉ cần **danh sách đơn vị khả dụng trong phường** + **cờ tuyến cấp TP**; LEO điều phối, KHÔNG mô hình hóa độc quyền theo tuyến/mét (BR-CMP-014, BR-ORG-016).
+7. **Hỗ trợ toàn quốc** ở mức tối giản: mỗi tỉnh/thành chỉ cần bật/tắt **tầng cấp Thành phố** (TP.HCM/Hà Nội có CITENCO/URENCO → bật; tỉnh lẻ/nông thôn → tắt, chỉ có công ty phường + đội cộng đồng).
+
 ---
 
 ## 2. Tech Stack
 
-| Layer | Tech |
-|---|---|
-| Runtime | **.NET 9** (LTS sẵn-có gần nhất tính đến 2026-05) |
-| Web API | ASP.NET Core 9, Controller-based (xem `§4.4`) |
-| ORM | Entity Framework Core 9 |
-| Database | PostgreSQL 18 + **PostGIS** (cho geo-queries `BR-MAP-*`, `BR-REP-030`) |
-| Cache | Redis (rate limit, session, map cache 10' theo `BR-MAP-012`) |
-| Object Storage | **Cloudflare R2** (S3-compatible, zero-egress — ảnh, video, `BR-SYS-002`) |
-| CDN / WAF / DDoS | **Cloudflare** (proxy public traffic; xem `§14`) |
-| CAPTCHA | **Cloudflare Turnstile** (BR-AUTH-011 từ lần sai thứ 3, form công khai) |
-| DNS | Cloudflare DNS (cùng tài khoản với R2/Turnstile) |
-| Message Queue | RabbitMQ hoặc MassTransit + InMemory cho dev |
-| Background Jobs | Hangfire (auto-close, SLA breach, AI retry) |
-| Auth | ASP.NET Core Identity + JWT (access 24h, refresh 30d — `BR-AUTH-013`) |
-| Validation | FluentValidation  |
-| Mapping | Mapster (ưu tiên hơn AutoMapper vì nhanh hơn, source-gen) |
-| Logging | Serilog → Seq/ELK |
-| Observability | OpenTelemetry → Jaeger/Tempo |
-| API Docs | Swashbuckle (OpenAPI 3.0) hoặc NSwag |
-| Security | OwaspHeaders.Core (security headers), ASP.NET Core Data Protection (key rotation), bcrypt.net-next (≥12 rounds — BR-DAT-001) |
-| Testing | xUnit + FluentAssertions + Testcontainers (Postgres) + NSubstitute |
+| Layer            | Tech                                                                                                                         |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Runtime          | **.NET 9** (LTS sẵn-có gần nhất tính đến 2026-05)                                                                            |
+| Web API          | ASP.NET Core 9, Controller-based (xem `§4.4`)                                                                                |
+| ORM              | Entity Framework Core 9                                                                                                      |
+| Database         | PostgreSQL 18 + **PostGIS** (cho geo-queries `BR-MAP-*`, `BR-REP-030`)                                                       |
+| Cache            | Redis (rate limit, session, map cache 10' theo `BR-MAP-012`)                                                                 |
+| Object Storage   | **Cloudflare R2** (S3-compatible, zero-egress — ảnh, video, `BR-SYS-002`)                                                    |
+| CDN / WAF / DDoS | **Cloudflare** (proxy public traffic; xem `§14`)                                                                             |
+| CAPTCHA          | **Cloudflare Turnstile** (BR-AUTH-011 từ lần sai thứ 3, form công khai)                                                      |
+| DNS              | Cloudflare DNS (cùng tài khoản với R2/Turnstile)                                                                             |
+| Message Queue    | RabbitMQ hoặc MassTransit + InMemory cho dev                                                                                 |
+| Background Jobs  | Hangfire (auto-close, SLA breach, AI retry)                                                                                  |
+| Auth             | ASP.NET Core Identity + JWT (access 24h, refresh 30d — `BR-AUTH-013`)                                                        |
+| Validation       | FluentValidation                                                                                                             |
+| Mapping          | Mapster (ưu tiên hơn AutoMapper vì nhanh hơn, source-gen)                                                                    |
+| Logging          | Serilog → Seq/ELK                                                                                                            |
+| Observability    | OpenTelemetry → Jaeger/Tempo                                                                                                 |
+| API Docs         | Swashbuckle (OpenAPI 3.0) hoặc NSwag                                                                                         |
+| Security         | OwaspHeaders.Core (security headers), ASP.NET Core Data Protection (key rotation), bcrypt.net-next (≥12 rounds — BR-DAT-001) |
+| Testing          | xUnit + FluentAssertions + Testcontainers (Postgres) + NSubstitute                                                           |
 
 > **Quy tắc:** Trước khi thêm package mới, hỏi user. Không tự ý đưa thêm dependency lớn (Serilog sinks, MediatR alternatives, v.v.).
 >
@@ -201,17 +280,17 @@ public sealed record Error(string Code, string Message, ErrorType Type);
 public sealed class ReportsController : ControllerBase
 {
     private readonly ISender _sender;
-    
+
     public ReportsController(ISender sender)
     {
         _sender = sender;
     }
-    
+
     [HttpPost]
-    [AllowAnonymous] // BR-AUTH-014
+    [Authorize] // BR-AUTH-017: gửi báo cáo bắt buộc đăng nhập (bỏ ẩn danh)
     public async Task<IActionResult> SubmitAsync([FromBody] SubmitReportCommand cmd)
         => (await _sender.Send(cmd)).ToHttp();
-    
+
     [HttpGet("/nearby")]
     public async Task<IActionResult> GetNearbyAsync([FromQuery] GetNearbyReportsQuery query)
         => (await _sender.Send(query)).ToHttp();
@@ -243,10 +322,14 @@ public sealed class ReportsController : ControllerBase
 ### 4.8. Authentication & Authorization
 
 - JWT Bearer, kèm refresh token rotation. Lưu refresh token (hashed) trong DB.
-- Roles: `Citizen`, `Officer`, `CleanupTeam`, `Admin`. Anonymous-allowed endpoints khai báo rõ (BR-AUTH-014).
+- Roles: `Citizen`, `DEO`, `LEO`, `CompanyManager`, `CompanyStaff`, `CleanupTeam`, `Inspector`, `Admin`. **Chỉ** các endpoint xem dữ liệu công khai (map, public report view) là `[AllowAnonymous]`; **mọi endpoint ghi/tương tác** (gửi báo cáo, bình luận, theo dõi, gamification…) bắt buộc `[Authorize]` — bỏ truy cập ẩn danh (BR-AUTH-017).
+- **Hiệu lực tài khoản công ty (BR-CMP-005):** request của `CompanyManager`/`CompanyStaff` chỉ chấp nhận khi `Company.Status == Active`. **KHÔNG** dùng cửa sổ hợp đồng để khóa định tuyến/tác nghiệp — `ContractStartDate/EndDate` chỉ là metadata (hiển thị + để job đặt `Status`). Check trong handler/policy, không chỉ dựa role string.
+- **Onboarding công ty (BR-CMP-002):** DEO tạo tài khoản công ty → CM **đặt mật khẩu lần đầu qua email token, dùng chung cơ chế reset-password** (token ngẫu nhiên, lưu hash + hạn, single-use). Không có module "activation" riêng; không dùng contract key làm credential.
+- **Company team CRUD:** CompanyManager chịu trách nhiệm tạo/sửa/xóa team thuộc công ty mình. LEO chỉ dispatch task sang company, KHÔNG quản lý team công ty. InspectionTeam luôn thuộc phường/xã (LEO quản lý).
 - Authorization theo **policy**, không phải role string rải rác:
   ```csharp
-  options.AddPolicy(Policies.CanVerifyReport, p => p.RequireRole("Officer", "Admin"));
+  options.AddPolicy(Policies.CanVerifyReport, p => p.RequireRole("LEO", "Admin"));
+  // Cleanup dispatch tới đội công ty cần thêm contract-window check (BR-CMP-005) trong handler.
   ```
 - `ICurrentUser` (Application interface) bọc `IHttpContextAccessor` ở Infrastructure — **không** import `IHttpContextAccessor` trong Application.
 - BR-OFF-004 (segregation of duties) check ngay trong handler, không trong middleware.
@@ -275,17 +358,17 @@ public sealed class ReportsController : ControllerBase
 
 ### 4.11. Background jobs (xem mapping ở §5)
 
-| Job | Lịch | BR liên quan |
-|---|---|---|
-| `AutoCloseResolvedReportJob` | hourly | BR-REP-016, BR-REP-025 |
-| `SlaBreachVerificationJob` | every 15' | BR-OFF-002 |
-| `SlaBreachResolutionJob` | every 30' | BR-OFF-020 |
-| `OverdueReportJob` | hourly | BR-REP-008, BR-REP-009 |
-| `AiRetryJob` | every 5' | BR-AI-006 |
-| `DraftCleanupJob` | daily | BR-REP-019 |
-| `LeaderboardSnapshotJob` | daily/weekly/monthly | BR-GAM-005 |
-| `AuditLogRetentionJob` | weekly | BR-ADM-010, BR-DAT-002 |
-| `AccountHardDeleteJob` | daily | BR-AUTH-022 |
+| Job                          | Lịch                 | BR liên quan                                                                                                                                                             |
+| ---------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `AutoCloseResolvedReportJob` | hourly               | BR-REP-016, BR-REP-025                                                                                                                                                   |
+| `SlaBreachVerificationJob`   | every 15'            | BR-OFF-002                                                                                                                                                               |
+| `SlaBreachResolutionJob`     | every 30'            | BR-OFF-020                                                                                                                                                               |
+| `OverdueReportJob`           | hourly               | BR-REP-008, BR-REP-009                                                                                                                                                   |
+| `DraftCleanupJob`            | daily                | BR-REP-019                                                                                                                                                               |
+| `LeaderboardSnapshotJob`     | daily/weekly/monthly | BR-GAM-005                                                                                                                                                               |
+| `AuditLogRetentionJob`       | weekly               | BR-ADM-010, BR-DAT-002                                                                                                                                                   |
+| `AccountHardDeleteJob`       | daily                | BR-AUTH-022                                                                                                                                                              |
+| `CompanyContractExpiryJob`   | daily                | BR-CMP-007 — **chỉ** `Bidding` có `ContractEndDate`: cuối hợp đồng → `Status=Expired` (chặn đăng nhập tác nghiệp, giữ dữ liệu audit). `Subsidiary` vô thời hạn → bỏ qua. |
 
 ### 4.12. Repository & Unit of Work (Strict Pattern)
 
@@ -412,20 +495,19 @@ services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 #### Anti-pattern cần tránh
 
-| ❌ Sai | ✅ Đúng |
-|---|---|
+| ❌ Sai                                                                          | ✅ Đúng                                                                        |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | `services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>))` | Đăng ký từng repo: `services.AddScoped<IReportRepository, ReportRepository>()` |
-| Handler inject `IGenericRepository<Report>` | Handler inject `IReportRepository` |
-| Handler inject `IApplicationDbContext` | Handler inject `IXxxRepository` + `IUnitOfWork` |
-| `await reportRepo.SaveChangesAsync(ct)` | `await uow.SaveChangesAsync(ct)` |
-| Entity CRUD đơn giản dùng DbContext trực tiếp | Entity CRUD đơn giản cũng có repo (body rỗng kế thừa base) |
-
+| Handler inject `IGenericRepository<Report>`                                     | Handler inject `IReportRepository`                                             |
+| Handler inject `IApplicationDbContext`                                          | Handler inject `IXxxRepository` + `IUnitOfWork`                                |
+| `await reportRepo.SaveChangesAsync(ct)`                                         | `await uow.SaveChangesAsync(ct)`                                               |
+| Entity CRUD đơn giản dùng DbContext trực tiếp                                   | Entity CRUD đơn giản cũng có repo (body rỗng kế thừa base)                     |
 
 ---
 
 ## 5. Business Rule Mapping
 
-> **Source of truth:** file `SU26SE049_BusinessRules_v1_0.docx`. Mỗi rule có ID `BR-<MODULE>-<NNN>`.
+> **Source of truth:** file `SU26SE049_BusinessRules_v1_2.docx` (v1.2, 07/06/2026). Mỗi rule có ID `BR-<MODULE>-<NNN>`.
 > **Quy tắc bắt buộc:** mọi handler/validator/job implement business rule **phải** chú thích bằng `///` XML comment kèm ID:
 
 ```csharp
@@ -442,54 +524,94 @@ public sealed class SubmitReportCommandHandler : IRequestHandler<SubmitReportCom
 
 ### Bảng tra cứu nhanh
 
-| Module | Prefix | Khu vực code chính |
-|---|---|---|
-| Auth & Account | `BR-AUTH-*` | `Application/Features/Auth/*`, `Infrastructure/Identity/*` |
-| Pollution Report | `BR-REP-*` | `Application/Features/Reports/*`, `Domain/Entities/Report.cs` |
-| Map & Location | `BR-MAP-*` | `Application/Features/Map/*`, `Infrastructure/Geo/*` |
-| Officer | `BR-OFF-*` | `Application/Features/Officer/*` |
-| Cleanup Team | `BR-CLN-*` | `Application/Features/Cleanup/*` |
-| Notifications | `BR-NTF-*` | `Application/Features/Notifications/*`, `Infrastructure/Notifications/*` |
-| Comments | `BR-CMT-*` | `Application/Features/Comments/*` |
-| Gamification | `BR-GAM-*` | `Application/Features/Gamification/*` |
-| AI Service | `BR-AI-*` | `Infrastructure/Ai/*`, `Application/Features/Reports/Ai/*` |
-| Administration | `BR-ADM-*` | `Application/Features/Admin/*` |
-| Data & Privacy | `BR-DAT-*` | xuyên suốt, infra-level |
-| Non-functional | `BR-SYS-*` | infra-level, hosting |
+| Module              | Prefix      | Khu vực code chính                                                                                                                                                                                                                                                                                                                                                             |
+| ------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Auth & Account      | `BR-AUTH-*` | `Application/Features/Auth/*`, `Infrastructure/Identity/*`                                                                                                                                                                                                                                                                                                                     |
+| Pollution Report    | `BR-REP-*`  | `Application/Features/Reports/*`, `Domain/Entities/Report.cs`                                                                                                                                                                                                                                                                                                                  |
+| Map & Location      | `BR-MAP-*`  | `Application/Features/Map/*`, `Infrastructure/Geo/*`                                                                                                                                                                                                                                                                                                                           |
+| Officer (DEO & LEO) | `BR-OFF-*`  | `Application/Features/Officer/*` (xác minh, triage, điều phối — chủ yếu LEO)                                                                                                                                                                                                                                                                                                   |
+| Org & Routing       | `BR-ORG-*`  | `Application/Features/Org/*`, `Domain/Entities/AdministrativeUnit.cs`                                                                                                                                                                                                                                                                                                          |
+| **Company (ESC)**   | `BR-CMP-*`  | `Application/Features/Company/*`, `Domain/Entities/EnvironmentalServiceCompany.cs` (có `ContractType {Subsidiary, Bidding}`; `ContractEndDate` nullable — null = `Subsidiary` vô thời hạn), `Domain/Entities/CompanyStaff.cs`, bảng `CompanyServiceArea` (**N–N** company ↔ ward: công ty phục vụ những phường nào; **không** ràng buộc độc quyền theo tuyến/mét — BR-CMP-014) |
+| Cleanup Team        | `BR-CLN-*`  | `Application/Features/Cleanup/*` (đội công ty **và** đội cộng đồng)                                                                                                                                                                                                                                                                                                            |
+| Inspection Team     | `BR-INS-*`  | `Application/Features/Inspection/*`, `Domain/Entities/InspectionReport.cs`                                                                                                                                                                                                                                                                                                     |
+| Notifications       | `BR-NTF-*`  | `Application/Features/Notifications/*`, `Infrastructure/Notifications/*`                                                                                                                                                                                                                                                                                                       |
+| Comments            | `BR-CMT-*`  | `Application/Features/Comments/*`                                                                                                                                                                                                                                                                                                                                              |
+| Gamification        | `BR-GAM-*`  | `Application/Features/Gamification/*`                                                                                                                                                                                                                                                                                                                                          |
+| AI Service          | `BR-AI-*`   | `Infrastructure/Ai/*`, `Application/Features/Reports/Ai/*`                                                                                                                                                                                                                                                                                                                     |
+| Administration      | `BR-ADM-*`  | `Application/Features/Admin/*`                                                                                                                                                                                                                                                                                                                                                 |
+| Data & Privacy      | `BR-DAT-*`  | xuyên suốt, infra-level                                                                                                                                                                                                                                                                                                                                                        |
+| Non-functional      | `BR-SYS-*`  | infra-level, hosting                                                                                                                                                                                                                                                                                                                                                           |
 
 ### State Machine bắt buộc (BR-REP-020, BR-REP-021)
 
+> **v1.2 — điều phối theo NHU CẦU + phân nhánh Community vs Company.** Khi xác minh, **LEO** quyết định: (a) cần dọn dẹp? → nhánh Community (assign trực tiếp) hoặc nhánh Company (dispatch sang công ty để CM phân công); (b) có chủ thể vi phạm? → LEO lập **InspectionReport** → Inspection Team (phường/xã) xử lý. Một báo cáo có thể sinh cả hai.
+
+**Nhánh dọn dẹp (umbrella):**
+
 ```
-                   ┌─► Rejected   (Officer, reason ≥ 20 chars)
-Submitted ─────────┼─► Verified ──► InProgress ──► Resolved ──┬─► Closed (Citizen confirm OR auto 7d)
-                   └─► Duplicate  (Officer/AI)                └─► InProgress (re-open, max 2 lần)
+                   ┌─► Rejected   (LEO, reason ≥ 20 chars)
+Submitted ─────────┼─► Verified ──┬─► InProgress ──► Resolved ──┬─► Closed (Citizen confirm OR auto 7d)
+                   └─► Duplicate  │  (LEO/AI)                   └─► InProgress (re-open, max 2 lần)
+                                  │
+                                  ├─► [Community] LEO assign trực tiếp → InProgress
+                                  │
+                                  └─► [Company] LEO dispatch-to-company → Verified (giữ nguyên)
+                                       └─► CM assign-company-team → InProgress
 ```
 
-- Implement trong `Domain/Entities/Report.cs` qua method `Verify(officer)`, `Reject(officer, reason)`, v.v. — **không** cho phép set `Status` qua public setter.
-- Mỗi transition raise một `DomainEvent` (`ReportVerifiedEvent`, …).
+> **Quan trọng:** Khi LEO dispatch sang company, report **giữ Verified** + set `AssignedCompanyId`. CM filter bằng `Status == Verified AND AssignedCompanyId == myCompanyId`. 1 report chỉ dispatch cho 1 company.
+
+**Nhánh xử phạt (InspectionReport liên kết — BR-INS-001, mọi loại ô nhiễm):**
+
+```
+Draft ──► PenaltyIssued ──► (Paid / PartiallyPaid / Overdue) ──► Closed
+```
+
+- Implement trong `Domain/Entities/Report.cs` (umbrella) và `Domain/Entities/InspectionReport.cs` (sub-process) qua method `Verify(leo)`, `Reject(leo, reason)`, `Assign(officerId)`, `DispatchToCompany(companyId)`, `AssignByCompanyManager(officerId)` v.v. — **không** cho phép set `Status` qua public setter.
+- Mỗi transition raise một `DomainEvent` (`ReportVerifiedEvent`, `InspectionReportRaisedEvent`, …).
+- **InspectionTeam** luôn cấp phường/xã (LEO quản lý), không thể thuộc company.
 
 ### Một số rule cần chú ý đặc biệt
 
-| BR | Implementation note |
-|---|---|
-| BR-AUTH-005 | Password strength: regex + bcrypt cost ≥ 12 (BR-DAT-001). |
-| BR-AUTH-011 | Sai password 5 lần / 15' → lock 30'. **CAPTCHA từ lần 3** dùng Cloudflare Turnstile (xem `§14.4`): FE render widget, BE verify token qua Siteverify trước khi accept request login. Lưu attempt count + lockout_until trong User. |
-| BR-AUTH-013 | JWT 24h + refresh 30d. Web inactivity 30' → đăng xuất (FE timer + BE refresh denial nếu refresh > 30d). |
-| BR-AUTH-022 | Soft delete 90 ngày → `AccountHardDeleteJob` xoá vĩnh viễn. Báo cáo của user → `Anonymized`. |
-| BR-REP-003 | Lat 8.0–24.0; Lng 102.0–110.0. Validate trong validator + DB check constraint. |
-| BR-REP-010 | Sliding window rate limit: 5/h, 20/24h. Dùng Redis sorted set. |
-| BR-REP-020/021 | State machine ở Domain entity, **không** ở handler. |
-| BR-REP-030 | Duplicate detection: PostGIS `ST_DWithin(geom, geom, 50)` AND same category AND within 24h. AI bổ sung pHash (BR-AI-002). |
-| BR-OFF-010 | `Priority = severity*3 + relatedCount*2 + ageInHours/24`. Tính trên DB view hoặc materialized view. |
-| BR-OFF-020 | SLA: Critical 3d / High 5d / Medium 7d / Low 10d kể từ `Verified`. Background job đánh dấu breach. |
-| BR-CLN-002 | Check-in distance ≤ 200m: PostGIS `ST_DWithin`. |
-| BR-CLN-004 | 2 ảnh "after" khác hash: tính perceptual hash (pHash), Hamming distance ≥ ngưỡng. |
-| BR-NTF-003 | Anti-spam digest: queue notification, gom cuối ngày nếu > 20/loại. |
-| BR-MAP-004 | Round GPS to 10m precision khi public — `Math.Round(lat, 4)` (≈11m, đủ). |
-| BR-MAP-012 | Cache map data 10' ở Redis, key theo bbox + filters. |
-| BR-AI-006 | Timeout 5s → tag `ai_pending`, fallback queue retry trong 1h. |
-| BR-DAT-001 | bcrypt ≥ 12 rounds; AES-256 at-rest cho secrets (dùng Data Protection API hoặc Vault). |
-| BR-SYS-004 | Rate limit công khai 60 rpm/IP anon, 300 rpm/user authed — **2 tầng**: (1) Cloudflare WAF Rate Limiting Rules ở edge để chặn DDoS sớm (xem `§14.3`); (2) `RateLimiterMiddleware` của ASP.NET Core 9 ở app làm last-line + áp policy theo `userId` (mà edge không thấy). |
+| BR                 | Implementation note                                                                                                                                                                                                                                                                                                   |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| BR-AUTH-005        | Password strength: regex + bcrypt cost ≥ 12 (BR-DAT-001).                                                                                                                                                                                                                                                             |
+| BR-AUTH-011        | Sai password 5 lần / 15' → lock 30'. **CAPTCHA từ lần 3** dùng Cloudflare Turnstile (xem `§14.4`): FE render widget, BE verify token qua Siteverify trước khi accept request login. Lưu attempt count + lockout_until trong User.                                                                                     |
+| BR-AUTH-013        | JWT 24h + refresh 30d. Web inactivity 30' → đăng xuất (FE timer + BE refresh denial nếu refresh > 30d).                                                                                                                                                                                                               |
+| BR-AUTH-021        | Soft delete 90 ngày → `AccountHardDeleteJob` xoá vĩnh viễn. Báo cáo của user → `Anonymized`.                                                                                                                                                                                                                          |
+| BR-REP-003         | Lat 8.0–24.0; Lng 102.0–110.0. Validate trong validator + DB check constraint.                                                                                                                                                                                                                                        |
+| BR-REP-010         | Sliding window rate limit: 5/h, 20/24h. Dùng Redis sorted set.                                                                                                                                                                                                                                                        |
+| BR-REP-020/021     | State machine ở Domain entity, **không** ở handler.                                                                                                                                                                                                                                                                   |
+| BR-REP-030         | Duplicate detection: PostGIS `ST_DWithin(geom, geom, 50)` AND same category AND within 24h. AI bổ sung pHash (BR-AI-002).                                                                                                                                                                                             |
+| BR-OFF-010         | `Priority = severity*3 + relatedCount*2 + ageInHours/24`. Tính trên DB view hoặc materialized view.                                                                                                                                                                                                                   |
+| BR-OFF-020         | SLA: Critical 3d / High 5d / Medium 7d / Low 10d kể từ `Verified`. Background job đánh dấu breach.                                                                                                                                                                                                                    |
+| BR-OFF-005         | Triage theo nhu cầu (v1.2): LEO chọn dọn-dẹp (community hoặc dispatch-to-company) và/hoặc xử-phạt (InspectionReport). Ít nhất một nhánh phải được khởi tạo, nếu không phải Reject.                                                                                                                                    |
+| BR-ORG-010/016     | **Định tuyến 2 bước:** (1) point-in-polygon → LEO phường tiếp nhận & xác minh; (2) LEO điều phối — app **gợi ý** đơn vị khả dụng trong phường (công ty / HTX / rác dân lập), LEO chọn. Báo cáo trên **tuyến cấp TP** (cờ do Admin/DEO cấu hình) → escalate **DEO** thay vì LEO. KHÔNG phân lớp mặt tiền/hẻm bằng GIS. |
+| BR-CLN-001         | **Community team** (LEO assign trực tiếp) HOẶC **company team** (LEO dispatch → CM assign). Company team CRUD do CM quản lý. Phân biệt qua `EnvironmentalTeam.CompanyId`.                                                                                                                                             |
+| BR-INS-001         | InspectionTeam = đội xử phạt **phường/xã** (LEO quản lý, KHÔNG thuộc company). Xử phạt mọi loại ô nhiễm.                                                                                                                                                                                                              |
+| BR-CMP-004/005/007 | `CompanyStatus` gồm 5 giá trị: `PendingActivation`, `Active`, `Suspended`, `Expired`, **`Terminated`**. Hiệu lực tác nghiệp chỉ dựa `Company.Status == Active` (KHÔNG dùng cửa sổ hợp đồng khóa routing). Job đặt `Status=Expired` khi `Bidding` hết `ContractEndDate` (metadata).                                    |
+| BR-CMP-014         | **Company ↔ Ward là N–N** (1 công ty nhiều phường; 1 phường nhiều đơn vị — bình thường, không ràng buộc độc quyền theo tuyến/mét). HTX/Tổ tự quản/rác dân lập = `EnvironmentalTeam` với `CompanyId == null`, **ngang hàng** công ty trong danh sách đơn vị của phường.                                                |
+| BR-CMP-002         | CM **đặt mật khẩu lần đầu qua email token, dùng chung cơ chế reset-password** (token ngẫu nhiên, lưu hash + hạn, single-use). Không có module activation riêng; không dùng contract key làm credential.                                                                                                               |
+| BR-CLN-002         | Check-in distance ≤ 200m: PostGIS `ST_DWithin`.                                                                                                                                                                                                                                                                       |
+| BR-CLN-004         | 2 ảnh "after" khác hash: tính perceptual hash (pHash), Hamming distance ≥ ngưỡng.                                                                                                                                                                                                                                     |
+| BR-NTF-003         | Anti-spam digest: queue notification, gom cuối ngày nếu > 20/loại.                                                                                                                                                                                                                                                    |
+| BR-MAP-004         | Round GPS to 10m precision khi public — `Math.Round(lat, 4)` (≈11m, đủ).                                                                                                                                                                                                                                              |
+| BR-MAP-012         | Cache map data 10' ở Redis, key theo bbox + filters.                                                                                                                                                                                                                                                                  |
+| BR-AI-006          | Timeout 5s → tag `ai_pending`, fallback queue retry trong 1h.                                                                                                                                                                                                                                                         |
+| BR-DAT-001         | bcrypt ≥ 12 rounds; AES-256 at-rest cho secrets (dùng Data Protection API hoặc Vault).                                                                                                                                                                                                                                |
+| BR-SYS-004         | Rate limit công khai 60 rpm/IP anon, 300 rpm/user authed — **2 tầng**: (1) Cloudflare WAF Rate Limiting Rules ở edge để chặn DDoS sớm (xem `§14.3`); (2) `RateLimiterMiddleware` của ASP.NET Core 9 ở app làm last-line + áp policy theo `userId` (mà edge không thấy).                                               |
+| BR-ORG-020/021     | **Mời thành viên đội cộng đồng:** LEO tìm Citizen theo email → gửi lời mời vào Cleanup/Inspection Team. Lời mời **7 ngày, single-use**. Chấp nhận → đổi role + thêm vào đội. Ghi audit log (BR-ADM-010).                                                                                                              |
+| BR-CMP-006         | **Gia hạn / tái ký:** DEO gia hạn `ContractEndDate` hoặc tạo kỳ mới, đặt `Status=Active`. Lịch sử kỳ hợp đồng lưu audit. Không tạo lại tài khoản từ đầu.                                                                                                                                                              |
+| BR-CMP-010/011     | **CM quản lý nhân viên & đội:** CM thêm Company Staff qua email (mời giống BR-ORG-020). CM lập Company Cleanup Team từ Staff và phân công CleanupTask do LEO đẩy sang (BR-OFF-011). Giới hạn khối lượng BR-OFF-013.                                                                                                   |
+| BR-CMP-013         | **Vô hiệu hóa kế thừa:** Khi Company chuyển `Suspended`/`Expired`/`Terminated` → toàn bộ Company Staff & đội mất quyền tác nghiệp. CleanupTask đang dở dang → **đẩy về LEO** để tái điều phối.                                                                                                                        |
+| BR-INS-003/004     | **Inspection task:** Từ chối trong 2h (giờ hành chính), kèm lý do. Check-in hiện trường ≤ 200m (PostGIS `ST_DWithin`).                                                                                                                                                                                                |
+| BR-INS-022         | **Tái phạm:** Cùng cơ sở bị lập biên bản ≥ 2 lần / 12 tháng → cờ `RepeatOffender`, mức phạt tối thiểu nâng 1 bậc (BR-INS-011).                                                                                                                                                                                        |
+| BR-INS-030/031/032 | **SLA & KPI Inspection:** SLA = BR-OFF-020 (Critical 3d / High 5d / Medium 7d / Low 10d). Update tiến độ ≥ 1/ngày. KPI: tỉ lệ đúng hạn, nộp phạt đầy đủ, số vụ tái phạm.                                                                                                                                              |
+| BR-CMP-020/021     | **KPI & phân tách dữ liệu công ty:** Hệ thống tính số task, tỉ lệ SLA, thời gian xử lý TB. DEO xem KPI các công ty trong tỉnh; CM xem công ty mình. CM/CS chỉ truy cập task & đội thuộc công ty mình.                                                                                                                 |
+| BR-ADM-012         | **Giám sát công ty:** Admin xem toàn bộ công ty (mọi tỉnh), trạng thái hợp đồng, KPI; có thể Suspend/Terminate. DEO chỉ quản lý công ty trong tỉnh mình.                                                                                                                                                              |
+| BR-REP-005         | **3 loại ô nhiễm chính thức (v1.2):** Rác thải, Nước thải, Hóa chất (bỏ Không khí, Tiếng ồn). Loại ô nhiễm KHÔNG quyết định cứng đội xử lý — chỉ là dữ liệu phân tích & gợi ý.                                                                                                                                        |
+| BR-REP-018         | **Đánh giá của Citizen:** Sau 'Resolved', citizen có thể đánh giá, bình luận, giao tiếp tại địa điểm đã hoàn thành.                                                                                                                                                                                                   |
+| BR-REP-033         | **Flag duplicate bởi người dùng:** Citizen flag báo cáo là trùng/không hợp lệ. ≥ 3 flag khác nhau → hệ thống gửi LEO xem xét.                                                                                                                                                                                         |
 
 ---
 
@@ -531,11 +653,11 @@ Submitted ─────────┼─► Verified ──► InProgress ─
 
 ### Pyramid
 
-| Tầng | Tỉ lệ | Stack | Phạm vi |
-|---|---|---|---|
-| Unit | ~70% | xUnit + FluentAssertions + NSubstitute | Domain entities, value objects, validators, pure handlers |
-| Integration | ~25% | + Testcontainers Postgres + Respawn | DbContext, repositories, EF queries, geo queries |
-| Functional/E2E | ~5% | + WebApplicationFactory | Controller → DB, auth flow, error mapping |
+| Tầng           | Tỉ lệ | Stack                                  | Phạm vi                                                   |
+| -------------- | ----- | -------------------------------------- | --------------------------------------------------------- |
+| Unit           | ~70%  | xUnit + FluentAssertions + NSubstitute | Domain entities, value objects, validators, pure handlers |
+| Integration    | ~25%  | + Testcontainers Postgres + Respawn    | DbContext, repositories, EF queries, geo queries          |
+| Functional/E2E | ~5%   | + WebApplicationFactory                | Controller → DB, auth flow, error mapping                 |
 
 ### Quy tắc
 
@@ -666,18 +788,18 @@ Submitted ─────────┼─► Verified ──► InProgress ─
 
 Các threat chính của hệ thống này theo STRIDE + OWASP API Top 10:
 
-| Threat | Vector điển hình | Mitigation chính |
-|---|---|---|
-| Spoofing | Forge JWT, fake CF header | JWT signing key đủ mạnh + HS256→RS256 cho prod; CF-Connecting-IP chỉ tin nếu request đến từ Cloudflare IP range (`§14.5`) |
-| Tampering | Sửa GPS/ảnh trên đường truyền, modify presigned URL | TLS 1.3 mandatory; presigned URL ký HMAC + TTL ≤ 5'; backend re-validate metadata |
-| Repudiation | User chối từng làm hành động | Audit log đầy đủ (BR-ADM-010, retention 12 tháng) — xem `§9 Audit` |
-| Information Disclosure | Lộ PII qua list endpoint, IDOR | BR-MAP-004 (round GPS), authorization policies (`§4.8`), DTO projection KHÔNG leak entity |
-| DoS / DDoS | Flood API, large file upload, slow loris | Cloudflare WAF + Rate Limit (`§14.3`); ASP.NET rate limiter (BR-SYS-004); request body size limit; timeout |
-| Elevation of Privilege | Citizen gọi endpoint Officer, role tampering | Policy-based authz; BR-AUTH-009 (chỉ Admin gán role); JWT claims server-signed |
-| Injection | SQL injection, XSS reflected, command injection | EF Core parameterized queries (KHÔNG `FromSqlRaw` với input thô); FluentValidation; CSP header (`§13.6`); content-type sniffing block |
-| Broken Auth | Credential stuffing, session fixation | Rate limit + Turnstile (BR-AUTH-011); refresh token rotation; bcrypt 12+ (BR-DAT-001) |
-| Mass Assignment | Bind extra fields qua Command record | `record` immutable + chỉ public field cần thiết; KHÔNG dùng `[FromBody] User` raw |
-| SSRF | AI service gọi URL từ user input | Allow-list domain cho mọi outbound HTTP; deny private CIDR (10/8, 172.16/12, 192.168/16, 169.254/16) |
+| Threat                 | Vector điển hình                                    | Mitigation chính                                                                                                                      |
+| ---------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Spoofing               | Forge JWT, fake CF header                           | JWT signing key đủ mạnh + HS256→RS256 cho prod; CF-Connecting-IP chỉ tin nếu request đến từ Cloudflare IP range (`§14.5`)             |
+| Tampering              | Sửa GPS/ảnh trên đường truyền, modify presigned URL | TLS 1.3 mandatory; presigned URL ký HMAC + TTL ≤ 5'; backend re-validate metadata                                                     |
+| Repudiation            | User chối từng làm hành động                        | Audit log đầy đủ (BR-ADM-010, retention 12 tháng) — xem `§9 Audit`                                                                    |
+| Information Disclosure | Lộ PII qua list endpoint, IDOR                      | BR-MAP-004 (round GPS), authorization policies (`§4.8`), DTO projection KHÔNG leak entity                                             |
+| DoS / DDoS             | Flood API, large file upload, slow loris            | Cloudflare WAF + Rate Limit (`§14.3`); ASP.NET rate limiter (BR-SYS-004); request body size limit; timeout                            |
+| Elevation of Privilege | Citizen gọi endpoint Officer, role tampering        | Policy-based authz; BR-AUTH-009 (chỉ Admin gán role); JWT claims server-signed                                                        |
+| Injection              | SQL injection, XSS reflected, command injection     | EF Core parameterized queries (KHÔNG `FromSqlRaw` với input thô); FluentValidation; CSP header (`§13.6`); content-type sniffing block |
+| Broken Auth            | Credential stuffing, session fixation               | Rate limit + Turnstile (BR-AUTH-011); refresh token rotation; bcrypt 12+ (BR-DAT-001)                                                 |
+| Mass Assignment        | Bind extra fields qua Command record                | `record` immutable + chỉ public field cần thiết; KHÔNG dùng `[FromBody] User` raw                                                     |
+| SSRF                   | AI service gọi URL từ user input                    | Allow-list domain cho mọi outbound HTTP; deny private CIDR (10/8, 172.16/12, 192.168/16, 169.254/16)                                  |
 
 ### 13.2. Authentication hardening
 
@@ -780,6 +902,7 @@ app.UseSecureHeadersMiddleware(SecureHeadersMiddlewareBuilder
 ```
 
 Header set tối thiểu **bắt buộc**:
+
 - `Strict-Transport-Security: max-age=31536000; includeSubDomains` — force HTTPS, BR-DAT-001.
 - `Content-Security-Policy: default-src 'self'; ...` — chống XSS. Cho phép `https://challenges.cloudflare.com` cho Turnstile JS.
 - `X-Content-Type-Options: nosniff` — chống MIME sniffing.
@@ -851,7 +974,7 @@ services.AddRateLimiter(options =>
 - **PII columns** trong DB: encrypt application-level qua Data Protection API cho cột rất nhạy (email phụ, CCCD nếu có). Cột bắt buộc index (email, phone) thì hash deterministic + lưu plaintext (chấp nhận trade-off).
 - **GDPR / Nghị định 13/2023/NĐ-CP:**
   - Export: BR-DAT-003 — endpoint `GET /me/export` trả ZIP gồm user data + reports + comments + audit log của user (12 tháng gần nhất).
-  - Erasure: BR-AUTH-022 soft-delete 90 ngày → hard-delete + báo cáo `Anonymized`.
+  - Erasure: BR-AUTH-021 soft-delete 90 ngày → hard-delete + báo cáo `Anonymized`.
   - Consent: BR-DAT-005 — log consent ở `consent_log` table, `(user_id, scope, version, granted_at)`.
 - **Right to know:** GET /me/data-access-log trả các lần Officer/Admin xem dữ liệu cá nhân của user (BR-OFF-022).
 
@@ -881,15 +1004,15 @@ services.AddRateLimiter(options =>
 
 Cloudflare đứng **trước toàn bộ traffic public** của hệ thống (web app, mobile API endpoint, R2 media). Các sản phẩm đang dùng:
 
-| Sản phẩm | Vai trò | Section |
-|---|---|---|
-| **DNS** | Authoritative DNS cho `ecoreport.example` | `§14.1` |
-| **CDN + Cache** | Cache static + API GET responses, edge ở 300+ POP | `§14.2` |
-| **R2** | Object storage (ảnh, video báo cáo) | `§14.2` |
-| **WAF + Rate Limiting** | Chặn OWASP threats + DDoS ở edge | `§14.3` |
-| **Turnstile** | CAPTCHA-alternative cho login & form công khai | `§14.4` |
-| **Authenticated Origin Pulls (mTLS)** | Origin chỉ accept traffic từ Cloudflare | `§14.5` |
-| **Logs & Analytics** | Edge logs + WAF events → SIEM | `§14.6` |
+| Sản phẩm                              | Vai trò                                           | Section |
+| ------------------------------------- | ------------------------------------------------- | ------- |
+| **DNS**                               | Authoritative DNS cho `ecoreport.example`         | `§14.1` |
+| **CDN + Cache**                       | Cache static + API GET responses, edge ở 300+ POP | `§14.2` |
+| **R2**                                | Object storage (ảnh, video báo cáo)               | `§14.2` |
+| **WAF + Rate Limiting**               | Chặn OWASP threats + DDoS ở edge                  | `§14.3` |
+| **Turnstile**                         | CAPTCHA-alternative cho login & form công khai    | `§14.4` |
+| **Authenticated Origin Pulls (mTLS)** | Origin chỉ accept traffic từ Cloudflare           | `§14.5` |
+| **Logs & Analytics**                  | Edge logs + WAF events → SIEM                     | `§14.6` |
 
 ### 14.1. DNS & TLS
 
@@ -901,12 +1024,14 @@ Cloudflare đứng **trước toàn bộ traffic public** của hệ thống (we
 ### 14.2. R2 + CDN cho media
 
 **Setup:**
+
 1. Tạo bucket `ecoreport-media` (production) + `ecoreport-media-staging`.
 2. Custom domain: connect bucket vào `media.ecoreport.example` (Cloudflare R2 hỗ trợ Custom Domains, traffic đi qua Cloudflare cache tự động).
 3. R2 API token: Object Read & Write, scope chỉ tới bucket cần (KHÔNG account-wide).
 4. **KHÔNG public bucket qua `*.r2.dev`** — đó là dev preview, rate-limited, không phục vụ production.
 
 **Backend code:**
+
 ```csharp
 // appsettings.json
 {
@@ -957,6 +1082,7 @@ services.AddSingleton<IAmazonS3>(sp =>
 ```
 
 **Cache rules cho `media.ecoreport.example`:**
+
 - Cache Level: Standard
 - Edge Cache TTL: 1 năm (ảnh không đổi vì key chứa hash)
 - Browser Cache TTL: 1 năm
@@ -966,11 +1092,13 @@ services.AddSingleton<IAmazonS3>(sp =>
 ### 14.3. WAF + Rate Limiting
 
 **Managed Rules** (bật ngay từ start):
+
 - Cloudflare Managed Ruleset
 - OWASP ManagedRuleset (Paranoia Level 1 cho start, tăng dần khi không có false positive)
 - Cloudflare Exposed Credentials Check
 
 **Custom Rules** (tinh chỉnh cho project):
+
 ```
 # Block known-bad bots ngay lập tức
 (cf.client.bot) and not (cf.verified_bot_category in {"Search Engine Crawler"})
@@ -1000,16 +1128,19 @@ services.AddSingleton<IAmazonS3>(sp =>
 ### 14.4. Turnstile (BR-AUTH-011)
 
 **Khi nào trigger:** từ lần login sai thứ 3 (BR-AUTH-011). Cũng khuyến nghị bật cho:
+
 - Đăng ký tài khoản (BR-AUTH-001)
 - Quên mật khẩu (BR-AUTH-015)
-- Submit báo cáo ẩn danh (BR-AUTH-014) — tránh lạm dụng
+- Submit báo cáo (sau đăng nhập, BR-AUTH-017) — chống bot/spam ngay cả với tài khoản (BR-REP-010)
 
 **Setup:**
+
 1. Tạo Turnstile widget ở Cloudflare dashboard → lấy **site key** (public, FE) + **secret key** (private, BE).
 2. Thêm vào allowed hostnames: `app.ecoreport.example`, `m.ecoreport.example`. Chặn localhost trong production widget (dùng test sitekey cho dev).
 3. Mode: **Managed** (recommended) — Cloudflare tự chọn invisible challenge hay checkbox.
 
 **Client (FE):**
+
 ```html
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 <form id="login-form">
@@ -1023,6 +1154,7 @@ services.AddSingleton<IAmazonS3>(sp =>
 Khi submit, hidden input `cf-turnstile-response` (token) đi cùng form data.
 
 **Backend verify:**
+
 ```csharp
 // Application/Common/Interfaces/ITurnstileVerifier.cs
 public interface ITurnstileVerifier
@@ -1064,6 +1196,7 @@ services.AddHttpClient<ITurnstileVerifier, TurnstileVerifier>()
 ```
 
 **Quy tắc bắt buộc (theo Cloudflare docs):**
+
 - BE là **người gọi duy nhất** Siteverify. KHÔNG bao giờ gọi từ FE — secret key sẽ lộ.
 - Token sống tối đa 5 phút. Hết hạn → FE refresh widget.
 - Token **single-use**. Re-submit → `timeout-or-duplicate` error.
@@ -1077,11 +1210,13 @@ services.AddHttpClient<ITurnstileVerifier, TurnstileVerifier>()
 Origin (server .NET 9) chỉ accept TLS connection có client cert do Cloudflare phát hành. Chống bypass Cloudflare bằng cách scan IP origin trực tiếp.
 
 **Setup:**
+
 1. Cloudflare dashboard → SSL/TLS → Origin Server → Authenticated Origin Pulls → tải Cloudflare's CA cert.
 2. Reverse proxy (nginx/Caddy/Cloudflare Tunnel) cấu hình require client cert + verify với CA cert đó.
 3. Alternative đơn giản hơn: **Cloudflare Tunnel** (cloudflared daemon ở origin) — không cần expose public port nào, traffic đi qua tunnel. Khuyến nghị cho project capstone vì dễ setup.
 
 **Forwarded headers (đọc IP thật từ Cloudflare):**
+
 ```csharp
 // Program.cs
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
@@ -1107,15 +1242,15 @@ app.UseForwardedHeaders();   // PHẢI trước UseAuthentication / UseRateLimit
 
 ### 14.7. Cost & limits (capstone-relevant)
 
-| Resource | Free tier | Khi nào trả phí |
-|---|---|---|
-| R2 storage | 10 GB | > 10 GB ($0.015/GB/tháng) |
-| R2 Class A ops (PUT/POST/LIST) | 1M/tháng | rất khó vượt cho capstone |
-| R2 Class B ops (GET/HEAD) | 10M/tháng | nếu truyền thông mạnh có thể chạm |
-| R2 egress | **0đ vĩnh viễn** | luôn miễn phí |
-| Turnstile | unlimited | luôn free |
-| Cloudflare Pro plan | $20/tháng | nếu muốn WAF advanced + Image Resizing |
-| Workers (nếu dùng) | 100k req/ngày | rất ít project capstone đụng đến |
+| Resource                       | Free tier        | Khi nào trả phí                        |
+| ------------------------------ | ---------------- | -------------------------------------- |
+| R2 storage                     | 10 GB            | > 10 GB ($0.015/GB/tháng)              |
+| R2 Class A ops (PUT/POST/LIST) | 1M/tháng         | rất khó vượt cho capstone              |
+| R2 Class B ops (GET/HEAD)      | 10M/tháng        | nếu truyền thông mạnh có thể chạm      |
+| R2 egress                      | **0đ vĩnh viễn** | luôn miễn phí                          |
+| Turnstile                      | unlimited        | luôn free                              |
+| Cloudflare Pro plan            | $20/tháng        | nếu muốn WAF advanced + Image Resizing |
+| Workers (nếu dùng)             | 100k req/ngày    | rất ít project capstone đụng đến       |
 
 Capstone scope **không** cần lên Pro plan — Free tier đủ cho 5,000 CCU mục tiêu nếu tận dụng Cache đúng.
 
@@ -1146,9 +1281,13 @@ Capstone scope **không** cần lên Pro plan — Free tier đủ cho 5,000 CCU 
 
 ---
 
-**Phiên bản CLAUDE.md:** 1.2
-**Đồng bộ với:** `SU26SE049_BusinessRules_v1_0.docx` v1.0 (17/04/2026).
+**Phiên bản CLAUDE.md:** 1.5
+**Đồng bộ với:** `SU26SE049_BusinessRules_v1_2.docx` v1.2 (07/06/2026).
 **Changelog:**
+
+- v1.5 (2026-06-11): **Tinh gọn cho phạm vi capstone.** Bỏ **Tiếng Ồn** → `PollutionType` còn **3 loại** (Rác thải, Nước thải, Hóa chất); mọi báo cáo đều có thể sinh task dọn, xử phạt (InspectionReport) là nhánh tùy chọn. Chuẩn hóa tên loại công ty thành `ContractType {Subsidiary, Bidding}` (bỏ alias StateAffiliated/PrivateContractor). **Đơn giản hóa định tuyến** (BR-ORG-016): còn 2 bước (LEO tiếp nhận → LEO điều phối, app gợi ý; tuyến cấp TP → escalate DEO); bỏ phân lớp GIS mặt tiền/hẻm, micro-zone, segment, precedence đa cấp. **BR-CMP-014**: N–N nhưng bỏ ràng buộc độc quyền theo (ward×scope×tuyến); HTX/rác dân lập là `EnvironmentalTeam.CompanyId==null` ngang hàng công ty. **Contract-window KHÔNG khóa routing** — chỉ giữ `Company.Status`. **Onboarding**: CM đặt mật khẩu lần đầu qua cơ chế reset-password (bỏ module activation token riêng). Cập nhật theo **chính quyền 2 cấp** (bỏ cấp Quận/Huyện): `ManagedBy` còn 2 mức City/Ward; không hardcode danh mục công ty/địa bàn. Toàn quốc ở mức tối giản (bật/tắt tầng cấp TP).
+- v1.4 (2026-06-09): **Sửa quan hệ Company ↔ Ward thành N–N** (trước đó mô hình sai "1 phường = 1 công ty"). Một phường có nhiều đơn vị song song (CityArterial/CITENCO + WardInternal/DVCI + đội hẻm dân lập + chuyên trách). `CompanyServiceArea` mang `ServiceScope {CityArterial, WardInternal}` + tuyến/micro-zone; **unique theo (WardId × ServiceScope × ZoneRef)** thay vì theo ward (BR-CMP-014 sửa lại). Thêm **định tuyến đa lớp** (BR-ORG-010/016): ward → cấp tuyến đường (trục huyết mạch → cấp TP, ngoài quyền LEO) → mặt tiền/hẻm → loại rác (y tế/nguy hại/xà bần tách luồng, BR-ORG-013). Thêm khái niệm Micro-zone. Ghi chú alias `Subsidiary`≡`StateAffiliated`, `Bidding`≡`PrivateContractor`.
+- v1.3 (2026-06-07): Đồng bộ với BR v1.2. Mở rộng phạm vi ra **toàn quốc VN** (HCMC 168 LEO sau sáp nhập). Tách `Officer` → `DEO`/`LEO`; thêm vai trò `CompanyManager`/`CompanyStaff` (Actors 6→8, +AI+Community=10). Thêm nhóm `BR-CMP-*` (Công ty Dịch vụ Môi trường) + `BR-ORG-*`, `BR-INS-*` vào `§5`. Điều phối theo **nhu cầu** thay vì theo loại ô nhiễm: LEO xác minh & lập InspectionReport liên kết cho mọi loại. Thêm `CompanyContractExpiryJob` (`§4.11`), contract-window authorization (`§4.8`), cập nhật state machine (`§5`). **Thời hạn HĐ theo loại công ty:** chỉ `PrivateContractor` có thời hạn & auto-expire; `StateAffiliated` vô thời hạn (`ContractEndDate` nullable). **Độc quyền địa bàn (BR-CMP-014):** 1 xã/phường ↔ 1 công ty (bảng `CompanyServiceArea` unique theo ward), đội cộng đồng HTX/Tổ tự quản vẫn là `CleanupTeam` riêng trong cùng ward. **Bỏ loại ô nhiễm Không khí** — danh mục `PollutionType` còn 4 loại chính thức (Rác thải, Nước thải, Hóa chất, Tiếng ồn); cập nhật seed/enum, validator BR-REP-005, bộ lọc map và phân loại AI tương ứng. **Bỏ truy cập ẩn danh:** khách chưa đăng nhập chỉ xem map + thông tin công khai (read-only); gửi báo cáo/bình luận/mọi tính năng ghi đều bắt buộc đăng nhập (`SubmitAsync` đổi `[AllowAnonymous]`→`[Authorize]`, BR-AUTH-017). "Ẩn danh" còn lại chỉ là tùy chọn ẩn tên hiển thị của tài khoản đã đăng nhập (BR-REP-012).
 - v1.2 (2026-05-09): Thêm `§4.12 Repository & Unit of Work` (hybrid pattern: aggregate-specific repo + UoW, KHÔNG generic repository thuần). Cập nhật `§3` folder structure: thêm `Common/Interfaces/Persistence/`, `UnitOfWork.cs`.
 - v1.1 (2026-05-09): Thêm `§13 Security` + `§14 Cloudflare Integration`. Đổi AWS S3 → Cloudflare R2.
 - v1.0: Phiên bản đầu.

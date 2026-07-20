@@ -4,6 +4,7 @@ using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Features.Auth.Login;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 
 namespace Greenlens.Application.UnitTests;
@@ -12,6 +13,7 @@ public sealed class LoginCommandHandlerTests
 {
     private readonly IUserRepository _users = Substitute.For<IUserRepository>();
     private readonly IRefreshTokenRepository _refreshTokens = Substitute.For<IRefreshTokenRepository>();
+    private readonly ICompanyStaffRepository _companyStaff = Substitute.For<ICompanyStaffRepository>();
     private readonly IUnitOfWork _uow = Substitute.For<IUnitOfWork>();
     private readonly IJwtService _jwt = Substitute.For<IJwtService>();
     private readonly IPasswordHasher _hasher = Substitute.For<IPasswordHasher>();
@@ -19,7 +21,7 @@ public sealed class LoginCommandHandlerTests
 
     public LoginCommandHandlerTests()
     {
-        _sut = new LoginCommandHandler(_users, _refreshTokens, _uow, _jwt, _hasher);
+        _sut = new LoginCommandHandler(_users, _refreshTokens, _companyStaff, _uow, _jwt, _hasher, NullLogger<LoginCommandHandler>.Instance);
     }
 
     private static User CreateUser(string email = "test@test.com")
@@ -45,7 +47,7 @@ public sealed class LoginCommandHandlerTests
         var result = await _sut.Handle(new LoginCommand("test@test.com", "password123"), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal("access-token", result.Value.AccessToken);
+        Assert.Equal("access-token", result.Value!.AccessToken);
         Assert.Equal("refresh-token", result.Value.RefreshToken);
         Assert.Equal(user.Email, result.Value.User.Email);
     }
@@ -58,7 +60,7 @@ public sealed class LoginCommandHandlerTests
         var result = await _sut.Handle(new LoginCommand("unknown@test.com", "pass"), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal("INVALID_CREDENTIALS", result.Error.Code);
+        Assert.Equal("INVALID_CREDENTIALS", result.Error!.Code);
     }
 
     [Fact]
@@ -71,7 +73,7 @@ public sealed class LoginCommandHandlerTests
         var result = await _sut.Handle(new LoginCommand("test@test.com", "wrong"), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal("INVALID_CREDENTIALS", result.Error.Code);
+        Assert.Equal("INVALID_CREDENTIALS", result.Error!.Code);
         Assert.Equal(1, user.FailedLoginAttempts);
         await _uow.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
@@ -87,7 +89,7 @@ public sealed class LoginCommandHandlerTests
         var result = await _sut.Handle(new LoginCommand("test@test.com", "pass"), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal("ACCOUNT_LOCKED", result.Error.Code);
+        Assert.Equal("ACCOUNT_LOCKED", result.Error!.Code);
     }
 
     [Fact]

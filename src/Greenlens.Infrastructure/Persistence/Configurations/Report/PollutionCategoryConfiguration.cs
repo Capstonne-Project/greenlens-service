@@ -18,5 +18,8 @@ internal sealed class PollutionCategoryConfiguration : IEntityTypeConfiguration<
         builder.Property(c => c.NameVi).IsRequired().HasMaxLength(100);
         builder.Property(c => c.NameEn).IsRequired().HasMaxLength(100);
         builder.Property(c => c.IconUrl).HasMaxLength(500);
+
+        // ── Soft delete filter ──
+        builder.HasQueryFilter(c => c.DeletedAt == null);
     }
 }

@@ -22,16 +22,16 @@ Chi tiết chọn tỉnh / phường / map: `docs/ADDRESS_MAP_CATALOG_FLOW.md`.
 
 ## 2. Base URL & headers
 
-| Môi trường | Base URL (ví dụ) |
-|------------|------------------|
-| Local | `http://localhost:5000/v1` |
-| Dev / Staging / Prod | Theo cấu hình dự án |
+| Môi trường           | Base URL (ví dụ)           |
+| -------------------- | -------------------------- |
+| Local                | `http://localhost:5000/v1` |
+| Dev / Staging / Prod | Theo cấu hình dự án        |
 
-| Header | Khi nào |
-|--------|---------|
-| `Content-Type: application/json` | Submit báo cáo |
+| Header                                | Khi nào                                             |
+| ------------------------------------- | --------------------------------------------------- |
+| `Content-Type: application/json`      | Submit báo cáo                                      |
 | `Authorization: Bearer {accessToken}` | Khi `isAnonymous: false` (bắt buộc có token hợp lệ) |
-| `Accept-Language: vi-VN` hoặc `en-US` | Tuỳ chọn (message lỗi / i18n) |
+| `Accept-Language: vi-VN` hoặc `en-US` | Tuỳ chọn (message lỗi / i18n)                       |
 
 Upload ảnh: `multipart/form-data`, field file tên **`file`** (theo controller hiện tại).
 
@@ -65,12 +65,12 @@ Upload ảnh: `multipart/form-data`, field file tên **`file`** (theo controller
 
 **Lỗi thường gặp:**
 
-| HTTP | code (ví dụ) | Ý nghĩa |
-|------|----------------|---------|
-| 400 | `FILE_REQUIRED` | Không gửi file hoặc file rỗng |
-| 422 | `INVALID_IMAGE_TYPE` | Sai MIME |
-| 422 | `IMAGE_TOO_LARGE` | > 10 MB |
-| 500 | `STORAGE_UPLOAD_FAILED` | Lỗi lưu trữ (R2) |
+| HTTP | code (ví dụ)            | Ý nghĩa                       |
+| ---- | ----------------------- | ----------------------------- |
+| 400  | `FILE_REQUIRED`         | Không gửi file hoặc file rỗng |
+| 422  | `INVALID_IMAGE_TYPE`    | Sai MIME                      |
+| 422  | `IMAGE_TOO_LARGE`       | > 10 MB                       |
+| 500  | `STORAGE_UPLOAD_FAILED` | Lỗi lưu trữ (R2)              |
 
 ---
 
@@ -78,26 +78,26 @@ Upload ảnh: `multipart/form-data`, field file tên **`file`** (theo controller
 
 ### 4.1 Trường gửi lên submit
 
-| Field (JSON camelCase) | Bắt buộc | Ghi chú |
-|------------------------|----------|---------|
-| `categoryId` | Có | `guid` danh mục ô nhiễm **đang active** |
-| `severity` | Có | `Low` \| `Medium` \| `High` \| `Critical` |
-| `description` | Không | Tối đa 1000 ký tự |
-| `latitude` | Có | 8.0 – 24.0 (VN) |
-| `longitude` | Có | 102.0 – 110.0 (VN) |
-| `address` | Không | Số nhà, đường; tối đa 500 ký tự |
-| `provinceCode` | Cặp | 2 chữ số; **cùng có hoặc cùng không** với `wardCode` |
-| `wardCode` | Cặp | 5 chữ số; phải thuộc `provinceCode` trong catalog |
-| `isAnonymous` | Có | `true`: không gắn reporter; `false`: cần Bearer |
-| `images` | Có | Mảng 1–5 phần tử (xem 4.2) |
+| Field (JSON camelCase) | Bắt buộc | Ghi chú                                              |
+| ---------------------- | -------- | ---------------------------------------------------- |
+| `categoryId`           | Có       | `guid` danh mục ô nhiễm **đang active**              |
+| `severity`             | Có       | `Low` \| `Medium` \| `High` \| `Critical`            |
+| `description`          | Không    | Tối đa 1000 ký tự                                    |
+| `latitude`             | Có       | 8.0 – 24.0 (VN)                                      |
+| `longitude`            | Có       | 102.0 – 110.0 (VN)                                   |
+| `address`              | Không    | Số nhà, đường; tối đa 500 ký tự                      |
+| `provinceCode`         | Cặp      | 2 chữ số; **cùng có hoặc cùng không** với `wardCode` |
+| `wardCode`             | Cặp      | 5 chữ số; phải thuộc `provinceCode` trong catalog    |
+| `isAnonymous`          | Có       | `true`: không gắn reporter; `false`: cần Bearer      |
+| `images`               | Có       | Mảng 1–5 phần tử (xem 4.2)                           |
 
 ### 4.2 Mỗi phần tử `images[]`
 
-| Field | Nguồn |
-|-------|--------|
-| `url` | `data.url` từ upload (HTTPS tuyệt đối) |
-| `mimeType` | `data.mimeType` từ upload |
-| `sizeBytes` | `data.sizeBytes` từ upload |
+| Field       | Nguồn                                  |
+| ----------- | -------------------------------------- |
+| `url`       | `data.url` từ upload (HTTPS tuyệt đối) |
+| `mimeType`  | `data.mimeType` từ upload              |
+| `sizeBytes` | `data.sizeBytes` từ upload             |
 
 **Số ảnh:** tối thiểu **1**, tối đa **5** (BR-REP-001, BR-REP-002).
 
@@ -105,12 +105,12 @@ Upload ảnh: `multipart/form-data`, field file tên **`file`** (theo controller
 
 Submit kiểm tra category tồn tại và `isActive`. FE gọi **`GET /v1/catalog/pollution-categories`** (anonymous) để lấy danh sách category **đang active**; dùng `items[].id` làm `categoryId` khi submit.
 
-| Field (mỗi item) | Ý nghĩa |
-|------------------|---------|
-| `id` | Gửi trong `categoryId` |
-| `code` | Mã ổn định (vd. `TRASH`) |
-| `nameVi` / `nameEn` | Nhãn hiển thị |
-| `iconUrl` | Icon (nullable) |
+| Field (mỗi item)    | Ý nghĩa                  |
+| ------------------- | ------------------------ |
+| `id`                | Gửi trong `categoryId`   |
+| `code`              | Mã ổn định (vd. `TRASH`) |
+| `nameVi` / `nameEn` | Nhãn hiển thị            |
+| `iconUrl`           | Icon (nullable)          |
 
 ### 4.4 Địa chỉ hành chính
 
@@ -153,18 +153,18 @@ Gửi **`provinceCode`** + **`wardCode`** (mã chuẩn), không gửi tên hiể
 
 **Response 201** — `data` gồm (đủ để bind màn “Đã gửi”):
 
-| Field | Ý nghĩa |
-|-------|---------|
-| `id`, `code` | Định danh báo cáo (vd. `RPT-260511-ABC123`) |
-| `category` | `{ id, code, nameVi, nameEn, iconUrl }` |
-| `severity`, `description` | Như đã gửi |
-| `latitude`, `longitude`, `address`, `wardCode`, `provinceCode` | Vị trí / địa chỉ |
-| `isAnonymous`, `reporterId` | `reporterId` null khi ẩn danh |
-| `status` | Luôn **`Submitted`** lúc tạo |
-| `createdAt` | Thời điểm tạo |
-| `slaVerifyDueAt` | Hạn xác minh (~24h từ tạo) |
-| `aiPending` | `true` khi mới tạo |
-| `images` | `[{ id, url, mimeType, sizeBytes }]` bản ghi đã lưu |
+| Field                                                          | Ý nghĩa                                             |
+| -------------------------------------------------------------- | --------------------------------------------------- |
+| `id`, `code`                                                   | Định danh báo cáo (vd. `RPT-260511-ABC123`)         |
+| `category`                                                     | `{ id, code, nameVi, nameEn, iconUrl }`             |
+| `severity`, `description`                                      | Như đã gửi                                          |
+| `latitude`, `longitude`, `address`, `wardCode`, `provinceCode` | Vị trí / địa chỉ                                    |
+| `isAnonymous`, `reporterId`                                    | `reporterId` null khi ẩn danh                       |
+| `status`                                                       | Luôn **`Submitted`** lúc tạo                        |
+| `createdAt`                                                    | Thời điểm tạo                                       |
+| `slaVerifyDueAt`                                               | Hạn xác minh (~24h từ tạo)                          |
+| `aiPending`                                                    | `true` khi mới tạo                                  |
+| `images`                                                       | `[{ id, url, mimeType, sizeBytes }]` bản ghi đã lưu |
 
 **Lưu ý:** Báo cáo **chưa** hiện trên **map công khai** cho đến khi trạng thái ≥ `Verified` (`GET /v1/map/reports`).
 
@@ -172,13 +172,13 @@ Gửi **`provinceCode`** + **`wardCode`** (mã chuẩn), không gửi tên hiể
 
 ## 6. Bảng lỗi submit (tham khảo)
 
-| HTTP | code | Khi nào |
-|------|------|---------|
-| 422 | `VALIDATION_ERROR` | Sai format / thiếu ảnh / GPS / mã tỉnh-phường / MIME / size ảnh |
-| 404 | `CATEGORY_NOT_FOUND` | `categoryId` không tồn tại hoặc không active |
-| 422 | `INVALID_WARD_PROVINCE` | Cặp `wardCode` + `provinceCode` không khớp catalog |
-| 422 | `AUTHENTICATION_REQUIRED` | `isAnonymous: false` nhưng không đăng nhập |
-| 500 | `INTERNAL_ERROR` | Lỗi server |
+| HTTP | code                      | Khi nào                                                         |
+| ---- | ------------------------- | --------------------------------------------------------------- |
+| 422  | `VALIDATION_ERROR`        | Sai format / thiếu ảnh / GPS / mã tỉnh-phường / MIME / size ảnh |
+| 404  | `CATEGORY_NOT_FOUND`      | `categoryId` không tồn tại hoặc không active                    |
+| 422  | `INVALID_WARD_PROVINCE`   | Cặp `wardCode` + `provinceCode` không khớp catalog              |
+| 422  | `AUTHENTICATION_REQUIRED` | `isAnonymous: false` nhưng không đăng nhập                      |
+| 500  | `INTERNAL_ERROR`          | Lỗi server                                                      |
 
 Validation chi tiết (GPS, cặp mã, HTTPS URL ảnh, …): `SubmitPollutionReportCommandValidator`.
 
@@ -196,14 +196,14 @@ Validation chi tiết (GPS, cặp mã, HTTPS URL ảnh, …): `SubmitPollutionRe
 
 ## 8. Tham chiếu code backend
 
-| Thành phần | Đường dẫn |
-|------------|-----------|
-| Upload ảnh | `Greenlens.Api/Controllers/MediaController.cs` |
-| Submit | `Greenlens.Api/Controllers/PollutionReportsController.cs` |
-| Command / Response | `Application/Features/Reports/SubmitPollutionReport/` |
-| Upload response | `Application/Features/Media/UploadReportImage/` |
-| Catalog địa chỉ | `Application/Features/Catalog/` |
+| Thành phần         | Đường dẫn                                                 |
+| ------------------ | --------------------------------------------------------- |
+| Upload ảnh         | `Greenlens.Api/Controllers/MediaController.cs`            |
+| Submit             | `Greenlens.Api/Controllers/PollutionReportsController.cs` |
+| Command / Response | `Application/Features/Reports/SubmitPollutionReport/`     |
+| Upload response    | `Application/Features/Media/UploadReportImage/`           |
+| Catalog địa chỉ    | `Application/Features/Catalog/`                           |
 
 ---
 
-*Phiên bản: 1.0 — đồng bộ với API hiện tại trong repo.*
+_Phiên bản: 1.0 — đồng bộ với API hiện tại trong repo._

@@ -8,4 +8,7 @@ public interface IUserRepository : IGenericRepository<User>
     Task<User?> GetByEmailAsync(string email, CancellationToken ct = default);
     Task<User?> GetByGoogleIdAsync(string googleId, CancellationToken ct = default);
     Task<int> CountAsync(Expression<Func<User, bool>>? predicate = null, CancellationToken ct = default);
+
+    /// <summary>BR-AUTH-021: Find soft-deleted user by email (bypasses global query filter).</summary>
+    Task<User?> GetDeletedByEmailAsync(string email, CancellationToken ct = default);
 }

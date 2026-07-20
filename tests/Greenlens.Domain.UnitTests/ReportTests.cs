@@ -6,12 +6,10 @@ namespace Greenlens.Domain.UnitTests;
 public sealed class ReportTests
 {
     private static Report CreateTestReport(
-        Severity severity = Severity.Medium,
-        bool isAnonymous = false) =>
+        Severity severity = Severity.Medium) =>
         Report.Create(
             code: "RPT-2026-000001",
             reporterId: Guid.NewGuid(),
-            isAnonymous: isAnonymous,
             categoryId: Guid.NewGuid(),
             severity: severity,
             description: "Test pollution report",
@@ -32,32 +30,10 @@ public sealed class ReportTests
         Assert.Equal(ReportStatus.Submitted, report.Status);
         Assert.Equal(Severity.Medium, report.Severity);
         Assert.Equal(SeveritySource.User, report.SeveritySetBy);
-        Assert.True(report.AiPending);
         Assert.Equal(1, report.ReporterCount);
         Assert.Equal(0, report.ReopenedCount);
         Assert.NotNull(report.SlaVerifyDueAt);
-        Assert.False(report.IsAnonymous);
         Assert.NotNull(report.ReporterId);
-    }
-
-    [Fact]
-    public void Create_Anonymous_ShouldNullifyReporterId()
-    {
-        var report = Report.Create(
-            code: "RPT-2026-000002",
-            reporterId: Guid.NewGuid(),
-            isAnonymous: true,
-            categoryId: Guid.NewGuid(),
-            severity: Severity.Low,
-            description: null,
-            latitude: 10m,
-            longitude: 106m,
-            address: null,
-            wardCode: null,
-            provinceCode: null);
-
-        Assert.True(report.IsAnonymous);
-        Assert.Null(report.ReporterId);
     }
 
     [Fact]
@@ -129,7 +105,8 @@ public sealed class ReportTests
 
         report.Reject("Ảnh không phản ánh ô nhiễm thực tế");
 
-        Assert.Equal(ReportStatus.Rejected, report.Status);
+        // BR-ORG-015: Status stays Submitted — re-queued to Department
+        Assert.Equal(ReportStatus.Submitted, report.Status);
         Assert.Equal("Ảnh không phản ánh ô nhiễm thực tế", report.RejectedReason);
     }
 
@@ -149,15 +126,12 @@ public sealed class ReportTests
     {
         var report = CreateTestReport();
         report.Verify(Guid.NewGuid());
-        var teamId = Guid.NewGuid();
         var officerId = Guid.NewGuid();
 
-        report.Assign(teamId, officerId);
+        report.Assign(officerId);
 
         Assert.Equal(ReportStatus.InProgress, report.Status);
-        Assert.Equal(teamId, report.AssignedTeamId);
-        Assert.Equal(officerId, report.AssignedOfficerId);
-        Assert.NotNull(report.StartedAt);
+        Assert.Equal(officerId, report.AssignedByOfficerId);
     }
 
     [Fact]
@@ -165,7 +139,7 @@ public sealed class ReportTests
     {
         var report = CreateTestReport();
 
-        Assert.Throws<InvalidOperationException>(() => report.Assign(Guid.NewGuid(), Guid.NewGuid()));
+        Assert.Throws<InvalidOperationException>(() => report.Assign(Guid.NewGuid()));
     }
 
     // ── Resolve ──
@@ -175,7 +149,7 @@ public sealed class ReportTests
     {
         var report = CreateTestReport();
         report.Verify(Guid.NewGuid());
-        report.Assign(Guid.NewGuid(), Guid.NewGuid());
+        report.Assign(Guid.NewGuid());
 
         report.Resolve();
 
@@ -199,7 +173,7 @@ public sealed class ReportTests
     {
         var report = CreateTestReport();
         report.Verify(Guid.NewGuid());
-        report.Assign(Guid.NewGuid(), Guid.NewGuid());
+        report.Assign(Guid.NewGuid());
         report.Resolve();
 
         report.Close();
@@ -215,7 +189,7 @@ public sealed class ReportTests
     {
         var report = CreateTestReport();
         report.Verify(Guid.NewGuid());
-        report.Assign(Guid.NewGuid(), Guid.NewGuid());
+        report.Assign(Guid.NewGuid());
         report.Resolve();
 
         var result = report.TryReopen();
@@ -231,7 +205,7 @@ public sealed class ReportTests
     {
         var report = CreateTestReport();
         report.Verify(Guid.NewGuid());
-        report.Assign(Guid.NewGuid(), Guid.NewGuid());
+        report.Assign(Guid.NewGuid());
 
         // Reopen 1
         report.Resolve();
@@ -269,7 +243,7 @@ public sealed class ReportTests
     {
         var report = CreateTestReport();
         report.Verify(Guid.NewGuid());
-        report.Assign(Guid.NewGuid(), Guid.NewGuid());
+        report.Assign(Guid.NewGuid());
 
         Assert.Throws<InvalidOperationException>(() => report.MarkDuplicate(Guid.NewGuid()));
     }
@@ -284,7 +258,136 @@ public sealed class ReportTests
         Assert.Equal(2, report.ReporterCount);
     }
 
+    // ── Duplicate detection (BR-REP-030..033) ──
+
+    [Fact]
+    public void MarkPossibleDuplicate_Tier1_SetsFlagAndSource_BR_REP_030()
+    {
+        var report = CreateTestReport();
+        var candidateId = Guid.NewGuid();
+
+        report.MarkPossibleDuplicate(candidateId, "geo_time");
+
+        Assert.True(report.IsPossibleDuplicate);
+        Assert.Equal(candidateId, report.PossibleDuplicateOfReportId);
+        Assert.Equal("geo_time", report.DuplicateDetectionSource);
+        Assert.Null(report.AiSimilarityScore);
+    }
+
+    [Fact]
+    public void MarkPossibleDuplicate_RaisesFlaggedEvent_BR_REP_031()
+    {
+        var report = CreateTestReport();
+        var candidateId = Guid.NewGuid();
+
+        report.MarkPossibleDuplicate(candidateId, "geo_time");
+
+        var evt = Assert.Single(report.DomainEvents.OfType<ReportPossibleDuplicateFlaggedEvent>());
+        Assert.Equal(report.Id, evt.ReportId);
+        Assert.Equal(candidateId, evt.CandidateReportId);
+    }
+
+    [Fact]
+    public void DismissDuplicate_ClearsFlag_BR_REP_031()
+    {
+        var report = CreateTestReport();
+        report.MarkPossibleDuplicate(Guid.NewGuid(), "geo_time");
+
+        report.DismissDuplicate();
+
+        Assert.False(report.IsPossibleDuplicate);
+        Assert.Null(report.PossibleDuplicateOfReportId);
+        Assert.Null(report.DuplicateDetectionSource);
+        Assert.Null(report.AiSimilarityScore);
+    }
+
+    [Fact]
+    public void ApplyDuplicateAiResult_SameScene_UpgradesSourceAndScore_BR_AI_002()
+    {
+        var report = CreateTestReport();
+        report.MarkPossibleDuplicate(Guid.NewGuid(), "geo_time");
+
+        report.ApplyDuplicateAiResult(isSameScene: true, confidence: 0.87m);
+
+        Assert.True(report.IsPossibleDuplicate);
+        Assert.Equal("geo_time_ai", report.DuplicateDetectionSource);
+        Assert.Equal(0.87m, report.AiSimilarityScore);
+    }
+
+    [Fact]
+    public void ApplyDuplicateAiResult_DifferentScene_DismissesFlag_BR_AI_002()
+    {
+        var report = CreateTestReport();
+        report.MarkPossibleDuplicate(Guid.NewGuid(), "geo_time");
+
+        report.ApplyDuplicateAiResult(isSameScene: false, confidence: 0.20m);
+
+        Assert.False(report.IsPossibleDuplicate);
+        Assert.Null(report.PossibleDuplicateOfReportId);
+        Assert.Null(report.DuplicateDetectionSource);
+    }
+
+    [Fact]
+    public void ApplyDuplicateAiResult_WhenNotFlagged_IsNoOp_BR_AI_002()
+    {
+        var report = CreateTestReport();
+
+        report.ApplyDuplicateAiResult(isSameScene: true, confidence: 0.99m);
+
+        Assert.False(report.IsPossibleDuplicate);
+        Assert.Null(report.DuplicateDetectionSource);
+        Assert.Null(report.AiSimilarityScore);
+    }
+
+    [Fact]
+    public void ApplyDuplicateAiResult_WhenAlreadyDuplicate_IsNoOp_BR_REP_031()
+    {
+        var report = CreateTestReport();
+        report.MarkPossibleDuplicate(Guid.NewGuid(), "geo_time");
+        report.MarkDuplicate(Guid.NewGuid());
+
+        report.ApplyDuplicateAiResult(isSameScene: true, confidence: 0.99m);
+
+        Assert.Equal(ReportStatus.Duplicate, report.Status);
+        Assert.False(report.IsPossibleDuplicate);
+        Assert.Equal("geo_time", report.DuplicateDetectionSource);
+        Assert.Null(report.AiSimilarityScore);
+    }
+
+    [Fact]
+    public void MarkDuplicate_ClearsPossibleDuplicateFlag_BR_REP_032()
+    {
+        var report = CreateTestReport();
+        report.MarkPossibleDuplicate(Guid.NewGuid(), "geo_time");
+
+        report.MarkDuplicate(Guid.NewGuid());
+
+        Assert.Equal(ReportStatus.Duplicate, report.Status);
+        Assert.False(report.IsPossibleDuplicate);
+    }
+
+    [Fact]
+    public void MarkDuplicate_RaisesMergedEvent_BR_REP_032()
+    {
+        var report = CreateTestReport();
+        var primaryId = Guid.NewGuid();
+
+        report.MarkDuplicate(primaryId);
+
+        var evt = Assert.Single(report.DomainEvents.OfType<ReportMarkedDuplicateEvent>());
+        Assert.Equal(report.Id, evt.ReportId);
+        Assert.Equal(primaryId, evt.PrimaryReportId);
+    }
+
     // ── AI ──
+
+    [Fact]
+    public void Create_WithoutPreSubmitAi_DoesNotSetAiPending_BR_AI_001()
+    {
+        var report = CreateTestReport();
+
+        Assert.False(report.AiPending);
+    }
 
     [Fact]
     public void ApplyAiResults_ShouldSetAiFields()
@@ -308,21 +411,6 @@ public sealed class ReportTests
 
         Assert.True(report.IsSuspicious);
         Assert.Equal("[\"EDITED_PHOTO\"]", report.SuspiciousReasons);
-    }
-
-    // ── Reassign ──
-
-    [Fact]
-    public void Reassign_ShouldChangeTeam()
-    {
-        var report = CreateTestReport();
-        report.Verify(Guid.NewGuid());
-        report.Assign(Guid.NewGuid(), Guid.NewGuid());
-        var newTeamId = Guid.NewGuid();
-
-        report.Reassign(newTeamId);
-
-        Assert.Equal(newTeamId, report.AssignedTeamId);
     }
 
     // ── Soft Delete ──
@@ -350,7 +438,7 @@ public sealed class ReportTests
         Assert.Equal(ReportStatus.Verified, report.Status);
 
         // Verify → In Progress
-        report.Assign(Guid.NewGuid(), Guid.NewGuid());
+        report.Assign(Guid.NewGuid());
         Assert.Equal(ReportStatus.InProgress, report.Status);
 
         // In Progress → Resolved

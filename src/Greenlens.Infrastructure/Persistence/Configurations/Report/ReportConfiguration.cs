@@ -38,6 +38,10 @@ internal sealed class ReportConfiguration : IEntityTypeConfiguration<Report>
 
         builder.Property(r => r.RejectedReason).HasMaxLength(2000);
 
+        // ── Duplicate detection (BR-REP-030/031) ──
+        builder.Property(r => r.DuplicateDetectionSource).HasMaxLength(30);
+        builder.Property(r => r.AiSimilarityScore).HasPrecision(5, 4);
+
         // ── Relationships ──
         builder.HasOne(r => r.Reporter)
             .WithMany()
@@ -54,21 +58,50 @@ internal sealed class ReportConfiguration : IEntityTypeConfiguration<Report>
             .HasForeignKey(r => r.ParentReportId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        // BR-REP-031: self-reference to the candidate this report may duplicate (no back-nav).
+        builder.HasOne<Report>()
+            .WithMany()
+            .HasForeignKey(r => r.PossibleDuplicateOfReportId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         builder.HasOne(r => r.VerifiedByUser)
             .WithMany()
             .HasForeignKey(r => r.VerifiedBy)
+            .OnDelete(DeleteBehavior.SetNull);
+
+
+
+        // ── Organization assignment ──
+        builder.HasOne(r => r.AssignedOffice)
+            .WithMany()
+            .HasForeignKey(r => r.AssignedOfficeId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne(r => r.AssignedDepartment)
+            .WithMany()
+            .HasForeignKey(r => r.AssignedDepartmentId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // ── Company dispatch ──
+        builder.HasOne(r => r.AssignedCompany)
+            .WithMany()
+            .HasForeignKey(r => r.AssignedCompanyId)
             .OnDelete(DeleteBehavior.SetNull);
 
         // ── Indexes ──
         builder.HasIndex(r => r.Status);
         builder.HasIndex(r => r.CategoryId);
         builder.HasIndex(r => r.Severity);
-        builder.HasIndex(r => r.AssignedTeamId);
-        builder.HasIndex(r => r.AssignedOfficerId);
+        builder.HasIndex(r => r.AssignedByOfficerId);
+        builder.HasIndex(r => r.AssignedOfficeId);
+        builder.HasIndex(r => r.AssignedDepartmentId);
+        builder.HasIndex(r => r.AssignedCompanyId);
         builder.HasIndex(r => r.WardCode);
         builder.HasIndex(r => r.ProvinceCode);
         builder.HasIndex(r => r.CreatedAt);
         builder.HasIndex(r => r.ParentReportId);
+        builder.HasIndex(r => r.IsPossibleDuplicate);
+        builder.HasIndex(r => r.PossibleDuplicateOfReportId);
 
         // Soft delete query filter
         builder.HasQueryFilter(r => r.DeletedAt == null);

@@ -41,12 +41,18 @@ public static class ResultExtensions
         return ToErrorResult(result.Error!);
     }
 
-    /// <summary>Returns 204 No Content for successful void mutations.</summary>
-    public static IActionResult ToHttpNoContent(this Result result)
+    /// <summary>Returns 200 OK with message for successful void mutations.</summary>
+    public static IActionResult ToHttpNoContent(this Result result, string message = "Thành công")
     {
         if (result.IsSuccess)
         {
-            return new NoContentResult();
+            return new OkObjectResult(new ApiResponse
+            {
+                Code = "SUCCESS",
+                Message = message,
+                Status = 200,
+                Data = null
+            });
         }
 
         return ToErrorResult(result.Error!);
@@ -65,6 +71,7 @@ public static class ResultExtensions
             ErrorType.Conflict     => (409, error.Code),
             ErrorType.Forbidden    => (403, error.Code),
             ErrorType.BusinessRule => (422, error.Code),
+            ErrorType.RateLimited  => (429, error.Code),
             ErrorType.Unexpected   => (500, error.Code),
             _ => (500, "INTERNAL_ERROR"),
         };

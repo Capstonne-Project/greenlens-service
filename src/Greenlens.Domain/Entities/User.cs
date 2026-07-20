@@ -26,9 +26,37 @@ public sealed class User : SoftDeletableEntity
     public UserRole Role { get; private set; }
     public bool IsEmailVerified { get; private set; }
     public bool IsPhoneVerified { get; private set; }
+    public bool MustChangePassword { get; private set; }
     public int FailedLoginAttempts { get; private set; }
     public DateTime? LockoutEnd { get; private set; }
     public string? GoogleId { get; private set; }
+
+    /// <summary>BR-AUTH-015: Admin có thể ban/unban user. User bị ban không thể đăng nhập.</summary>
+    public bool IsBanned { get; private set; }
+
+    // ── Data Consent (BR-DAT-005) ──
+    /// <summary>True when user explicitly accepts data processing terms (photos, GPS).</summary>
+    public bool HasDataConsent { get; private set; }
+    /// <summary>UTC timestamp when consent was accepted.</summary>
+    public DateTime? ConsentAcceptedAt { get; private set; }
+
+    // ── Notifications (BR-NTF-001) ──
+    /// <summary>Firebase Cloud Messaging device token for push notifications.</summary>
+    public string? FcmDeviceToken { get; private set; }
+    /// <summary>Preferred language for notifications (BR-NTF-004). Default: vi-VN.</summary>
+    public string Language { get; private set; } = "vi-VN";
+
+    // ── Comment moderation (BR-CMT-003) ──
+    public int CommentViolationCount { get; private set; }
+    public DateTime? CommentBannedUntil { get; private set; }
+
+    // ── Organization assignment (v1.1) ──
+    public Guid? DepartmentId { get; private set; }
+    public Guid? LocalOfficeId { get; private set; }
+
+    // ── Navigation ──
+    public Department? Department { get; private set; }
+    public LocalOffice? LocalOffice { get; private set; }
 
     public static User Create(string email, string passwordHash, string fullName, UserRole role = UserRole.Citizen)
     {
@@ -55,6 +83,26 @@ public sealed class User : SoftDeletableEntity
             FullName = fullName,
             Role = role,
             IsEmailVerified = true, // admin-created → skip email verification
+            FailedLoginAttempts = 0
+        };
+
+        return user;
+    }
+
+    /// <summary>
+    /// Creates an account with a temporary password that must be changed on first login.
+    /// Used by DEO (creating CompanyManager) and CM (creating CompanyStaff).
+    /// </summary>
+    public static User CreateWithTempPassword(string email, string passwordHash, string fullName, UserRole role)
+    {
+        var user = new User
+        {
+            Email = email.ToLowerInvariant(),
+            PasswordHash = passwordHash,
+            FullName = fullName,
+            Role = role,
+            IsEmailVerified = true, // manager-created → skip email verification
+            MustChangePassword = true, // force password change on first login
             FailedLoginAttempts = 0
         };
 
@@ -112,6 +160,16 @@ public sealed class User : SoftDeletableEntity
     public void ChangePassword(string newPasswordHash)
     {
         PasswordHash = newPasswordHash;
+        if (MustChangePassword)
+            MustChangePassword = false;
+    }
+
+    /// <summary>DEO/Admin resets user password to a new temporary password, forcing change on next login.</summary>
+    public void ResetToTempPassword(string newPasswordHash)
+    {
+        PasswordHash = newPasswordHash;
+        MustChangePassword = true;
+        ResetFailedLoginAttempts();
     }
 
     public void LinkGoogleAccount(string googleId)
@@ -141,4 +199,73 @@ public sealed class User : SoftDeletableEntity
         if (isEmailVerified == true && !IsEmailVerified) IsEmailVerified = true;
         if (isEmailVerified == false) IsEmailVerified = false;
     }
+
+    /// <summary>BR-ORG-001: Assign user (DEO) to a Department.</summary>
+    public void AssignToDepartment(Guid departmentId)
+    {
+        DepartmentId = departmentId;
+        LocalOfficeId = null;
+    }
+
+    /// <summary>BR-ORG-002: Assign user (LEO) to a Local Office.</summary>
+    public void AssignToLocalOffice(Guid localOfficeId)
+    {
+        LocalOfficeId = localOfficeId;
+        DepartmentId = null;
+    }
+
+    /// <summary>Release staff: clear office + department assignment.</summary>
+    public void ClearOfficeAssignment()
+    {
+        LocalOfficeId = null;
+        DepartmentId = null;
+    }
+
+    /// <summary>Admin: explicit role change.</summary>
+    public void ChangeRole(UserRole newRole)
+    {
+        Role = newRole;
+    }
+
+    /// <summary>BR-NTF-001: Update FCM device token for push notifications.</summary>
+    public void UpdateFcmToken(string? token)
+    {
+        FcmDeviceToken = token;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>BR-NTF-004: Update preferred language for notifications.</summary>
+    public void UpdateLanguage(string language)
+    {
+        Language = language;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>BR-AUTH-015: Ban user — prevents login.</summary>
+    public void Ban() => IsBanned = true;
+
+    /// <summary>BR-AUTH-015: Unban user — restores login access.</summary>
+    public void Unban() => IsBanned = false;
+
+    /// <summary>BR-AUTH-015: Toggle ban status.</summary>
+    public void ToggleBan() => IsBanned = !IsBanned;
+
+    /// <summary>BR-DAT-005: User explicitly accepts data processing consent.</summary>
+    public void AcceptDataConsent()
+    {
+        HasDataConsent = true;
+        ConsentAcceptedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>BR-CMT-003: Track profanity violations; ban commenting for 7 days at 3 strikes.</summary>
+    public void RecordCommentViolation()
+    {
+        CommentViolationCount++;
+        if (CommentViolationCount >= 3)
+            CommentBannedUntil = DateTime.UtcNow.AddDays(7);
+    }
+
+    /// <summary>BR-CMT-003: Whether the user is temporarily banned from commenting.</summary>
+    public bool IsCommentBanned() =>
+        CommentBannedUntil.HasValue && CommentBannedUntil.Value > DateTime.UtcNow;
 }

@@ -3,6 +3,7 @@ using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Features.Users.DeleteUser;
 using Greenlens.Domain.Entities;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 
 namespace Greenlens.Application.UnitTests;
@@ -10,6 +11,7 @@ namespace Greenlens.Application.UnitTests;
 public sealed class DeleteUserCommandHandlerTests
 {
     private readonly IUserRepository _users = Substitute.For<IUserRepository>();
+    private readonly IUserPointsRepository _userPoints = Substitute.For<IUserPointsRepository>();
     private readonly IUnitOfWork _uow = Substitute.For<IUnitOfWork>();
     private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
     private readonly DeleteUserCommandHandler _sut;
@@ -21,7 +23,7 @@ public sealed class DeleteUserCommandHandlerTests
     {
         _currentUser.UserId.Returns(AdminId);
         _currentUser.Email.Returns("admin@greenlens.com.vn");
-        _sut = new DeleteUserCommandHandler(_users, _uow, _currentUser);
+        _sut = new DeleteUserCommandHandler(_users, _userPoints, _uow, _currentUser, NullLogger<DeleteUserCommandHandler>.Instance);
     }
 
     [Fact]
@@ -44,7 +46,7 @@ public sealed class DeleteUserCommandHandlerTests
         var result = await _sut.Handle(new DeleteUserCommand(AdminId), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal("CANNOT_DELETE_SELF", result.Error.Code);
+        Assert.Equal("CANNOT_DELETE_SELF", result.Error!.Code);
     }
 
     [Fact]
@@ -55,7 +57,7 @@ public sealed class DeleteUserCommandHandlerTests
         var result = await _sut.Handle(new DeleteUserCommand(TargetUserId), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal("USER_NOT_FOUND", result.Error.Code);
+        Assert.Equal("USER_NOT_FOUND", result.Error!.Code);
     }
 
     [Fact]

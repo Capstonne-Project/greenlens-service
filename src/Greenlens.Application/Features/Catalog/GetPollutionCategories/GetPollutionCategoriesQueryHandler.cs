@@ -2,6 +2,7 @@ using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Catalog.GetPollutionCategories;
 
@@ -11,7 +12,9 @@ namespace Greenlens.Application.Features.Catalog.GetPollutionCategories;
 /// <remarks>
 /// Implements: BR-REP-005 (category required on submit — client loads options from this catalog).
 /// </remarks>
-public sealed class GetPollutionCategoriesQueryHandler(IPollutionCategoryRepository categories)
+public sealed class GetPollutionCategoriesQueryHandler(
+    IPollutionCategoryRepository categories,
+    ILogger<GetPollutionCategoriesQueryHandler> logger)
     : IRequestHandler<GetPollutionCategoriesQuery, Result<GetPollutionCategoriesResponse>>
 {
     public async Task<Result<GetPollutionCategoriesResponse>> Handle(
@@ -30,6 +33,7 @@ public sealed class GetPollutionCategoriesQueryHandler(IPollutionCategoryReposit
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
+        logger.LogInformation("Lấy danh sách danh mục ô nhiễm thành công. Số lượng: {Count}", items.Count);
         return new GetPollutionCategoriesResponse(items);
     }
 }

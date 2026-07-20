@@ -39,8 +39,8 @@ RUN dotnet publish src/Greenlens.Api/Greenlens.Api.csproj \
 FROM mcr.microsoft.com/dotnet/aspnet:9.0-alpine AS runtime
 WORKDIR /app
 
-# Install curl for healthcheck + tzdata for Vietnam timezone + ICU for globalization
-RUN apk add --no-cache curl tzdata icu-libs \
+# Install curl for healthcheck + tzdata for Vietnam timezone + ICU for globalization + ffmpeg for video transcoding (BR-REP-002)
+RUN apk add --no-cache curl tzdata icu-libs ffmpeg \
     && cp /usr/share/zoneinfo/Asia/Ho_Chi_Minh /etc/localtime \
     && echo "Asia/Ho_Chi_Minh" > /etc/timezone
 

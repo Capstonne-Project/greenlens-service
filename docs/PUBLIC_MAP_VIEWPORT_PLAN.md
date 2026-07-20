@@ -17,13 +17,13 @@ Tài liệu dùng chung cho **backend** và **frontend (React Native)** để c�
 
 ## 2. Phạm vi phiên bản
 
-| Thành phần | Trong plan này |
-|------------|----------------|
-| API đọc báo cáo trong bbox + filter trạng thái | Có |
+| Thành phần                                                 | Trong plan này                          |
+| ---------------------------------------------------------- | --------------------------------------- |
+| API đọc báo cáo trong bbox + filter trạng thái             | Có                                      |
 | Hai chế độ: **detail** vs **aggregate** (gom ô / severity) | Mục tiêu; có thể chia phase (xem mục 8) |
-| Làm tròn tọa độ public (BR-MAP-004) | Có trong contract BE |
-| Redis cache / ETag | Phase sau (ghi trong roadmap) |
-| FE: debounce, cache cục bộ, cluster | Có |
+| Làm tròn tọa độ public (BR-MAP-004)                        | Có trong contract BE                    |
+| Redis cache / ETag                                         | Phase sau (ghi trong roadmap)           |
+| FE: debounce, cache cục bộ, cluster                        | Có                                      |
 
 ---
 
@@ -35,13 +35,13 @@ Tài liệu dùng chung cho **backend** và **frontend (React Native)** để c�
 
 ### 3.2 Query parameters
 
-| Param | Bắt buộc | Mô tả |
-|-------|-----------|--------|
-| `minLat`, `maxLat`, `minLng`, `maxLng` | Có | Khung nhìn; validate min/max và biên Việt Nam (BR-REP-003 khi áp dụng cho bbox). |
-| `mode` | Khuyến nghị | `detail` \| `aggregate`. Mặc định có thể là `detail`. |
-| `limit` | Khuyến nghị | Trần số điểm trả về ở mode `detail` (vd. default 200, max 500). |
-| `gridLevel` hoặc `cellSizeDeg` | Khi `aggregate` | Độ phân ô lưới để gom điểm. |
-| `categoryId` | Optional | Lọc loại ô nhiễm nếu có filter UI. |
+| Param                                  | Bắt buộc        | Mô tả                                                                            |
+| -------------------------------------- | --------------- | -------------------------------------------------------------------------------- |
+| `minLat`, `maxLat`, `minLng`, `maxLng` | Có              | Khung nhìn; validate min/max và biên Việt Nam (BR-REP-003 khi áp dụng cho bbox). |
+| `mode`                                 | Khuyến nghị     | `detail` \| `aggregate`. Mặc định có thể là `detail`.                            |
+| `limit`                                | Khuyến nghị     | Trần số điểm trả về ở mode `detail` (vd. default 200, max 500).                  |
+| `gridLevel` hoặc `cellSizeDeg`         | Khi `aggregate` | Độ phân ô lưới để gom điểm.                                                      |
+| `categoryId`                           | Optional        | Lọc loại ô nhiễm nếu có filter UI.                                               |
 
 ### 3.3 Logic nghiệp vụ
 
@@ -53,7 +53,7 @@ Tài liệu dùng chung cho **backend** và **frontend (React Native)** để c�
 
 ### 3.4 Kỹ thuật & chất lượng
 
-- Handler có **XML remarks** + BR-ID (BR-MAP-*, BR-REP-003, BR-MAP-004, …).
+- Handler có **XML remarks** + BR-ID (BR-MAP-\*, BR-REP-003, BR-MAP-004, …).
 - **`AsNoTracking`**, không hydrate full entity khi chỉ cần map pin.
 - **FluentValidation** cho bbox và limit.
 - **Unit test** validator; **integration test** (Testcontainers) cho query khi có DB.
@@ -125,7 +125,7 @@ Tài liệu dùng chung cho **backend** và **frontend (React Native)** để c�
 }
 ```
 
-*(Field chính xác do team chốt trong DTO; latitude/longitude đã làm tròn phía BE.)*
+_(Field chính xác do team chốt trong DTO; latitude/longitude đã làm tròn phía BE.)_
 
 ### 5.2 `mode=aggregate` — ví dụ `data`
 
@@ -154,11 +154,11 @@ Tài liệu dùng chung cho **backend** và **frontend (React Native)** để c�
 
 ## 7. Trách nhiệm rõ ràng
 
-| Hạng mục | Owner chính |
-|----------|-------------|
-| Endpoint, validator, DTO, filter status, làm tròn tọa độ | BE |
-| Debounce, bbox từ map, gọi API, cache FE, cluster/aggregate UI | FE |
-| BR doc / acceptance “Verified+” | PO + cả hai team review handler |
+| Hạng mục                                                       | Owner chính                     |
+| -------------------------------------------------------------- | ------------------------------- |
+| Endpoint, validator, DTO, filter status, làm tròn tọa độ       | BE                              |
+| Debounce, bbox từ map, gọi API, cache FE, cluster/aggregate UI | FE                              |
+| BR doc / acceptance “Verified+”                                | PO + cả hai team review handler |
 
 ---
 
@@ -173,7 +173,7 @@ Tài liệu dùng chung cho **backend** và **frontend (React Native)** để c�
 
 ## 9. Tài liệu liên quan trong repo
 
-- BR traceability: handlers gắn BR-MAP-*, BR-REP-003, BR-MAP-004.
+- BR traceability: handlers gắn BR-MAP-\*, BR-REP-003, BR-MAP-004.
 - Map flow địa chỉ form: `docs/ADDRESS_MAP_CATALOG_FLOW.md` (catalog tỉnh/phường — khác với map public báo cáo).
 
 ---
@@ -189,13 +189,13 @@ Tài liệu dùng chung cho **backend** và **frontend (React Native)** để c�
 
 ## 11. Trạng thái triển khai backend (đã có trong repo)
 
-| Thành phần | Vị trí |
-|------------|--------|
-| **GET** `/v1/map/reports` | `Greenlens.Api/Controllers/MapController.cs` |
-| Query + handler | `Greenlens.Application/Features/Map/GetPublicMapReports/*` |
-| Giới hạn bbox / limit | `Greenlens.Application/Common/Map/PublicMapQueryLimits.cs` |
-| Làm tròn tọa độ public | `Greenlens.Application/Common/Map/PublicMapCoordinateRounding.cs` |
-| Lỗi map (dự phòng) | `Errors.Map.*` trong `Greenlens.Application/Common/Errors.cs` |
+| Thành phần                | Vị trí                                                            |
+| ------------------------- | ----------------------------------------------------------------- |
+| **GET** `/v1/map/reports` | `Greenlens.Api/Controllers/MapController.cs`                      |
+| Query + handler           | `Greenlens.Application/Features/Map/GetPublicMapReports/*`        |
+| Giới hạn bbox / limit     | `Greenlens.Application/Common/Map/PublicMapQueryLimits.cs`        |
+| Làm tròn tọa độ public    | `Greenlens.Application/Common/Map/PublicMapCoordinateRounding.cs` |
+| Lỗi map (dự phòng)        | `Errors.Map.*` trong `Greenlens.Application/Common/Errors.cs`     |
 
 **Tham số:** `minLat`, `maxLat`, `minLng`, `maxLng`, `mode` (`detail` \| `aggregate`), `limit` (detail, default 200, max 500), `gridLevel` (aggregate, 1–5, default 3), `categoryId` (optional).
 
@@ -205,4 +205,4 @@ Tài liệu dùng chung cho **backend** và **frontend (React Native)** để c�
 
 ---
 
-*Phiên bản: 1.1 — đã gắn endpoint BE.*
+_Phiên bản: 1.1 — đã gắn endpoint BE._

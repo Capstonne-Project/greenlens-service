@@ -12,5 +12,6 @@ public enum ErrorType
     Conflict,
     Forbidden,
     BusinessRule,
+    RateLimited,
     Unexpected
 }

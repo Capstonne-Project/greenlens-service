@@ -3,8 +3,10 @@ using System.Text.Json.Serialization;
 using Greenlens.Api.Middlewares;
 using Greenlens.Infrastructure;
 using Greenlens.Infrastructure.Seeders.Administrator;
+using Hangfire;
 using Microsoft.AspNetCore.HttpOverrides;
 using Serilog;
+using Greenlens.Infrastructure.Notifications.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,9 +25,10 @@ builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.SetIsOriginAllowed(origin => true) // Thay cho AllowAnyOrigin để dùng được AllowCredentials
               .AllowAnyMethod()
-              .AllowAnyHeader();
+              .AllowAnyHeader()
+              .AllowCredentials(); // Bắt buộc đối với SignalR khi FE gọi từ domain khác
     });
 });
 
@@ -67,6 +70,7 @@ builder.Services.AddControllers(options =>
     });
 
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddSignalR();
 
 // ── Swagger ──────────────────────────────────────────
 builder.Services.AddEndpointsApiExplorer();
@@ -104,6 +108,30 @@ builder.Services.AddSwaggerGen(options =>
             Array.Empty<string>()
         }
     });
+
+    // Tag ordering — FE đọc Swagger theo thứ tự dashboard
+    var tagOrder = new[]
+    {
+        "📋 Reports — Citizen Flow",
+        "🔐 Auth — Authentication",
+        "👤 Users — User Profile",
+        "🔍 DEO Dashboard",
+        "📌 LEO Dashboard",
+        "🧹 Cleaner Dashboard",
+        "🔎 Inspector Dashboard",
+        "⚙️ Admin Dashboard",
+        "📚 Catalog — Reference Data",
+        "🗺️ Map — Public Map",
+        "📎 Media — File Upload"
+    };
+    options.OrderActionsBy(apiDesc =>
+    {
+        var tag = apiDesc.ActionDescriptor.EndpointMetadata
+            .OfType<TagsAttribute>()
+            .FirstOrDefault()?.Tags.FirstOrDefault() ?? "zzz";
+        var idx = Array.IndexOf(tagOrder, tag);
+        return $"{(idx >= 0 ? idx : 99):D2}_{tag}_{apiDesc.RelativePath}";
+    });
 });
 
 var app = builder.Build();
@@ -132,7 +160,15 @@ app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<NotificationHub>("/hubs/notifications");
 app.MapHealthChecks("/health");
+
+// ── Hangfire Dashboard (admin only in production) ──
+app.UseHangfireDashboard("/hangfire", new Hangfire.DashboardOptions
+{
+    Authorization = [] // TODO: add admin-only auth filter for production
+});
+app.UseRecurringJobs();
 
 app.Run();
 
