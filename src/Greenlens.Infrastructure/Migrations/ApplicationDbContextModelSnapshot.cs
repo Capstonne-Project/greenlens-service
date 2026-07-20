@@ -465,6 +465,10 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_hidden");
 
+                    b.Property<Guid?>("ParentCommentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("parent_comment_id");
+
                     b.Property<Guid>("ReportId")
                         .HasColumnType("uuid")
                         .HasColumnName("report_id");
@@ -483,10 +487,45 @@ namespace Greenlens.Infrastructure.Migrations
                     b.HasIndex("AuthorId")
                         .HasDatabaseName("ix_comments_author_id");
 
+                    b.HasIndex("ParentCommentId")
+                        .HasDatabaseName("ix_comments_parent_comment_id");
+
                     b.HasIndex("ReportId", "CreatedAt")
                         .HasDatabaseName("ix_comments_report_id_created_at");
 
                     b.ToTable("comments", (string)null);
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.CommentLike", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CommentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("comment_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_comment_likes");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_comment_likes_user_id");
+
+                    b.HasIndex("CommentId", "UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_comment_likes_comment_id_user_id");
+
+                    b.ToTable("comment_likes", (string)null);
                 });
 
             modelBuilder.Entity("Greenlens.Domain.Entities.CommentMedia", b =>
@@ -3490,6 +3529,12 @@ namespace Greenlens.Infrastructure.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_comments_users_author_id");
 
+                    b.HasOne("Greenlens.Domain.Entities.Comment", "ParentComment")
+                        .WithMany("Replies")
+                        .HasForeignKey("ParentCommentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("fk_comments_comments_parent_comment_id");
+
                     b.HasOne("Greenlens.Domain.Entities.Report", "Report")
                         .WithMany("Comments")
                         .HasForeignKey("ReportId")
@@ -3499,7 +3544,30 @@ namespace Greenlens.Infrastructure.Migrations
 
                     b.Navigation("Author");
 
+                    b.Navigation("ParentComment");
+
                     b.Navigation("Report");
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.CommentLike", b =>
+                {
+                    b.HasOne("Greenlens.Domain.Entities.Comment", "Comment")
+                        .WithMany("Likes")
+                        .HasForeignKey("CommentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_comment_likes_comments_comment_id");
+
+                    b.HasOne("Greenlens.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_comment_likes_users_user_id");
+
+                    b.Navigation("Comment");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Greenlens.Domain.Entities.CommentMedia", b =>
@@ -4141,7 +4209,11 @@ namespace Greenlens.Infrastructure.Migrations
 
             modelBuilder.Entity("Greenlens.Domain.Entities.Comment", b =>
                 {
+                    b.Navigation("Likes");
+
                     b.Navigation("Media");
+
+                    b.Navigation("Replies");
                 });
 
             modelBuilder.Entity("Greenlens.Domain.Entities.Department", b =>
