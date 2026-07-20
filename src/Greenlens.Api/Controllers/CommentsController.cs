@@ -5,6 +5,7 @@ using Greenlens.Application.Features.Comments.DeleteComment;
 using Greenlens.Application.Features.Comments.EditComment;
 using Greenlens.Application.Features.Comments.GetReportComments;
 using Greenlens.Application.Features.Comments.HideComment;
+using Greenlens.Application.Features.Comments.ToggleCommentLike;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -23,7 +24,7 @@ public sealed class CommentsController(ISender sender) : ControllerBase
     [HttpGet("reports/{reportId:guid}/comments")]
     [SwaggerOperation(
         Summary = "[Auth] Danh sách bình luận trên báo cáo",
-        Description = "Phân trang bình luận. Citizen không thấy bình luận đã ẩn; LEO/DEO/Admin thấy đầy đủ.")]
+        Description = "Phân trang bình luận (kèm likeCount / likedByMe / parentCommentId). Citizen không thấy bình luận đã ẩn.")]
     [SwaggerResponse(200, "Danh sách bình luận", typeof(ApiResponse<GetReportCommentsResponse>))]
     [SwaggerResponse(404, "Báo cáo không tồn tại", typeof(ApiResponse))]
     public async Task<IActionResult> GetReportCommentsAsync(
@@ -35,9 +36,9 @@ public sealed class CommentsController(ISender sender) : ControllerBase
 
     [HttpPost("reports/{reportId:guid}/comments")]
     [SwaggerOperation(
-        Summary = "[Citizen] Thêm bình luận",
-        Description = "1–500 ký tự, tối đa 2 ảnh (upload trước qua POST /v1/media/comments/images). " +
-            "Báo cáo ẩn danh (hideReporterName) chỉ cho LEO/DEO/Admin và người gửi gốc.")]
+        Summary = "[Auth] Thêm bình luận / trả lời",
+        Description = "1–500 ký tự, tối đa 2 ảnh. parentCommentId = trả lời (TikTok-style, 1 cấp). " +
+            "Báo cáo ẩn danh: đội xử lý / LEO / người gửi được comment.")]
     [SwaggerResponse(201, "Đã tạo bình luận", typeof(ApiResponse<AddCommentResponse>))]
     [SwaggerResponse(403, "Không được bình luận / chưa đăng nhập", typeof(ApiResponse))]
     [SwaggerResponse(422, "Nội dung không phù hợp hoặc bị khóa bình luận", typeof(ApiResponse))]
@@ -46,9 +47,18 @@ public sealed class CommentsController(ISender sender) : ControllerBase
         [FromBody] AddCommentRequest body,
         CancellationToken ct)
     {
-        var command = new AddCommentCommand(reportId, body.Content, body.Images);
+        var command = new AddCommentCommand(reportId, body.Content, body.Images, body.ParentCommentId);
         return (await sender.Send(command, ct)).ToHttpCreated();
     }
+
+    [HttpPost("comments/{commentId:guid}/like")]
+    [SwaggerOperation(
+        Summary = "[Auth] Thích / bỏ thích bình luận",
+        Description = "Toggle like. Response: liked + likeCount.")]
+    [SwaggerResponse(200, "Đã cập nhật like", typeof(ApiResponse<ToggleCommentLikeResponse>))]
+    [SwaggerResponse(404, "Không tìm thấy bình luận", typeof(ApiResponse))]
+    public async Task<IActionResult> ToggleLikeAsync(Guid commentId, CancellationToken ct)
+        => (await sender.Send(new ToggleCommentLikeCommand(commentId), ct)).ToHttp();
 
     [HttpPut("comments/{commentId:guid}")]
     [SwaggerOperation(
@@ -90,7 +100,8 @@ public sealed class CommentsController(ISender sender) : ControllerBase
 
 public sealed record AddCommentRequest(
     string Content,
-    IReadOnlyList<AddCommentImageItem>? Images = null);
+    IReadOnlyList<AddCommentImageItem>? Images = null,
+    Guid? ParentCommentId = null);
 
 public sealed record EditCommentRequest(string Content);
 
