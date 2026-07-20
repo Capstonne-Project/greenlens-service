@@ -407,10 +407,8 @@ public static class DependencyInjection
             job => job.ExecuteAsync(),
             "0 * * * *"); // every hour
 
-        // BR-AI-006: Retry ai_pending classifications within 1h window
-        RecurringJob.AddOrUpdate<AiRetryJob>(
-            "ai-retry",
-            job => job.ExecuteAsync(),
-            "*/5 * * * *"); // every 5 minutes
+        // Classification is an opt-in pre-submit UX feature. Remove the legacy
+        // recurring registration from persistent Hangfire storage after rollout.
+        RecurringJob.RemoveIfExists("ai-retry");
     }
 }
