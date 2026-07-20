@@ -1,6 +1,7 @@
 using Greenlens.Api.Extensions;
 using Greenlens.Application.Common.Models;
 using Greenlens.Application.Features.Reports.AnalyzeReportImage;
+using Greenlens.Application.Features.Reports.AnalyzeUploadedReportImage;
 using Greenlens.Application.Features.Reports.AssignCompanyTeam;
 using Greenlens.Application.Features.Reports.AssignTeam;
 using Greenlens.Application.Features.Reports.DispatchToCompany;
@@ -58,7 +59,7 @@ public sealed class ReportsController(ISender sender) : ControllerBase
     // ═══════════════════════════════════════════
 
     [HttpPost("analyze")]
-    [Authorize]
+    [Authorize(Roles = "Citizen")]
     [Tags("📋 Reports — Citizen Flow")]
     [Consumes("multipart/form-data")]
     [SwaggerOperation(
@@ -100,12 +101,30 @@ public sealed class ReportsController(ISender sender) : ControllerBase
         return (await sender.Send(command, ct)).ToHttp();
     }
 
+    [HttpPost("analyze-uploaded")]
+    [Authorize(Roles = "Citizen")]
+    [Tags("📋 Reports — Citizen Flow")]
+    [SwaggerOperation(
+        Summary = "[Citizen] Phân tích ảnh đã upload trực tiếp R2",
+        Description =
+            "Flow tối ưu: POST /v1/media/presign (ReportImage) → PUT file thẳng R2 → gọi endpoint này. " +
+            "BE đọc object riêng tư từ R2 và gửi AI; không upload ảnh qua GreenLens API lần hai. " +
+            "Trả tempImageId TTL 15 phút để submit kèm images[].")]
+    [SwaggerResponse(200, "Kết quả phân tích", typeof(ApiResponse<AnalyzeReportImageResponse>))]
+    [SwaggerResponse(400, "URL/metadata/type không hợp lệ", typeof(ApiResponse))]
+    [SwaggerResponse(404, "Object R2 không tồn tại", typeof(ApiResponse))]
+    [SwaggerResponse(500, "AI Service tạm thời không khả dụng", typeof(ApiResponse))]
+    public async Task<IActionResult> AnalyzeUploadedAsync(
+        [FromBody] AnalyzeUploadedReportImageCommand command,
+        CancellationToken ct)
+        => (await sender.Send(command, ct)).ToHttp();
+
     // ═══════════════════════════════════════════
     // ██  CRUD
     // ═══════════════════════════════════════════
 
     [HttpPost]
-    [Authorize]
+    [Authorize(Roles = "Citizen")]
     [Tags("📋 Reports — Citizen Flow")]
     [SwaggerOperation(
         Summary = "[Citizen] Tạo báo cáo ô nhiễm",
@@ -378,34 +397,21 @@ public sealed class ReportsController(ISender sender) : ControllerBase
     [HttpPut("{id:guid}/progress")]
     [Authorize(Roles = "Cleaner,CompanyStaff,Inspector,Admin")]
     [Tags("🧹 Cleaner Dashboard")]
-    [Consumes("multipart/form-data")]
     [SwaggerOperation(
-        Summary = "[Cleaner/CompanyStaff/Inspector] Cập nhật tiến độ + ảnh",
-        Description = "Team leader cập nhật % tiến độ, ghi chú, và tùy chọn upload ảnh trong cùng 1 request. " +
-            "TeamId tự động lấy từ token. Tối đa 5 ảnh, mỗi ảnh ≤ 20MB. Status không thay đổi.")]
-    [SwaggerResponse(200, "Đã cập nhật, trả về URLs ảnh đã upload", typeof(ApiResponse<UpdateProgressResponse>))]
+        Summary = "[Cleaner/CompanyStaff/Inspector] Cập nhật tiến độ + URL ảnh (presign)",
+        Description = "Team leader cập nhật % tiến độ, ghi chú, và tùy chọn danh sách publicUrl ảnh đã PUT lên R2 " +
+            "(qua POST /v1/media/presign purpose=Progress). Tối đa 5 URL. Status không thay đổi.")]
+    [SwaggerResponse(200, "Đã cập nhật, trả về URLs ảnh đã lưu", typeof(ApiResponse<UpdateProgressResponse>))]
     [SwaggerResponse(422, "Không phải leader, assignment không InProgress, hoặc percent ngoài khoảng 0–100", typeof(ApiResponse))]
     public async Task<IActionResult> UpdateProgressAsync(
         [FromRoute] Guid id,
-        [FromForm] int progressPercent,
-        [FromForm] string? progressNote,
-        [FromForm] List<IFormFile>? images,
+        [FromBody] UpdateProgressRequest request,
         CancellationToken ct)
-    {
-        var imageFiles = new List<ProgressImageFile>();
-        foreach (var img in images ?? [])
-        {
-            if (img.Length > 20 * 1024 * 1024)
-                return StatusCode(413, new ApiResponse { Code = "FILE_TOO_LARGE", Message = $"File '{img.FileName}' vượt quá 20MB.", Status = 413 });
-
-            using var ms = new MemoryStream();
-            await img.CopyToAsync(ms, ct);
-            imageFiles.Add(new ProgressImageFile(ms.ToArray(), img.FileName, img.ContentType));
-        }
-
-        var command = new UpdateProgressCommand(id, progressPercent, progressNote, imageFiles);
-        return (await sender.Send(command, ct)).ToHttp();
-    }
+        => (await sender.Send(new UpdateProgressCommand(
+            id,
+            request.ProgressPercent,
+            request.ProgressNote,
+            request.ImageUrls ?? []), ct)).ToHttp();
 
     [HttpPut("{id:guid}/resolve")]
     [Authorize(Roles = "Cleaner,CompanyStaff,Admin")]
@@ -545,49 +551,21 @@ public sealed class ReportsController(ISender sender) : ControllerBase
     public async Task<IActionResult> DeleteAsync([FromRoute] Guid id, CancellationToken ct)
         => (await sender.Send(new DeleteReportCommand(id), ct)).ToHttpNoContent();
 
-    /// <summary>BR-REP-014: Upload before images after check-in, before starting cleanup.</summary>
+    /// <summary>BR-REP-014: Persist before image URLs after direct R2 upload.</summary>
     [HttpPost("{id:guid}/before-images")]
     [Authorize(Roles = "Cleaner,CompanyStaff,Admin")]
     [Tags("🧹 Cleaner Dashboard")]
-    [Consumes("multipart/form-data")]
     [SwaggerOperation(
-        Summary = "[Cleaner/CompanyStaff] Upload ảnh hiện trạng trước khi dọn",
-        Description = "Team leader upload ảnh hiện trạng khi đến hiện trường (before images). " +
-            "Bắt buộc trước khi hoàn thành (resolve). Tối đa 5 ảnh, mỗi ảnh ≤ 20MB.")]
-    [SwaggerResponse(200, "Đã upload", typeof(ApiResponse<UploadBeforeImagesResponse>))]
+        Summary = "[Cleaner/CompanyStaff] Lưu URL ảnh hiện trạng (presign)",
+        Description = "Team leader gửi publicUrl ảnh đã PUT lên R2 (POST /v1/media/presign purpose=Before). " +
+            "Bắt buộc trước khi hoàn thành (resolve). Tối đa 5 URL thuộc CDN R2 của hệ thống.")]
+    [SwaggerResponse(200, "Đã lưu", typeof(ApiResponse<UploadBeforeImagesResponse>))]
     [SwaggerResponse(422, "Assignment không InProgress hoặc không phải leader", typeof(ApiResponse))]
     public async Task<IActionResult> UploadBeforeImagesAsync(
         [FromRoute] Guid id,
-        [FromForm] List<IFormFile> images,
+        [FromBody] UploadBeforeImagesRequest request,
         CancellationToken ct)
-    {
-        if (images is null || images.Count == 0)
-            return BadRequest(new ApiResponse
-            {
-                Code = "FILE_REQUIRED",
-                Message = "Vui lòng chọn ít nhất 1 ảnh.",
-                Status = 400
-            });
-
-        var imageFiles = new List<BeforeImageFile>();
-        foreach (var img in images)
-        {
-            if (img.Length > 20 * 1024 * 1024)
-                return StatusCode(413, new ApiResponse
-                {
-                    Code = "FILE_TOO_LARGE",
-                    Message = $"File '{img.FileName}' vượt quá 20MB.",
-                    Status = 413
-                });
-
-            using var ms = new MemoryStream();
-            await img.CopyToAsync(ms, ct);
-            imageFiles.Add(new BeforeImageFile(ms.ToArray(), img.FileName, img.ContentType));
-        }
-
-        var command = new UploadBeforeImagesCommand(id, imageFiles);
-        return (await sender.Send(command, ct)).ToHttp();
-    }
+        => (await sender.Send(new UploadBeforeImagesCommand(id, request.ImageUrls ?? []), ct)).ToHttp();
 
     // ═══════════════════════════════════════════
     // ██  INSPECTION (nested resource)
@@ -750,6 +728,8 @@ public sealed record AssignTeamRequest(List<AssignTeamItemRequest> Teams, List<G
 public sealed record AssignTeamItemRequest(Guid TeamId, string? Note);
 public sealed record ReassignTeamRequest(Guid OldTeamId, Guid NewTeamId, string Reason);
 public sealed record ResolveReportRequest(List<string> AfterImageUrls);
+public sealed record UpdateProgressRequest(int ProgressPercent, string? ProgressNote = null, List<string>? ImageUrls = null);
+public sealed record UploadBeforeImagesRequest(List<string> ImageUrls);
 public sealed record DeclineAssignmentRequest(Guid TeamId, string Reason);
 public sealed record TagWasteRequest(List<Guid> WasteTagIds);
 public sealed record DispatchToCompanyRequest(Guid CompanyId, string? Note);
