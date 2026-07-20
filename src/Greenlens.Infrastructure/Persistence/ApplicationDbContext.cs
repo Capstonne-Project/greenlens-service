@@ -27,6 +27,7 @@ internal sealed class ApplicationDbContext(
     public DbSet<ReportWasteTag> ReportWasteTags => Set<ReportWasteTag>();
     public DbSet<Comment> Comments => Set<Comment>();
     public DbSet<CommentMedia> CommentMedia => Set<CommentMedia>();
+    public DbSet<CommentLike> CommentLikes => Set<CommentLike>();
 
     // ── Organization module (v1.1) ──
     public DbSet<Department> Departments => Set<Department>();

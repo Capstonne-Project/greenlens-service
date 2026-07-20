@@ -25,8 +25,14 @@ internal sealed class CommentConfiguration : IEntityTypeConfiguration<Comment>
             .HasForeignKey(c => c.AuthorId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.HasOne(c => c.ParentComment)
+            .WithMany(c => c.Replies)
+            .HasForeignKey(c => c.ParentCommentId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         builder.HasIndex(c => new { c.ReportId, c.CreatedAt });
         builder.HasIndex(c => c.AuthorId);
+        builder.HasIndex(c => c.ParentCommentId);
 
         builder.HasQueryFilter(c => c.DeletedAt == null);
     }
