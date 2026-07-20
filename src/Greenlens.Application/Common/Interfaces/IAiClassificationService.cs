@@ -4,14 +4,14 @@ namespace Greenlens.Application.Common.Interfaces;
 /// Contract for calling the AI Service to classify and moderate a pollution report image.
 /// </summary>
 /// <remarks>
-/// Implements: BR-AI-001 (image classification), BR-AI-006 (timeout 5s → tag ai_pending),
+/// Implements: BR-AI-001 (image classification), BR-AI-006 (5-second timeout),
 /// BR-AI-007 (EXIF stripping handled by the implementation before forwarding).
 /// </remarks>
 public interface IAiClassificationService
 {
     /// <summary>
     /// Forward an image stream to the AI Service and return the classification result.
-    /// Returns null when the AI Service is unavailable (timeout / 5xx) — caller should tag report as ai_pending.
+    /// Returns null when the AI Service is unavailable (timeout / 5xx).
     /// </summary>
     Task<AiClassificationResult?> ClassifyAsync(
         Stream imageStream,

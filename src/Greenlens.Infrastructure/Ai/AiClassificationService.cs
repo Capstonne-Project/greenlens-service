@@ -10,7 +10,7 @@ namespace Greenlens.Infrastructure.Ai;
 /// HTTP adapter for the Python/FastAPI AI Service.
 /// </summary>
 /// <remarks>
-/// Implements: BR-AI-001 (classification), BR-AI-006 (timeout 5s → return null for ai_pending fallback).
+/// Implements: BR-AI-001 (classification), BR-AI-006 (timeout 5s → return null).
 /// Endpoint: POST /api/v1/classify-moderation-upload  field: "image".
 /// </remarks>
 internal sealed class AiClassificationService(
@@ -60,7 +60,7 @@ internal sealed class AiClassificationService(
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
-            // BR-AI-006: timeout — caller will tag ai_pending
+            // BR-AI-006: fail fast so the optional pre-submit AI flow can fall back to manual input.
             logger.LogWarning("AI Service timed out after {Seconds}s", options.Value.TimeoutSeconds);
             return null;
         }
