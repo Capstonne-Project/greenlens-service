@@ -23,6 +23,9 @@ public sealed record CommentListItem(
     bool IsHidden,
     bool CanEdit,
     bool CanDelete,
+    Guid? ParentCommentId,
+    int LikeCount,
+    bool LikedByMe,
     IReadOnlyList<CommentImageItem> Images);
 
 public sealed record CommentImageItem(string Url, string MimeType, long SizeBytes);
