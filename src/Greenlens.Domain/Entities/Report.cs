@@ -82,7 +82,7 @@ public sealed class Report : SoftDeletableEntity
     // ── AI Analysis ──
     public bool IsSuspicious { get; private set; }
     public string? SuspiciousReasons { get; private set; }
-    public bool AiPending { get; private set; } = true;
+    public bool AiPending { get; private set; }
     public string? AiClassifiedType { get; private set; }
     public decimal? AiConfidence { get; private set; }
     public Severity? AiEstimatedSeverity { get; private set; }
@@ -168,7 +168,7 @@ public sealed class Report : SoftDeletableEntity
             WardCode = wardCode,
             ProvinceCode = provinceCode,
             Status = ReportStatus.Submitted,
-            AiPending = true,
+            AiPending = false,
             SlaVerifyDueAt = DateTime.UtcNow.AddHours(24),
             CreatedAt = DateTime.UtcNow
         };

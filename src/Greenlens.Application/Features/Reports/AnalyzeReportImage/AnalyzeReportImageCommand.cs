@@ -1,4 +1,5 @@
 using Greenlens.Domain.Common;
+using Greenlens.Application.Common.Interfaces;
 using MediatR;
 
 namespace Greenlens.Application.Features.Reports.AnalyzeReportImage;
@@ -14,4 +15,4 @@ public sealed record AnalyzeReportImageCommand(
     byte[] ImageBytes,
     string FileName,
     string ContentType,
-    long FileSize) : IRequest<Result<AnalyzeReportImageResponse>>;
+    long FileSize) : IRequest<Result<AnalyzeReportImageResponse>>, INoTransaction;
