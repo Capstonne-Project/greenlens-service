@@ -47,7 +47,11 @@ public sealed class AnalyzeReportImageCommandHandler(
 
         // Save temp regardless of AI decision (FE needs to show the result to user)
         var tempId = await tempStore.SaveAsync(
-            request.ImageBytes, request.FileName, contentType, cancellationToken)
+            request.ImageBytes,
+            request.FileName,
+            contentType,
+            aiResult,
+            ct: cancellationToken)
             .ConfigureAwait(false);
 
         var suggestedCategory = await ResolveSuggestedCategoryAsync(

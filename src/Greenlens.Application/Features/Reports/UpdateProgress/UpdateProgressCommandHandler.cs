@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 namespace Greenlens.Application.Features.Reports.UpdateProgress;
 
 /// <summary>
-/// Team leader updates cleanup progress (percent, note, optional images).
+/// Team leader updates cleanup progress (percent, note, optional R2 image URLs).
 /// TeamId resolved from JWT token — caller must be a team leader.
 /// Does NOT change report or assignment status.
 /// </summary>
@@ -23,10 +23,21 @@ public sealed class UpdateProgressCommandHandler(
     IUnitOfWork uow,
     ILogger<UpdateProgressCommandHandler> logger) : IRequestHandler<UpdateProgressCommand, Result<UpdateProgressResponse>>
 {
+    private const int MaxImages = 5;
+
     public async Task<Result<UpdateProgressResponse>> Handle(UpdateProgressCommand request, CancellationToken ct)
     {
         if (request.ProgressPercent is < 0 or > 100)
             return Errors.Reports.InvalidProgressPercent;
+
+        if (request.ImageUrls.Count > MaxImages)
+            return Errors.Media.TooManyImages;
+
+        foreach (var url in request.ImageUrls)
+        {
+            if (!fileStorage.IsOwnedPublicUrl(url))
+                return Errors.Media.InvalidStorageUrl;
+        }
 
         var leader = await teamMembers.GetLeaderByUserIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
         if (leader is null)
@@ -41,27 +52,21 @@ public sealed class UpdateProgressCommandHandler(
         if (assignment.Status != AssignmentStatus.InProgress)
             return Errors.Reports.AssignmentNotInProgress;
 
-        // Upload images and persist as ReportMedia (Type = Progress)
-        var uploadedUrls = new List<string>();
-        foreach (var img in request.Images)
+        var savedUrls = new List<string>(request.ImageUrls.Count);
+        foreach (var url in request.ImageUrls)
         {
-            var folder = $"reports/{request.ReportId}/progress/{leader.TeamId}";
-            using var stream = new MemoryStream(img.Bytes);
-            var uploaded = await fileStorage.UploadAsync(stream, img.FileName, img.ContentType, folder, ct)
-                .ConfigureAwait(false);
-
+            var trimmed = url.Trim();
             var media = ReportMedia.Create(
                 request.ReportId,
                 MediaType.Progress,
-                uploaded.Url,
-                img.ContentType,
-                img.Bytes.LongLength,
+                trimmed,
+                "image/jpeg",
+                0L,
                 currentUser.UserId);
             reportMedia.Add(media);
-            uploadedUrls.Add(uploaded.Url);
+            savedUrls.Add(trimmed);
         }
 
-        // Update progress percentage and note
         assignment.UpdateProgress(request.ProgressPercent, request.ProgressNote, currentUser.UserId);
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
@@ -69,6 +74,6 @@ public sealed class UpdateProgressCommandHandler(
         logger.LogInformation("Progress updated to {Percent}% for report {ReportId} by team {TeamId}",
             request.ProgressPercent, request.ReportId, leader.TeamId);
 
-        return new UpdateProgressResponse(uploadedUrls);
+        return new UpdateProgressResponse(savedUrls);
     }
 }

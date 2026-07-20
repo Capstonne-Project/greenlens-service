@@ -2,6 +2,7 @@ using Greenlens.Application.Features.Reports;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Common.Mappings;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
@@ -14,8 +15,8 @@ namespace Greenlens.Application.Features.Reports.SubmitPollutionReport;
 
 /// <summary>
 /// Submit a new pollution report — supports two image flows:
-///   AI flow:     TempImageId provided → lookup temp store → upload R2 → create Report (AiPending = false, status from AI)
-///   Manual flow: Images[] provided   → persist URLs as-is → create Report (AiPending = true, background job retries AI)
+///   AI flow:     TempImageId provided → apply the pre-submit classification result.
+///   Manual flow: Images[] provided   → persist URLs without post-submit classification.
 ///
 /// Auto-routing: report is assigned directly to LocalOffice by WardCode.
 /// Fallback: if ward has no onboarded LocalOffice → routes to Department queue (DEO handles manually).
@@ -25,7 +26,7 @@ namespace Greenlens.Application.Features.Reports.SubmitPollutionReport;
 /// BR-REP-004 (description length + profanity), BR-REP-005 (category),
 /// BR-REP-010 (submit rate limit), BR-REP-011 (EXIF timestamp quality),
 /// BR-REP-013 (initial Submitted state),
-/// BR-AI-001 (AI decision on AI flow), BR-AI-006 (AiPending on manual flow),
+/// BR-AI-001 (optional pre-submit AI decision),
 /// BR-ORG-010, BR-ORG-011 (auto-routing to LocalOffice by GPS).
 /// </remarks>
 public sealed class SubmitPollutionReportCommandHandler(
@@ -57,6 +58,18 @@ public sealed class SubmitPollutionReportCommandHandler(
     {
         if (!currentUser.IsAuthenticated)
             return Errors.Reports.LoginRequired;
+
+        if (request.Images is { Count: > 0 })
+        {
+            foreach (var image in request.Images)
+            {
+                var owned = string.IsNullOrWhiteSpace(image.Key)
+                    ? fileStorage.IsOwnedPublicUrl(image.Url)
+                    : fileStorage.IsOwnedPublicUrl(image.Url, image.Key);
+                if (!owned)
+                    return Errors.Media.InvalidStorageUrl;
+            }
+        }
 
         // ── BR-REP-010: sliding-window submit quota (5/h, 20/24h) ─────────
         var rateLimit = await rateLimiter.TryAcquireAsync(currentUser.UserId, cancellationToken)
@@ -100,46 +113,96 @@ public sealed class SubmitPollutionReportCommandHandler(
 
         if (!string.IsNullOrEmpty(request.TempImageId))
         {
-            // AI flow: lookup temp → upload R2
+            // AI flow: lookup analysis. New direct-R2 flow also supplies Images;
+            // legacy multipart flow only supplies TempImageId and still uploads here.
             var tempEntry = await tempStore.GetAsync(request.TempImageId, cancellationToken)
                 .ConfigureAwait(false);
             if (tempEntry is null)
                 return Errors.Ai.TempImageNotFound;
 
-            FileUploadResult uploadResult;
-            try
-            {
-                using var stream = new MemoryStream(tempEntry.Bytes);
-                uploadResult = await fileStorage.UploadAsync(
-                    stream, tempEntry.FileName, tempEntry.ContentType,
-                    "reports/images", cancellationToken).ConfigureAwait(false);
-            }
-            catch
-            {
-                return Errors.Users.StorageUploadFailed;
-            }
+            if (tempEntry.AiResult?.Decision == AiDecision.IrrelevantOrSuspectedAbusive)
+                return Errors.Ai.ImageRejectedByAi;
 
-            resolvedImage = new ResolvedImage(
-                Url: uploadResult.Url,
-                MimeType: tempEntry.ContentType,
-                SizeBytes: tempEntry.Bytes.LongLength,
-                IsAiFlow: true,
-                TempImageId: request.TempImageId,
-                ImageBytes: tempEntry.Bytes);
+            if (request.Images is { Count: > 0 })
+            {
+                var first = request.Images[0];
+                if (tempEntry.PublicUrl is not null
+                    && !string.Equals(
+                        tempEntry.PublicUrl,
+                        first.Url.Trim(),
+                        StringComparison.Ordinal))
+                    return Errors.Media.UploadMetadataMismatch;
+                if (tempEntry.StorageKey is not null
+                    && !string.Equals(
+                        tempEntry.StorageKey,
+                        first.Key?.Trim(),
+                        StringComparison.Ordinal))
+                    return Errors.Media.UploadMetadataMismatch;
+
+                resolvedImage = new ResolvedImage(
+                    Url: first.Url.Trim(),
+                    MimeType: first.MimeType.Trim(),
+                    SizeBytes: first.SizeBytes,
+                    IsAiFlow: true,
+                    TempImageId: request.TempImageId,
+                    ImageBytes: tempEntry.Bytes,
+                    AiResult: tempEntry.AiResult);
+            }
+            else
+            {
+                FileUploadResult uploadResult;
+                try
+                {
+                    using var stream = new MemoryStream(tempEntry.Bytes);
+                    uploadResult = await fileStorage.UploadAsync(
+                        stream, tempEntry.FileName, tempEntry.ContentType,
+                        "reports/images", cancellationToken).ConfigureAwait(false);
+                }
+                catch
+                {
+                    return Errors.Users.StorageUploadFailed;
+                }
+
+                resolvedImage = new ResolvedImage(
+                    Url: uploadResult.Url,
+                    MimeType: tempEntry.ContentType,
+                    SizeBytes: tempEntry.Bytes.LongLength,
+                    IsAiFlow: true,
+                    TempImageId: request.TempImageId,
+                    ImageBytes: tempEntry.Bytes,
+                    AiResult: tempEntry.AiResult);
+            }
         }
         else
         {
-            // Manual flow: dùng URL đã upload sẵn, AI xử lý sau (AiPending = true)
+            // Manual flow persists the uploaded image without scheduling AI classification.
             var first = request.Images![0];
-            var manualBytes = await imageBytesFetcher.TryFetchAsync(first.Url.Trim(), cancellationToken)
-                .ConfigureAwait(false);
+            byte[]? manualBytes;
+            if (!string.IsNullOrWhiteSpace(first.Key))
+            {
+                var stored = await fileStorage.DownloadAsync(
+                        first.Key.Trim(),
+                        10 * 1024 * 1024,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                if (stored is null || stored.SizeBytes != first.SizeBytes)
+                    return Errors.Media.UploadMetadataMismatch;
+                manualBytes = stored.Bytes;
+            }
+            else
+            {
+                manualBytes = await imageBytesFetcher
+                    .TryFetchAsync(first.Url.Trim(), cancellationToken)
+                    .ConfigureAwait(false);
+            }
             resolvedImage = new ResolvedImage(
                 Url: first.Url.Trim(),
                 MimeType: first.MimeType.Trim(),
                 SizeBytes: first.SizeBytes,
                 IsAiFlow: false,
                 TempImageId: null,
-                ImageBytes: manualBytes);
+                ImageBytes: manualBytes,
+                AiResult: null);
         }
 
         // ── Create Report ───────────────────────────────────────────────────
@@ -152,9 +215,13 @@ public sealed class SubmitPollutionReportCommandHandler(
             request.Address, wardCode, provinceCode,
             request.HideReporterName);
 
-        // Manual flow: AiPending already = true from Report.Create
-        // AI flow:     AiPending = true from Create, set to false after we record the result below
-        // (AI result was already shown to user in Step 1; we don't re-call here)
+        if (resolvedImage.AiResult is { } analyzed)
+        {
+            report.ApplyAiResults(
+                analyzed.Classify.PrimaryClass ?? "unknown",
+                (decimal)analyzed.Classify.Confidence,
+                AiSeverityMapper.Parse(analyzed.Classify.Severity));
+        }
 
         reports.Add(report);
 
@@ -213,8 +280,8 @@ public sealed class SubmitPollutionReportCommandHandler(
 
         var persistedImages = new List<ReportMedia> { primaryMedia };
 
-        // Manual flow: persist remaining images if any
-        if (!resolvedImage.IsAiFlow && request.Images!.Count > 1)
+        // Direct-R2 AI and manual flows may both carry additional images.
+        if (request.Images is { Count: > 1 })
         {
             foreach (var img in request.Images.Skip(1))
             {
@@ -342,5 +409,6 @@ public sealed class SubmitPollutionReportCommandHandler(
         long SizeBytes,
         bool IsAiFlow,
         string? TempImageId,
-        byte[]? ImageBytes);
+        byte[]? ImageBytes,
+        AiClassificationResult? AiResult);
 }

@@ -30,7 +30,6 @@ public sealed class ReportTests
         Assert.Equal(ReportStatus.Submitted, report.Status);
         Assert.Equal(Severity.Medium, report.Severity);
         Assert.Equal(SeveritySource.User, report.SeveritySetBy);
-        Assert.True(report.AiPending);
         Assert.Equal(1, report.ReporterCount);
         Assert.Equal(0, report.ReopenedCount);
         Assert.NotNull(report.SlaVerifyDueAt);
@@ -381,6 +380,14 @@ public sealed class ReportTests
     }
 
     // ── AI ──
+
+    [Fact]
+    public void Create_WithoutPreSubmitAi_DoesNotSetAiPending_BR_AI_001()
+    {
+        var report = CreateTestReport();
+
+        Assert.False(report.AiPending);
+    }
 
     [Fact]
     public void ApplyAiResults_ShouldSetAiFields()

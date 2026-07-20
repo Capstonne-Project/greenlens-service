@@ -4,7 +4,7 @@ using Greenlens.Domain.Exceptions;
 namespace Greenlens.Domain.Entities;
 
 /// <summary>
-/// Citizen comment on a pollution report.
+/// Citizen / staff comment on a pollution report. Optional parent = TikTok-style reply.
 /// </summary>
 /// <remarks>Implements: BR-CMT-001..004.</remarks>
 public sealed class Comment : SoftDeletableEntity
@@ -21,11 +21,21 @@ public sealed class Comment : SoftDeletableEntity
     public Guid? HiddenBy { get; private set; }
     public DateTime? HiddenAt { get; private set; }
 
+    /// <summary>Null = top-level comment. Set = reply to another comment on the same report.</summary>
+    public Guid? ParentCommentId { get; private set; }
+
     public Report Report { get; private set; } = default!;
     public User Author { get; private set; } = default!;
+    public Comment? ParentComment { get; private set; }
+    public ICollection<Comment> Replies { get; private set; } = [];
     public ICollection<CommentMedia> Media { get; private set; } = [];
+    public ICollection<CommentLike> Likes { get; private set; } = [];
 
-    public static Comment Create(Guid reportId, Guid authorId, string content)
+    public static Comment Create(
+        Guid reportId,
+        Guid authorId,
+        string content,
+        Guid? parentCommentId = null)
     {
         if (string.IsNullOrWhiteSpace(content))
             throw new DomainException("Comment content is required.");
@@ -34,15 +44,14 @@ public sealed class Comment : SoftDeletableEntity
         if (trimmed.Length is < 1 or > 500)
             throw new DomainException("Comment must be between 1 and 500 characters.");
 
-        var comment = new Comment
+        return new Comment
         {
             ReportId = reportId,
             AuthorId = authorId,
             Content = trimmed,
+            ParentCommentId = parentCommentId,
             CreatedAt = DateTime.UtcNow
         };
-
-        return comment;
     }
 
     /// <summary>BR-CMT-004: author may edit within 15 minutes of posting.</summary>

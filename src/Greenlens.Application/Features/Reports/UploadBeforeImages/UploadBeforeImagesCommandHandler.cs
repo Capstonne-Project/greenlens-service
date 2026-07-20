@@ -10,12 +10,11 @@ using Microsoft.Extensions.Logging;
 namespace Greenlens.Application.Features.Reports.UploadBeforeImages;
 
 /// <summary>
-/// Upload before images (current state of pollution site) after team check-in.
+/// Persist before images already uploaded to R2 via presigned URL.
 /// </summary>
 /// <remarks>
-/// Implements: BR-REP-014 — before images are required before Resolve.
-/// Team leader uploads these after arriving at the site and before starting work.
-/// Images are stored as ReportMedia with MediaType.Before.
+/// Implements: BR-REP-014 — before images required before Resolve.
+/// Client uploads files directly to R2, then posts public URLs here.
 /// </remarks>
 public sealed class UploadBeforeImagesCommandHandler(
     IReportRepository reports,
@@ -28,14 +27,24 @@ public sealed class UploadBeforeImagesCommandHandler(
     ILogger<UploadBeforeImagesCommandHandler> logger)
     : IRequestHandler<UploadBeforeImagesCommand, Result<UploadBeforeImagesResponse>>
 {
+    private const int MaxImages = 5;
+
     public async Task<Result<UploadBeforeImagesResponse>> Handle(
         UploadBeforeImagesCommand request,
         CancellationToken ct)
     {
-        if (request.Images.Count == 0)
+        if (request.ImageUrls.Count == 0)
             return Errors.Reports.MissingBeforeImages;
 
-        // Resolve team leader from JWT
+        if (request.ImageUrls.Count > MaxImages)
+            return Errors.Media.TooManyImages;
+
+        foreach (var url in request.ImageUrls)
+        {
+            if (!fileStorage.IsOwnedPublicUrl(url))
+                return Errors.Media.InvalidStorageUrl;
+        }
+
         var leader = await teamMembers.GetLeaderByUserIdAsync(currentUser.UserId, ct)
             .ConfigureAwait(false);
         if (leader is null)
@@ -48,7 +57,6 @@ public sealed class UploadBeforeImagesCommandHandler(
         if (report.Status != ReportStatus.InProgress)
             return Errors.Reports.InvalidStatusTransition;
 
-        // Verify team has an active assignment for this report
         var reportAssignments = await assignments.GetByReportIdAsync(request.ReportId, ct)
             .ConfigureAwait(false);
         var assignment = reportAssignments.FirstOrDefault(a => a.TeamId == leader.TeamId);
@@ -58,35 +66,27 @@ public sealed class UploadBeforeImagesCommandHandler(
         if (assignment.Status != AssignmentStatus.InProgress)
             return Errors.Reports.AssignmentNotInProgress;
 
-        // Upload images to cloud storage and persist as ReportMedia
-        var uploadedUrls = new List<string>();
-        var folder = $"reports/{request.ReportId}/before/{leader.TeamId}";
-
-        foreach (var image in request.Images)
+        var savedUrls = new List<string>(request.ImageUrls.Count);
+        foreach (var url in request.ImageUrls)
         {
-            using var stream = new MemoryStream(image.Bytes);
-            var uploaded = await fileStorage.UploadAsync(
-                stream, image.FileName, image.ContentType, folder, ct)
-                .ConfigureAwait(false);
-
+            var trimmed = url.Trim();
             var media = ReportMedia.Create(
                 request.ReportId,
                 MediaType.Before,
-                uploaded.Url,
-                image.ContentType,
-                image.Bytes.LongLength,
+                trimmed,
+                "image/jpeg",
+                0L,
                 currentUser.UserId);
             reportMedia.Add(media);
-
-            uploadedUrls.Add(uploaded.Url);
+            savedUrls.Add(trimmed);
         }
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 
         logger.LogInformation(
-            "Uploaded {Count} before images for report {ReportId} by team {TeamId}",
-            uploadedUrls.Count, request.ReportId, leader.TeamId);
+            "Saved {Count} before image URLs for report {ReportId} by team {TeamId}",
+            savedUrls.Count, request.ReportId, leader.TeamId);
 
-        return new UploadBeforeImagesResponse(uploadedUrls);
+        return new UploadBeforeImagesResponse(savedUrls);
     }
 }

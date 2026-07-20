@@ -43,10 +43,11 @@ public sealed class SubmitPollutionReportCommandValidator : AbstractValidator<Su
             .Must(HavePairedOrEmptyAdministrativeCodes)
             .WithMessage("ProvinceCode and WardCode must both be set together or both omitted.");
 
-        // ── Image source: exactly one of TempImageId OR Images must be provided ──
+        // Images are always required in direct-R2 flow. TempImageId is optional AI analysis metadata.
+        // Legacy multipart Analyze may still submit TempImageId without Images during rollout.
         RuleFor(x => x)
-            .Must(x => HasExactlyOneImageSource(x))
-            .WithMessage("Phải cung cấp đúng một trong hai: TempImageId (luồng AI) hoặc Images (luồng thủ công).")
+            .Must(HasAtLeastOneImageSource)
+            .WithMessage("Phải cung cấp Images hoặc TempImageId.")
             .OverridePropertyName("ImageSource");
 
         // ── AI flow: validate TempImageId format ──
@@ -80,6 +81,10 @@ public sealed class SubmitPollutionReportCommandValidator : AbstractValidator<Su
                 img.RuleFor(i => i.SizeBytes)
                     .InclusiveBetween(1, MaxImageSizeBytes)
                     .WithMessage($"Kích thước ảnh phải từ 1 đến {MaxImageSizeBytes} bytes.");
+
+                img.RuleFor(i => i.Key)
+                    .MaximumLength(500)
+                    .When(i => !string.IsNullOrWhiteSpace(i.Key));
             });
         });
 
@@ -97,11 +102,11 @@ public sealed class SubmitPollutionReportCommandValidator : AbstractValidator<Su
         });
     }
 
-    private static bool HasExactlyOneImageSource(SubmitPollutionReportCommand x)
+    private static bool HasAtLeastOneImageSource(SubmitPollutionReportCommand x)
     {
         var hasTempId = !string.IsNullOrWhiteSpace(x.TempImageId);
         var hasImages = x.Images is { Count: > 0 };
-        return hasTempId ^ hasImages; // XOR: exactly one
+        return hasTempId || hasImages;
     }
 
     private static bool HavePairedOrEmptyAdministrativeCodes(SubmitPollutionReportCommand x)

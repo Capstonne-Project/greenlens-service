@@ -75,7 +75,7 @@ POST /v1/reports/analyze
 
 | | |
 |---|---|
-| **BR** | BR-AI-001, BR-AI-006 (timeout 5s → fallback queue) |
+| **BR** | BR-AI-001, BR-AI-006 (timeout 5s → citizen enters values manually) |
 | **Roles** | Citizen |
 
 ---
@@ -472,7 +472,6 @@ PUT    /v1/inspections/{id}/close            # Đóng inspection
 | `SlaBreachVerificationJob` | Every 15m | BR-OFF-002 | Đánh dấu vi phạm SLA verify (24h) |
 | `SlaBreachResolutionJob` | Every 30m | BR-OFF-020 | Đánh dấu vi phạm SLA resolve |
 | `OverdueReportJob` | Hourly | BR-REP-008, BR-REP-009 | Notify báo cáo quá hạn |
-| `AiRetryJob` | Every 5m | BR-AI-006 | Retry phân tích AI thất bại |
 | `DraftCleanupJob` | Daily | BR-REP-019 | Xóa draft cũ |
 
 ---

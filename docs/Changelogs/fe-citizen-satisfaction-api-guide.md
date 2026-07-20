@@ -184,12 +184,11 @@ Response hiện có các field hữu ích:
 | `reopenedCount` | Ẩn nút Mở lại khi `>= 2` |
 | `resolvedAt` | Tính còn bao nhiêu ngày trong cửa sổ 7 ngày |
 | `closedAt` | Hiển thị "Đã đóng …" |
+| `satisfaction` | Feedback của reporter (nếu đã rate): `isSatisfied`, `rating`, `comment`, `ratedAt` |
+| `hasCurrentUserRated` | Ẩn form rate khi `true` |
 
-> **Gap BE (2026-07-15):** `GET /reports/{id}` **chưa** trả `satisfaction` / `hasRated`.  
-> FE tạm xử lý bằng một trong các cách:
-> - Lưu `hasRated` local sau `POST /rate` thành công
-> - Gọi `POST /rate` → nếu `409 ALREADY_RATED` thì ẩn form
-> - Chờ BE bổ sung field `satisfaction` trong response (đề xuất backlog)
+> **Cập nhật 2026-07-17:** `GET /reports/{id}` **đã trả** `satisfaction` + `hasCurrentUserRated`.
+> Handoff full Citizen + Team: [`mobile-citizen-and-cleanup-handoff.md`](../mobile-citizen-and-cleanup-handoff.md).
 
 ---
 
@@ -236,11 +235,11 @@ Sau `close` / `reopen` / `rate` thành công: **refetch** `GET /reports/{id}` v�
 
 ## 10. Backlog BE (không chặn FE phase 1)
 
-| Item | Mô tả |
-|------|--------|
-| `satisfaction` trong `GET /reports/{id}` | `{ hasRated, rating, comment, isSatisfied, ratedAt }` |
-| Unique index DB `(report_id, user_id)` | Chống double-submit race |
-| Profanity filter trên `comment` rate | Đồng bộ với BR-REP-004 / blocked words |
+| Item | Mô tả | Status |
+|------|--------|--------|
+| `satisfaction` trong `GET /reports/{id}` | `{ hasCurrentUserRated, satisfaction }` | ✅ Done (2026-07) |
+| Unique index DB `(report_id, user_id)` | Chống double-submit race | Pending |
+| Profanity filter trên `comment` rate | Đồng bộ với BR-REP-004 / blocked words | Pending |
 
 ---
 

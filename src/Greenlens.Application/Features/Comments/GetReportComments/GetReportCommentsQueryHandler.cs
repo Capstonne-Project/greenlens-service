@@ -26,6 +26,7 @@ public sealed class GetReportCommentsQueryHandler(
             return Errors.Reports.ReportNotFound;
 
         var isPrivileged = currentUser.IsAuthenticated && CommentAccess.IsPrivilegedRole(currentUser.Role);
+        var userId = currentUser.IsAuthenticated ? currentUser.UserId : Guid.Empty;
 
         var query = db.Set<Comment>().AsNoTracking()
             .Where(c => c.ReportId == request.ReportId);
@@ -44,10 +45,14 @@ public sealed class GetReportCommentsQueryHandler(
                 c.Id,
                 c.Content,
                 c.AuthorId,
-                AuthorName = c.Author.FullName,
+                AuthorFullName = c.Author.FullName,
+                AuthorRole = c.Author.Role.ToString(),
                 c.CreatedAt,
                 c.UpdatedAt,
                 c.IsHidden,
+                c.ParentCommentId,
+                LikeCount = c.Likes.Count,
+                LikedByMe = userId != Guid.Empty && c.Likes.Any(l => l.UserId == userId),
                 Images = c.Media.Select(m => new CommentImageItem(m.Url, m.MimeType, m.SizeBytes)).ToList()
             })
             .ToListAsync(ct)
@@ -57,11 +62,15 @@ public sealed class GetReportCommentsQueryHandler(
         {
             var isAuthor = currentUser.IsAuthenticated && r.AuthorId == currentUser.UserId;
             var withinWindow = DateTime.UtcNow - r.CreatedAt <= TimeSpan.FromMinutes(15);
+            var authorName = CommentAccess.ResolveAuthorDisplayName(r.AuthorRole, r.AuthorFullName);
             return new CommentListItem(
-                r.Id, r.Content, r.AuthorName, r.AuthorId,
+                r.Id, r.Content, authorName, r.AuthorId,
                 r.CreatedAt, r.UpdatedAt, r.IsHidden,
                 isAuthor && withinWindow && !r.IsHidden,
                 isAuthor && withinWindow,
+                r.ParentCommentId,
+                r.LikeCount,
+                r.LikedByMe,
                 r.Images);
         }).ToList();
 

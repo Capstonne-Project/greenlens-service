@@ -5,10 +5,10 @@ using MediatR;
 namespace Greenlens.Application.Features.Reports.SubmitPollutionReport;
 
 /// <summary>
-/// Submit a new pollution report. Supports two image flows:
-/// - AI flow:     TempImageId != null, Images == null  (ảnh đã qua POST /reports/analyze)
-/// - Manual flow: TempImageId == null, Images != null  (URL từ POST /v1/media/reports/images)
-/// Exactly one of the two must be provided.
+/// Submit a new pollution report.
+/// Preferred flow: Images contains direct-R2 URLs and TempImageId optionally references
+/// synchronous AI analysis of the first image.
+/// Legacy flow: TempImageId alone references multipart bytes awaiting R2 persistence.
 /// </summary>
 public sealed record SubmitPollutionReportCommand(
     Guid CategoryId,
@@ -20,10 +20,10 @@ public sealed record SubmitPollutionReportCommand(
     string? WardCode,
     string? ProvinceCode,
 
-    /// <summary>AI flow: temp_image_id từ POST /reports/analyze (TTL 15 phút).</summary>
+    /// <summary>Optional AI analysis ID from POST /reports/analyze-uploaded (TTL 15 minutes).</summary>
     string? TempImageId,
 
-    /// <summary>Manual flow: danh sách ảnh đã upload qua POST /v1/media/reports/images.</summary>
+    /// <summary>Images uploaded directly to R2 via POST /v1/media/presign + PUT.</summary>
     IReadOnlyList<SubmitPollutionReportImageItem>? Images,
 
     /// <summary>Optional: citizen tự chọn loại rác khi submit (có thể bổ sung/thay đổi bởi DEO sau).</summary>

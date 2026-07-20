@@ -13,7 +13,7 @@ public static partial class Errors
 
         public static Error ImageTooLarge => new(
             "IMAGE_TOO_LARGE",
-            "Ảnh quá lớn. Kích thước tối đa là 10MB.",
+            "Ảnh vượt quá giới hạn kích thước của mục đích upload.",
             ErrorType.Validation);
 
         // ── Video errors (BR-REP-002) ──
@@ -37,6 +37,41 @@ public static partial class Errors
             "VIDEO_TRANSCODE_FAILED",
             "Không thể xử lý video. Vui lòng thử lại với file khác.",
             ErrorType.Unexpected);
+
+        public static Error InvalidUploadPurpose => new(
+            "INVALID_UPLOAD_PURPOSE",
+            "Mục đích upload không hợp lệ.",
+            ErrorType.Validation);
+
+        public static Error UploadPurposeForbidden => new(
+            "UPLOAD_PURPOSE_FORBIDDEN",
+            "Vai trò hiện tại không được phép upload loại media này.",
+            ErrorType.Forbidden);
+
+        public static Error InvalidStorageUrl => new(
+            "INVALID_STORAGE_URL",
+            "URL ảnh không thuộc kho lưu trữ của hệ thống.",
+            ErrorType.Validation);
+
+        public static Error InvalidFileName => new(
+            "INVALID_FILE_NAME",
+            "Tên file không hợp lệ.",
+            ErrorType.Validation);
+
+        public static Error TooManyImages => new(
+            "TOO_MANY_IMAGES",
+            "Số lượng ảnh vượt quá giới hạn cho phép.",
+            ErrorType.Validation);
+
+        public static Error UploadNotFound => new(
+            "UPLOAD_NOT_FOUND",
+            "Không tìm thấy file đã upload trên kho lưu trữ.",
+            ErrorType.NotFound);
+
+        public static Error UploadMetadataMismatch => new(
+            "UPLOAD_METADATA_MISMATCH",
+            "Metadata file không khớp với object đã upload.",
+            ErrorType.Validation);
     }
 
     public static class Catalog

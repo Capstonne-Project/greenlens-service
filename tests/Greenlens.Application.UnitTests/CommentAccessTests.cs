@@ -42,4 +42,30 @@ public sealed class CommentAccessTests
         CommentAccess.CanCommentOnReport(true, role, Guid.NewGuid(), Guid.NewGuid())
             .Should().BeTrue();
     }
+
+    [Theory]
+    [InlineData("CompanyStaff")]
+    [InlineData("Cleaner")]
+    public void CanCommentOnReport_HiddenReport_AllowsCleanupTeam_BR_CMT_001(string role)
+    {
+        CommentAccess.CanCommentOnReport(true, role, Guid.NewGuid(), Guid.NewGuid())
+            .Should().BeTrue();
+    }
+
+    [Fact]
+    public void ResolveAuthorDisplayName_CleanupTeam_MasksIdentity()
+    {
+        CommentAccess.ResolveAuthorDisplayName("CompanyStaff", "Nguyễn Văn A")
+            .Should().Be(CommentAccess.CleanupTeamDisplayName);
+
+        CommentAccess.ResolveAuthorDisplayName("Cleaner", "Trần Thị B")
+            .Should().Be(CommentAccess.CleanupTeamDisplayName);
+    }
+
+    [Fact]
+    public void ResolveAuthorDisplayName_Citizen_KeepsFullName()
+    {
+        CommentAccess.ResolveAuthorDisplayName("Citizen", "Lê Văn C")
+            .Should().Be("Lê Văn C");
+    }
 }

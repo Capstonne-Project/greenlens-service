@@ -50,11 +50,27 @@ public sealed class GetMyTaskDetailQueryHandler(
 
         var report = assignment.Report!;
 
+        var now = DateTime.UtcNow;
+        const int declineWindowHours = 24;
+        const int progressUpdateIntervalHours = 24;
+
+        var declineDeadlineAt = assignment.AssignedAt.AddHours(declineWindowHours);
         var canDecline = assignment.Status == AssignmentStatus.Assigned
-            && (DateTime.UtcNow - assignment.AssignedAt).TotalHours <= 2;
+            && now <= declineDeadlineAt;
+
+        var beforeImageCount = report.Media.Count(m => m.Type == MediaType.Before);
+        var hasBeforeImages = beforeImageCount > 0;
 
         var canUpdateProgress = assignment.Status == AssignmentStatus.InProgress;
-        var canResolve = assignment.Status == AssignmentStatus.InProgress;
+        // Resolve requires before images (BR-REP-014) — surface that in the flag for FE
+        var canResolve = assignment.Status == AssignmentStatus.InProgress && hasBeforeImages;
+
+        DateTime? progressRequiredByAt = null;
+        if (assignment.Status == AssignmentStatus.InProgress)
+        {
+            var progressAnchor = assignment.ProgressUpdatedAt ?? assignment.StartedAt ?? assignment.AssignedAt;
+            progressRequiredByAt = progressAnchor.AddHours(progressUpdateIntervalHours);
+        }
 
         var images = report.Media
             .Where(m => m.Type == MediaType.Image)
@@ -103,7 +119,12 @@ public sealed class GetMyTaskDetailQueryHandler(
 
             AssignmentNote: assignment.Note,
 
-            WasteTags: wasteTagItems
+            WasteTags: wasteTagItems,
+
+            DeclineDeadlineAt: declineDeadlineAt,
+            HasBeforeImages: hasBeforeImages,
+            BeforeImageCount: beforeImageCount,
+            ProgressRequiredByAt: progressRequiredByAt
         );
     }
 }

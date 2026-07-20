@@ -5,12 +5,13 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Exceptions;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Comments.AddComment;
 
 /// <summary>
-/// Citizen posts a comment on a report with optional image attachments.
+/// Citizen / cleanup team posts a comment (or reply) on a report.
 /// </summary>
 /// <remarks>
 /// Implements: BR-CMT-001 (auth + anonymous report guard), BR-CMT-002 (length/images),
@@ -42,12 +43,24 @@ public sealed class AddCommentCommandHandler(
         if (report is null)
             return Errors.Reports.ReportNotFound;
 
-        // BR-CMT-001: anonymous-display reports restrict who can comment
         if (!CommentAccess.CanCommentOnReport(
                 report.HideReporterName, currentUser.Role, currentUser.UserId, report.ReporterId))
             return Errors.Comments.CommentNotAllowed;
 
-        // BR-CMT-003: word filter (AI text moderation deferred)
+        Guid? parentId = request.ParentCommentId;
+        if (parentId is not null)
+        {
+            var parent = await db.Set<Comment>().AsNoTracking()
+                .FirstOrDefaultAsync(c => c.Id == parentId.Value && c.ReportId == request.ReportId, ct)
+                .ConfigureAwait(false);
+
+            if (parent is null)
+                return Errors.Comments.CommentNotFound;
+
+            // Flatten nested replies to one level under the root parent (TikTok-style).
+            parentId = parent.ParentCommentId ?? parent.Id;
+        }
+
         if (profanityFilter.ContainsProfanity(request.Content))
         {
             user.RecordCommentViolation();
@@ -58,7 +71,7 @@ public sealed class AddCommentCommandHandler(
         Comment comment;
         try
         {
-            comment = Comment.Create(request.ReportId, currentUser.UserId, request.Content);
+            comment = Comment.Create(request.ReportId, currentUser.UserId, request.Content, parentId);
         }
         catch (DomainException ex)
         {
@@ -83,11 +96,11 @@ public sealed class AddCommentCommandHandler(
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 
-        logger.LogInformation("Comment {CommentId} added on report {ReportId} by {UserId}",
-            comment.Id, report.Id, currentUser.UserId);
+        logger.LogInformation("Comment {CommentId} added on report {ReportId} by {UserId} (parent={ParentId})",
+            comment.Id, report.Id, currentUser.UserId, parentId);
 
         return new AddCommentResponse(
             comment.Id, comment.ReportId, comment.Content, comment.CreatedAt,
-            comment.IsWithinEditWindow(), imageDtos);
+            comment.IsWithinEditWindow(), comment.ParentCommentId, imageDtos);
     }
 }
