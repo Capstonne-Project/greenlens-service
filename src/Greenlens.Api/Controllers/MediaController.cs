@@ -1,5 +1,6 @@
 using Greenlens.Api.Extensions;
 using Greenlens.Application.Common.Models;
+using Greenlens.Application.Features.Media.PresignMediaUpload;
 using Greenlens.Application.Features.Media.UploadCommentImage;
 using Greenlens.Application.Features.Media.UploadReportImage;
 using Greenlens.Application.Features.Media.UploadReportVideo;
@@ -17,17 +18,42 @@ namespace Greenlens.Api.Controllers;
 [Tags("📎 Media — File Upload")]
 public sealed class MediaController(ISender sender) : ControllerBase
 {
+    /// <summary>
+    /// Preferred upload path: Mobile uploads directly to R2 via short-lived presigned PUT URL.
+    /// </summary>
+    [HttpPost("presign")]
+    [SwaggerOperation(
+        Summary = "Presign direct R2 upload (preferred)",
+        Description =
+            "Returns a short-lived PUT URL so the client uploads the file directly to Cloudflare R2. " +
+            "Flow: 1) POST /media/presign 2) PUT binary to uploadUrl with requiredHeaders 3) send publicUrl to report APIs. " +
+            "Purpose: ReportImage|Before|Progress|After|Comment|Avatar. Before/Progress require reportId.")]
+    [SwaggerResponse(200, "Presigned URL created", typeof(ApiResponse<PresignMediaUploadResponse>))]
+    [SwaggerResponse(400, "Invalid MIME / purpose / filename", typeof(ApiResponse))]
+    [SwaggerResponse(401, "Unauthorized", typeof(ApiResponse))]
+    [SwaggerResponse(500, "Could not create presigned URL", typeof(ApiResponse))]
+    public async Task<IActionResult> PresignAsync(
+        [FromBody] PresignMediaRequest body,
+        CancellationToken ct)
+        => (await sender.Send(new PresignMediaUploadCommand(
+            body.FileName,
+            body.ContentType,
+            body.Purpose,
+            body.ReportId,
+            body.FileSizeBytes), ct)).ToHttp();
+
     [HttpPost("reports/images")]
     [SwaggerOperation(
-        Summary = "Upload Report Image",
+        Summary = "[Deprecated] Upload Report Image via BE proxy",
         Description =
-            "Upload an image for a pollution report (jpg/png/webp/heic, max 10MB). Stored on R2 under reports/images. " +
-            "Requires authentication (BR-AUTH-017). Pair with rate limiting BR-REP-010.")]
+            "DEPRECATED — prefer POST /v1/media/presign then PUT to R2. " +
+            "Legacy multipart upload through API (jpg/png/webp/heic, max 10MB). Kept for rollback.")]
     [SwaggerResponse(200, "Image uploaded", typeof(ApiResponse<UploadReportImageResponse>))]
     [SwaggerResponse(401, "Unauthorized", typeof(ApiResponse))]
     [SwaggerResponse(422, "Invalid image type or too large", typeof(ApiResponse))]
     [SwaggerResponse(500, "Storage upload failed", typeof(ApiResponse))]
     [Consumes("multipart/form-data")]
+    [Obsolete("Use POST /v1/media/presign + direct R2 PUT instead.")]
     public async Task<IActionResult> UploadReportImageAsync(
         IFormFile file,
         CancellationToken ct)
@@ -136,4 +162,11 @@ public sealed class MediaController(ISender sender) : ControllerBase
         return (await sender.Send(command, ct)).ToHttp();
     }
 }
+
+public sealed record PresignMediaRequest(
+    string FileName,
+    string ContentType,
+    MediaUploadPurpose Purpose,
+    Guid? ReportId = null,
+    long? FileSizeBytes = null);
 
