@@ -18,7 +18,7 @@ public static partial class Errors
 
         public static Error CommentNotAllowed => new(
             "COMMENT_NOT_ALLOWED",
-            "Báo cáo ẩn danh chỉ cho phép LEO/DEO/Admin và người gửi gốc bình luận.",
+            "Báo cáo ẩn danh chỉ cho phép đội xử lý, LEO/DEO/Admin và người gửi gốc bình luận.",
             ErrorType.Forbidden);
 
         public static Error CommentBanned => new(
