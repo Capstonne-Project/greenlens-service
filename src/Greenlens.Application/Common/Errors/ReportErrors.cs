@@ -84,7 +84,7 @@ public static partial class Errors
 
         public static Error DeclineWindowExpired => new(
             "DECLINE_WINDOW_EXPIRED",
-            "Đã hết thời gian từ chối task (2 giờ sau khi được gán).",
+            "Đã hết thời gian từ chối task (24 giờ sau khi được gán).",
             ErrorType.BusinessRule);
 
         public static Error AssignmentNotFound => new(

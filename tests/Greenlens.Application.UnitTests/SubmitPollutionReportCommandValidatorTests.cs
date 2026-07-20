@@ -41,13 +41,13 @@ public sealed class SubmitPollutionReportCommandValidatorTests
             Images: null,
             WasteTagIds: null);
 
-    // ── Mutually exclusive image source ──────────────────────────────────
+    // ── Direct-R2 images with optional AI analysis ───────────────────────
 
     [Fact]
-    public void Validate_BothSourcesProvided_IsInvalid()
+    public void Validate_DirectR2ImagesWithAnalysis_IsValid_BR_AI_001()
     {
         var cmd = ManualBase() with { TempImageId = Guid.NewGuid().ToString("N") };
-        Assert.False(_sut.Validate(cmd).IsValid);
+        Assert.True(_sut.Validate(cmd).IsValid);
     }
 
     [Fact]
