@@ -6,8 +6,15 @@ namespace Greenlens.Application.Common.Interfaces;
 /// </summary>
 public interface ITempImageStore
 {
-    /// <summary>Save bytes to temp store and return the assigned temp ID.</summary>
-    Task<string> SaveAsync(byte[] imageBytes, string fileName, string contentType, CancellationToken ct = default);
+    /// <summary>Save analyzed bytes and metadata to temp store and return the assigned temp ID.</summary>
+    Task<string> SaveAsync(
+        byte[] imageBytes,
+        string fileName,
+        string contentType,
+        AiClassificationResult? aiResult = null,
+        string? publicUrl = null,
+        string? storageKey = null,
+        CancellationToken ct = default);
 
     /// <summary>Retrieve a temp image. Returns null when not found or expired.</summary>
     Task<TempImageEntry?> GetAsync(string tempId, CancellationToken ct = default);
@@ -20,4 +27,7 @@ public sealed record TempImageEntry(
     byte[] Bytes,
     string FileName,
     string ContentType,
-    DateTime ExpiresAt);
+    DateTime ExpiresAt,
+    AiClassificationResult? AiResult,
+    string? PublicUrl,
+    string? StorageKey);
