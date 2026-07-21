@@ -56,27 +56,27 @@ classDiagram
 classDiagram
     class BaseEntity {
         <<abstract>>
-        +Id : Guid
-        +DomainEvents : IReadOnlyCollection~IDomainEvent~
-        +AddDomainEvent(event : IDomainEvent) : void
-        +ClearDomainEvents() : void
+        + Id: Guid
+        + DomainEvents: IReadOnlyCollection~IDomainEvent~
+        + AddDomainEvent(event: IDomainEvent): void
+        + ClearDomainEvents(): void
     }
 
     class AuditableEntity {
         <<abstract>>
-        +CreatedAt : DateTime
-        +CreatedBy : string?
-        +UpdatedAt : DateTime?
-        +UpdatedBy : string?
+        + CreatedAt: DateTime
+        + CreatedBy: string?
+        + UpdatedAt: DateTime?
+        + UpdatedBy: string?
     }
 
     class SoftDeletableEntity {
         <<abstract>>
-        +DeletedAt : DateTime?
-        +DeletedBy : string?
-        +IsDeleted : bool
-        +SoftDelete(deletedBy : string?) : void
-        +Restore() : void
+        + DeletedAt: DateTime?
+        + DeletedBy: string?
+        + IsDeleted: bool
+        + SoftDelete(deletedBy: string?): void
+        + Restore(): void
     }
 
     BaseEntity <|-- AuditableEntity : Inheritance
@@ -102,83 +102,83 @@ classDiagram
 classDiagram
     class User {
         <<Aggregate Root>>
-        +Email : string
-        +PasswordHash : string
-        +FullName : string
-        +PhoneNumber : string?
-        +AvatarUrl : string?
-        +Role : UserRole
-        +IsEmailVerified : bool
-        +IsPhoneVerified : bool
-        +MustChangePassword : bool
-        +FailedLoginAttempts : int
-        +LockoutEnd : DateTime?
-        +GoogleId : string?
-        +IsBanned : bool
-        +HasDataConsent : bool
-        +ConsentAcceptedAt : DateTime?
-        +FcmDeviceToken : string?
-        +Language : string
-        +CommentViolationCount : int
-        +CommentBannedUntil : DateTime?
-        +DepartmentId : Guid?
-        +LocalOfficeId : Guid?
-        +Create(email, passwordHash, fullName, role) : User$
-        +CreateByAdmin(email, passwordHash, fullName, role) : User$
-        +CreateWithTempPassword(email, passwordHash, fullName, role) : User$
-        +CreateFromGoogle(email, fullName, googleId, avatarUrl?) : User$
-        +RecordFailedLogin() : void
-        +ResetFailedLoginAttempts() : void
-        +IsLockedOut() : bool
-        +RequiresCaptcha() : bool
-        +VerifyEmail() : void
-        +ChangePassword(newPasswordHash : string) : void
-        +Ban() : void
-        +Unban() : void
-        +AcceptDataConsent() : void
-        +RecordCommentViolation() : void
-        +IsCommentBanned() : bool
-        +AssignToDepartment(departmentId : Guid) : void
-        +AssignToLocalOffice(localOfficeId : Guid) : void
-        +ChangeRole(newRole : UserRole) : void
+        + Email: string
+        + PasswordHash: string
+        + FullName: string
+        + PhoneNumber: string?
+        + AvatarUrl: string?
+        + Role: UserRole
+        + IsEmailVerified: bool
+        + IsPhoneVerified: bool
+        + MustChangePassword: bool
+        + FailedLoginAttempts: int
+        + LockoutEnd: DateTime?
+        + GoogleId: string?
+        + IsBanned: bool
+        + HasDataConsent: bool
+        + ConsentAcceptedAt: DateTime?
+        + FcmDeviceToken: string?
+        + Language: string
+        + CommentViolationCount: int
+        + CommentBannedUntil: DateTime?
+        + DepartmentId: Guid?
+        + LocalOfficeId: Guid?
+        + Create(email, passwordHash, fullName, role): User$
+        + CreateByAdmin(email, passwordHash, fullName, role): User$
+        + CreateWithTempPassword(email, passwordHash, fullName, role): User$
+        + CreateFromGoogle(email, fullName, googleId, avatarUrl?): User$
+        + RecordFailedLogin(): void
+        + ResetFailedLoginAttempts(): void
+        + IsLockedOut(): bool
+        + RequiresCaptcha(): bool
+        + VerifyEmail(): void
+        + ChangePassword(newPasswordHash: string): void
+        + Ban(): void
+        + Unban(): void
+        + AcceptDataConsent(): void
+        + RecordCommentViolation(): void
+        + IsCommentBanned(): bool
+        + AssignToDepartment(departmentId: Guid): void
+        + AssignToLocalOffice(localOfficeId: Guid): void
+        + ChangeRole(newRole: UserRole): void
     }
 
     class RefreshToken {
-        +UserId : Guid
-        +TokenHash : string
-        +ExpiresAt : DateTime
-        +CreatedAt : DateTime
-        +IsRevoked : bool
-        +RevokedAt : DateTime?
-        +ReplacedByTokenHash : string?
-        +IsExpired : bool
-        +IsActive : bool
-        +Create(userId, tokenHash, expirationDays) : RefreshToken$
-        +Revoke(replacedByTokenHash?) : void
+        + UserId: Guid
+        + TokenHash: string
+        + ExpiresAt: DateTime
+        + CreatedAt: DateTime
+        + IsRevoked: bool
+        + RevokedAt: DateTime?
+        + ReplacedByTokenHash: string?
+        + IsExpired: bool
+        + IsActive: bool
+        + Create(userId, tokenHash, expirationDays): RefreshToken$
+        + Revoke(replacedByTokenHash?): void
     }
 
     class OtpCode {
-        +Email : string
-        +PhoneNumber : string?
-        +CodeHash : string
-        +Purpose : OtpPurpose
-        +ExpiresAt : DateTime
-        +CreatedAt : DateTime
-        +IsUsed : bool
-        +AttemptCount : int
-        +IsExpired : bool
-        +IsValid : bool
-        +Create(email, codeHash, purpose, lifetime) : OtpCode$
-        +CreateForPhone(phone, codeHash, lifetime) : OtpCode$
-        +IncrementAttempt() : void
-        +MarkUsed() : void
+        + Email: string
+        + PhoneNumber: string?
+        + CodeHash: string
+        + Purpose: OtpPurpose
+        + ExpiresAt: DateTime
+        + CreatedAt: DateTime
+        + IsUsed: bool
+        + AttemptCount: int
+        + IsExpired: bool
+        + IsValid: bool
+        + Create(email, codeHash, purpose, lifetime): OtpCode$
+        + CreateForPhone(phone, codeHash, lifetime): OtpCode$
+        + IncrementAttempt(): void
+        + MarkUsed(): void
     }
 
     class PasswordHistory {
-        +UserId : Guid
-        +PasswordHash : string
-        +CreatedAt : DateTime
-        +Create(userId, passwordHash) : PasswordHistory$
+        + UserId: Guid
+        + PasswordHash: string
+        + CreatedAt: DateTime
+        + Create(userId, passwordHash): PasswordHistory$
     }
 
     class UserRole {
@@ -233,145 +233,145 @@ classDiagram
 classDiagram
     class Report {
         <<Aggregate Root>>
-        +Code : string
-        +ReporterId : Guid?
-        +HideReporterName : bool
-        +CategoryId : Guid
-        +Severity : Severity
-        +SeveritySetBy : SeveritySource
-        +Description : string?
-        +Latitude : decimal
-        +Longitude : decimal
-        +Address : string?
-        +WardCode : string?
-        +ProvinceCode : string?
-        +Status : ReportStatus
-        +AssignedOfficeId : Guid?
-        +AssignedDepartmentId : Guid?
-        +VerifiedBy : Guid?
-        +AssignedByOfficerId : Guid?
-        +AssignedCompanyId : Guid?
-        +ParentReportId : Guid?
-        +ReporterCount : int
-        +IsPossibleDuplicate : bool
-        +AiSimilarityScore : decimal?
-        +IsSuspicious : bool
-        +AiPending : bool
-        +AiClassifiedType : string?
-        +AiConfidence : decimal?
-        +AiEstimatedSeverity : Severity?
-        +PriorityScore : decimal
-        +VerifiedAt : DateTime?
-        +RejectedReason : string?
-        +ResolvedAt : DateTime?
-        +ClosedAt : DateTime?
-        +ReopenedCount : int
-        +SlaVerifyBreached : bool
-        +SlaResolveBreached : bool
-        +IsOverdue : bool
-        +IsHidden : bool
-        +Create(...) : Report$
-        +Verify(leoId : Guid, severity? : Severity, categoryId? : Guid) : void
-        +Reject(reason : string) : void
-        +Assign(leoId : Guid) : void
-        +DispatchToCompany(companyId : Guid, leoId : Guid) : void
-        +AssignByCompanyManager(cmId : Guid) : void
-        +Resolve() : void
-        +Close() : void
-        +TryReopen() : bool
-        +MarkDuplicate(primaryReportId : Guid) : void
-        +MarkPossibleDuplicate(...) : void
-        +DismissDuplicate() : void
-        +ApplyAiResults(...) : void
-        +FlagSuspicious(reasons : string) : void
-        +ForceStatus(newStatus : ReportStatus) : void
-        +Hide(adminId : Guid, reason : string) : void
-        +Unhide() : void
-        +CanDelete() : bool
+        + Code: string
+        + ReporterId: Guid?
+        + HideReporterName: bool
+        + CategoryId: Guid
+        + Severity: Severity
+        + SeveritySetBy: SeveritySource
+        + Description: string?
+        + Latitude: decimal
+        + Longitude: decimal
+        + Address: string?
+        + WardCode: string?
+        + ProvinceCode: string?
+        + Status: ReportStatus
+        + AssignedOfficeId: Guid?
+        + AssignedDepartmentId: Guid?
+        + VerifiedBy: Guid?
+        + AssignedByOfficerId: Guid?
+        + AssignedCompanyId: Guid?
+        + ParentReportId: Guid?
+        + ReporterCount: int
+        + IsPossibleDuplicate: bool
+        + AiSimilarityScore: decimal?
+        + IsSuspicious: bool
+        + AiPending: bool
+        + AiClassifiedType: string?
+        + AiConfidence: decimal?
+        + AiEstimatedSeverity: Severity?
+        + PriorityScore: decimal
+        + VerifiedAt: DateTime?
+        + RejectedReason: string?
+        + ResolvedAt: DateTime?
+        + ClosedAt: DateTime?
+        + ReopenedCount: int
+        + SlaVerifyBreached: bool
+        + SlaResolveBreached: bool
+        + IsOverdue: bool
+        + IsHidden: bool
+        + Create(...): Report$
+        + Verify(leoId: Guid, severity?: Severity, categoryId?: Guid): void
+        + Reject(reason: string): void
+        + Assign(leoId: Guid): void
+        + DispatchToCompany(companyId: Guid, leoId: Guid): void
+        + AssignByCompanyManager(cmId: Guid): void
+        + Resolve(): void
+        + Close(): void
+        + TryReopen(): bool
+        + MarkDuplicate(primaryReportId: Guid): void
+        + MarkPossibleDuplicate(...): void
+        + DismissDuplicate(): void
+        + ApplyAiResults(...): void
+        + FlagSuspicious(reasons: string): void
+        + ForceStatus(newStatus: ReportStatus): void
+        + Hide(adminId: Guid, reason: string): void
+        + Unhide(): void
+        + CanDelete(): bool
     }
 
     class ReportMedia {
-        +ReportId : Guid
-        +Type : MediaType
-        +Url : string
-        +ThumbnailUrl : string?
-        +MimeType : string
-        +SizeBytes : long
-        +Width : int?
-        +Height : int?
-        +DurationSeconds : int?
-        +PHash : string?
-        +ExifData : string?
-        +UploadedBy : Guid?
-        +UploadedAt : DateTime
-        +Create(...) : ReportMedia$
-        +SetThumbnail(url : string) : void
-        +SetPHash(pHash : string) : void
-        +SetDimensions(w : int, h : int) : void
-        +ChangeType(newType : MediaType) : void
-        +ReassignToReport(primaryId : Guid) : void
+        + ReportId: Guid
+        + Type: MediaType
+        + Url: string
+        + ThumbnailUrl: string?
+        + MimeType: string
+        + SizeBytes: long
+        + Width: int?
+        + Height: int?
+        + DurationSeconds: int?
+        + PHash: string?
+        + ExifData: string?
+        + UploadedBy: Guid?
+        + UploadedAt: DateTime
+        + Create(...): ReportMedia$
+        + SetThumbnail(url: string): void
+        + SetPHash(pHash: string): void
+        + SetDimensions(w: int, h: int): void
+        + ChangeType(newType: MediaType): void
+        + ReassignToReport(primaryId: Guid): void
     }
 
     class ReportAssignment {
-        +ReportId : Guid
-        +TeamId : Guid
-        +AssignedById : Guid
-        +Status : AssignmentStatus
-        +Note : string?
-        +DeclineReason : string?
-        +AssignedAt : DateTime
-        +StartedAt : DateTime?
-        +CompletedAt : DateTime?
-        +CheckedInAt : DateTime?
-        +CheckedInLatitude : decimal?
-        +CheckedInLongitude : decimal?
-        +ProgressPercent : int
-        +ProgressNote : string?
-        +Create(...) : ReportAssignment$
-        +Accept() : void
-        +CheckIn(lat : decimal, lng : decimal, note? : string) : void
-        +Escalate(reason : string) : void
-        +Complete() : void
-        +Decline(reason : string) : void
-        +ForceDecline(reason : string) : void
-        +UpdateProgress(percent : int, note : string, userId : Guid) : void
+        + ReportId: Guid
+        + TeamId: Guid
+        + AssignedById: Guid
+        + Status: AssignmentStatus
+        + Note: string?
+        + DeclineReason: string?
+        + AssignedAt: DateTime
+        + StartedAt: DateTime?
+        + CompletedAt: DateTime?
+        + CheckedInAt: DateTime?
+        + CheckedInLatitude: decimal?
+        + CheckedInLongitude: decimal?
+        + ProgressPercent: int
+        + ProgressNote: string?
+        + Create(...): ReportAssignment$
+        + Accept(): void
+        + CheckIn(lat: decimal, lng: decimal, note?: string): void
+        + Escalate(reason: string): void
+        + Complete(): void
+        + Decline(reason: string): void
+        + ForceDecline(reason: string): void
+        + UpdateProgress(percent: int, note: string, userId: Guid): void
     }
 
     class ReportStatusHistory {
-        +ReportId : Guid
-        +FromStatus : ReportStatus
-        +ToStatus : ReportStatus
-        +Reason : string?
-        +ChangedBy : Guid?
-        +ChangedAt : DateTime
+        + ReportId: Guid
+        + FromStatus: ReportStatus
+        + ToStatus: ReportStatus
+        + Reason: string?
+        + ChangedBy: Guid?
+        + ChangedAt: DateTime
     }
 
     class ReportDraft {
-        +UserId : Guid
-        +JsonPayload : string?
-        +CreatedAt : DateTime
+        + UserId: Guid
+        + JsonPayload: string?
+        + CreatedAt: DateTime
     }
 
     class ReportFlag {
-        +ReportId : Guid
-        +FlaggedBy : Guid
-        +Type : FlagType
-        +Reason : string?
-        +CreatedAt : DateTime
+        + ReportId: Guid
+        + FlaggedBy: Guid
+        + Type: FlagType
+        + Reason: string?
+        + CreatedAt: DateTime
     }
 
     class ReportSatisfaction {
-        +ReportId : Guid
-        +UserId : Guid
-        +Rating : int
-        +Comment : string?
-        +CreatedAt : DateTime
+        + ReportId: Guid
+        + UserId: Guid
+        + Rating: int
+        + Comment: string?
+        + CreatedAt: DateTime
     }
 
     class ReportWasteTag {
         <<join table>>
-        +ReportId : Guid
-        +WasteTagId : Guid
+        + ReportId: Guid
+        + WasteTagId: Guid
     }
 
     class ReportStatus {
@@ -482,104 +482,104 @@ stateDiagram-v2
 ```mermaid
 classDiagram
     class Department {
-        +Name : string
-        +ProvinceCode : string
-        +IsActive : bool
-        +Create(name : string, provinceCode : string) : Department$
-        +Update(name : string) : void
-        +Deactivate() : void
-        +Activate() : void
+        + Name: string
+        + ProvinceCode: string
+        + IsActive: bool
+        + Create(name: string, provinceCode: string): Department$
+        + Update(name: string): void
+        + Deactivate(): void
+        + Activate(): void
     }
 
     class LocalOffice {
-        +Name : string
-        +DepartmentId : Guid
-        +WardCode : string
-        +OfficerId : Guid?
-        +IsOnboarded : bool
-        +Create(name, departmentId, wardCode, officerId?) : LocalOffice$
-        +AssignOfficer(officerId : Guid) : void
-        +RemoveOfficer() : void
-        +Update(name : string) : void
-        +Deactivate() : void
+        + Name: string
+        + DepartmentId: Guid
+        + WardCode: string
+        + OfficerId: Guid?
+        + IsOnboarded: bool
+        + Create(name, departmentId, wardCode, officerId?): LocalOffice$
+        + AssignOfficer(officerId: Guid): void
+        + RemoveOfficer(): void
+        + Update(name: string): void
+        + Deactivate(): void
     }
 
     class EnvironmentalTeam {
-        +Name : string
-        +LocalOfficeId : Guid?
-        +TeamType : TeamType
-        +IsActive : bool
-        +CompanyId : Guid?
-        +IsCompanyTeam : bool
-        +Create(name, localOfficeId, teamType) : EnvironmentalTeam$
-        +CreateCompanyTeam(name, teamType, companyId) : EnvironmentalTeam$
-        +Update(name : string) : void
-        +Deactivate() : void
-        +Activate() : void
-        +TransferToOffice(newOfficeId : Guid) : void
+        + Name: string
+        + LocalOfficeId: Guid?
+        + TeamType: TeamType
+        + IsActive: bool
+        + CompanyId: Guid?
+        + IsCompanyTeam: bool
+        + Create(name, localOfficeId, teamType): EnvironmentalTeam$
+        + CreateCompanyTeam(name, teamType, companyId): EnvironmentalTeam$
+        + Update(name: string): void
+        + Deactivate(): void
+        + Activate(): void
+        + TransferToOffice(newOfficeId: Guid): void
     }
 
     class TeamMember {
         <<join table>>
-        +TeamId : Guid
-        +UserId : Guid
-        +IsLeader : bool
+        + TeamId: Guid
+        + UserId: Guid
+        + IsLeader: bool
     }
 
     class EnvironmentalServiceCompany {
         <<Aggregate Root>>
-        +Name : string
-        +TaxCode : string?
-        +Address : string?
-        +Phone : string?
-        +Email : string?
-        +ContractNumber : string
-        +ContractStartDate : DateTime
-        +ContractEndDate : DateTime?
-        +ContractType : ContractType
-        +Status : CompanyStatus
-        +ActivatedAt : DateTime?
-        +DepartmentId : Guid
-        +Create(...) : EnvironmentalServiceCompany$
-        +Activate() : void
-        +Suspend(reason : string) : void
-        +Terminate(reason : string) : void
-        +Reactivate() : void
+        + Name: string
+        + TaxCode: string?
+        + Address: string?
+        + Phone: string?
+        + Email: string?
+        + ContractNumber: string
+        + ContractStartDate: DateTime
+        + ContractEndDate: DateTime?
+        + ContractType: ContractType
+        + Status: CompanyStatus
+        + ActivatedAt: DateTime?
+        + DepartmentId: Guid
+        + Create(...): EnvironmentalServiceCompany$
+        + Activate(): void
+        + Suspend(reason: string): void
+        + Terminate(reason: string): void
+        + Reactivate(): void
     }
 
     class CompanyStaff {
-        +UserId : Guid
-        +CompanyId : Guid
-        +Position : string?
-        +IsActive : bool
-        +Create(userId, companyId, position?) : CompanyStaff$
-        +Deactivate() : void
-        +Activate() : void
+        + UserId: Guid
+        + CompanyId: Guid
+        + Position: string?
+        + IsActive: bool
+        + Create(userId, companyId, position?): CompanyStaff$
+        + Deactivate(): void
+        + Activate(): void
     }
 
     class CompanyServiceArea {
-        +CompanyId : Guid
-        +WardCode : string
+        + CompanyId: Guid
+        + WardCode: string
     }
 
     class ContractPeriod {
-        +CompanyId : Guid
-        +ContractNumber : string
-        +ContractType : ContractType
-        +StartDate : DateTime
-        +EndDate : DateTime?
-        +RenewedByUserId : Guid
-        +Note : string?
-        +CreatedAt : DateTime
-        +Create(...) : ContractPeriod$
+        + CompanyId: Guid
+        + ContractNumber: string
+        + ContractType: ContractType
+        + StartDate: DateTime
+        + EndDate: DateTime?
+        + RenewedByUserId: Guid
+        + Note: string?
+        + CreatedAt: DateTime
+        + Create(...): ContractPeriod$
     }
 
     class StaffInvitation {
-        +CompanyId : Guid
-        +Email : string
-        +Status : InvitationStatus
-        +ExpiresAt : DateTime
-        +InvitedByUserId : Guid
+        + CompanyId: Guid
+        + Email: string
+        + Status: InvitationStatus
+        + ExpiresAt: DateTime
+        + InvitedByUserId: Guid
     }
 
     class TeamType {
@@ -637,69 +637,69 @@ classDiagram
 classDiagram
     class InspectionReport {
         <<Aggregate Root>>
-        +ReportId : Guid
-        +Status : InspectionStatus
-        +AssignedTeamId : Guid?
-        +ViolationDescription : string?
-        +ViolatorName : string?
-        +ViolatorAddress : string?
-        +ViolatorIdentity : string?
-        +ViolatingEntityId : Guid?
-        +ViolationLevel : ViolationLevel?
-        +PenaltyAmount : decimal?
-        +PenaltyDecisionNumber : string?
-        +PenaltyIssuedAt : DateTime?
-        +PenaltyDueDate : DateTime?
-        +PaidAmount : decimal?
-        +AdditionalPenaltyMeasures : string?
-        +IsRepeatOffender : bool
-        +CreatedByOfficerId : Guid
-        +IssuedByInspectorId : Guid?
-        +ClosedAt : DateTime?
-        +ClosedReason : string?
-        +SlaInspectionDueAt : DateTime?
-        +SlaInspectionBreached : bool
-        +CheckedInAt : DateTime?
-        +ProgressPercent : int
-        +Create(reportId : Guid, officerId : Guid) : InspectionReport$
-        +AssignTeam(teamId : Guid) : void
-        +CheckIn(lat : decimal, lng : decimal, note? : string) : void
-        +UpdateProgress(percent : int, note : string) : void
-        +IssuePenalty(...) : void
-        +RecordPayment(amount : decimal) : void
-        +CloseNoViolation(reason : string) : void
-        +Close() : void
-        +MarkOverdue() : void
+        + ReportId: Guid
+        + Status: InspectionStatus
+        + AssignedTeamId: Guid?
+        + ViolationDescription: string?
+        + ViolatorName: string?
+        + ViolatorAddress: string?
+        + ViolatorIdentity: string?
+        + ViolatingEntityId: Guid?
+        + ViolationLevel: ViolationLevel?
+        + PenaltyAmount: decimal?
+        + PenaltyDecisionNumber: string?
+        + PenaltyIssuedAt: DateTime?
+        + PenaltyDueDate: DateTime?
+        + PaidAmount: decimal?
+        + AdditionalPenaltyMeasures: string?
+        + IsRepeatOffender: bool
+        + CreatedByOfficerId: Guid
+        + IssuedByInspectorId: Guid?
+        + ClosedAt: DateTime?
+        + ClosedReason: string?
+        + SlaInspectionDueAt: DateTime?
+        + SlaInspectionBreached: bool
+        + CheckedInAt: DateTime?
+        + ProgressPercent: int
+        + Create(reportId: Guid, officerId: Guid): InspectionReport$
+        + AssignTeam(teamId: Guid): void
+        + CheckIn(lat: decimal, lng: decimal, note?: string): void
+        + UpdateProgress(percent: int, note: string): void
+        + IssuePenalty(...): void
+        + RecordPayment(amount: decimal): void
+        + CloseNoViolation(reason: string): void
+        + Close(): void
+        + MarkOverdue(): void
     }
 
     class ViolatingEntity {
-        +Name : string
-        +Address : string?
-        +TaxCode : string?
-        +IdentityNumber : string?
-        +PhoneNumber : string?
-        +Type : ViolatorType
-        +Create(name, type, ...) : ViolatingEntity$
-        +Update(name?, address?, ...) : void
+        + Name: string
+        + Address: string?
+        + TaxCode: string?
+        + IdentityNumber: string?
+        + PhoneNumber: string?
+        + Type: ViolatorType
+        + Create(name, type, ...): ViolatingEntity$
+        + Update(name?, address?, ...): void
     }
 
     class PenaltyPayment {
-        +InspectionReportId : Guid
-        +Amount : decimal
-        +PaidAt : DateTime
-        +EvidenceUrl : string?
-        +Note : string?
-        +RecordedByUserId : Guid
-        +Create(...) : PenaltyPayment$
+        + InspectionReportId: Guid
+        + Amount: decimal
+        + PaidAt: DateTime
+        + EvidenceUrl: string?
+        + Note: string?
+        + RecordedByUserId: Guid
+        + Create(...): PenaltyPayment$
     }
 
     class PenaltyFramework {
-        +CategoryId : Guid
-        +Level : ViolationLevel
-        +MinAmount : decimal
-        +MaxAmount : decimal
-        +Description : string?
-        +IsActive : bool
+        + CategoryId: Guid
+        + Level: ViolationLevel
+        + MinAmount: decimal
+        + MaxAmount: decimal
+        + Description: string?
+        + IsActive: bool
     }
 
     class InspectionStatus {
@@ -795,39 +795,39 @@ stateDiagram-v2
 classDiagram
     class Comment {
         <<Aggregate Root>>
-        +ReportId : Guid
-        +AuthorId : Guid
-        +Content : string
-        +IsHidden : bool
-        +HiddenReason : string?
-        +HiddenBy : Guid?
-        +HiddenAt : DateTime?
-        +ParentCommentId : Guid?
-        +Create(reportId, authorId, content, parentId?) : Comment$
-        +Edit(content : string, editorId : Guid) : void
-        +DeleteByAuthor(authorId : Guid) : void
-        +Hide(reason : string, moderatorId : Guid) : void
-        +Unhide() : void
+        + ReportId: Guid
+        + AuthorId: Guid
+        + Content: string
+        + IsHidden: bool
+        + HiddenReason: string?
+        + HiddenBy: Guid?
+        + HiddenAt: DateTime?
+        + ParentCommentId: Guid?
+        + Create(reportId, authorId, content, parentId?): Comment$
+        + Edit(content: string, editorId: Guid): void
+        + DeleteByAuthor(authorId: Guid): void
+        + Hide(reason: string, moderatorId: Guid): void
+        + Unhide(): void
     }
 
     class CommentMedia {
-        +CommentId : Guid
-        +Url : string
-        +MimeType : string
-        +SizeBytes : long
+        + CommentId: Guid
+        + Url: string
+        + MimeType: string
+        + SizeBytes: long
     }
 
     class CommentLike {
         <<join table>>
-        +CommentId : Guid
-        +UserId : Guid
-        +CreatedAt : DateTime
+        + CommentId: Guid
+        + UserId: Guid
+        + CreatedAt: DateTime
     }
 
     class BlockedWord {
-        +Word : string
-        +IsActive : bool
-        +CreatedAt : DateTime
+        + Word: string
+        + IsActive: bool
+        + CreatedAt: DateTime
     }
 
     SoftDeletableEntity <|-- Comment : Inheritance
@@ -859,53 +859,53 @@ classDiagram
 classDiagram
     class UserPoints {
         <<Aggregate Root>>
-        +UserId : Guid
-        +TotalPoints : int
-        +IsLocked : bool
-        +LockedUntil : DateTime?
-        +LockedReason : string?
-        +Level : int
-        +Create(userId : Guid) : UserPoints$
-        +AddPoints(points : int, reason : PointReason, reportId? : Guid) : void
-        +DeductPoints(points : int, reason : PointReason, reportId? : Guid) : void
-        +Lock(reason : string, duration : TimeSpan) : void
-        +Unlock() : void
-        +GetLevelName() : string
+        + UserId: Guid
+        + TotalPoints: int
+        + IsLocked: bool
+        + LockedUntil: DateTime?
+        + LockedReason: string?
+        + Level: int
+        + Create(userId: Guid): UserPoints$
+        + AddPoints(points: int, reason: PointReason, reportId?: Guid): void
+        + DeductPoints(points: int, reason: PointReason, reportId?: Guid): void
+        + Lock(reason: string, duration: TimeSpan): void
+        + Unlock(): void
+        + GetLevelName(): string
     }
 
     class PointTransaction {
-        +UserPointsId : Guid
-        +Points : int
-        +Reason : PointReason
-        +ReportId : Guid?
-        +CreatedAt : DateTime
+        + UserPointsId: Guid
+        + Points: int
+        + Reason: PointReason
+        + ReportId: Guid?
+        + CreatedAt: DateTime
     }
 
     class Badge {
-        +Code : string
-        +NameVi : string
-        +NameEn : string
-        +Description : string?
-        +IconUrl : string?
-        +IsActive : bool
-        +RequiredPoints : int?
-        +RequiredReportCount : int?
-        +CreatedAt : DateTime
-        +Create(code, nameVi, nameEn, ...) : Badge$
+        + Code: string
+        + NameVi: string
+        + NameEn: string
+        + Description: string?
+        + IconUrl: string?
+        + IsActive: bool
+        + RequiredPoints: int?
+        + RequiredReportCount: int?
+        + CreatedAt: DateTime
+        + Create(code, nameVi, nameEn, ...): Badge$
     }
 
     class UserBadge {
         <<join table>>
-        +UserId : Guid
-        +BadgeId : Guid
-        +EarnedAt : DateTime
+        + UserId: Guid
+        + BadgeId: Guid
+        + EarnedAt: DateTime
     }
 
     class GamificationConfig {
-        +ActionKey : string
-        +Points : int
-        +Description : string?
-        +IsActive : bool
+        + ActionKey: string
+        + Points: int
+        + Description: string?
+        + IsActive: bool
     }
 
     class PointReason {
@@ -964,43 +964,43 @@ flowchart LR
 ```mermaid
 classDiagram
     class Notification {
-        +RecipientId : Guid
-        +Type : NotificationType
-        +Title : string
-        +Message : string
-        +ReferenceId : Guid?
-        +Channel : NotificationChannel
-        +IsRead : bool
-        +ReadAt : DateTime?
-        +Create(recipientId, type, title, message, channel, refId?) : Notification$
-        +MarkAsRead() : void
+        + RecipientId: Guid
+        + Type: NotificationType
+        + Title: string
+        + Message: string
+        + ReferenceId: Guid?
+        + Channel: NotificationChannel
+        + IsRead: bool
+        + ReadAt: DateTime?
+        + Create(recipientId, type, title, message, channel, refId?): Notification$
+        + MarkAsRead(): void
     }
 
     class NotificationPreference {
-        +UserId : Guid
-        +Type : NotificationType
-        +PushEnabled : bool
-        +EmailEnabled : bool
-        +Create(userId, type, push, email) : NotificationPreference$
-        +Update(pushEnabled : bool, emailEnabled : bool) : void
+        + UserId: Guid
+        + Type: NotificationType
+        + PushEnabled: bool
+        + EmailEnabled: bool
+        + Create(userId, type, push, email): NotificationPreference$
+        + Update(pushEnabled: bool, emailEnabled: bool): void
     }
 
     class NotificationTemplate {
-        +TemplateKey : string
-        +TitleVi : string
-        +BodyVi : string
-        +TitleEn : string?
-        +BodyEn : string?
-        +Channel : NotificationChannel
-        +Type : NotificationType
-        +IsPublished : bool
-        +IsActive : bool
-        +Create(...) : NotificationTemplate$
-        +Update(titleVi, bodyVi, titleEn?, bodyEn?) : void
-        +Publish() : void
-        +Unpublish() : void
-        +Deactivate() : void
-        +Activate() : void
+        + TemplateKey: string
+        + TitleVi: string
+        + BodyVi: string
+        + TitleEn: string?
+        + BodyEn: string?
+        + Channel: NotificationChannel
+        + Type: NotificationType
+        + IsPublished: bool
+        + IsActive: bool
+        + Create(...): NotificationTemplate$
+        + Update(titleVi, bodyVi, titleEn?, bodyEn?): void
+        + Publish(): void
+        + Unpublish(): void
+        + Deactivate(): void
+        + Activate(): void
     }
 
     class NotificationType {
@@ -1059,68 +1059,68 @@ classDiagram
 ```mermaid
 classDiagram
     class PollutionCategory {
-        +Name : string
-        +Description : string?
-        +IconUrl : string?
-        +IsActive : bool
-        +SortOrder : int
+        + Name: string
+        + Description: string?
+        + IconUrl: string?
+        + IsActive: bool
+        + SortOrder: int
     }
 
     class WasteTag {
-        +Code : string
-        +NameVi : string
-        +NameEn : string
-        +Description : string?
-        +IconUrl : string?
-        +IsActive : bool
-        +SortOrder : int
+        + Code: string
+        + NameVi: string
+        + NameEn: string
+        + Description: string?
+        + IconUrl: string?
+        + IsActive: bool
+        + SortOrder: int
     }
 
     class Province {
-        +Code : string
-        +Name : string
-        +NameEn : string
-        +FullName : string
-        +FullNameEn : string
-        +CodeName : string?
-        +AdministrativeRegionId : Guid
-        +AdministrativeUnitId : Guid
+        + Code: string
+        + Name: string
+        + NameEn: string
+        + FullName: string
+        + FullNameEn: string
+        + CodeName: string?
+        + AdministrativeRegionId: Guid
+        + AdministrativeUnitId: Guid
     }
 
     class Ward {
-        +Code : string
-        +Name : string
-        +NameEn : string
-        +FullName : string
-        +FullNameEn : string
-        +CodeName : string?
-        +ProvinceCode : string
-        +AdministrativeUnitId : Guid?
+        + Code: string
+        + Name: string
+        + NameEn: string
+        + FullName: string
+        + FullNameEn: string
+        + CodeName: string?
+        + ProvinceCode: string
+        + AdministrativeUnitId: Guid?
     }
 
     class AdministrativeRegion {
-        +Id : int
-        +Name : string
-        +NameEn : string
+        + Id: int
+        + Name: string
+        + NameEn: string
     }
 
     class AdministrativeUnit {
-        +Id : int
-        +FullName : string
-        +FullNameEn : string
-        +ShortName : string
-        +ShortNameEn : string
+        + Id: int
+        + FullName: string
+        + FullNameEn: string
+        + ShortName: string
+        + ShortNameEn: string
     }
 
     class AuditLog {
-        +Action : string
-        +EntityType : string
-        +EntityId : Guid?
-        +OldValues : string?
-        +NewValues : string?
-        +PerformedBy : Guid?
-        +CreatedAt : DateTime
-        +IpAddress : string?
+        + Action: string
+        + EntityType: string
+        + EntityId: Guid?
+        + OldValues: string?
+        + NewValues: string?
+        + PerformedBy: Guid?
+        + CreatedAt: DateTime
+        + IpAddress: string?
     }
 
     Province "1" *-- "0..*" Ward : Composition
