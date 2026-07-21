@@ -1210,3 +1210,465 @@ classDiagram
     Comment --> User : Association (writtenBy)
     EnvironmentalServiceCompany --> Department : Association (contracted)
 ```
+
+---
+
+## CD-09: Architecture Layer — Clean Architecture & Dependency Inversion
+
+**Mô tả:** Thể hiện kiến trúc Clean Architecture 4 layer, nguyên tắc Dependency Inversion (interface ở Application, implementation ở Infrastructure), MediatR pipeline, và quan hệ giữa các layer.
+
+### Dependency Rule
+
+```mermaid
+flowchart TB
+    subgraph API ["🌐 Greenlens.Api (Composition Root)"]
+        direction LR
+        Controllers
+        Middlewares
+        Filters
+    end
+
+    subgraph APP ["📋 Greenlens.Application (Use Cases)"]
+        direction LR
+        Handlers["Handlers\n(Command/Query)"]
+        Validators["FluentValidation\nValidators"]
+        Interfaces["Interfaces\n(Contracts)"]
+        Behaviors["Pipeline\nBehaviors"]
+    end
+
+    subgraph DOM ["🏛️ Greenlens.Domain (Core Business)"]
+        direction LR
+        Entities
+        ValueObjects["Value Objects"]
+        DomainEvents["Domain Events"]
+        Enums
+    end
+
+    subgraph INFRA ["⚙️ Greenlens.Infrastructure (Adapters)"]
+        direction LR
+        Persistence["Persistence\n(EF Core + PostGIS)"]
+        ExternalSvc["External Services\n(S3, AI, FCM, SMTP)"]
+        Identity["Identity\n(JWT, OAuth)"]
+        BackgroundJobs["Background Jobs\n(Hangfire)"]
+    end
+
+    API -->|depends on| APP
+    API -.->|DI registration| INFRA
+    APP -->|depends on| DOM
+    INFRA -->|implements| APP
+    INFRA -->|depends on| DOM
+
+    style DOM fill:#2d5016,stroke:#4a8c2a,color:#fff
+    style APP fill:#1a3a5c,stroke:#2980b9,color:#fff
+    style INFRA fill:#5c3a1a,stroke:#b97829,color:#fff
+    style API fill:#3a1a5c,stroke:#8e44ad,color:#fff
+```
+
+### Class Diagram — Interface ↔ Implementation (Dependency Inversion)
+
+```mermaid
+classDiagram
+    %% ══════════════════════════════════════════
+    %% APPLICATION LAYER — Interfaces (Contracts)
+    %% ══════════════════════════════════════════
+
+    class IApplicationDbContext {
+        <<interface>>
+        + Reports: DbSet~Report~
+        + Users: DbSet~User~
+        + Comments: DbSet~Comment~
+        + InspectionReports: DbSet~InspectionReport~
+        + Notifications: DbSet~Notification~
+        + ...other DbSets
+        + SaveChangesAsync(ct: CancellationToken): Task~int~
+    }
+
+    class ICurrentUser {
+        <<interface>>
+        + Id: Guid?
+        + Role: UserRole?
+        + IsAuthenticated: bool
+    }
+
+    class IJwtService {
+        <<interface>>
+        + GenerateAccessToken(user: User): string
+        + GenerateRefreshToken(): string
+    }
+
+    class IFileStorageService {
+        <<interface>>
+        + GeneratePresignedUploadUrl(...): Task~PresignedUrlResult~
+        + GeneratePresignedDownloadUrl(key: string): Task~string~
+        + DeleteAsync(key: string, ct: CancellationToken): Task
+    }
+
+    class IEmailSender {
+        <<interface>>
+        + SendAsync(to: string, subject: string, body: string): Task
+        + SendTemplateAsync(to: string, template: string, data: object): Task
+    }
+
+    class IPushNotificationSender {
+        <<interface>>
+        + SendAsync(deviceToken: string, title: string, body: string): Task
+    }
+
+    class INotificationService {
+        <<interface>>
+        + NotifyAsync(recipientId: Guid, type: NotificationType, ...): Task
+        + NotifyBulkAsync(recipientIds: List~Guid~, ...): Task
+    }
+
+    class IAiClassificationService {
+        <<interface>>
+        + ClassifyImageAsync(imageUrl: string): Task~AiClassificationResult~
+        + EstimateSeverityAsync(imageUrl: string): Task~Severity~
+    }
+
+    class IAiImageCompareService {
+        <<interface>>
+        + ComputePHashAsync(imageUrl: string): Task~string~
+        + CompareImagesAsync(hash1: string, hash2: string): Task~decimal~
+    }
+
+    class IGeoDistanceService {
+        <<interface>>
+        + IsWithinDistance(lat1, lng1, lat2, lng2, meters: double): bool
+    }
+
+    class IPasswordHasher {
+        <<interface>>
+        + Hash(password: string): string
+        + Verify(password: string, hash: string): bool
+    }
+
+    class IDateTimeProvider {
+        <<interface>>
+        + UtcNow: DateTime
+    }
+
+    class ITransactionManager {
+        <<interface>>
+        + BeginTransactionAsync(ct: CancellationToken): Task
+        + CommitAsync(ct: CancellationToken): Task
+        + RollbackAsync(ct: CancellationToken): Task
+    }
+
+    class IAuditLogger {
+        <<interface>>
+        + LogAsync(action: string, entityType: string, entityId: Guid?, ...): Task
+    }
+
+    class IReportSubmissionRateLimiter {
+        <<interface>>
+        + IsAllowedAsync(userId: Guid): Task~bool~
+        + RecordSubmissionAsync(userId: Guid): Task
+    }
+
+    class IGoogleAuthService {
+        <<interface>>
+        + VerifyTokenAsync(idToken: string): Task~GoogleUserInfo~
+    }
+
+    %% ══════════════════════════════════════════
+    %% INFRASTRUCTURE LAYER — Implementations
+    %% ══════════════════════════════════════════
+
+    class ApplicationDbContext {
+        <<EF Core>>
+        + Reports: DbSet~Report~
+        + Users: DbSet~User~
+        + ...other DbSets
+        + OnModelCreating(builder: ModelBuilder): void
+    }
+
+    class CurrentUser {
+        - _httpContextAccessor: IHttpContextAccessor
+    }
+
+    class JwtService {
+        - _options: JwtOptions
+        - _dateTimeProvider: IDateTimeProvider
+    }
+
+    class R2FileStorageService {
+        <<Cloudflare R2 / S3>>
+        - _s3Client: IAmazonS3
+        - _options: R2Options
+    }
+
+    class SmtpEmailSender {
+        <<SMTP>>
+        - _smtpOptions: SmtpOptions
+    }
+
+    class FcmPushNotificationSender {
+        <<Firebase FCM>>
+        - _messaging: FirebaseMessaging
+    }
+
+    class NotificationService {
+        - _dbContext: IApplicationDbContext
+        - _pushSender: IPushNotificationSender
+        - _emailSender: IEmailSender
+    }
+
+    class AiClassificationService {
+        <<External AI API>>
+        - _httpClient: HttpClient
+        - _options: AiOptions
+    }
+
+    class AiImageCompareService {
+        <<pHash comparison>>
+        - _httpClient: HttpClient
+    }
+
+    class PostGisDistanceService {
+        <<PostGIS>>
+        - _dbContext: IApplicationDbContext
+    }
+
+    class BcryptPasswordHasher {
+        <<bcrypt ≥ 12 rounds>>
+    }
+
+    class DateTimeProvider {
+    }
+
+    class TransactionManager {
+        - _dbContext: ApplicationDbContext
+    }
+
+    %% ══════════════════════════════════════════
+    %% Dependency Inversion — Implementation relationships
+    %% ══════════════════════════════════════════
+
+    IApplicationDbContext <|.. ApplicationDbContext : implements
+    ICurrentUser <|.. CurrentUser : implements
+    IJwtService <|.. JwtService : implements
+    IFileStorageService <|.. R2FileStorageService : implements
+    IEmailSender <|.. SmtpEmailSender : implements
+    IPushNotificationSender <|.. FcmPushNotificationSender : implements
+    INotificationService <|.. NotificationService : implements
+    IAiClassificationService <|.. AiClassificationService : implements
+    IAiImageCompareService <|.. AiImageCompareService : implements
+    IGeoDistanceService <|.. PostGisDistanceService : implements
+    IPasswordHasher <|.. BcryptPasswordHasher : implements
+    IDateTimeProvider <|.. DateTimeProvider : implements
+    ITransactionManager <|.. TransactionManager : implements
+```
+
+### Class Diagram — MediatR Pipeline (Request Flow)
+
+```mermaid
+classDiagram
+    class ISender {
+        <<interface / MediatR>>
+        + Send~TResponse~(request: IRequest~TResponse~, ct: CancellationToken): Task~TResponse~
+    }
+
+    class IRequest~TResponse~ {
+        <<interface / MediatR>>
+    }
+
+    class IRequestHandler~TRequest_TResponse~ {
+        <<interface / MediatR>>
+        + Handle(request: TRequest, ct: CancellationToken): Task~TResponse~
+    }
+
+    class IPipelineBehavior~TRequest_TResponse~ {
+        <<interface / MediatR>>
+        + Handle(request: TRequest, next: RequestHandlerDelegate, ct: CancellationToken): Task~TResponse~
+    }
+
+    class ValidationBehavior {
+        <<Pipeline Behavior>>
+        - _validators: IEnumerable~IValidator~
+        + Handle(...): Task~TResponse~
+    }
+
+    class LoggingBehavior {
+        <<Pipeline Behavior>>
+        - _logger: ILogger
+        + Handle(...): Task~TResponse~
+    }
+
+    class TransactionBehavior {
+        <<Pipeline Behavior>>
+        - _transactionManager: ITransactionManager
+        + Handle(...): Task~TResponse~
+    }
+
+    class AuditLogBehavior {
+        <<Pipeline Behavior>>
+        - _auditLogger: IAuditLogger
+        - _currentUser: ICurrentUser
+        + Handle(...): Task~TResponse~
+    }
+
+    class SubmitReportCommand {
+        <<example Command>>
+        + CategoryId: Guid
+        + Description: string?
+        + Latitude: decimal
+        + Longitude: decimal
+        + MediaKeys: List~string~
+    }
+
+    class SubmitReportCommandHandler {
+        <<example Handler>>
+        - _dbContext: IApplicationDbContext
+        - _currentUser: ICurrentUser
+        - _rateLimiter: IReportSubmissionRateLimiter
+        + Handle(cmd, ct): Task~Result~Guid~~
+    }
+
+    class SubmitReportCommandValidator {
+        <<FluentValidation>>
+    }
+
+    IPipelineBehavior <|.. ValidationBehavior : implements
+    IPipelineBehavior <|.. LoggingBehavior : implements
+    IPipelineBehavior <|.. TransactionBehavior : implements
+    IPipelineBehavior <|.. AuditLogBehavior : implements
+
+    IRequest <|.. SubmitReportCommand : implements
+    IRequestHandler <|.. SubmitReportCommandHandler : implements
+
+    ISender --> IPipelineBehavior : 1. dispatches through
+    IPipelineBehavior --> IRequestHandler : 2. delegates to
+
+    SubmitReportCommandHandler --> IApplicationDbContext : uses
+    SubmitReportCommandHandler --> ICurrentUser : uses
+    SubmitReportCommandHandler --> IReportSubmissionRateLimiter : uses
+```
+
+### Class Diagram — API Layer (Controllers)
+
+```mermaid
+classDiagram
+    class ControllerBase {
+        <<ASP.NET Core>>
+    }
+
+    class AuthController {
+        - _sender: ISender
+        + Register(cmd: RegisterCommand): Task~IActionResult~
+        + Login(cmd: LoginCommand): Task~IActionResult~
+        + RefreshToken(cmd: RefreshTokenCommand): Task~IActionResult~
+        + ForgotPassword(cmd: ForgotPasswordCommand): Task~IActionResult~
+    }
+
+    class ReportsController {
+        - _sender: ISender
+        + Submit(cmd: SubmitReportCommand): Task~IActionResult~
+        + GetById(id: Guid): Task~IActionResult~
+        + GetNearby(query: GetNearbyReportsQuery): Task~IActionResult~
+        + Verify(id: Guid, cmd: VerifyReportCommand): Task~IActionResult~
+        + Reject(id: Guid, cmd: RejectReportCommand): Task~IActionResult~
+    }
+
+    class InspectionsController {
+        - _sender: ISender
+        + Create(cmd: CreateInspectionCommand): Task~IActionResult~
+        + IssuePenalty(id: Guid, cmd: IssuePenaltyCommand): Task~IActionResult~
+        + RecordPayment(id: Guid, cmd: RecordPaymentCommand): Task~IActionResult~
+    }
+
+    class CompaniesController {
+        - _sender: ISender
+        + Create(cmd: CreateCompanyCommand): Task~IActionResult~
+        + Activate(id: Guid): Task~IActionResult~
+        + Suspend(id: Guid, cmd: SuspendCompanyCommand): Task~IActionResult~
+    }
+
+    class CommentsController {
+        - _sender: ISender
+        + Create(cmd: CreateCommentCommand): Task~IActionResult~
+        + Delete(id: Guid): Task~IActionResult~
+    }
+
+    class AdminController {
+        - _sender: ISender
+        + ManageUsers(...): Task~IActionResult~
+        + ManageCategories(...): Task~IActionResult~
+        + ViewAuditLogs(...): Task~IActionResult~
+    }
+
+    class NotificationsController {
+        - _sender: ISender
+        + GetMyNotifications(query): Task~IActionResult~
+        + MarkAsRead(id: Guid): Task~IActionResult~
+    }
+
+    class GamificationController {
+        - _sender: ISender
+        + GetMyPoints(query): Task~IActionResult~
+        + GetLeaderboard(query): Task~IActionResult~
+    }
+
+    class TeamsController {
+        - _sender: ISender
+        + Create(cmd: CreateTeamCommand): Task~IActionResult~
+        + AddMember(teamId: Guid, cmd): Task~IActionResult~
+    }
+
+    class MapController {
+        - _sender: ISender
+        + GetHeatmap(query): Task~IActionResult~
+        + GetNearby(query): Task~IActionResult~
+    }
+
+    ControllerBase <|-- AuthController : Inheritance
+    ControllerBase <|-- ReportsController : Inheritance
+    ControllerBase <|-- InspectionsController : Inheritance
+    ControllerBase <|-- CompaniesController : Inheritance
+    ControllerBase <|-- CommentsController : Inheritance
+    ControllerBase <|-- AdminController : Inheritance
+    ControllerBase <|-- NotificationsController : Inheritance
+    ControllerBase <|-- GamificationController : Inheritance
+    ControllerBase <|-- TeamsController : Inheritance
+    ControllerBase <|-- MapController : Inheritance
+
+    AuthController --> ISender : Association (dispatches)
+    ReportsController --> ISender : Association (dispatches)
+    InspectionsController --> ISender : Association (dispatches)
+    CompaniesController --> ISender : Association (dispatches)
+    CommentsController --> ISender : Association (dispatches)
+    AdminController --> ISender : Association (dispatches)
+    NotificationsController --> ISender : Association (dispatches)
+    GamificationController --> ISender : Association (dispatches)
+    TeamsController --> ISender : Association (dispatches)
+    MapController --> ISender : Association (dispatches)
+```
+
+### Request Flow tổng quan (API → Handler → Domain)
+
+```mermaid
+flowchart LR
+    Client["📱 Client\n(Mobile/Web)"] -->|HTTP Request| Controller["🌐 Controller\n(Api Layer)"]
+    Controller -->|ISender.Send| Pipeline["⚙️ MediatR Pipeline"]
+
+    subgraph Pipeline["MediatR Pipeline (Application Layer)"]
+        direction TB
+        B1["1️⃣ LoggingBehavior\n→ log request"] --> B2["2️⃣ ValidationBehavior\n→ FluentValidation"]
+        B2 --> B3["3️⃣ TransactionBehavior\n→ begin transaction"]
+        B3 --> B4["4️⃣ AuditLogBehavior\n→ audit trail"]
+        B4 --> Handler["✅ Handler\n→ business logic"]
+    end
+
+    Handler -->|"uses"| Domain["🏛️ Domain\nEntities"]
+    Handler -->|"uses"| Infra["⚙️ Infrastructure\n(DB, S3, AI, FCM)"]
+    Handler -->|"returns"| Result["📦 Result~T~"]
+    Result -->|"ToActionResult()"| Response["📤 HTTP Response\n(ProblemDetails)"]
+
+    style Client fill:#34495e,color:#fff
+    style Controller fill:#8e44ad,color:#fff
+    style Handler fill:#2980b9,color:#fff
+    style Domain fill:#27ae60,color:#fff
+    style Infra fill:#d35400,color:#fff
+    style Result fill:#2c3e50,color:#fff
+    style Response fill:#16a085,color:#fff
+```
