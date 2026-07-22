@@ -4,6 +4,10 @@
 > **Tổng quan:** 22 Sequence Diagram ưu tiên cho bài bảo vệ tốt nghiệp, dựa trên source code thực tế.  
 > **Thứ tự:** Theo luồng trải nghiệm người dùng: Auth → Report → Cleanup → Inspection → Organization → Community → Gamification → Notification → Map → Media → Admin
 
+> [!NOTE]
+> **Quy ước đặt tên UML:** Các object backend sử dụng prefix `:` theo chuẩn UML instance notation (vd: `:AuthController`, `:IUserRepository`).  
+> **Hạn chế Mermaid:** Mermaid tự lặp participant box ở dưới cùng — đây là hạn chế render, không phải chuẩn UML. Nếu cần bản chuẩn, export sang draw.io hoặc StarUML.
+
 ---
 
 ## Nhóm 1: Authentication & Account
@@ -17,43 +21,51 @@
 ```mermaid
 sequenceDiagram
     actor Citizen
-    participant API as AuthController
-    participant Val as ValidationBehavior
-    participant Handler as RegisterCommandHandler
-    participant UserRepo as IUserRepository
-    participant Hasher as IPasswordHasher
-    participant OtpRepo as IOtpRepository
-    participant UoW as IUnitOfWork
-    participant Email as IEmailSender
+    participant App as Mobile App
+    participant Ctrl as :AuthController
+    participant Val as :ValidationBehavior
+    participant Hdl as :RegisterCommandHandler
+    participant Repo as :IUserRepository
+    participant Hash as :IPasswordHasher
+    participant OtpRepo as :IOtpRepository
+    participant UoW as :IUnitOfWork
+    participant Email as :IEmailSender
+    participant DB as Database
 
-    Citizen->>+API: POST /api/auth/register {email, password, fullName}
-    API->>+Val: Send(RegisterCommand)
-    Val->>Val: Validate (email format, password strength BR-AUTH-005)
-    Val->>+Handler: next()
+    Citizen->>+App: Nhập email, password, fullName
+    App->>+Ctrl: POST /api/auth/register
+    Ctrl->>+Val: Send(RegisterCommand)
+    Val->>Val: Validate email format,<br/>password strength [BR-AUTH-005]
+    Val->>+Hdl: next()
 
-    Handler->>+UserRepo: ExistsAsync(email)
-    UserRepo-->>-Handler: false (chưa tồn tại)
+    Hdl->>+Repo: ExistsAsync(email)
+    Repo->>+DB: SELECT COUNT(*) FROM users WHERE email = ?
+    DB-->>-Repo: 0
+    Repo-->>-Hdl: false
 
-    Handler->>+Hasher: Hash(password) [bcrypt ≥12 rounds]
-    Hasher-->>-Handler: passwordHash
+    Hdl->>+Hash: Hash(password) [bcrypt ≥12]
+    Hash-->>-Hdl: passwordHash
 
-    Handler->>Handler: User.Create(email, passwordHash, fullName)
-    Handler->>UserRepo: Add(user)
+    Hdl->>Hdl: User.Create(email, hash, fullName)
+    Hdl->>Repo: Add(user)
 
-    Handler->>Handler: Generate OTP 6 chữ số
-    Handler->>Hasher: Hash(otpCode)
-    Handler->>Handler: OtpCode.Create(email, codeHash, EmailVerification)
-    Handler->>OtpRepo: Add(otp)
+    Hdl->>Hdl: Generate OTP 6 số
+    Hdl->>Hash: Hash(otpCode)
+    Hdl->>Hdl: OtpCode.Create(email, codeHash, EmailVerification)
+    Hdl->>OtpRepo: Add(otp)
 
-    Handler->>+UoW: SaveChangesAsync()
-    UoW-->>-Handler: OK
+    Hdl->>+UoW: SaveChangesAsync()
+    UoW->>+DB: INSERT INTO users, otp_codes
+    DB-->>-UoW: OK
+    UoW-->>-Hdl: OK
 
-    Handler->>+Email: SendOtpAsync(email, otpCode, "EmailVerification")
-    Email-->>-Handler: Sent
+    Hdl->>+Email: SendOtpAsync(email, otpCode)
+    Email-->>-Hdl: Sent
 
-    Handler-->>-Val: Result<RegisterResponse>
-    Val-->>-API: Result<RegisterResponse>
-    API-->>-Citizen: 200 OK {userId, email, message}
+    Hdl-->>-Val: Result<RegisterResponse>
+    Val-->>-Ctrl: Result<RegisterResponse>
+    Ctrl-->>-App: 200 OK {userId, email, message}
+    App-->>-Citizen: Hiển thị "OTP đã gửi tới email"
 ```
 
 ---
@@ -65,61 +77,79 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     actor User
-    participant API as AuthController
-    participant Handler as LoginCommandHandler
-    participant UserRepo as IUserRepository
-    participant Hasher as IPasswordHasher
-    participant JWT as IJwtService
-    participant TokenRepo as IRefreshTokenRepository
-    participant StaffRepo as ICompanyStaffRepository
-    participant UoW as IUnitOfWork
+    participant App as App (Mobile / Web)
+    participant Ctrl as :AuthController
+    participant Hdl as :LoginCommandHandler
+    participant Repo as :IUserRepository
+    participant Hash as :IPasswordHasher
+    participant Staff as :ICompanyStaffRepository
+    participant JWT as :IJwtService
+    participant TknRepo as :IRefreshTokenRepository
+    participant UoW as :IUnitOfWork
+    participant DB as Database
 
-    User->>+API: POST /api/auth/login {email, password}
-    API->>+Handler: Send(LoginCommand)
+    User->>+App: Nhập email, password
+    App->>+Ctrl: POST /api/auth/login
+    Ctrl->>+Hdl: Send(LoginCommand)
 
-    Handler->>+UserRepo: GetByEmailAsync(email)
-    UserRepo-->>-Handler: user
+    Hdl->>+Repo: GetByEmailAsync(email)
+    Repo->>+DB: SELECT * FROM users WHERE email = ?
+    DB-->>-Repo: row
+    Repo-->>-Hdl: user
 
     alt User not found
-        Handler-->>API: 401 InvalidCredentials
+        Hdl-->>Ctrl: 401 InvalidCredentials
+        Ctrl-->>App: 401
+        App-->>User: "Email hoặc mật khẩu sai"
     end
 
-    Handler->>Handler: Check user.IsBanned [BR-AUTH-015]
-    Handler->>Handler: Check user.IsDeleted [BR-AUTH-015]
-    Handler->>Handler: Check user.IsLockedOut() [BR-AUTH-014]
-    Handler->>Handler: Check user.IsEmailVerified
+    Hdl->>Hdl: Check user.IsBanned [BR-AUTH-015]
+    Hdl->>Hdl: Check user.IsDeleted [BR-AUTH-015]
+    Hdl->>Hdl: Check user.IsLockedOut() [BR-AUTH-014]
+    Hdl->>Hdl: Check user.IsEmailVerified
 
-    Handler->>+Hasher: Verify(password, user.PasswordHash)
-    Hasher-->>-Handler: isValid
+    Hdl->>+Hash: Verify(password, user.PasswordHash)
+    Hash-->>-Hdl: isValid
 
     alt Password sai
-        Handler->>Handler: user.RecordFailedLogin() [5 lần/15' → lock 30']
-        Handler->>UoW: SaveChangesAsync()
-        Handler-->>API: 401 InvalidCredentials
+        Hdl->>Hdl: user.RecordFailedLogin()<br/>[5 lần/15' → lock 30']
+        Hdl->>+UoW: SaveChangesAsync()
+        UoW->>+DB: UPDATE users SET failed_login_attempts = ?
+        DB-->>-UoW: OK
+        UoW-->>-Hdl: OK
+        Hdl-->>Ctrl: 401 InvalidCredentials
+        Ctrl-->>App: 401
+        App-->>User: "Email hoặc mật khẩu sai"
     end
 
-    alt CompanyManager/CompanyStaff
-        Handler->>+StaffRepo: Check company status
-        StaffRepo-->>-Handler: company.Status
+    alt CompanyManager / CompanyStaff
+        Hdl->>+Staff: Check company status
+        Staff->>+DB: SELECT company.status FROM company_staff JOIN companies
+        DB-->>-Staff: status
+        Staff-->>-Hdl: company.Status
         alt Company Expired
-            Handler-->>API: 403 CompanyExpired
+            Hdl-->>Ctrl: 403 CompanyExpired
         end
     end
 
-    Handler->>Handler: user.ResetFailedLoginAttempts()
+    Hdl->>Hdl: user.ResetFailedLoginAttempts()
 
-    Handler->>+JWT: GenerateAccessToken(user)
-    JWT-->>-Handler: accessToken (24h)
-    Handler->>+JWT: GenerateRefreshToken() + HashToken()
-    JWT-->>-Handler: rawRefreshToken + refreshTokenHash
+    Hdl->>+JWT: GenerateAccessToken(user)
+    JWT-->>-Hdl: accessToken (24h)
+    Hdl->>+JWT: GenerateRefreshToken() + HashToken()
+    JWT-->>-Hdl: rawRefreshToken, hash
 
-    Handler->>Handler: RefreshToken.Create(userId, hash)
-    Handler->>TokenRepo: Add(refreshToken)
-    Handler->>+UoW: SaveChangesAsync()
-    UoW-->>-Handler: OK
+    Hdl->>Hdl: RefreshToken.Create(userId, hash)
+    Hdl->>TknRepo: Add(refreshToken)
 
-    Handler-->>-API: Result<LoginResponse>
-    API-->>-User: 200 OK {accessToken, refreshToken, userInfo}
+    Hdl->>+UoW: SaveChangesAsync()
+    UoW->>+DB: UPDATE users, INSERT INTO refresh_tokens
+    DB-->>-UoW: OK
+    UoW-->>-Hdl: OK
+
+    Hdl-->>-Ctrl: Result<LoginResponse>
+    Ctrl-->>-App: 200 OK {accessToken, refreshToken, userInfo}
+    App-->>-User: Hiển thị Home Screen
 ```
 
 ---
@@ -130,45 +160,57 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-    actor Client
-    participant API as AuthController
-    participant Handler as RefreshTokenCommandHandler
-    participant JWT as IJwtService
-    participant TokenRepo as IRefreshTokenRepository
-    participant UserRepo as IUserRepository
-    participant UoW as IUnitOfWork
+    actor User
+    participant App as App (Mobile / Web)
+    participant Ctrl as :AuthController
+    participant Hdl as :RefreshTokenCommandHandler
+    participant JWT as :IJwtService
+    participant TknRepo as :IRefreshTokenRepository
+    participant UserRepo as :IUserRepository
+    participant UoW as :IUnitOfWork
+    participant DB as Database
 
-    Client->>+API: POST /api/auth/refresh {refreshToken}
-    API->>+Handler: Send(RefreshTokenCommand)
+    App->>App: Access token hết hạn
+    App->>+Ctrl: POST /api/auth/refresh {refreshToken}
+    Ctrl->>+Hdl: Send(RefreshTokenCommand)
 
-    Handler->>+JWT: HashToken(refreshToken)
-    JWT-->>-Handler: tokenHash
+    Hdl->>+JWT: HashToken(refreshToken)
+    JWT-->>-Hdl: tokenHash
 
-    Handler->>+TokenRepo: GetByTokenHashAsync(tokenHash)
-    TokenRepo-->>-Handler: existingToken
+    Hdl->>+TknRepo: GetByTokenHashAsync(tokenHash)
+    TknRepo->>+DB: SELECT * FROM refresh_tokens WHERE token_hash = ?
+    DB-->>-TknRepo: row
+    TknRepo-->>-Hdl: existingToken
 
     alt Token null hoặc không active
-        Handler-->>API: 401 InvalidRefreshToken
+        Hdl-->>Ctrl: 401 InvalidRefreshToken
+        Ctrl-->>App: 401
+        App-->>User: Redirect Login
     end
 
-    Handler->>+UserRepo: GetByIdAsync(existingToken.UserId)
-    UserRepo-->>-Handler: user
+    Hdl->>+UserRepo: GetByIdAsync(existingToken.UserId)
+    UserRepo->>+DB: SELECT * FROM users WHERE id = ?
+    DB-->>-UserRepo: row
+    UserRepo-->>-Hdl: user
 
-    Note over Handler: Rotation: revoke old, create new
-    Handler->>JWT: GenerateRefreshToken()
-    Handler->>JWT: HashToken(newRawToken)
-    Handler->>Handler: existingToken.Revoke(newTokenHash)
-    Handler->>Handler: RefreshToken.Create(userId, newTokenHash)
-    Handler->>TokenRepo: Add(newRefreshToken)
+    Note over Hdl: Rotation: revoke old, create new
+    Hdl->>JWT: GenerateRefreshToken()
+    Hdl->>JWT: HashToken(newRawToken)
+    Hdl->>Hdl: existingToken.Revoke(newTokenHash)
+    Hdl->>Hdl: RefreshToken.Create(userId, newTokenHash)
+    Hdl->>TknRepo: Add(newRefreshToken)
 
-    Handler->>+JWT: GenerateAccessToken(user)
-    JWT-->>-Handler: newAccessToken
+    Hdl->>+JWT: GenerateAccessToken(user)
+    JWT-->>-Hdl: newAccessToken
 
-    Handler->>+UoW: SaveChangesAsync()
-    UoW-->>-Handler: OK
+    Hdl->>+UoW: SaveChangesAsync()
+    UoW->>+DB: UPDATE refresh_tokens (revoke),<br/>INSERT refresh_tokens (new)
+    DB-->>-UoW: OK
+    UoW-->>-Hdl: OK
 
-    Handler-->>-API: Result<LoginResponse>
-    API-->>-Client: 200 OK {newAccessToken, newRefreshToken, userInfo}
+    Hdl-->>-Ctrl: Result<LoginResponse>
+    Ctrl-->>-App: 200 OK {newAccessToken, newRefreshToken}
+    App->>App: Lưu token mới, tiếp tục request
 ```
 
 ---
@@ -184,67 +226,82 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     actor Citizen
-    participant API as ReportsController
-    participant Handler as SubmitReportHandler
-    participant RateLimit as IRateLimiter
-    participant Profanity as IProfanityFilter
-    participant CatRepo as ICategoryRepo
-    participant WardRepo as IWardRepo
-    participant OfficeRepo as ILocalOfficeRepo
-    participant EXIF as IExifAnalyzer
-    participant DB as IUnitOfWork
+    participant App as Mobile App
+    participant Ctrl as :ReportsController
+    participant Hdl as :SubmitReportHandler
+    participant Rate as :IRateLimiter
+    participant Prof as :IProfanityFilter
+    participant CatRepo as :ICategoryRepo
+    participant WardRepo as :IWardRepo
+    participant OffRepo as :ILocalOfficeRepo
+    participant EXIF as :IExifAnalyzer
+    participant UoW as :IUnitOfWork
+    participant DB as Database
 
-    Citizen->>+API: POST /api/reports {category, lat, lng, images, description}
-    API->>+Handler: Send(SubmitReportCommand)
+    Citizen->>+App: Chọn ảnh, category, mô tả, vị trí GPS
+    App->>+Ctrl: POST /api/reports {category, lat, lng, images, desc}
+    Ctrl->>+Hdl: Send(SubmitReportCommand)
 
-    Handler->>+RateLimit: TryAcquireAsync(userId) [BR-REP-010: 5/h, 20/24h]
-    RateLimit-->>-Handler: isAllowed
-
+    Hdl->>+Rate: TryAcquireAsync(userId) [BR-REP-010: 5/h, 20/24h]
+    Rate-->>-Hdl: isAllowed
     alt Rate limit exceeded
-        Handler-->>API: 429 RateLimitExceeded
+        Hdl-->>Ctrl: 429 RateLimitExceeded
+        Ctrl-->>App: 429
+        App-->>Citizen: "Bạn đã gửi quá nhiều báo cáo"
     end
 
-    Handler->>+Profanity: ContainsProfanity(description) [BR-REP-004]
-    Profanity-->>-Handler: false
+    Hdl->>+Prof: ContainsProfanity(description) [BR-REP-004]
+    Prof-->>-Hdl: false
 
-    Handler->>+CatRepo: GetByIdAsync(categoryId) [BR-REP-005]
-    CatRepo-->>-Handler: category ✓
+    Hdl->>+CatRepo: GetByIdAsync(categoryId) [BR-REP-005]
+    CatRepo->>+DB: SELECT * FROM pollution_categories WHERE id = ?
+    DB-->>-CatRepo: category
+    CatRepo-->>-Hdl: category ✓
 
-    Handler->>+WardRepo: ExistsAsync(wardCode, provinceCode)
-    WardRepo-->>-Handler: true ✓
+    Hdl->>+WardRepo: ExistsAsync(wardCode, provinceCode)
+    WardRepo->>+DB: SELECT EXISTS FROM wards WHERE code = ? AND province_code = ?
+    DB-->>-WardRepo: true
+    WardRepo-->>-Hdl: true ✓
 
-    Note over Handler: Resolve image (AI flow or Manual flow)
-    Handler->>Handler: Generate code RPT-yyMMdd-XXXXXX
-    Handler->>Handler: Report.Create(code, reporter, category, lat, lng, ...)
+    Hdl->>Hdl: Generate code RPT-yyMMdd-XXXXXX
+    Hdl->>Hdl: Report.Create(code, reporter, category, lat, lng, ...)
 
     alt AI flow (TempImageId provided)
-        Handler->>Handler: Apply AI classification results
-        Handler->>Handler: report.ApplyAiResults(type, confidence, severity)
+        Hdl->>Hdl: report.ApplyAiResults(type, confidence, severity)
     end
 
-    Note over Handler: Auto-routing by WardCode [BR-ORG-010]
-    Handler->>+OfficeRepo: Find onboarded office for ward
-    OfficeRepo-->>-Handler: office
-    Handler->>Handler: report.RouteToLocalOffice(officeId)
+    Note over Hdl: Auto-routing by WardCode [BR-ORG-010]
+    Hdl->>+OffRepo: Find onboarded office for ward
+    OffRepo->>+DB: SELECT * FROM local_offices WHERE ward_code = ?
+    DB-->>-OffRepo: office
+    OffRepo-->>-Hdl: office
+    Hdl->>Hdl: report.RouteToLocalOffice(officeId)
 
-    Handler->>Handler: ReportMedia.Create(reportId, Image, url, mime)
+    Hdl->>Hdl: ReportMedia.Create(reportId, Image, url, mime)
 
-    Handler->>+EXIF: Analyze(imageBytes) [BR-REP-011]
-    EXIF-->>-Handler: exifResult
+    Hdl->>+EXIF: Analyze(imageBytes) [BR-REP-011]
+    EXIF-->>-Hdl: exifResult
     alt Suspicious EXIF
-        Handler->>Handler: report.FlagSuspicious(reason)
+        Hdl->>Hdl: report.FlagSuspicious(reason)
     end
 
-    Note over Handler: BR-REP-030: Duplicate detection (Tier 1)
-    Handler->>Handler: FlagPossibleDuplicate (same cat + 50m + 24h)
+    Note over Hdl: BR-REP-030: Duplicate detection Tier 1
+    Hdl->>+DB: SELECT reports within 50m + same cat + 24h
+    DB-->>-Hdl: candidates
+    alt Match found (Haversine ≤ 50m)
+        Hdl->>Hdl: report.MarkPossibleDuplicate(candidateId)
+    end
 
-    Handler->>Handler: ReportStatusHistory.Create(null → Submitted)
+    Hdl->>Hdl: ReportStatusHistory.Create(null → Submitted)
 
-    Handler->>+DB: SaveChangesAsync()
-    DB-->>-Handler: OK
+    Hdl->>+UoW: SaveChangesAsync()
+    UoW->>+DB: INSERT INTO reports, report_media, report_status_histories
+    DB-->>-UoW: OK
+    UoW-->>-Hdl: OK
 
-    Handler-->>-API: Result<SubmitReportResponse>
-    API-->>-Citizen: 200 OK {reportId, code, status: Submitted}
+    Hdl-->>-Ctrl: Result<SubmitReportResponse>
+    Ctrl-->>-App: 200 OK {reportId, code, status: Submitted}
+    App-->>-Citizen: Hiển thị "Báo cáo đã gửi thành công"
 ```
 
 ---
@@ -256,34 +313,44 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     actor LEO
-    participant API as ReportsController
-    participant Handler as VerifyReportHandler
-    participant ReportRepo as IReportRepository
-    participant DB as IUnitOfWork
-    participant Notif as INotificationService
+    participant App as Web App
+    participant Ctrl as :ReportsController
+    participant Hdl as :VerifyReportHandler
+    participant Repo as :IReportRepository
+    participant UoW as :IUnitOfWork
+    participant Notif as :INotificationService
+    participant DB as Database
 
-    LEO->>+API: PUT /api/reports/{id}/verify {severity?, categoryId?}
-    API->>+Handler: Send(VerifyReportCommand)
+    LEO->>+App: Mở queue báo cáo → Chọn report → Verify
+    App->>+Ctrl: PUT /api/reports/{id}/verify {severity?, categoryId?}
+    Ctrl->>+Hdl: Send(VerifyReportCommand)
 
-    Handler->>+ReportRepo: GetByIdAsync(reportId)
-    ReportRepo-->>-Handler: report
+    Hdl->>+Repo: GetByIdAsync(reportId)
+    Repo->>+DB: SELECT * FROM reports WHERE id = ?
+    DB-->>-Repo: report
+    Repo-->>-Hdl: report
 
-    Handler->>Handler: Check report.Status == Submitted [BR-REP-021]
-    Handler->>Handler: Check LEO belongs to assigned office
+    Hdl->>Hdl: Check report.Status == Submitted [BR-REP-021]
+    Hdl->>Hdl: Check LEO belongs to assigned office
 
-    Handler->>Handler: report.Verify(leoId, severity?, categoryId?)
-    Note over Handler: Domain entity enforces state machine
-    Handler->>Handler: ReportStatusHistory.Create(Submitted → Verified)
-    Handler->>Handler: Calculate SLA due dates [BR-OFF-020]
+    Hdl->>Hdl: report.Verify(leoId, severity?, categoryId?)
+    Note over Hdl: Domain entity enforces state machine
+    Hdl->>Hdl: ReportStatusHistory.Create(Submitted → Verified)
+    Hdl->>Hdl: Calculate SLA due dates [BR-OFF-020]
 
-    Handler->>+DB: SaveChangesAsync()
-    DB-->>-Handler: OK
+    Hdl->>+UoW: SaveChangesAsync()
+    UoW->>+DB: UPDATE reports SET status = 'Verified',<br/>INSERT INTO report_status_histories
+    DB-->>-UoW: OK
+    UoW-->>-Hdl: OK
 
-    Handler->>+Notif: NotifyAsync(reporterId, ReportStatusChanged)
-    Notif-->>-Handler: Sent
+    Hdl->>+Notif: NotifyAsync(reporterId, ReportStatusChanged)
+    Notif->>+DB: INSERT INTO notifications
+    DB-->>-Notif: OK
+    Notif-->>-Hdl: Sent
 
-    Handler-->>-API: Result<success>
-    API-->>-LEO: 200 OK
+    Hdl-->>-Ctrl: Result<success>
+    Ctrl-->>-App: 200 OK
+    App-->>-LEO: Hiển thị "Đã xác minh"
 ```
 
 ---
@@ -295,35 +362,47 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     actor LEO
-    participant API as ReportsController
-    participant Handler as RejectReportHandler
-    participant ReportRepo as IReportRepository
-    participant Points as UserPoints
-    participant DB as IUnitOfWork
-    participant Notif as INotificationService
+    participant App as Web App
+    participant Ctrl as :ReportsController
+    participant Hdl as :RejectReportHandler
+    participant Repo as :IReportRepository
+    participant PtsRepo as :IUserPointsRepository
+    participant UoW as :IUnitOfWork
+    participant Notif as :INotificationService
+    participant DB as Database
 
-    LEO->>+API: PUT /api/reports/{id}/reject {reason}
-    API->>+Handler: Send(RejectReportCommand)
+    LEO->>+App: Chọn report → Reject (nhập lý do)
+    App->>+Ctrl: PUT /api/reports/{id}/reject {reason}
+    Ctrl->>+Hdl: Send(RejectReportCommand)
 
-    Handler->>Handler: Validate reason ≥ 20 characters
+    Hdl->>Hdl: Validate reason ≥ 20 characters
 
-    Handler->>+ReportRepo: GetByIdAsync(reportId)
-    ReportRepo-->>-Handler: report
+    Hdl->>+Repo: GetByIdAsync(reportId)
+    Repo->>+DB: SELECT * FROM reports WHERE id = ?
+    DB-->>-Repo: report
+    Repo-->>-Hdl: report
 
-    Handler->>Handler: report.Reject(reason) [state: Submitted → Rejected]
-    Handler->>Handler: ReportStatusHistory.Create(Submitted → Rejected)
+    Hdl->>Hdl: report.Reject(reason)<br/>[state: Submitted → Rejected]
+    Hdl->>Hdl: ReportStatusHistory.Create(Submitted → Rejected)
 
-    Handler->>+Points: DeductPoints(reporter, ReportRejected)
-    Points-->>-Handler: Updated
+    Hdl->>+PtsRepo: Get reporter's UserPoints
+    PtsRepo->>+DB: SELECT * FROM user_points WHERE user_id = ?
+    DB-->>-PtsRepo: userPoints
+    PtsRepo-->>-Hdl: userPoints
+    Hdl->>Hdl: userPoints.DeductPoints(pts, ReportRejected)
 
-    Handler->>+DB: SaveChangesAsync()
-    DB-->>-Handler: OK
+    Hdl->>+UoW: SaveChangesAsync()
+    UoW->>+DB: UPDATE reports, INSERT status_history,<br/>UPDATE user_points, INSERT point_transactions
+    DB-->>-UoW: OK
+    UoW-->>-Hdl: OK
 
-    Handler->>+Notif: NotifyAsync(reporterId, ReportStatusChanged, reason)
-    Notif-->>-Handler: Sent
+    Hdl->>+Notif: NotifyAsync(reporterId, ReportStatusChanged, reason)
+    Notif->>DB: INSERT INTO notifications
+    Notif-->>-Hdl: Sent
 
-    Handler-->>-API: Result<success>
-    API-->>-LEO: 200 OK
+    Hdl-->>-Ctrl: Result<success>
+    Ctrl-->>-App: 200 OK
+    App-->>-LEO: Hiển thị "Đã từ chối"
 ```
 
 ---
@@ -335,39 +414,49 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     actor LEO
-    participant API as ReportsController
-    participant Handler as AssignTeamHandler
-    participant ReportRepo as IReportRepository
-    participant TeamRepo as ITeamRepository
-    participant DB as IUnitOfWork
-    participant Notif as INotificationService
+    participant App as Web App
+    participant Ctrl as :ReportsController
+    participant Hdl as :AssignTeamHandler
+    participant RptRepo as :IReportRepository
+    participant TeamRepo as :ITeamRepository
+    participant UoW as :IUnitOfWork
+    participant Notif as :INotificationService
+    participant DB as Database
 
-    LEO->>+API: POST /api/reports/{id}/assign {teamId, note?}
-    API->>+Handler: Send(AssignTeamCommand)
+    LEO->>+App: Chọn report đã Verified → Assign Team
+    App->>+Ctrl: POST /api/reports/{id}/assign {teamId, note?}
+    Ctrl->>+Hdl: Send(AssignTeamCommand)
 
-    Handler->>+ReportRepo: GetByIdAsync(reportId)
-    ReportRepo-->>-Handler: report
+    Hdl->>+RptRepo: GetByIdAsync(reportId)
+    RptRepo->>+DB: SELECT * FROM reports WHERE id = ?
+    DB-->>-RptRepo: report
+    RptRepo-->>-Hdl: report
+    Hdl->>Hdl: Check report.Status == Verified [BR-REP-021]
 
-    Handler->>Handler: Check report.Status == Verified [BR-REP-021]
+    Hdl->>+TeamRepo: GetByIdAsync(teamId)
+    TeamRepo->>+DB: SELECT * FROM environmental_teams WHERE id = ?
+    DB-->>-TeamRepo: team
+    TeamRepo-->>-Hdl: team (type=Cleanup)
+    Hdl->>Hdl: Check team.IsActive
+    Hdl->>Hdl: Check team belongs to same office
 
-    Handler->>+TeamRepo: GetByIdAsync(teamId)
-    TeamRepo-->>-Handler: team (type=Cleanup)
+    Hdl->>Hdl: report.Assign(leoId)<br/>[state: Verified → InProgress]
+    Hdl->>Hdl: ReportAssignment.Create(reportId, teamId, leoId, note?)
+    Hdl->>Hdl: ReportStatusHistory.Create(Verified → InProgress)
 
-    Handler->>Handler: Check team.IsActive
-    Handler->>Handler: Check team belongs to same office
+    Hdl->>+UoW: SaveChangesAsync()
+    UoW->>+DB: UPDATE reports, INSERT report_assignments,<br/>INSERT report_status_histories
+    DB-->>-UoW: OK
+    UoW-->>-Hdl: OK
 
-    Handler->>Handler: report.Assign(leoId) [state: Verified → InProgress]
-    Handler->>Handler: ReportAssignment.Create(reportId, teamId, leoId, note?)
-    Handler->>Handler: ReportStatusHistory.Create(Verified → InProgress)
+    Hdl->>+Notif: NotifyAsync(teamMembers[], ReportAssigned)
+    Notif->>+DB: INSERT INTO notifications (bulk)
+    DB-->>-Notif: OK
+    Notif-->>-Hdl: Sent to all team members
 
-    Handler->>+DB: SaveChangesAsync()
-    DB-->>-Handler: OK
-
-    Handler->>+Notif: NotifyAsync(teamMembers, ReportStatusChanged)
-    Notif-->>-Handler: Sent to all team members
-
-    Handler-->>-API: Result<success>
-    API-->>-LEO: 200 OK
+    Hdl-->>-Ctrl: Result<success>
+    Ctrl-->>-App: 200 OK
+    App-->>-LEO: Hiển thị "Đã phân công đội"
 ```
 
 ---
@@ -379,40 +468,53 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     actor Cleaner
-    participant API as ReportsController
-    participant Handler as ResolveReportHandler
-    participant ReportRepo as IReportRepository
-    participant AssignRepo as IAssignmentRepo
-    participant MediaRepo as IReportMediaRepo
-    participant DB as IUnitOfWork
-    participant Notif as INotificationService
+    participant App as Mobile App
+    participant Ctrl as :ReportsController
+    participant Hdl as :ResolveReportHandler
+    participant RptRepo as :IReportRepository
+    participant AsgRepo as :IAssignmentRepository
+    participant MediaRepo as :IReportMediaRepository
+    participant UoW as :IUnitOfWork
+    participant Notif as :INotificationService
+    participant DB as Database
 
-    Cleaner->>+API: PUT /api/reports/{id}/resolve {afterImageIds}
-    API->>+Handler: Send(ResolveReportCommand)
+    Cleaner->>+App: Upload ảnh after → Nhấn "Hoàn thành"
+    App->>+Ctrl: PUT /api/reports/{id}/resolve
+    Ctrl->>+Hdl: Send(ResolveReportCommand)
 
-    Handler->>+ReportRepo: GetByIdAsync(reportId)
-    ReportRepo-->>-Handler: report
+    Hdl->>+RptRepo: GetByIdAsync(reportId)
+    RptRepo->>+DB: SELECT * FROM reports WHERE id = ?
+    DB-->>-RptRepo: report
+    RptRepo-->>-Hdl: report
+    Hdl->>Hdl: Check report.Status == InProgress
 
-    Handler->>Handler: Check report.Status == InProgress
+    Hdl->>+AsgRepo: Get assignment for this team
+    AsgRepo->>+DB: SELECT * FROM report_assignments WHERE report_id = ? AND team_id = ?
+    DB-->>-AsgRepo: assignment
+    AsgRepo-->>-Hdl: assignment
+    Hdl->>Hdl: Check assignment.Status == InProgress
 
-    Handler->>+AssignRepo: Get assignment for this team
-    AssignRepo-->>-Handler: assignment
+    Hdl->>+MediaRepo: Count "After" images [BR-CLN-004]
+    MediaRepo->>+DB: SELECT COUNT(*) FROM report_media WHERE type = 'After'
+    DB-->>-MediaRepo: count
+    MediaRepo-->>-Hdl: count ≥ 2 ✓
 
-    Handler->>Handler: Check assignment.Status == InProgress
-    Handler->>Handler: Check ≥ 2 "After" images uploaded [BR-CLN-004]
+    Hdl->>Hdl: assignment.Complete()
+    Hdl->>Hdl: report.Resolve()<br/>[state: InProgress → Resolved]
+    Hdl->>Hdl: ReportStatusHistory.Create(InProgress → Resolved)
 
-    Handler->>Handler: assignment.Complete()
-    Handler->>Handler: report.Resolve() [state: InProgress → Resolved]
-    Handler->>Handler: ReportStatusHistory.Create(InProgress → Resolved)
+    Hdl->>+UoW: SaveChangesAsync()
+    UoW->>+DB: UPDATE reports, UPDATE report_assignments,<br/>INSERT report_status_histories
+    DB-->>-UoW: OK
+    UoW-->>-Hdl: OK
 
-    Handler->>+DB: SaveChangesAsync()
-    DB-->>-Handler: OK
+    Hdl->>+Notif: NotifyAsync(reporterId, ReportResolved)
+    Notif->>DB: INSERT INTO notifications
+    Notif-->>-Hdl: Sent
 
-    Handler->>+Notif: NotifyAsync(reporterId, ReportStatusChanged)
-    Notif-->>-Handler: Sent
-
-    Handler-->>-API: Result<success>
-    API-->>-Cleaner: 200 OK
+    Hdl-->>-Ctrl: Result<success>
+    Ctrl-->>-App: 200 OK
+    App-->>-Cleaner: Hiển thị "Đã hoàn thành"
 ```
 
 ---
@@ -424,37 +526,50 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     actor Citizen
-    participant API as ReportsController
-    participant Handler as CloseReportHandler
-    participant ReportRepo as IReportRepository
-    participant Points as UserPoints
-    participant DB as IUnitOfWork
+    participant App as Mobile App
+    participant Ctrl as :ReportsController
+    participant Job as :AutoCloseResolvedReportJob
+    participant Hdl as :CloseReportHandler
+    participant RptRepo as :IReportRepository
+    participant PtsRepo as :IUserPointsRepository
+    participant UoW as :IUnitOfWork
+    participant DB as Database
 
-    alt Citizen confirms resolution
-        Citizen->>+API: PUT /api/reports/{id}/close
-        API->>+Handler: Send(CloseReportCommand)
-    else Auto-close after 7 days (Background Job)
-        participant Job as AutoCloseResolvedReportJob
-        Job->>Job: Find reports Resolved > 7 days
-        Job->>+Handler: Process each report
+    alt Citizen xác nhận hài lòng
+        Citizen->>+App: Xem report Resolved → Nhấn "Xác nhận"
+        App->>+Ctrl: PUT /api/reports/{id}/close
+        Ctrl->>+Hdl: Send(CloseReportCommand)
+    else Auto-close sau 7 ngày [BR-REP-016]
+        Job->>+DB: SELECT * FROM reports<br/>WHERE status = 'Resolved' AND resolved_at < NOW() - 7d
+        DB-->>-Job: reports[]
+        loop Each report
+            Job->>+Hdl: Process(reportId)
+        end
     end
 
-    Handler->>+ReportRepo: GetByIdAsync(reportId)
-    ReportRepo-->>-Handler: report
+    Hdl->>+RptRepo: GetByIdAsync(reportId)
+    RptRepo->>+DB: SELECT * FROM reports WHERE id = ?
+    DB-->>-RptRepo: report
+    RptRepo-->>-Hdl: report
+    Hdl->>Hdl: Check report.Status == Resolved
 
-    Handler->>Handler: Check report.Status == Resolved
+    Hdl->>Hdl: report.Close()<br/>[state: Resolved → Closed]
+    Hdl->>Hdl: ReportStatusHistory.Create(Resolved → Closed)
 
-    Handler->>Handler: report.Close() [state: Resolved → Closed]
-    Handler->>Handler: ReportStatusHistory.Create(Resolved → Closed)
+    Hdl->>+PtsRepo: Get reporter's UserPoints
+    PtsRepo->>+DB: SELECT * FROM user_points WHERE user_id = ?
+    DB-->>-PtsRepo: userPoints
+    PtsRepo-->>-Hdl: userPoints
+    Hdl->>Hdl: userPoints.AddPoints(pts, ReportResolved)
 
-    Handler->>+Points: AddPoints(reporterId, ReportResolved)
-    Points-->>-Handler: Points awarded
+    Hdl->>+UoW: SaveChangesAsync()
+    UoW->>+DB: UPDATE reports, INSERT status_history,<br/>UPDATE user_points, INSERT point_transactions
+    DB-->>-UoW: OK
+    UoW-->>-Hdl: OK
 
-    Handler->>+DB: SaveChangesAsync()
-    DB-->>-Handler: OK
-
-    Handler-->>-API: Result<success>
-    API-->>-Citizen: 200 OK
+    Hdl-->>-Ctrl: Result<success>
+    Ctrl-->>-App: 200 OK
+    App-->>-Citizen: Hiển thị "Báo cáo đã đóng"
 ```
 
 ---
@@ -465,49 +580,57 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-    participant Job as DuplicateDetectionJob
-    participant ReportRepo as IReportRepository
-    participant AI as IAiImageCompare
-    participant DB as IUnitOfWork
     actor LEO
-    participant API as ReportsController
-    participant Handler as ConfirmDuplicateHandler
+    participant App as Web App
+    participant Job as :DuplicateDetectionJob
+    participant AI as :IAiImageCompare
+    participant Ctrl as :ReportsController
+    participant Hdl as :ConfirmDuplicateHandler
+    participant Repo as :IReportRepository
+    participant UoW as :IUnitOfWork
+    participant DB as Database
 
-    Note over Job: Tier 1: During submit (inline)
-    Job->>+ReportRepo: Query same category + 50m + 24h
-    ReportRepo-->>-Job: candidates[]
-
+    Note over Job: Tier 1: Khi submit (inline — SD-09)
+    Job->>+DB: SELECT reports<br/>WHERE same category + within 50m + within 24h
+    DB-->>-Job: candidates[]
     alt Match found (Haversine ≤ 50m)
         Job->>Job: report.MarkPossibleDuplicate(candidateId, "geo_time")
+        Job->>+DB: UPDATE reports SET is_possible_duplicate = true
+        DB-->>-Job: OK
     end
 
     Note over Job: Tier 2: Background job (AI pHash)
-    Job->>+AI: ComputePHashAsync(image1)
+    Job->>+AI: ComputePHashAsync(image1Url)
     AI-->>-Job: hash1
     Job->>+AI: CompareImagesAsync(hash1, hash2)
     AI-->>-Job: similarityScore
-
     alt Similarity ≥ threshold
         Job->>Job: report.MarkPossibleDuplicate(candidateId, "ai_phash", score)
-        Job->>DB: SaveChangesAsync()
+        Job->>+DB: UPDATE reports
+        DB-->>-Job: OK
     end
 
-    Note over LEO: LEO reviews flagged duplicates
-    LEO->>+API: PUT /api/reports/{id}/confirm-duplicate {primaryReportId}
-    API->>+Handler: Send(ConfirmDuplicateCommand)
+    Note over LEO: LEO review flagged duplicates
+    LEO->>+App: Mở danh sách duplicate candidates → Confirm
+    App->>+Ctrl: PUT /api/reports/{id}/confirm-duplicate {primaryReportId}
+    Ctrl->>+Hdl: Send(ConfirmDuplicateCommand)
 
-    Handler->>+ReportRepo: Get report + primaryReport
-    ReportRepo-->>-Handler: report, primaryReport
+    Hdl->>+Repo: Get report + primaryReport
+    Repo->>+DB: SELECT * FROM reports WHERE id IN (?, ?)
+    DB-->>-Repo: report, primaryReport
+    Repo-->>-Hdl: report, primaryReport
 
-    Handler->>Handler: report.MarkDuplicate(primaryReportId)
-    Handler->>Handler: State: → Duplicate
-    Handler->>Handler: primaryReport.ReporterCount++
+    Hdl->>Hdl: report.MarkDuplicate(primaryReportId)<br/>[state: → Duplicate]
+    Hdl->>Hdl: primaryReport.ReporterCount++
 
-    Handler->>+DB: SaveChangesAsync()
-    DB-->>-Handler: OK
+    Hdl->>+UoW: SaveChangesAsync()
+    UoW->>+DB: UPDATE reports (both)
+    DB-->>-UoW: OK
+    UoW-->>-Hdl: OK
 
-    Handler-->>-API: Result<success>
-    API-->>-LEO: 200 OK
+    Hdl-->>-Ctrl: Result<success>
+    Ctrl-->>-App: 200 OK
+    App-->>-LEO: Hiển thị "Đã xác nhận trùng lặp"
 ```
 
 ---
@@ -523,34 +646,43 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     actor Cleaner
-    participant API as TeamsController
-    participant Handler as AcceptAssignmentHandler
-    participant AssignRepo as IAssignmentRepo
-    participant DB as IUnitOfWork
-    participant Notif as INotificationService
+    participant App as Mobile App
+    participant Ctrl as :TeamsController
+    participant Hdl as :AcceptAssignmentHandler
+    participant AsgRepo as :IAssignmentRepository
+    participant UoW as :IUnitOfWork
+    participant Notif as :INotificationService
+    participant DB as Database
 
-    Cleaner->>+API: PUT /api/reports/{reportId}/assignments/{id}/accept
-    API->>+Handler: Send(AcceptAssignmentCommand)
+    Cleaner->>+App: Nhận notification → Mở assignment → Accept/Decline
+    App->>+Ctrl: PUT /api/reports/{reportId}/assignments/{id}/accept
+    Ctrl->>+Hdl: Send(AcceptAssignmentCommand)
 
-    Handler->>+AssignRepo: GetByIdAsync(assignmentId)
-    AssignRepo-->>-Handler: assignment
+    Hdl->>+AsgRepo: GetByIdAsync(assignmentId)
+    AsgRepo->>+DB: SELECT * FROM report_assignments WHERE id = ?
+    DB-->>-AsgRepo: assignment
+    AsgRepo-->>-Hdl: assignment
 
-    Handler->>Handler: Check assignment.Status == Assigned
-    Handler->>Handler: Check currentUser is team member
+    Hdl->>Hdl: Check assignment.Status == Assigned
+    Hdl->>Hdl: Check currentUser is team member
 
     alt Accept
-        Handler->>Handler: assignment.Accept() [status: Assigned → InProgress]
+        Hdl->>Hdl: assignment.Accept()<br/>[status: Assigned → InProgress]
     else Decline
-        Handler->>Handler: assignment.Decline(reason)
-        Handler->>+Notif: NotifyAsync(LEO, AssignmentDeclined)
-        Notif-->>-Handler: Sent
+        Hdl->>Hdl: assignment.Decline(reason)
+        Hdl->>+Notif: NotifyAsync(LEO, AssignmentDeclined)
+        Notif->>DB: INSERT INTO notifications
+        Notif-->>-Hdl: Sent
     end
 
-    Handler->>+DB: SaveChangesAsync()
-    DB-->>-Handler: OK
+    Hdl->>+UoW: SaveChangesAsync()
+    UoW->>+DB: UPDATE report_assignments SET status = ?
+    DB-->>-UoW: OK
+    UoW-->>-Hdl: OK
 
-    Handler-->>-API: Result<success>
-    API-->>-Cleaner: 200 OK
+    Hdl-->>-Ctrl: Result<success>
+    Ctrl-->>-App: 200 OK
+    App-->>-Cleaner: Hiển thị trạng thái mới
 ```
 
 ---
@@ -562,35 +694,45 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     actor Cleaner
-    participant API as ReportsController
-    participant Handler as CheckInCleanupHandler
-    participant AssignRepo as IAssignmentRepo
-    participant Geo as IGeoDistanceService
-    participant DB as IUnitOfWork
+    participant App as Mobile App
+    participant Ctrl as :ReportsController
+    participant Hdl as :CheckInCleanupHandler
+    participant AsgRepo as :IAssignmentRepository
+    participant Geo as :IGeoDistanceService
+    participant UoW as :IUnitOfWork
+    participant DB as Database
 
-    Cleaner->>+API: POST /api/reports/{id}/check-in {lat, lng, note?}
-    API->>+Handler: Send(CheckInCleanupCommand)
+    Cleaner->>+App: Đến hiện trường → Nhấn "Check-in"
+    App->>App: Lấy GPS từ thiết bị
+    App->>+Ctrl: POST /api/reports/{id}/check-in {lat, lng, note?}
+    Ctrl->>+Hdl: Send(CheckInCleanupCommand)
 
-    Handler->>+AssignRepo: Get assignment for user's team
-    AssignRepo-->>-Handler: assignment + report
+    Hdl->>+AsgRepo: Get assignment for user's team
+    AsgRepo->>+DB: SELECT ra.*, r.latitude, r.longitude<br/>FROM report_assignments ra JOIN reports r
+    DB-->>-AsgRepo: assignment + report location
+    AsgRepo-->>-Hdl: assignment
 
-    Handler->>Handler: Check assignment.Status == InProgress
+    Hdl->>Hdl: Check assignment.Status == InProgress
 
-    Handler->>+Geo: IsWithinDistance(cleanerLat, cleanerLng, reportLat, reportLng, 200m)
-    Geo-->>-Handler: isWithin
+    Hdl->>+Geo: IsWithinDistance(cleanerLat, cleanerLng,<br/>reportLat, reportLng, 200m)
+    Geo-->>-Hdl: isWithin
 
     alt Distance > 200m [BR-CLN-002]
-        Handler-->>API: 400 TooFarFromSite
+        Hdl-->>Ctrl: 400 TooFarFromSite
+        Ctrl-->>App: 400
+        App-->>Cleaner: "Bạn ở quá xa điểm báo cáo (> 200m)"
     end
 
-    Handler->>Handler: assignment.CheckIn(lat, lng, note?)
-    Handler->>Handler: Record check-in timestamp
+    Hdl->>Hdl: assignment.CheckIn(lat, lng, note?)
 
-    Handler->>+DB: SaveChangesAsync()
-    DB-->>-Handler: OK
+    Hdl->>+UoW: SaveChangesAsync()
+    UoW->>+DB: UPDATE report_assignments<br/>SET checked_in_at = NOW(), checked_in_lat = ?, checked_in_lng = ?
+    DB-->>-UoW: OK
+    UoW-->>-Hdl: OK
 
-    Handler-->>-API: Result<success>
-    API-->>-Cleaner: 200 OK {checkedInAt}
+    Hdl-->>-Ctrl: Result<success>
+    Ctrl-->>-App: 200 OK {checkedInAt}
+    App-->>-Cleaner: Hiển thị "Check-in thành công"
 ```
 
 ---
@@ -606,30 +748,41 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     actor LEO
-    participant API as InspectionsController
-    participant Handler as CreateInspectionHandler
-    participant ReportRepo as IReportRepository
-    participant InspRepo as IInspectionRepo
-    participant DB as IUnitOfWork
+    participant App as Web App
+    participant Ctrl as :InspectionsController
+    participant Hdl as :CreateInspectionHandler
+    participant RptRepo as :IReportRepository
+    participant InspRepo as :IInspectionRepository
+    participant UoW as :IUnitOfWork
+    participant DB as Database
 
-    LEO->>+API: POST /api/inspections {reportId}
-    API->>+Handler: Send(CreateInspectionCommand)
+    LEO->>+App: Chọn report đã Verified → Tạo biên bản thanh tra
+    App->>+Ctrl: POST /api/inspections {reportId}
+    Ctrl->>+Hdl: Send(CreateInspectionCommand)
 
-    Handler->>+ReportRepo: GetByIdAsync(reportId)
-    ReportRepo-->>-Handler: report
+    Hdl->>+RptRepo: GetByIdAsync(reportId)
+    RptRepo->>+DB: SELECT * FROM reports WHERE id = ?
+    DB-->>-RptRepo: report
+    RptRepo-->>-Hdl: report
 
-    Handler->>Handler: Check report.Status == Verified or InProgress
-    Handler->>Handler: Check no existing inspection for this report
+    Hdl->>Hdl: Check report.Status ∈ {Verified, InProgress}
+    Hdl->>+InspRepo: Check no existing inspection
+    InspRepo->>+DB: SELECT EXISTS FROM inspection_reports<br/>WHERE report_id = ?
+    DB-->>-InspRepo: false
+    InspRepo-->>-Hdl: OK (chưa có)
 
-    Handler->>Handler: InspectionReport.Create(reportId, leoId)
-    Note over Handler: Status = Draft, SLA calculated
-    Handler->>InspRepo: Add(inspectionReport)
+    Hdl->>Hdl: InspectionReport.Create(reportId, leoId)
+    Note over Hdl: Status = Draft, SLA calculated
+    Hdl->>InspRepo: Add(inspectionReport)
 
-    Handler->>+DB: SaveChangesAsync()
-    DB-->>-Handler: OK
+    Hdl->>+UoW: SaveChangesAsync()
+    UoW->>+DB: INSERT INTO inspection_reports
+    DB-->>-UoW: OK
+    UoW-->>-Hdl: OK
 
-    Handler-->>-API: Result<InspectionResponse>
-    API-->>-LEO: 201 Created {inspectionId, status: Draft}
+    Hdl-->>-Ctrl: Result<InspectionResponse>
+    Ctrl-->>-App: 201 Created {inspectionId, status: Draft}
+    App-->>-LEO: Hiển thị biên bản mới
 ```
 
 ---
@@ -641,35 +794,46 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     actor LEO
-    participant API as InspectionsController
-    participant Handler as AssignInspTeamHandler
-    participant InspRepo as IInspectionRepo
-    participant TeamRepo as ITeamRepository
-    participant DB as IUnitOfWork
-    participant Notif as INotificationService
+    participant App as Web App
+    participant Ctrl as :InspectionsController
+    participant Hdl as :AssignInspTeamHandler
+    participant InspRepo as :IInspectionRepository
+    participant TeamRepo as :ITeamRepository
+    participant UoW as :IUnitOfWork
+    participant Notif as :INotificationService
+    participant DB as Database
 
-    LEO->>+API: PUT /api/inspections/{id}/assign-team {teamId}
-    API->>+Handler: Send(AssignInspTeamCommand)
+    LEO->>+App: Mở inspection → Chọn team thanh tra
+    App->>+Ctrl: PUT /api/inspections/{id}/assign-team {teamId}
+    Ctrl->>+Hdl: Send(AssignInspTeamCommand)
 
-    Handler->>+InspRepo: GetByIdAsync(inspectionId)
-    InspRepo-->>-Handler: inspection
+    Hdl->>+InspRepo: GetByIdAsync(inspectionId)
+    InspRepo->>+DB: SELECT * FROM inspection_reports WHERE id = ?
+    DB-->>-InspRepo: inspection
+    InspRepo-->>-Hdl: inspection
+    Hdl->>Hdl: Check inspection.Status == Draft
 
-    Handler->>Handler: Check inspection.Status == Draft
+    Hdl->>+TeamRepo: GetByIdAsync(teamId)
+    TeamRepo->>+DB: SELECT * FROM environmental_teams WHERE id = ?
+    DB-->>-TeamRepo: team
+    TeamRepo-->>-Hdl: team (type=Inspection)
+    Hdl->>Hdl: Check team.IsActive
 
-    Handler->>+TeamRepo: GetByIdAsync(teamId)
-    TeamRepo-->>-Handler: team (type=Inspection)
+    Hdl->>Hdl: inspection.AssignTeam(teamId)
 
-    Handler->>Handler: Check team.IsActive
-    Handler->>Handler: inspection.AssignTeam(teamId)
+    Hdl->>+UoW: SaveChangesAsync()
+    UoW->>+DB: UPDATE inspection_reports SET assigned_team_id = ?
+    DB-->>-UoW: OK
+    UoW-->>-Hdl: OK
 
-    Handler->>+DB: SaveChangesAsync()
-    DB-->>-Handler: OK
+    Hdl->>+Notif: NotifyAsync(teamMembers[], InspectionAssigned)
+    Notif->>+DB: INSERT INTO notifications (bulk)
+    DB-->>-Notif: OK
+    Notif-->>-Hdl: Sent
 
-    Handler->>+Notif: NotifyAsync(teamMembers, InspectionAssigned)
-    Notif-->>-Handler: Sent
-
-    Handler-->>-API: Result<success>
-    API-->>-LEO: 200 OK
+    Hdl-->>-Ctrl: Result<success>
+    Ctrl-->>-App: 200 OK
+    App-->>-LEO: Hiển thị "Đã giao đội thanh tra"
 ```
 
 ---
@@ -681,48 +845,62 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     actor Inspector
-    participant API as InspectionsController
-    participant Handler as IssuePenaltyHandler
-    participant InspRepo as IInspectionRepo
-    participant ViolRepo as IViolatingEntityRepo
-    participant FrameRepo as IPenaltyFrameworkRepo
-    participant DB as IUnitOfWork
-    participant Notif as INotificationService
+    participant App as Mobile App
+    participant Ctrl as :InspectionsController
+    participant Hdl as :IssuePenaltyHandler
+    participant InspRepo as :IInspectionRepository
+    participant ViolRepo as :IViolatingEntityRepository
+    participant FwRepo as :IPenaltyFrameworkRepository
+    participant UoW as :IUnitOfWork
+    participant Notif as :INotificationService
+    participant DB as Database
 
-    Inspector->>+API: PUT /api/inspections/{id}/issue-penalty {amount, decisionNo, violator, ...}
-    API->>+Handler: Send(IssuePenaltyCommand)
+    Inspector->>+App: Nhập thông tin xử phạt (số tiền, quyết định, ...)
+    App->>+Ctrl: PUT /api/inspections/{id}/issue-penalty {amount, decisionNo, ...}
+    Ctrl->>+Hdl: Send(IssuePenaltyCommand)
 
-    Handler->>+InspRepo: GetByIdAsync(inspectionId)
-    InspRepo-->>-Handler: inspection
+    Hdl->>+InspRepo: GetByIdAsync(inspectionId)
+    InspRepo->>+DB: SELECT * FROM inspection_reports WHERE id = ?
+    DB-->>-InspRepo: inspection
+    InspRepo-->>-Hdl: inspection
+    Hdl->>Hdl: Check inspection.Status == InProgress
 
-    Handler->>Handler: Check inspection.Status == InProgress
+    Hdl->>+FwRepo: Get framework for category + level
+    FwRepo->>+DB: SELECT * FROM penalty_frameworks<br/>WHERE category_id = ? AND level = ?
+    DB-->>-FwRepo: framework
+    FwRepo-->>-Hdl: framework (minAmount, maxAmount)
+    Hdl->>Hdl: Validate amount within range [BR-INS-006]
 
-    Handler->>+FrameRepo: Get framework for category + level
-    FrameRepo-->>-Handler: framework (minAmount, maxAmount)
-
-    Handler->>Handler: Validate amount within framework range [BR-INS-006]
-
-    Note over Handler: Create or find ViolatingEntity [BR-INS-010]
+    Note over Hdl: Create or find ViolatingEntity [BR-INS-010]
     alt New violator
-        Handler->>Handler: ViolatingEntity.Create(name, type, identity, ...)
-        Handler->>ViolRepo: Add(violatingEntity)
-    else Existing violator (by identity/taxCode)
-        Handler->>+ViolRepo: FindByIdentity(identityNumber)
-        ViolRepo-->>-Handler: existingViolator
-        Handler->>Handler: Check repeat offender [BR-INS-022]
+        Hdl->>Hdl: ViolatingEntity.Create(name, type, identity, ...)
+        Hdl->>+ViolRepo: Add(violatingEntity)
+        ViolRepo->>+DB: INSERT INTO violating_entities
+        DB-->>-ViolRepo: OK
+        ViolRepo-->>-Hdl: OK
+    else Existing violator
+        Hdl->>+ViolRepo: FindByIdentity(identityNumber)
+        ViolRepo->>+DB: SELECT * FROM violating_entities WHERE identity_number = ?
+        DB-->>-ViolRepo: violator
+        ViolRepo-->>-Hdl: existingViolator
+        Hdl->>Hdl: Check repeat offender [BR-INS-022]
     end
 
-    Handler->>Handler: inspection.IssuePenalty(amount, decisionNo, dueDate, ...)
-    Note over Handler: Status: InProgress → PenaltyIssued
+    Hdl->>Hdl: inspection.IssuePenalty(amount, decisionNo, dueDate, ...)
+    Note over Hdl: Status: InProgress → PenaltyIssued
 
-    Handler->>+DB: SaveChangesAsync()
-    DB-->>-Handler: OK
+    Hdl->>+UoW: SaveChangesAsync()
+    UoW->>+DB: UPDATE inspection_reports,<br/>INSERT/UPDATE violating_entities
+    DB-->>-UoW: OK
+    UoW-->>-Hdl: OK
 
-    Handler->>+Notif: NotifyAsync(LEO, PenaltyIssued)
-    Notif-->>-Handler: Sent
+    Hdl->>+Notif: NotifyAsync(LEO, PenaltyIssued)
+    Notif->>DB: INSERT INTO notifications
+    Notif-->>-Hdl: Sent
 
-    Handler-->>-API: Result<success>
-    API-->>-Inspector: 200 OK
+    Hdl-->>-Ctrl: Result<success>
+    Ctrl-->>-App: 200 OK
+    App-->>-Inspector: Hiển thị "Đã lập biên bản xử phạt"
 ```
 
 ---
@@ -738,44 +916,72 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     actor Admin
-    participant API as DepartmentsController
-    participant Handler1 as CreateDeptHandler
-    participant Handler2 as CreateOfficeHandler
-    participant DeptRepo as IDepartmentRepo
-    participant OfficeRepo as ILocalOfficeRepo
-    participant ProvRepo as IProvinceRepo
-    participant WardRepo as IWardRepo
-    participant DB as IUnitOfWork
+    participant App as Web App
+    participant Ctrl1 as :DepartmentsController
+    participant Hdl1 as :CreateDeptHandler
+    participant ProvRepo as :IProvinceRepository
+    participant DeptRepo as :IDepartmentRepository
+    participant UoW as :IUnitOfWork
+    participant DB as Database
 
-    Note over Admin: Step 1: Create Department for Province
-    Admin->>+API: POST /api/departments {name, provinceCode}
-    API->>+Handler1: Send(CreateDepartmentCommand)
+    Note over Admin: Bước 1: Tạo Department cho Tỉnh
+    Admin->>+App: Nhập tên phòng TNMT + chọn tỉnh
+    App->>+Ctrl1: POST /api/departments {name, provinceCode}
+    Ctrl1->>+Hdl1: Send(CreateDepartmentCommand)
 
-    Handler1->>+ProvRepo: ExistsAsync(provinceCode)
-    ProvRepo-->>-Handler1: true ✓
-    Handler1->>Handler1: Check no existing dept for this province
-    Handler1->>Handler1: Department.Create(name, provinceCode)
-    Handler1->>DeptRepo: Add(department)
-    Handler1->>+DB: SaveChangesAsync()
-    DB-->>-Handler1: OK
+    Hdl1->>+ProvRepo: ExistsAsync(provinceCode)
+    ProvRepo->>+DB: SELECT EXISTS FROM provinces WHERE code = ?
+    DB-->>-ProvRepo: true
+    ProvRepo-->>-Hdl1: true ✓
 
-    Handler1-->>-API: Result<DeptResponse>
-    API-->>-Admin: 201 Created {departmentId}
+    Hdl1->>+DeptRepo: Check no existing dept for province
+    DeptRepo->>+DB: SELECT EXISTS FROM departments WHERE province_code = ?
+    DB-->>-DeptRepo: false
+    DeptRepo-->>-Hdl1: OK
 
-    Note over Admin: Step 2: Create LocalOffice for Ward
-    Admin->>+API: POST /api/local-offices {name, departmentId, wardCode}
-    API->>+Handler2: Send(CreateLocalOfficeCommand)
+    Hdl1->>Hdl1: Department.Create(name, provinceCode)
+    Hdl1->>DeptRepo: Add(department)
 
-    Handler2->>+WardRepo: ExistsAsync(wardCode)
-    WardRepo-->>-Handler2: true ✓
-    Handler2->>Handler2: Check no existing office for this ward
-    Handler2->>Handler2: LocalOffice.Create(name, departmentId, wardCode)
-    Handler2->>OfficeRepo: Add(localOffice)
-    Handler2->>+DB: SaveChangesAsync()
-    DB-->>-Handler2: OK
+    Hdl1->>+UoW: SaveChangesAsync()
+    UoW->>+DB: INSERT INTO departments
+    DB-->>-UoW: OK
+    UoW-->>-Hdl1: OK
 
-    Handler2-->>-API: Result<OfficeResponse>
-    API-->>-Admin: 201 Created {localOfficeId}
+    Hdl1-->>-Ctrl1: Result<DeptResponse>
+    Ctrl1-->>-App: 201 Created {departmentId}
+    App-->>-Admin: Hiển thị phòng TNMT mới
+
+    participant Ctrl2 as :LocalOfficesController
+    participant Hdl2 as :CreateOfficeHandler
+    participant WardRepo as :IWardRepository
+    participant OffRepo as :ILocalOfficeRepository
+
+    Note over Admin: Bước 2: Tạo LocalOffice cho Phường
+    Admin->>+App: Nhập tên văn phòng + chọn phường
+    App->>+Ctrl2: POST /api/local-offices {name, departmentId, wardCode}
+    Ctrl2->>+Hdl2: Send(CreateLocalOfficeCommand)
+
+    Hdl2->>+WardRepo: ExistsAsync(wardCode)
+    WardRepo->>+DB: SELECT EXISTS FROM wards WHERE code = ?
+    DB-->>-WardRepo: true
+    WardRepo-->>-Hdl2: true ✓
+
+    Hdl2->>+OffRepo: Check no existing office for ward
+    OffRepo->>+DB: SELECT EXISTS FROM local_offices WHERE ward_code = ?
+    DB-->>-OffRepo: false
+    OffRepo-->>-Hdl2: OK
+
+    Hdl2->>Hdl2: LocalOffice.Create(name, departmentId, wardCode)
+    Hdl2->>OffRepo: Add(localOffice)
+
+    Hdl2->>+UoW: SaveChangesAsync()
+    UoW->>+DB: INSERT INTO local_offices
+    DB-->>-UoW: OK
+    UoW-->>-Hdl2: OK
+
+    Hdl2-->>-Ctrl2: Result<OfficeResponse>
+    Ctrl2-->>-App: 201 Created {localOfficeId}
+    App-->>-Admin: Hiển thị văn phòng phường mới
 ```
 
 ---
@@ -787,33 +993,41 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     actor LEO
-    participant API as TeamsController
-    participant Handler as CreateTeamHandler
-    participant TeamRepo as ITeamRepository
-    participant UserRepo as IUserRepository
-    participant DB as IUnitOfWork
+    participant App as Web App
+    participant Ctrl as :TeamsController
+    participant Hdl as :CreateTeamHandler
+    participant TeamRepo as :ITeamRepository
+    participant UserRepo as :IUserRepository
+    participant UoW as :IUnitOfWork
+    participant DB as Database
 
-    LEO->>+API: POST /api/teams {name, teamType, memberUserIds[], leaderUserId}
-    API->>+Handler: Send(CreateTeamCommand)
+    LEO->>+App: Tạo đội mới (tên, loại, thành viên)
+    App->>+Ctrl: POST /api/teams {name, teamType, memberUserIds[], leaderUserId}
+    Ctrl->>+Hdl: Send(CreateTeamCommand)
 
-    Handler->>Handler: Check LEO is assigned to a LocalOffice
-    Handler->>Handler: Validate teamType (Cleanup or Inspection)
+    Hdl->>Hdl: Check LEO is assigned to a LocalOffice
+    Hdl->>Hdl: Validate teamType (Cleanup or Inspection)
 
-    Handler->>Handler: EnvironmentalTeam.Create(name, localOfficeId, teamType)
-    Handler->>TeamRepo: Add(team)
+    Hdl->>Hdl: EnvironmentalTeam.Create(name, localOfficeId, teamType)
+    Hdl->>TeamRepo: Add(team)
 
     loop For each memberUserId
-        Handler->>+UserRepo: GetByIdAsync(userId)
-        UserRepo-->>-Handler: user
-        Handler->>Handler: Validate user.Role matches teamType
-        Handler->>Handler: TeamMember.Create(teamId, userId, isLeader)
+        Hdl->>+UserRepo: GetByIdAsync(userId)
+        UserRepo->>+DB: SELECT * FROM users WHERE id = ?
+        DB-->>-UserRepo: user
+        UserRepo-->>-Hdl: user
+        Hdl->>Hdl: Validate user.Role matches teamType
+        Hdl->>Hdl: TeamMember.Create(teamId, userId, isLeader?)
     end
 
-    Handler->>+DB: SaveChangesAsync()
-    DB-->>-Handler: OK
+    Hdl->>+UoW: SaveChangesAsync()
+    UoW->>+DB: INSERT INTO environmental_teams,<br/>INSERT INTO team_members (batch)
+    DB-->>-UoW: OK
+    UoW-->>-Hdl: OK
 
-    Handler-->>-API: Result<TeamResponse>
-    API-->>-LEO: 201 Created {teamId, memberCount}
+    Hdl-->>-Ctrl: Result<TeamResponse>
+    Ctrl-->>-App: 201 Created {teamId, memberCount}
+    App-->>-LEO: Hiển thị đội mới
 ```
 
 ---
@@ -825,40 +1039,50 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     actor DEO
-    participant API as CompaniesController
-    participant Handler as CreateCompanyHandler
-    participant CompRepo as ICompanyRepo
-    participant ContRepo as IContractPeriodRepo
-    participant AreaRepo as IServiceAreaRepo
-    participant DB as IUnitOfWork
+    participant App as Web App
+    participant Ctrl as :CompaniesController
+    participant Hdl as :CreateCompanyHandler
+    participant CompRepo as :ICompanyRepository
+    participant ContRepo as :IContractPeriodRepository
+    participant AreaRepo as :IServiceAreaRepository
+    participant UoW as :IUnitOfWork
+    participant DB as Database
 
-    DEO->>+API: POST /api/companies {name, taxCode, contract, serviceAreas[], ...}
-    API->>+Handler: Send(CreateCompanyCommand)
+    DEO->>+App: Nhập thông tin công ty, hợp đồng, vùng phục vụ
+    App->>+Ctrl: POST /api/companies {name, taxCode, contract, serviceAreas[], ...}
+    Ctrl->>+Hdl: Send(CreateCompanyCommand)
 
-    Handler->>Handler: Validate TaxCode uniqueness
-    Handler->>Handler: Validate contractStartDate < contractEndDate
+    Hdl->>+CompRepo: Check TaxCode uniqueness
+    CompRepo->>+DB: SELECT EXISTS FROM environmental_service_companies<br/>WHERE tax_code = ?
+    DB-->>-CompRepo: false
+    CompRepo-->>-Hdl: OK (unique)
 
-    Handler->>Handler: EnvironmentalServiceCompany.Create(name, taxCode, contract, ...)
-    Note over Handler: Status = PendingActivation
-    Handler->>CompRepo: Add(company)
+    Hdl->>Hdl: Validate contractStartDate < contractEndDate
 
-    Handler->>Handler: ContractPeriod.Create(companyId, contractNo, type, start, end)
-    Handler->>ContRepo: Add(contractPeriod)
+    Hdl->>Hdl: EnvironmentalServiceCompany.Create(name, taxCode, ...)
+    Note over Hdl: Status = PendingActivation
+    Hdl->>CompRepo: Add(company)
+
+    Hdl->>Hdl: ContractPeriod.Create(companyId, contractNo, type, start, end)
+    Hdl->>ContRepo: Add(contractPeriod)
 
     loop For each wardCode in serviceAreas
-        Handler->>Handler: CompanyServiceArea.Create(companyId, wardCode)
-        Handler->>AreaRepo: Add(serviceArea)
+        Hdl->>Hdl: CompanyServiceArea.Create(companyId, wardCode)
+        Hdl->>AreaRepo: Add(serviceArea)
     end
 
-    Handler->>+DB: SaveChangesAsync()
-    DB-->>-Handler: OK
+    Hdl->>+UoW: SaveChangesAsync()
+    UoW->>+DB: INSERT INTO environmental_service_companies,<br/>INSERT INTO contract_periods,<br/>INSERT INTO company_service_areas
+    DB-->>-UoW: OK
+    UoW-->>-Hdl: OK
 
-    Handler-->>-API: Result<CompanyResponse>
-    API-->>-DEO: 201 Created {companyId, status: PendingActivation}
+    Hdl-->>-Ctrl: Result<CompanyResponse>
+    Ctrl-->>-App: 201 Created {companyId, status: PendingActivation}
+    App-->>-DEO: Hiển thị công ty mới
 
-    Note over DEO: Later: DEO activates company
-    DEO->>API: PUT /api/companies/{id}/activate
-    Note over API: company.Activate() → Status = Active
+    Note over DEO: Sau khi review → Activate
+    DEO->>App: PUT /api/companies/{id}/activate
+    Note over App: company.Activate() → Status = Active
 ```
 
 ---
@@ -874,53 +1098,67 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     actor Citizen
-    participant API as CommentsController
-    participant Handler as CreateCommentHandler
-    participant ReportRepo as IReportRepository
-    participant Profanity as IProfanityFilter
-    participant CommentRepo as ICommentRepo
-    participant DB as IUnitOfWork
-    participant Notif as INotificationService
+    participant App as Mobile App
+    participant Ctrl as :CommentsController
+    participant Hdl as :CreateCommentHandler
+    participant RptRepo as :IReportRepository
+    participant Prof as :IProfanityFilter
+    participant CmtRepo as :ICommentRepository
+    participant UoW as :IUnitOfWork
+    participant Notif as :INotificationService
+    participant DB as Database
 
-    Citizen->>+API: POST /api/reports/{reportId}/comments {content, mediaUrls?, parentId?}
-    API->>+Handler: Send(CreateCommentCommand)
+    Citizen->>+App: Viết bình luận + đính kèm ảnh (optional)
+    App->>+Ctrl: POST /api/reports/{reportId}/comments {content, mediaUrls?, parentId?}
+    Ctrl->>+Hdl: Send(CreateCommentCommand)
 
-    Handler->>Handler: Check user.IsCommentBanned() [BR-CMT-005]
+    Hdl->>Hdl: Check user.IsCommentBanned() [BR-CMT-005]
 
-    Handler->>+ReportRepo: GetByIdAsync(reportId)
-    ReportRepo-->>-Handler: report ✓
+    Hdl->>+RptRepo: GetByIdAsync(reportId)
+    RptRepo->>+DB: SELECT * FROM reports WHERE id = ?
+    DB-->>-RptRepo: report
+    RptRepo-->>-Hdl: report ✓
 
     alt parentId provided (reply)
-        Handler->>+CommentRepo: GetByIdAsync(parentId)
-        CommentRepo-->>-Handler: parentComment ✓
+        Hdl->>+CmtRepo: GetByIdAsync(parentId)
+        CmtRepo->>+DB: SELECT * FROM comments WHERE id = ?
+        DB-->>-CmtRepo: parentComment
+        CmtRepo-->>-Hdl: parentComment ✓
     end
 
-    Handler->>+Profanity: ContainsProfanity(content)
-    Profanity-->>-Handler: hasProfanity
+    Hdl->>+Prof: ContainsProfanity(content)
+    Prof-->>-Hdl: hasProfanity
 
     alt Content has profanity
-        Handler->>Handler: user.RecordCommentViolation()
-        Note over Handler: 3 violations → ban 7d [BR-CMT-005]
-        Handler-->>API: 400 InappropriateContent
+        Hdl->>Hdl: user.RecordCommentViolation()
+        Note over Hdl: 3 violations → ban 7d [BR-CMT-005]
+        Hdl-->>Ctrl: 400 InappropriateContent
+        Ctrl-->>App: 400
+        App-->>Citizen: "Nội dung vi phạm quy tắc cộng đồng"
     end
 
-    Handler->>Handler: Comment.Create(reportId, authorId, content, parentId?)
-    Handler->>CommentRepo: Add(comment)
+    Hdl->>Hdl: Comment.Create(reportId, authorId, content, parentId?)
+    Hdl->>CmtRepo: Add(comment)
 
     opt mediaUrls provided [BR-CMT-002]
         loop For each mediaUrl
-            Handler->>Handler: CommentMedia.Create(commentId, url, mime, size)
+            Hdl->>Hdl: CommentMedia.Create(commentId, url, mime, size)
         end
     end
 
-    Handler->>+DB: SaveChangesAsync()
-    DB-->>-Handler: OK
+    Hdl->>+UoW: SaveChangesAsync()
+    UoW->>+DB: INSERT INTO comments,<br/>INSERT INTO comment_media (optional)
+    DB-->>-UoW: OK
+    UoW-->>-Hdl: OK
 
-    Handler->>+Notif: NotifyAsync(reportOwner, NewComment)
-    Notif-->>-Handler: Sent
+    Hdl->>+Notif: NotifyAsync(reportOwner, NewComment)
+    Notif->>+DB: INSERT INTO notifications
+    DB-->>-Notif: OK
+    Notif-->>-Hdl: Sent
 
-    Handler-->>-API: Result<CommentResponse>
-    API-->>-Citizen: 201 Created {commentId}
+    Hdl-->>-Ctrl: Result<CommentResponse>
+    Ctrl-->>-App: 201 Created {commentId}
+    App-->>-Citizen: Hiển thị bình luận mới
 ```
 
 ---
@@ -931,58 +1169,69 @@ sequenceDiagram
 
 ### SD-48 ⭐ Award Points (Event-driven)
 
-**Actor:** System · **BR:** BR-GAM-001, BR-GAM-002
+**Actor:** System · **BR:** BR-GAM-001, BR-GAM-002, BR-GAM-003
 
 ```mermaid
 sequenceDiagram
-    participant DomainEvent as ReportVerifiedEvent
-    participant EventHandler as AwardPointsHandler
-    participant PointsRepo as IUserPointsRepo
-    participant ConfigRepo as IGamificationConfigRepo
-    participant BadgeRepo as IBadgeRepo
-    participant DB as IUnitOfWork
-    participant Notif as INotificationService
+    participant Event as ReportVerifiedEvent
+    participant EvtHdl as :AwardPointsHandler
+    participant CfgRepo as :IGamificationConfigRepository
+    participant PtsRepo as :IUserPointsRepository
+    participant BadgeRepo as :IBadgeRepository
+    participant UoW as :IUnitOfWork
+    participant Notif as :INotificationService
+    participant DB as Database
 
-    Note over DomainEvent: Triggered after Report status changes
+    Note over Event: Domain event raised after report.Verify()
 
-    DomainEvent->>+EventHandler: Handle(ReportVerifiedEvent)
+    Event->>+EvtHdl: Handle(ReportVerifiedEvent)
 
-    EventHandler->>+ConfigRepo: Get points for action "ReportVerified"
-    ConfigRepo-->>-EventHandler: config {points: 10}
+    EvtHdl->>+CfgRepo: Get points for "ReportVerified"
+    CfgRepo->>+DB: SELECT * FROM gamification_configs WHERE action_key = ?
+    DB-->>-CfgRepo: config {points: 10}
+    CfgRepo-->>-EvtHdl: config
 
-    EventHandler->>+PointsRepo: GetByUserId(reporterId)
-    PointsRepo-->>-EventHandler: userPoints
+    EvtHdl->>+PtsRepo: GetByUserId(reporterId)
+    PtsRepo->>+DB: SELECT * FROM user_points WHERE user_id = ?
+    DB-->>-PtsRepo: userPoints
+    PtsRepo-->>-EvtHdl: userPoints
 
-    EventHandler->>EventHandler: Check userPoints.IsLocked [BR-GAM-006]
+    EvtHdl->>EvtHdl: Check userPoints.IsLocked [BR-GAM-006]
     alt Points locked (fraud)
-        EventHandler-->>DomainEvent: Skip (locked)
+        EvtHdl-->>Event: Skip (locked)
     end
 
-    EventHandler->>EventHandler: userPoints.AddPoints(10, ReportVerified, reportId)
-    Note over EventHandler: Creates PointTransaction + updates TotalPoints
+    EvtHdl->>EvtHdl: userPoints.AddPoints(10, ReportVerified, reportId)
+    Note over EvtHdl: PointTransaction created + TotalPoints updated
 
-    EventHandler->>EventHandler: Check level up (100/500/1500/5000 thresholds)
+    EvtHdl->>EvtHdl: Check level up (100/500/1500/5000)
     alt Level up!
-        EventHandler->>+Notif: NotifyAsync(userId, LevelUp, newLevel)
-        Notif-->>-EventHandler: Sent
+        EvtHdl->>+Notif: NotifyAsync(userId, LevelUp)
+        Notif->>DB: INSERT INTO notifications
+        Notif-->>-EvtHdl: Sent
     end
 
-    Note over EventHandler: Check badge eligibility [BR-GAM-003]
-    EventHandler->>+BadgeRepo: GetAll()
-    BadgeRepo-->>-EventHandler: badges[]
+    Note over EvtHdl: Check badge eligibility [BR-GAM-003]
+    EvtHdl->>+BadgeRepo: GetAll()
+    BadgeRepo->>+DB: SELECT * FROM badges WHERE is_active = true
+    DB-->>-BadgeRepo: badges[]
+    BadgeRepo-->>-EvtHdl: badges[]
 
-    loop For each badge
-        alt userPoints.TotalPoints >= badge.RequiredPoints
-            EventHandler->>EventHandler: UserBadge.Create(userId, badgeId)
-            EventHandler->>+Notif: NotifyAsync(userId, BadgeEarned, badgeName)
-            Notif-->>-EventHandler: Sent
+    loop For each badge not yet earned
+        alt Meets requirements
+            EvtHdl->>EvtHdl: UserBadge.Create(userId, badgeId)
+            EvtHdl->>+Notif: NotifyAsync(userId, BadgeEarned)
+            Notif->>DB: INSERT INTO notifications
+            Notif-->>-EvtHdl: Sent
         end
     end
 
-    EventHandler->>+DB: SaveChangesAsync()
-    DB-->>-EventHandler: OK
+    EvtHdl->>+UoW: SaveChangesAsync()
+    UoW->>+DB: UPDATE user_points,<br/>INSERT point_transactions,<br/>INSERT user_badges (optional)
+    DB-->>-UoW: OK
+    UoW-->>-EvtHdl: OK
 
-    EventHandler-->>-DomainEvent: Done
+    EvtHdl-->>-Event: Done
 ```
 
 ---
@@ -998,48 +1247,54 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant Event as DomainEvent
-    participant Handler as NotificationEventHandler
-    participant NotifSvc as INotificationService
-    participant PrefRepo as INotifPreferenceRepo
-    participant TplRepo as INotifTemplateRepo
-    participant Push as IPushNotificationSender
-    participant Email as IEmailSender
-    participant DB as IUnitOfWork
+    participant EvtHdl as :NotificationEventHandler
+    participant Svc as :INotificationService
+    participant PrefRepo as :INotifPreferenceRepository
+    participant TplRepo as :INotifTemplateRepository
+    participant Push as :IPushNotificationSender
+    participant Email as :IEmailSender
+    participant UoW as :IUnitOfWork
+    participant DB as Database
 
-    Event->>+Handler: Handle(ReportStatusChangedEvent)
+    Event->>+EvtHdl: Handle(ReportStatusChangedEvent)
 
-    Handler->>+NotifSvc: NotifyAsync(recipientId, type, referenceId, data)
-    NotifSvc->>+PrefRepo: GetPreference(userId, type)
-    PrefRepo-->>-NotifSvc: preference {pushEnabled, emailEnabled}
+    EvtHdl->>+Svc: NotifyAsync(recipientId, type, refId, data)
+
+    Svc->>+PrefRepo: GetPreference(userId, type)
+    PrefRepo->>+DB: SELECT * FROM notification_preferences<br/>WHERE user_id = ? AND type = ?
+    DB-->>-PrefRepo: preference
+    PrefRepo-->>-Svc: preference {pushEnabled, emailEnabled}
 
     alt Push disabled AND Email disabled
-        NotifSvc-->>Handler: Skip (user opted out)
+        Svc-->>EvtHdl: Skip (user opted out)
     end
 
-    NotifSvc->>+TplRepo: GetTemplate(type, channel)
-    TplRepo-->>-NotifSvc: template {titleVi, bodyVi, titleEn, bodyEn}
+    Svc->>+TplRepo: GetTemplate(type, channel)
+    TplRepo->>+DB: SELECT * FROM notification_templates<br/>WHERE type = ? AND is_published = true
+    DB-->>-TplRepo: template
+    TplRepo-->>-Svc: template {titleVi, bodyVi}
 
-    NotifSvc->>NotifSvc: Render template with placeholders
-    Note over NotifSvc: Replace {user_name}, {report_code}, etc.
+    Svc->>Svc: Render template with placeholders<br/>{user_name}, {report_code}, ...
 
-    NotifSvc->>NotifSvc: Notification.Create(recipientId, type, title, message, channel)
-    NotifSvc->>DB: Add(notification)
+    Svc->>Svc: Notification.Create(recipientId, type, title, msg)
 
     opt Push enabled [BR-NTF-002]
-        NotifSvc->>+Push: SendAsync(user.FcmDeviceToken, title, body)
-        Push-->>-NotifSvc: Sent via FCM
+        Svc->>+Push: SendAsync(user.FcmDeviceToken, title, body)
+        Push-->>-Svc: Sent via FCM
     end
 
     opt Email enabled
-        NotifSvc->>+Email: SendTemplateAsync(user.Email, template, data)
-        Email-->>-NotifSvc: Sent via SMTP
+        Svc->>+Email: SendTemplateAsync(user.Email, template, data)
+        Email-->>-Svc: Sent via SMTP
     end
 
-    NotifSvc->>+DB: SaveChangesAsync()
-    DB-->>-NotifSvc: OK
+    Svc->>+UoW: SaveChangesAsync()
+    UoW->>+DB: INSERT INTO notifications
+    DB-->>-UoW: OK
+    UoW-->>-Svc: OK
 
-    NotifSvc-->>-Handler: Done
-    Handler-->>-Event: Done
+    Svc-->>-EvtHdl: Done
+    EvtHdl-->>-Event: Done
 ```
 
 ---
@@ -1055,39 +1310,41 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     actor Citizen
-    participant API as MapController
-    participant Handler as GetNearbyHandler
+    participant App as Mobile App
+    participant Ctrl as :MapController
+    participant Hdl as :GetNearbyHandler
     participant Cache as Redis
-    participant ReportRepo as IReportRepository
-    participant DB as PostgreSQL + PostGIS
+    participant DB as Database (PostGIS)
 
-    Citizen->>+API: GET /api/map/nearby?lat=X&lng=Y&radius=5000&filters=...
-    API->>+Handler: Send(GetNearbyReportsQuery)
+    Citizen->>+App: Mở bản đồ, kéo/zoom viewport
+    App->>+Ctrl: GET /api/map/nearby?lat=X&lng=Y&radius=5000&filters=...
+    Ctrl->>+Hdl: Send(GetNearbyReportsQuery)
 
-    Handler->>Handler: Build cache key from bbox + filters
+    Hdl->>Hdl: Build cache key from bbox + filters
 
-    Handler->>+Cache: GET map:{cacheKey} [BR-MAP-012: TTL 10']
-    Cache-->>-Handler: cached?
+    Hdl->>+Cache: GET map:{cacheKey} [BR-MAP-012: TTL 10']
+    Cache-->>-Hdl: cached?
 
     alt Cache hit
-        Handler-->>API: Return cached markers
+        Hdl-->>Ctrl: Return cached markers
+        Ctrl-->>App: 200 OK (cached)
+        App-->>Citizen: Hiển thị markers trên map
     end
 
-    Handler->>+DB: Query reports within bounding box
-    Note over DB: PostGIS: ST_DWithin or decimal bbox
-    Note over DB: Filter: status, category, severity, dateRange
-    DB-->>-Handler: reports[]
+    Hdl->>+DB: SELECT id, lat, lng, status, severity, category<br/>FROM reports<br/>WHERE lat BETWEEN ? AND ? AND lng BETWEEN ? AND ?<br/>AND status NOT IN ('Rejected','Duplicate')<br/>ORDER BY created_at DESC
+    DB-->>-Hdl: reports[]
 
-    Handler->>Handler: Round GPS to 4 decimals (≈11m) [BR-MAP-004]
-    Note over Handler: Privacy: hide exact location on public map
+    Hdl->>Hdl: Round GPS to 4 decimals (≈11m) [BR-MAP-004]
+    Note over Hdl: Privacy: ẩn vị trí chính xác trên map công cộng
 
-    Handler->>Handler: Build marker DTO (id, lat, lng, status, severity, category)
+    Hdl->>Hdl: Build marker DTO (id, lat, lng, status, severity, icon)
 
-    Handler->>+Cache: SET map:{cacheKey} TTL=600s
-    Cache-->>-Handler: OK
+    Hdl->>+Cache: SET map:{cacheKey} TTL=600s
+    Cache-->>-Hdl: OK
 
-    Handler-->>-API: Result<MapResponse>
-    API-->>-Citizen: 200 OK {markers[], totalCount, bbox}
+    Hdl-->>-Ctrl: Result<MapResponse>
+    Ctrl-->>-App: 200 OK {markers[], totalCount, bbox}
+    App-->>-Citizen: Hiển thị markers + heatmap trên bản đồ
 ```
 
 ---
@@ -1103,50 +1360,59 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     actor Citizen
-    participant API as MediaController
-    participant Handler as AnalyzeImageHandler
-    participant Storage as IFileStorageService
-    participant EXIF as IImageExifAnalyzer
-    participant AI as IAiClassificationService
-    participant TempStore as ITempImageStore
+    participant App as Mobile App
+    participant Ctrl as :MediaController
+    participant Storage as :IFileStorageService
+    participant R2 as Cloudflare R2 (S3)
+    participant Hdl as :AnalyzeImageHandler
+    participant EXIF as :IExifAnalyzer
+    participant AI as :IAiClassificationService
+    participant TempStore as :ITempImageStore
+    participant DB as Database
 
-    Note over Citizen: Step 1: Get presigned URL
-    Citizen->>+API: POST /api/media/presigned-url {fileName, mimeType}
-    API->>+Storage: GeneratePresignedUploadUrl(fileName, mime)
-    Storage-->>-API: {uploadUrl, publicUrl, key}
-    API-->>-Citizen: 200 OK {uploadUrl, publicUrl, key}
+    Note over Citizen: Step 1: Request presigned URL
+    Citizen->>+App: Chọn ảnh từ thư viện
+    App->>+Ctrl: POST /api/media/presigned-url {fileName, mimeType}
+    Ctrl->>+Storage: GeneratePresignedUploadUrl(fileName, mime)
+    Storage-->>-Ctrl: {uploadUrl, publicUrl, key}
+    Ctrl-->>-App: 200 OK {uploadUrl, publicUrl, key}
 
-    Note over Citizen: Step 2: Upload direct to R2/S3
-    Citizen->>Storage: PUT uploadUrl [binary image data]
-    Storage-->>Citizen: 200 OK
+    Note over App: Step 2: Upload trực tiếp lên R2/S3
+    App->>+R2: PUT uploadUrl [binary image data]
+    R2-->>-App: 200 OK
 
-    Note over Citizen: Step 3: Analyze uploaded image (optional AI flow)
-    Citizen->>+API: POST /api/media/analyze {url, key, mimeType, sizeBytes}
-    API->>+Handler: Send(AnalyzeUploadedReportImageCommand)
+    Note over App: Step 3: Analyze uploaded image (AI flow)
+    App->>+Ctrl: POST /api/media/analyze {url, key, mimeType, sizeBytes}
+    Ctrl->>+Hdl: Send(AnalyzeUploadedReportImageCommand)
 
-    Handler->>+Storage: DownloadAsync(key) [validate exists + size]
-    Storage-->>-Handler: imageBytes
+    Hdl->>+Storage: DownloadAsync(key) [validate exists + size]
+    Storage->>+R2: GET object
+    R2-->>-Storage: imageBytes
+    Storage-->>-Hdl: imageBytes
 
-    Handler->>Handler: Validate content-type (magic bytes) [BR-REP-002]
-    Handler->>Handler: Validate size ≤ 10MB
+    Hdl->>Hdl: Validate content-type (magic bytes) [BR-REP-002]
+    Hdl->>Hdl: Validate size ≤ 10MB
 
-    Handler->>+EXIF: Analyze(imageBytes) [BR-AI-007: strip sensitive EXIF]
-    EXIF-->>-Handler: exifResult
+    Hdl->>+EXIF: Analyze(imageBytes) [BR-AI-007: strip sensitive]
+    EXIF-->>-Hdl: exifResult
 
-    Handler->>+AI: ClassifyImageAsync(imageBytes) [timeout 5s]
+    Hdl->>+AI: ClassifyImageAsync(imageBytes) [timeout 5s]
     alt AI responds in time
-        AI-->>-Handler: {primaryClass, confidence, severity, decision}
+        AI-->>-Hdl: {primaryClass, confidence, severity, decision}
     else AI timeout [BR-AI-006]
-        Handler->>Handler: Mark as ai_pending, queue retry
+        Hdl->>Hdl: Mark as ai_pending, queue retry job
     end
 
-    Handler->>+TempStore: StoreAsync(tempId, bytes, aiResult)
-    TempStore-->>-Handler: tempImageId
+    Hdl->>+TempStore: StoreAsync(tempId, bytes, aiResult)
+    TempStore->>+DB: INSERT INTO temp cache (Redis or DB)
+    DB-->>-TempStore: OK
+    TempStore-->>-Hdl: tempImageId
 
-    Handler-->>-API: Result<AnalyzeResponse>
-    API-->>-Citizen: 200 OK {tempImageId, aiResult, exifWarning?}
+    Hdl-->>-Ctrl: Result<AnalyzeResponse>
+    Ctrl-->>-App: 200 OK {tempImageId, aiResult, exifWarning?}
+    App-->>-Citizen: Hiển thị kết quả AI (loại ô nhiễm, severity)
 
-    Note over Citizen: Step 4: Submit report with tempImageId → SD-09
+    Note over Citizen: Step 4: Submit report với tempImageId → SD-09
 ```
 
 ---
@@ -1162,26 +1428,25 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     actor Admin
-    participant API as AdminController
-    participant Handler as GetAuditLogsHandler
-    participant AuditRepo as IAuditLogRepository
-    participant DB as PostgreSQL
+    participant App as Web App
+    participant Ctrl as :AdminController
+    participant Hdl as :GetAuditLogsHandler
+    participant DB as Database
 
-    Admin->>+API: GET /api/admin/audit-logs?entityType=Report&action=Verify&from=...&to=...&page=1
-    API->>+Handler: Send(GetAuditLogsQuery)
+    Admin->>+App: Mở trang Audit Log, chọn filter
+    App->>+Ctrl: GET /api/admin/audit-logs?entityType=Report&action=Verify&from=...&to=...&page=1
+    Ctrl->>+Hdl: Send(GetAuditLogsQuery)
 
-    Handler->>Handler: Validate Admin role
+    Hdl->>Hdl: Validate Admin role
 
-    Handler->>+AuditRepo: QueryAsNoTracking()
-    Note over AuditRepo: Filter by entityType, action, dateRange, performedBy
-    Note over AuditRepo: Order by CreatedAt DESC
-    Note over AuditRepo: Paginate (page, pageSize)
-    AuditRepo->>+DB: SELECT * FROM audit_logs WHERE ...
-    DB-->>-AuditRepo: rows[]
-    AuditRepo-->>-Handler: PagedResult<AuditLogDto>
+    Hdl->>+DB: SELECT * FROM audit_logs<br/>WHERE entity_type = ? AND action = ?<br/>AND created_at BETWEEN ? AND ?<br/>ORDER BY created_at DESC<br/>LIMIT ? OFFSET ?
+    DB-->>-Hdl: rows[], totalCount
 
-    Handler-->>-API: Result<PagedResult<AuditLogDto>>
-    API-->>-Admin: 200 OK {items[], totalCount, page, pageSize}
+    Hdl->>Hdl: Map to AuditLogDto[]
+
+    Hdl-->>-Ctrl: Result<PagedResult<AuditLogDto>>
+    Ctrl-->>-App: 200 OK {items[], totalCount, page, pageSize}
+    App-->>-Admin: Hiển thị bảng audit log với pagination
 ```
 
 ---
@@ -1191,45 +1456,45 @@ sequenceDiagram
 ```mermaid
 flowchart LR
     subgraph Auth ["1️⃣ Auth"]
-        SD01["SD-01\nRegister"]
-        SD02["SD-02\nLogin"]
-        SD04["SD-04\nRefresh"]
+        SD01["SD-01<br/>Register"]
+        SD02["SD-02<br/>Login"]
+        SD04["SD-04<br/>Refresh"]
     end
 
     subgraph Report ["2️⃣ Report Core"]
-        SD09["SD-09\nSubmit"]
-        SD11["SD-11\nVerify"]
-        SD12["SD-12\nReject"]
-        SD13["SD-13\nAssign"]
-        SD15["SD-15\nResolve"]
-        SD16["SD-16\nClose"]
-        SD18["SD-18\nDuplicate"]
+        SD09["SD-09<br/>Submit"]
+        SD11["SD-11<br/>Verify"]
+        SD12["SD-12<br/>Reject"]
+        SD13["SD-13<br/>Assign"]
+        SD15["SD-15<br/>Resolve"]
+        SD16["SD-16<br/>Close"]
+        SD18["SD-18<br/>Duplicate"]
     end
 
     subgraph Cleanup ["3️⃣ Cleanup"]
-        SD21["SD-21\nAccept/Decline"]
-        SD22["SD-22\nCheck-in"]
+        SD21["SD-21<br/>Accept/Decline"]
+        SD22["SD-22<br/>Check-in"]
     end
 
     subgraph Inspection ["4️⃣ Inspection"]
-        SD28["SD-28\nCreate"]
-        SD29["SD-29\nAssign Team"]
-        SD32["SD-32\nIssue Penalty"]
+        SD28["SD-28<br/>Create"]
+        SD29["SD-29<br/>Assign Team"]
+        SD32["SD-32<br/>Issue Penalty"]
     end
 
     subgraph Org ["5️⃣ Organization"]
-        SD36["SD-36\nDept & Office"]
-        SD37["SD-37\nCreate Team"]
-        SD38["SD-38\nOnboard Company"]
+        SD36["SD-36<br/>Dept & Office"]
+        SD37["SD-37<br/>Create Team"]
+        SD38["SD-38<br/>Onboard Company"]
     end
 
     subgraph Cross ["6️⃣–11️⃣ Cross-cutting"]
-        SD44["SD-44\nComment"]
-        SD48["SD-48\nGamification"]
-        SD52["SD-52\nNotification"]
-        SD55["SD-55\nMap"]
-        SD66["SD-66\nMedia Upload"]
-        SD62["SD-62\nAudit Log"]
+        SD44["SD-44<br/>Comment"]
+        SD48["SD-48<br/>Gamification"]
+        SD52["SD-52<br/>Notification"]
+        SD55["SD-55<br/>Map"]
+        SD66["SD-66<br/>Media Upload"]
+        SD62["SD-62<br/>Audit Log"]
     end
 
     Auth --> Report --> Cleanup --> Inspection --> Org --> Cross
