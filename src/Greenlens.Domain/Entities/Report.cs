@@ -325,7 +325,7 @@ public sealed class Report : SoftDeletableEntity
     /// <summary>Mark as duplicate of another report. BR-REP-030, BR-REP-032.</summary>
     public void MarkDuplicate(Guid primaryReportId)
     {
-        if (Status is not (ReportStatus.Submitted or ReportStatus.Verified))
+        if (Status is ReportStatus.Submitted or ReportStatus.Duplicate or ReportStatus.Rejected)
             throw new InvalidOperationException($"Cannot mark as duplicate from status {Status}.");
 
         Status = ReportStatus.Duplicate;
