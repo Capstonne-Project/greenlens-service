@@ -86,6 +86,7 @@ public sealed class LocalOfficesController(ISender sender) : ControllerBase
             "Trả về tất cả báo cáo thuộc LocalOffice mà LEO đang quản lý. " +
             "Mỗi báo cáo kèm danh sách team đã được gán (assignment progress): " +
             "tên team, loại team, trạng thái assignment, phần trăm tiến độ, ghi chú, thời gian. " +
+            "Mỗi item có `thumbnails` (mảng URL ảnh đầu tiên của báo cáo, MediaType=Image). " +
             "Hỗ trợ tìm kiếm (mã báo cáo, mô tả, địa chỉ), lọc theo status/category/severity/assignmentStatus, " +
             "sắp xếp theo: code, status, severity, priority, createdAt, assignmentCount (mặc định: mới nhất).")]
     [SwaggerResponse(200, "Danh sách báo cáo kèm tiến độ", typeof(ApiResponse<GetOfficeReportsResponse>))]

@@ -38,6 +38,8 @@ public sealed record OfficeReportItem(
     DateTime? ResolvedAt,
     DateTime? ClosedAt,
     DateTime? SlaResolveDueAt,
+    /// <summary>First report image URL (ThumbnailUrl ?? Url). Empty when the report has no Image media.</summary>
+    IReadOnlyList<string> Thumbnails,
     IReadOnlyList<AssignmentProgressItem> Assignments);
 
 /// <summary>Team assignment progress detail for a report.</summary>
