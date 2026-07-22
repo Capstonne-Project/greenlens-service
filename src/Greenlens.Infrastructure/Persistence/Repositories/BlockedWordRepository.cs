@@ -8,7 +8,7 @@ internal sealed class BlockedWordRepository(ApplicationDbContext db)
     : GenericRepository<BlockedWord>(db), IBlockedWordRepository
 {
     public Task<bool> ExistsWordAsync(string normalizedWord, Guid? excludeId, CancellationToken ct) =>
-        db.BlockedWords.AsNoTracking()
+        Context.BlockedWords.AsNoTracking()
             .AnyAsync(
                 w => w.Word == normalizedWord && (excludeId == null || w.Id != excludeId),
                 ct);

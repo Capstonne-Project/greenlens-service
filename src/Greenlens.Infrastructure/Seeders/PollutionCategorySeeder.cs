@@ -27,7 +27,10 @@ internal static class PollutionCategorySeeder
         ILogger logger,
         CancellationToken ct = default)
     {
+        // IgnoreQueryFilters: seeder must see soft-deleted records to avoid
+        // duplicate key violation on ix_pollution_categories_code.
         var existingCodes = await db.PollutionCategories
+            .IgnoreQueryFilters()
             .Select(c => c.Code)
             .ToListAsync(ct)
             .ConfigureAwait(false);
@@ -46,7 +49,8 @@ internal static class PollutionCategorySeeder
 
         // BR-REP-005 v1.2: Deactivate removed categories
         var toDeactivate = await db.PollutionCategories
-            .Where(c => RemovedCodes.Contains(c.Code) && c.IsActive)
+            .IgnoreQueryFilters()
+            .Where(c => RemovedCodes.Contains(c.Code) && c.IsActive && c.DeletedAt == null)
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
