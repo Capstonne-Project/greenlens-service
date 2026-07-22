@@ -40,32 +40,39 @@ sequenceDiagram
 
     Hdl->>+Repo: ExistsAsync(email)
     Repo->>+DB: SELECT COUNT(*) FROM users WHERE email = ?
-    DB-->>-Repo: 0
-    Repo-->>-Hdl: false
+    DB-->>-Repo: count
+    Repo-->>-Hdl: exists?
 
-    Hdl->>+Hash: Hash(password) [bcrypt ≥12]
-    Hash-->>-Hdl: passwordHash
+    alt Email đã tồn tại
+        Hdl-->>Val: Result.Failure(Conflict: "Email đã được đăng ký")
+        Val-->>Ctrl: Result.Failure
+        Ctrl-->>App: 409 Conflict {error: "Email đã được đăng ký"}
+        App-->>Citizen: Hiển thị lỗi "Email đã tồn tại"
+    else Email chưa tồn tại (Happy path)
+        Hdl->>+Hash: Hash(password) [bcrypt ≥12]
+        Hash-->>-Hdl: passwordHash
 
-    Hdl->>Hdl: User.Create(email, hash, fullName)
-    Hdl->>Repo: Add(user)
+        Hdl->>Hdl: User.Create(email, hash, fullName)
+        Hdl->>Repo: Add(user)
 
-    Hdl->>Hdl: Generate OTP 6 số
-    Hdl->>Hash: Hash(otpCode)
-    Hdl->>Hdl: OtpCode.Create(email, codeHash, EmailVerification)
-    Hdl->>OtpRepo: Add(otp)
+        Hdl->>Hdl: Generate OTP 6 số
+        Hdl->>Hash: Hash(otpCode)
+        Hdl->>Hdl: OtpCode.Create(email, codeHash, EmailVerification)
+        Hdl->>OtpRepo: Add(otp)
 
-    Hdl->>+UoW: SaveChangesAsync()
-    UoW->>+DB: INSERT INTO users, otp_codes
-    DB-->>-UoW: OK
-    UoW-->>-Hdl: OK
+        Hdl->>+UoW: SaveChangesAsync()
+        UoW->>+DB: INSERT INTO users, otp_codes
+        DB-->>-UoW: OK
+        UoW-->>-Hdl: OK
 
-    Hdl->>+Email: SendOtpAsync(email, otpCode)
-    Email-->>-Hdl: Sent
+        Hdl->>+Email: SendOtpAsync(email, otpCode)
+        Email-->>-Hdl: Sent
 
-    Hdl-->>-Val: Result<RegisterResponse>
-    Val-->>-Ctrl: Result<RegisterResponse>
-    Ctrl-->>-App: 200 OK {userId, email, message}
-    App-->>-Citizen: Hiển thị "OTP đã gửi tới email"
+        Hdl-->>-Val: Result<RegisterResponse>
+        Val-->>-Ctrl: Result<RegisterResponse>
+        Ctrl-->>-App: 200 OK {userId, email, message}
+        App-->>-Citizen: Hiển thị "OTP đã gửi tới email"
+    end
 ```
 
 ---
@@ -431,32 +438,41 @@ sequenceDiagram
     RptRepo->>+DB: SELECT * FROM reports WHERE id = ?
     DB-->>-RptRepo: report
     RptRepo-->>-Hdl: report
-    Hdl->>Hdl: Check report.Status == Verified [BR-REP-021]
 
-    Hdl->>+TeamRepo: GetByIdAsync(teamId)
-    TeamRepo->>+DB: SELECT * FROM environmental_teams WHERE id = ?
-    DB-->>-TeamRepo: team
-    TeamRepo-->>-Hdl: team (type=Cleanup)
-    Hdl->>Hdl: Check team.IsActive
-    Hdl->>Hdl: Check team belongs to same office
+    alt report.Status ≠ Verified [BR-REP-021]
+        Hdl-->>Ctrl: Result.Failure(BusinessRule: "Report chưa ở trạng thái Verified")
+        Ctrl-->>App: 400 Bad Request
+        App-->>LEO: Hiển thị lỗi "Report chưa được xác minh"
+    else report.Status == Verified (Happy path)
+        Hdl->>+TeamRepo: GetByIdAsync(teamId)
+        TeamRepo->>+DB: SELECT * FROM environmental_teams WHERE id = ?
+        DB-->>-TeamRepo: team
+        TeamRepo-->>-Hdl: team
 
-    Hdl->>Hdl: report.Assign(leoId)<br/>[state: Verified → InProgress]
-    Hdl->>Hdl: ReportAssignment.Create(reportId, teamId, leoId, note?)
-    Hdl->>Hdl: ReportStatusHistory.Create(Verified → InProgress)
+        alt team.IsActive == false OR team.LocalOfficeId ≠ leo.LocalOfficeId
+            Hdl-->>Ctrl: Result.Failure(BusinessRule:<br/>"Team không hoạt động hoặc khác văn phòng")
+            Ctrl-->>App: 400 Bad Request
+            App-->>LEO: Hiển thị lỗi
+        else Team hợp lệ
+            Hdl->>Hdl: report.Assign(leoId)<br/>[state: Verified → InProgress]
+            Hdl->>Hdl: ReportAssignment.Create(reportId, teamId, leoId, note?)
+            Hdl->>Hdl: ReportStatusHistory.Create(Verified → InProgress)
 
-    Hdl->>+UoW: SaveChangesAsync()
-    UoW->>+DB: UPDATE reports, INSERT report_assignments,<br/>INSERT report_status_histories
-    DB-->>-UoW: OK
-    UoW-->>-Hdl: OK
+            Hdl->>+UoW: SaveChangesAsync()
+            UoW->>+DB: UPDATE reports, INSERT report_assignments,<br/>INSERT report_status_histories
+            DB-->>-UoW: OK
+            UoW-->>-Hdl: OK
 
-    Hdl->>+Notif: NotifyAsync(teamMembers[], ReportAssigned)
-    Notif->>+DB: INSERT INTO notifications (bulk)
-    DB-->>-Notif: OK
-    Notif-->>-Hdl: Sent to all team members
+            Hdl->>+Notif: NotifyAsync(teamMembers[], ReportAssigned)
+            Notif->>+DB: INSERT INTO notifications (bulk)
+            DB-->>-Notif: OK
+            Notif-->>-Hdl: Sent to all team members
 
-    Hdl-->>-Ctrl: Result<success>
-    Ctrl-->>-App: 200 OK
-    App-->>-LEO: Hiển thị "Đã phân công đội"
+            Hdl-->>-Ctrl: Result<success>
+            Ctrl-->>-App: 200 OK
+            App-->>-LEO: Hiển thị "Đã phân công đội"
+        end
+    end
 ```
 
 ---
@@ -486,35 +502,46 @@ sequenceDiagram
     RptRepo->>+DB: SELECT * FROM reports WHERE id = ?
     DB-->>-RptRepo: report
     RptRepo-->>-Hdl: report
-    Hdl->>Hdl: Check report.Status == InProgress
 
-    Hdl->>+AsgRepo: Get assignment for this team
-    AsgRepo->>+DB: SELECT * FROM report_assignments WHERE report_id = ? AND team_id = ?
-    DB-->>-AsgRepo: assignment
-    AsgRepo-->>-Hdl: assignment
-    Hdl->>Hdl: Check assignment.Status == InProgress
+    alt report.Status ≠ InProgress
+        Hdl-->>Ctrl: Result.Failure(BusinessRule: "Report chưa ở trạng thái InProgress")
+        Ctrl-->>App: 400 Bad Request
+        App-->>Cleaner: Hiển thị lỗi trạng thái
+    else report.Status == InProgress
+        Hdl->>+AsgRepo: Get assignment for this team
+        AsgRepo->>+DB: SELECT * FROM report_assignments WHERE report_id = ? AND team_id = ?
+        DB-->>-AsgRepo: assignment
+        AsgRepo-->>-Hdl: assignment
+        Hdl->>Hdl: Check assignment.Status == InProgress
 
-    Hdl->>+MediaRepo: Count "After" images [BR-CLN-004]
-    MediaRepo->>+DB: SELECT COUNT(*) FROM report_media WHERE type = 'After'
-    DB-->>-MediaRepo: count
-    MediaRepo-->>-Hdl: count ≥ 2 ✓
+        Hdl->>+MediaRepo: Count "After" images [BR-CLN-004]
+        MediaRepo->>+DB: SELECT COUNT(*) FROM report_media WHERE type = 'After'
+        DB-->>-MediaRepo: count
+        MediaRepo-->>-Hdl: count
 
-    Hdl->>Hdl: assignment.Complete()
-    Hdl->>Hdl: report.Resolve()<br/>[state: InProgress → Resolved]
-    Hdl->>Hdl: ReportStatusHistory.Create(InProgress → Resolved)
+        alt count < 2 [BR-CLN-004]
+            Hdl-->>Ctrl: Result.Failure(Validation:<br/>"Cần ít nhất 2 ảnh After khác nhau")
+            Ctrl-->>App: 400 Bad Request
+            App-->>Cleaner: Hiển thị "Vui lòng upload thêm ảnh"
+        else count ≥ 2 ✓ (Happy path)
+            Hdl->>Hdl: assignment.Complete()
+            Hdl->>Hdl: report.Resolve()<br/>[state: InProgress → Resolved]
+            Hdl->>Hdl: ReportStatusHistory.Create(InProgress → Resolved)
 
-    Hdl->>+UoW: SaveChangesAsync()
-    UoW->>+DB: UPDATE reports, UPDATE report_assignments,<br/>INSERT report_status_histories
-    DB-->>-UoW: OK
-    UoW-->>-Hdl: OK
+            Hdl->>+UoW: SaveChangesAsync()
+            UoW->>+DB: UPDATE reports, UPDATE report_assignments,<br/>INSERT report_status_histories
+            DB-->>-UoW: OK
+            UoW-->>-Hdl: OK
 
-    Hdl->>+Notif: NotifyAsync(reporterId, ReportResolved)
-    Notif->>DB: INSERT INTO notifications
-    Notif-->>-Hdl: Sent
+            Hdl->>+Notif: NotifyAsync(reporterId, ReportResolved)
+            Notif->>DB: INSERT INTO notifications
+            Notif-->>-Hdl: Sent
 
-    Hdl-->>-Ctrl: Result<success>
-    Ctrl-->>-App: 200 OK
-    App-->>-Cleaner: Hiển thị "Đã hoàn thành"
+            Hdl-->>-Ctrl: Result<success>
+            Ctrl-->>-App: 200 OK
+            App-->>-Cleaner: Hiển thị "Đã hoàn thành"
+        end
+    end
 ```
 
 ---
@@ -765,24 +792,35 @@ sequenceDiagram
     DB-->>-RptRepo: report
     RptRepo-->>-Hdl: report
 
-    Hdl->>Hdl: Check report.Status ∈ {Verified, InProgress}
-    Hdl->>+InspRepo: Check no existing inspection
-    InspRepo->>+DB: SELECT EXISTS FROM inspection_reports<br/>WHERE report_id = ?
-    DB-->>-InspRepo: false
-    InspRepo-->>-Hdl: OK (chưa có)
+    alt report.Status ∉ {Verified, InProgress}
+        Hdl-->>Ctrl: Result.Failure(BusinessRule:<br/>"Report phải ở trạng thái Verified hoặc InProgress")
+        Ctrl-->>App: 400 Bad Request
+        App-->>LEO: Hiển thị lỗi trạng thái
+    else report.Status hợp lệ
+        Hdl->>+InspRepo: Check no existing inspection
+        InspRepo->>+DB: SELECT EXISTS FROM inspection_reports<br/>WHERE report_id = ?
+        DB-->>-InspRepo: exists?
+        InspRepo-->>-Hdl: exists?
 
-    Hdl->>Hdl: InspectionReport.Create(reportId, leoId)
-    Note over Hdl: Status = Draft, SLA calculated
-    Hdl->>InspRepo: Add(inspectionReport)
+        alt Đã có inspection cho report này
+            Hdl-->>Ctrl: Result.Failure(Conflict:<br/>"Report này đã có biên bản thanh tra")
+            Ctrl-->>App: 409 Conflict
+            App-->>LEO: Hiển thị lỗi "Đã tồn tại biên bản"
+        else Chưa có inspection (Happy path)
+            Hdl->>Hdl: InspectionReport.Create(reportId, leoId)
+            Note over Hdl: Status = Draft, SLA calculated
+            Hdl->>InspRepo: Add(inspectionReport)
 
-    Hdl->>+UoW: SaveChangesAsync()
-    UoW->>+DB: INSERT INTO inspection_reports
-    DB-->>-UoW: OK
-    UoW-->>-Hdl: OK
+            Hdl->>+UoW: SaveChangesAsync()
+            UoW->>+DB: INSERT INTO inspection_reports
+            DB-->>-UoW: OK
+            UoW-->>-Hdl: OK
 
-    Hdl-->>-Ctrl: Result<InspectionResponse>
-    Ctrl-->>-App: 201 Created {inspectionId, status: Draft}
-    App-->>-LEO: Hiển thị biên bản mới
+            Hdl-->>-Ctrl: Result<InspectionResponse>
+            Ctrl-->>-App: 201 Created {inspectionId, status: Draft}
+            App-->>-LEO: Hiển thị biên bản mới
+        end
+    end
 ```
 
 ---
@@ -811,29 +849,39 @@ sequenceDiagram
     InspRepo->>+DB: SELECT * FROM inspection_reports WHERE id = ?
     DB-->>-InspRepo: inspection
     InspRepo-->>-Hdl: inspection
-    Hdl->>Hdl: Check inspection.Status == Draft
 
-    Hdl->>+TeamRepo: GetByIdAsync(teamId)
-    TeamRepo->>+DB: SELECT * FROM environmental_teams WHERE id = ?
-    DB-->>-TeamRepo: team
-    TeamRepo-->>-Hdl: team (type=Inspection)
-    Hdl->>Hdl: Check team.IsActive
+    alt inspection.Status ≠ Draft
+        Hdl-->>Ctrl: Result.Failure(BusinessRule:<br/>"Biên bản phải ở trạng thái Draft")
+        Ctrl-->>App: 400 Bad Request
+        App-->>LEO: Hiển thị lỗi trạng thái
+    else inspection.Status == Draft
+        Hdl->>+TeamRepo: GetByIdAsync(teamId)
+        TeamRepo->>+DB: SELECT * FROM environmental_teams WHERE id = ?
+        DB-->>-TeamRepo: team
+        TeamRepo-->>-Hdl: team
 
-    Hdl->>Hdl: inspection.AssignTeam(teamId)
+        alt team.Type ≠ Inspection OR team.IsActive == false
+            Hdl-->>Ctrl: Result.Failure(BusinessRule:<br/>"Team phải là loại Inspection và đang hoạt động")
+            Ctrl-->>App: 400 Bad Request
+            App-->>LEO: Hiển thị lỗi
+        else Team hợp lệ (Happy path)
+            Hdl->>Hdl: inspection.AssignTeam(teamId)
 
-    Hdl->>+UoW: SaveChangesAsync()
-    UoW->>+DB: UPDATE inspection_reports SET assigned_team_id = ?
-    DB-->>-UoW: OK
-    UoW-->>-Hdl: OK
+            Hdl->>+UoW: SaveChangesAsync()
+            UoW->>+DB: UPDATE inspection_reports SET assigned_team_id = ?
+            DB-->>-UoW: OK
+            UoW-->>-Hdl: OK
 
-    Hdl->>+Notif: NotifyAsync(teamMembers[], InspectionAssigned)
-    Notif->>+DB: INSERT INTO notifications (bulk)
-    DB-->>-Notif: OK
-    Notif-->>-Hdl: Sent
+            Hdl->>+Notif: NotifyAsync(teamMembers[], InspectionAssigned)
+            Notif->>+DB: INSERT INTO notifications (bulk)
+            DB-->>-Notif: OK
+            Notif-->>-Hdl: Sent
 
-    Hdl-->>-Ctrl: Result<success>
-    Ctrl-->>-App: 200 OK
-    App-->>-LEO: Hiển thị "Đã giao đội thanh tra"
+            Hdl-->>-Ctrl: Result<success>
+            Ctrl-->>-App: 200 OK
+            App-->>-LEO: Hiển thị "Đã giao đội thanh tra"
+        end
+    end
 ```
 
 ---
@@ -936,20 +984,26 @@ sequenceDiagram
 
     Hdl1->>+DeptRepo: Check no existing dept for province
     DeptRepo->>+DB: SELECT EXISTS FROM departments WHERE province_code = ?
-    DB-->>-DeptRepo: false
-    DeptRepo-->>-Hdl1: OK
+    DB-->>-DeptRepo: exists?
+    DeptRepo-->>-Hdl1: exists?
 
-    Hdl1->>Hdl1: Department.Create(name, provinceCode)
-    Hdl1->>DeptRepo: Add(department)
+    alt Đã có department cho tỉnh này
+        Hdl1-->>Ctrl1: Result.Failure(Conflict:<br/>"Tỉnh này đã có phòng TNMT")
+        Ctrl1-->>App: 409 Conflict
+        App-->>Admin: Hiển thị lỗi "Đã tồn tại"
+    else Chưa có (Happy path)
+        Hdl1->>Hdl1: Department.Create(name, provinceCode)
+        Hdl1->>DeptRepo: Add(department)
 
-    Hdl1->>+UoW: SaveChangesAsync()
-    UoW->>+DB: INSERT INTO departments
-    DB-->>-UoW: OK
-    UoW-->>-Hdl1: OK
+        Hdl1->>+UoW: SaveChangesAsync()
+        UoW->>+DB: INSERT INTO departments
+        DB-->>-UoW: OK
+        UoW-->>-Hdl1: OK
 
-    Hdl1-->>-Ctrl1: Result<DeptResponse>
-    Ctrl1-->>-App: 201 Created {departmentId}
-    App-->>-Admin: Hiển thị phòng TNMT mới
+        Hdl1-->>-Ctrl1: Result<DeptResponse>
+        Ctrl1-->>-App: 201 Created {departmentId}
+        App-->>-Admin: Hiển thị phòng TNMT mới
+    end
 
     participant Ctrl2 as :LocalOfficesController
     participant Hdl2 as :CreateOfficeHandler
@@ -968,20 +1022,26 @@ sequenceDiagram
 
     Hdl2->>+OffRepo: Check no existing office for ward
     OffRepo->>+DB: SELECT EXISTS FROM local_offices WHERE ward_code = ?
-    DB-->>-OffRepo: false
-    OffRepo-->>-Hdl2: OK
+    DB-->>-OffRepo: exists?
+    OffRepo-->>-Hdl2: exists?
 
-    Hdl2->>Hdl2: LocalOffice.Create(name, departmentId, wardCode)
-    Hdl2->>OffRepo: Add(localOffice)
+    alt Đã có office cho phường này
+        Hdl2-->>Ctrl2: Result.Failure(Conflict:<br/>"Phường này đã có văn phòng")
+        Ctrl2-->>App: 409 Conflict
+        App-->>Admin: Hiển thị lỗi "Đã tồn tại"
+    else Chưa có (Happy path)
+        Hdl2->>Hdl2: LocalOffice.Create(name, departmentId, wardCode)
+        Hdl2->>OffRepo: Add(localOffice)
 
-    Hdl2->>+UoW: SaveChangesAsync()
-    UoW->>+DB: INSERT INTO local_offices
-    DB-->>-UoW: OK
-    UoW-->>-Hdl2: OK
+        Hdl2->>+UoW: SaveChangesAsync()
+        UoW->>+DB: INSERT INTO local_offices
+        DB-->>-UoW: OK
+        UoW-->>-Hdl2: OK
 
-    Hdl2-->>-Ctrl2: Result<OfficeResponse>
-    Ctrl2-->>-App: 201 Created {localOfficeId}
-    App-->>-Admin: Hiển thị văn phòng phường mới
+        Hdl2-->>-Ctrl2: Result<OfficeResponse>
+        Ctrl2-->>-App: 201 Created {localOfficeId}
+        App-->>-Admin: Hiển thị văn phòng phường mới
+    end
 ```
 
 ---
@@ -1016,8 +1076,14 @@ sequenceDiagram
         UserRepo->>+DB: SELECT * FROM users WHERE id = ?
         DB-->>-UserRepo: user
         UserRepo-->>-Hdl: user
-        Hdl->>Hdl: Validate user.Role matches teamType
-        Hdl->>Hdl: TeamMember.Create(teamId, userId, isLeader?)
+
+        alt user.Role không match teamType (vd: Cleaner vào team Inspection)
+            Hdl-->>Ctrl: Result.Failure(Validation:<br/>"User role không phù hợp với loại team")
+            Ctrl-->>App: 400 Bad Request
+            App-->>LEO: Hiển thị lỗi "Thành viên không hợp lệ"
+        else user.Role hợp lệ
+            Hdl->>Hdl: TeamMember.Create(teamId, userId, isLeader?)
+        end
     end
 
     Hdl->>+UoW: SaveChangesAsync()
@@ -1054,31 +1120,43 @@ sequenceDiagram
 
     Hdl->>+CompRepo: Check TaxCode uniqueness
     CompRepo->>+DB: SELECT EXISTS FROM environmental_service_companies<br/>WHERE tax_code = ?
-    DB-->>-CompRepo: false
-    CompRepo-->>-Hdl: OK (unique)
+    DB-->>-CompRepo: exists?
+    CompRepo-->>-Hdl: exists?
 
-    Hdl->>Hdl: Validate contractStartDate < contractEndDate
+    alt TaxCode đã tồn tại
+        Hdl-->>Ctrl: Result.Failure(Conflict:<br/>"Mã số thuế đã được đăng ký")
+        Ctrl-->>App: 409 Conflict {error: "TaxCode đã tồn tại"}
+        App-->>DEO: Hiển thị lỗi "Mã số thuế trùng"
+    else TaxCode unique
+        Hdl->>Hdl: Validate contractStartDate < contractEndDate
 
-    Hdl->>Hdl: EnvironmentalServiceCompany.Create(name, taxCode, ...)
-    Note over Hdl: Status = PendingActivation
-    Hdl->>CompRepo: Add(company)
+        alt contractStartDate ≥ contractEndDate
+            Hdl-->>Ctrl: Result.Failure(Validation:<br/>"Ngày bắt đầu phải trước ngày kết thúc")
+            Ctrl-->>App: 400 Bad Request
+            App-->>DEO: Hiển thị lỗi ngày hợp đồng
+        else Dates hợp lệ (Happy path)
+            Hdl->>Hdl: EnvironmentalServiceCompany.Create(name, taxCode, ...)
+            Note over Hdl: Status = PendingActivation
+            Hdl->>CompRepo: Add(company)
 
-    Hdl->>Hdl: ContractPeriod.Create(companyId, contractNo, type, start, end)
-    Hdl->>ContRepo: Add(contractPeriod)
+            Hdl->>Hdl: ContractPeriod.Create(companyId, contractNo, type, start, end)
+            Hdl->>ContRepo: Add(contractPeriod)
 
-    loop For each wardCode in serviceAreas
-        Hdl->>Hdl: CompanyServiceArea.Create(companyId, wardCode)
-        Hdl->>AreaRepo: Add(serviceArea)
+            loop For each wardCode in serviceAreas
+                Hdl->>Hdl: CompanyServiceArea.Create(companyId, wardCode)
+                Hdl->>AreaRepo: Add(serviceArea)
+            end
+
+            Hdl->>+UoW: SaveChangesAsync()
+            UoW->>+DB: INSERT INTO environmental_service_companies,<br/>INSERT INTO contract_periods,<br/>INSERT INTO company_service_areas
+            DB-->>-UoW: OK
+            UoW-->>-Hdl: OK
+
+            Hdl-->>-Ctrl: Result<CompanyResponse>
+            Ctrl-->>-App: 201 Created {companyId, status: PendingActivation}
+            App-->>-DEO: Hiển thị công ty mới
+        end
     end
-
-    Hdl->>+UoW: SaveChangesAsync()
-    UoW->>+DB: INSERT INTO environmental_service_companies,<br/>INSERT INTO contract_periods,<br/>INSERT INTO company_service_areas
-    DB-->>-UoW: OK
-    UoW-->>-Hdl: OK
-
-    Hdl-->>-Ctrl: Result<CompanyResponse>
-    Ctrl-->>-App: 201 Created {companyId, status: PendingActivation}
-    App-->>-DEO: Hiển thị công ty mới
 
     Note over DEO: Sau khi review → Activate
     DEO->>App: PUT /api/companies/{id}/activate
