@@ -17,4 +17,6 @@ public sealed record MyReportItem(
     Severity Severity, ReportStatus Status,
     string? Address, DateTime CreatedAt,
     DateTime? ResolvedAt, DateTime? ClosedAt,
-    string? ImageUrl);
+    string? ImageUrl,
+    Guid? MergedIntoPrimaryReportId,
+    string? MergedIntoPrimaryReportCode);
