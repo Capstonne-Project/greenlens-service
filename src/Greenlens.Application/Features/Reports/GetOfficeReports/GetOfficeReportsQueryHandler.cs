@@ -134,6 +134,12 @@ public sealed class GetOfficeReportsQueryHandler(
                 r.ResolvedAt,
                 r.ClosedAt,
                 r.SlaResolveDueAt,
+                r.Media
+                    .Where(m => m.Type == MediaType.Image)
+                    .OrderBy(m => m.UploadedAt)
+                    .Select(m => m.ThumbnailUrl ?? m.Url)
+                    .Take(1)
+                    .ToList(),
                 r.Assignments
                     .OrderBy(a => a.AssignedAt)
                     .Select(a => new AssignmentProgressItem(
