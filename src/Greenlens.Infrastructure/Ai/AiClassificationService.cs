@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Greenlens.Application.Common.Interfaces;
@@ -10,7 +11,7 @@ namespace Greenlens.Infrastructure.Ai;
 /// HTTP adapter for the Python/FastAPI AI Service.
 /// </summary>
 /// <remarks>
-/// Implements: BR-AI-001 (classification), BR-AI-006 (timeout 5s → return null).
+/// Implements: BR-AI-001 (classification), BR-AI-006 (timeout → return null).
 /// Endpoint: POST /api/v1/classify-moderation-upload  field: "image".
 /// </remarks>
 internal sealed class AiClassificationService(
@@ -31,43 +32,130 @@ internal sealed class AiClassificationService(
         string contentType,
         CancellationToken ct = default)
     {
+        var opts = options.Value;
+        var baseUrl = opts.BaseUrl.TrimEnd('/');
+        var timeoutSec = opts.TimeoutSeconds;
+        var endpoint = $"{baseUrl}/api/v1/classify-moderation-upload";
+
+        long? streamLength = imageStream.CanSeek ? imageStream.Length : null;
+
+        logger.LogInformation(
+            "[AI-DIAG] Classify START → {Endpoint} | file={FileName} contentType={ContentType} sizeBytes={SizeBytes} timeoutSec={TimeoutSec}",
+            endpoint,
+            fileName,
+            contentType,
+            streamLength,
+            timeoutSec);
+
         using var client = httpClientFactory.CreateClient("AiService");
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(TimeSpan.FromSeconds(options.Value.TimeoutSeconds));
+        cts.CancelAfter(TimeSpan.FromSeconds(timeoutSec));
 
         using var content = new MultipartFormDataContent();
         using var streamContent = new StreamContent(imageStream);
         streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
         content.Add(streamContent, "image", fileName);
 
+        var sw = Stopwatch.StartNew();
         try
         {
             var response = await client
                 .PostAsync("/api/v1/classify-moderation-upload", content, cts.Token)
                 .ConfigureAwait(false);
 
+            sw.Stop();
+
             if (!response.IsSuccessStatusCode)
             {
-                logger.LogWarning("AI Service returned {StatusCode}", response.StatusCode);
+                var bodyPreview = await SafeReadBodyPreviewAsync(response, cts.Token).ConfigureAwait(false);
+                logger.LogWarning(
+                    "[AI-DIAG] Classify FAIL HTTP {StatusCode} in {ElapsedMs}ms | file={FileName} body={BodyPreview}",
+                    (int)response.StatusCode,
+                    sw.ElapsedMilliseconds,
+                    fileName,
+                    bodyPreview);
                 return null;
             }
 
             var json = await response.Content.ReadAsStringAsync(cts.Token).ConfigureAwait(false);
             var raw = JsonSerializer.Deserialize<AiRawResponse>(json, JsonOptions);
-            if (raw is null) return null;
+            if (raw is null)
+            {
+                logger.LogWarning(
+                    "[AI-DIAG] Classify FAIL deserialize null in {ElapsedMs}ms | file={FileName} jsonLen={JsonLen}",
+                    sw.ElapsedMilliseconds,
+                    fileName,
+                    json.Length);
+                return null;
+            }
 
-            return MapToResult(raw);
+            var mapped = MapToResult(raw);
+            logger.LogInformation(
+                "[AI-DIAG] Classify OK in {ElapsedMs}ms | file={FileName} decision={Decision} primary={Primary} conf={Confidence:F3} severity={Severity} relevance={Relevance} yolo={Yolo} scene={Scene} aiInferenceMs={AiInferenceMs} model={ModelVersion}",
+                sw.ElapsedMilliseconds,
+                fileName,
+                mapped.Decision,
+                mapped.Classify.PrimaryClass,
+                mapped.Classify.Confidence,
+                mapped.Classify.Severity,
+                mapped.Classify.ImageRelevance,
+                mapped.Classify.YoloActive,
+                mapped.Classify.SceneClassifierActive,
+                mapped.Classify.InferenceTimeMs,
+                mapped.Classify.ModelVersion);
+
+            return mapped;
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
+            sw.Stop();
             // BR-AI-006: fail fast so the optional pre-submit AI flow can fall back to manual input.
-            logger.LogWarning("AI Service timed out after {Seconds}s", options.Value.TimeoutSeconds);
+            logger.LogWarning(
+                "[AI-DIAG] Classify TIMEOUT after {TimeoutSec}s (elapsed {ElapsedMs}ms) | endpoint={Endpoint} file={FileName} — tăng Ai:TimeoutSeconds nếu YOLO cold-start > timeout",
+                timeoutSec,
+                sw.ElapsedMilliseconds,
+                endpoint,
+                fileName);
+            return null;
+        }
+        catch (HttpRequestException ex)
+        {
+            sw.Stop();
+            logger.LogError(
+                ex,
+                "[AI-DIAG] Classify CONNECTION FAIL in {ElapsedMs}ms | endpoint={Endpoint} file={FileName} — kiểm tra AI uvicorn :8000 và Ai:BaseUrl",
+                sw.ElapsedMilliseconds,
+                endpoint,
+                fileName);
             return null;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "AI Service call failed");
+            sw.Stop();
+            logger.LogError(
+                ex,
+                "[AI-DIAG] Classify EXCEPTION in {ElapsedMs}ms | endpoint={Endpoint} file={FileName}",
+                sw.ElapsedMilliseconds,
+                endpoint,
+                fileName);
             return null;
+        }
+    }
+
+    private static async Task<string> SafeReadBodyPreviewAsync(
+        HttpResponseMessage response,
+        CancellationToken ct)
+    {
+        try
+        {
+            var text = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+            if (string.IsNullOrEmpty(text))
+                return "(empty)";
+            return text.Length <= 300 ? text : text[..300] + "…";
+        }
+        catch
+        {
+            return "(unreadable)";
         }
     }
 
