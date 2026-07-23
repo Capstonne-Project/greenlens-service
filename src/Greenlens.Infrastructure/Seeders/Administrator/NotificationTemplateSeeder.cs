@@ -39,9 +39,9 @@ internal static class NotificationTemplateSeeder
         Create(
             "report_status_changed",
             "Trạng thái báo cáo thay đổi",
-            "Báo cáo ô nhiễm {report_id} của bạn đã chuyển sang trạng thái: {status}.",
+            "Báo cáo {report_id} của bạn đã chuyển sang trạng thái: {status}.",
             "Report status changed",
-            "Your pollution report {report_id} has been changed to: {status}.",
+            "Your {report_id} report has been changed to: {status}.",
             NotificationType.ReportStatusChanged),
 
         Create(
