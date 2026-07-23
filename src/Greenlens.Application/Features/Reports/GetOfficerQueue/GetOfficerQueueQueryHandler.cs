@@ -77,6 +77,9 @@ public sealed class GetOfficerQueueQueryHandler(
                 (r.SlaResolveDueAt.HasValue && r.SlaResolveDueAt < now));
         }
 
+        if (request.IsPossibleDuplicate.HasValue)
+            query = query.Where(r => r.IsPossibleDuplicate == request.IsPossibleDuplicate.Value);
+
         // ── Search (keyword on Code, Address, Category name) ──
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
@@ -117,7 +120,20 @@ public sealed class GetOfficerQueueQueryHandler(
                     .Where(m => m.Type == MediaType.Image)
                     .OrderBy(m => m.UploadedAt)
                     .Select(m => m.ThumbnailUrl ?? m.Url)
-                    .FirstOrDefault()))
+                    .FirstOrDefault(),
+                // Duplicate metadata
+                r.IsPossibleDuplicate,
+                r.PossibleDuplicateOfReportId,
+                r.PossibleDuplicateOfReportId.HasValue
+                    ? reports.QueryAsNoTracking()
+                        .Where(p => p.Id == r.PossibleDuplicateOfReportId!.Value)
+                        .Select(p => p.Code)
+                        .FirstOrDefault()
+                    : null,
+                r.DuplicateDetectionSource,
+                r.AiSimilarityScore,
+                reports.QueryAsNoTracking()
+                    .Count(d => d.IsPossibleDuplicate && d.PossibleDuplicateOfReportId == r.Id)))
             .ToListAsync(ct)
             .ConfigureAwait(false);
 

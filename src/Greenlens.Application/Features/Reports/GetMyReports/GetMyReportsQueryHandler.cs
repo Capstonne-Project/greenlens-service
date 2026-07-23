@@ -40,7 +40,14 @@ public sealed class GetMyReportsQueryHandler(
                 r.Media
                     .OrderBy(m => m.UploadedAt)
                     .Select(m => m.ThumbnailUrl ?? m.Url)
-                    .FirstOrDefault()))
+                    .FirstOrDefault(),
+                r.ParentReportId,
+                r.ParentReportId.HasValue
+                    ? reports.QueryAsNoTracking()
+                        .Where(p => p.Id == r.ParentReportId!.Value)
+                        .Select(p => p.Code)
+                        .FirstOrDefault()
+                    : null))
             .ToListAsync(ct).ConfigureAwait(false);
 
         logger.LogInformation("Lấy danh sách báo cáo thành công. Số lượng: {Count}", items.Count);

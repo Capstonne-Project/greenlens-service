@@ -373,7 +373,7 @@ public sealed class ReportsController(
     [SwaggerOperation(
         Summary = "[LEO/DEO] Xem hàng đợi báo cáo",
         Description = "Trả về danh sách báo cáo trong phạm vi quản lý. " +
-            "Hỗ trợ search (code, address, category), filter (status, severity, category, ward, date range, SLA breached), " +
+            "Hỗ trợ search (code, address, category), filter (status, severity, category, ward, date range, SLA breached, isPossibleDuplicate), " +
             "và sort (priorityScore, createdAt, severity, slaVerifyDueAt, slaResolveDueAt — asc/desc). " +
             "Default sort: priorityScore desc.")]
     [SwaggerResponse(200, "Hàng đợi", typeof(ApiResponse<GetOfficerQueueResponse>))]
@@ -388,6 +388,7 @@ public sealed class ReportsController(
         [FromQuery] DateTime? fromDate = null,
         [FromQuery] DateTime? toDate = null,
         [FromQuery] bool? slaBreached = null,
+        [FromQuery] bool? isPossibleDuplicate = null,
         // Search
         [FromQuery] string? search = null,
         // Sort
@@ -396,7 +397,7 @@ public sealed class ReportsController(
         CancellationToken ct = default)
         => (await sender.Send(new GetOfficerQueueQuery(
             page, pageSize, status, severity, categoryId, wardCode,
-            fromDate, toDate, slaBreached, search, sortBy, sortDir), ct)).ToHttp();
+            fromDate, toDate, slaBreached, isPossibleDuplicate, search, sortBy, sortDir), ct)).ToHttp();
 
     // ═══════════════════════════════════════════
     // ██  TEAM WORKFLOW

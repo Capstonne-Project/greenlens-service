@@ -41,8 +41,9 @@ public sealed class ConfirmDuplicateCommandHandler(
         if (primary is null)
             return Errors.Reports.PrimaryReportNotFound;
 
-        // BR-REP-032: only Submitted/Verified reports can be merged as duplicates.
-        if (report.Status is not (ReportStatus.Submitted or ReportStatus.Verified))
+        // BR-REP-032: report must be verified before it can be confirmed as duplicate.
+        // Already-Duplicate or Rejected reports cannot be merged again.
+        if (report.Status is ReportStatus.Submitted or ReportStatus.Duplicate or ReportStatus.Rejected)
             return Errors.Reports.InvalidStatusTransition;
 
         var fromStatus = report.Status;

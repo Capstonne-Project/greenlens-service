@@ -1,4 +1,5 @@
 using Greenlens.Application.Common.Interfaces;
+using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Features.Gamification.AwardPoints;
 using Greenlens.Application.Features.Gamification.CheckBadges;
 using Greenlens.Domain.Entities;
@@ -63,21 +64,30 @@ internal sealed class DuplicateMergedPointsHandler(
 /// <remarks>Implements: BR-REP-032, BR-NTF-002.</remarks>
 internal sealed class DuplicateMergedNotificationHandler(
     INotificationService notificationService,
+    IReportRepository reports,
     ILogger<DuplicateMergedNotificationHandler> logger)
     : INotificationHandler<ReportMarkedDuplicateEvent>
 {
     public async Task Handle(ReportMarkedDuplicateEvent notification, CancellationToken ct)
     {
+        // Fetch primary report code for notification message
+        var primaryCode = await reports.QueryAsNoTracking()
+            .Where(r => r.Id == notification.PrimaryReportId)
+            .Select(r => r.Code)
+            .FirstOrDefaultAsync(ct)
+            .ConfigureAwait(false);
+
         logger.LogDebug(
-            "Notification: Report {ReportId} merged as duplicate → notify reporter {UserId}",
-            notification.ReportId, notification.ReporterId);
+            "Notification: Report {ReportId} merged as duplicate of {PrimaryCode} → notify reporter {UserId}",
+            notification.ReportId, primaryCode, notification.ReporterId);
 
         await notificationService.SendRawAsync(
             notification.ReporterId,
             NotificationType.ReportStatusChanged,
             "Báo cáo được gộp",
-            "Báo cáo của bạn đã được xác định là trùng lặp và gộp vào một báo cáo hiện có. Cảm ơn đóng góp của bạn!",
-            notification.ReportId,
+            $"Báo cáo của bạn đã được xác định là trùng lặp và gộp vào báo cáo {primaryCode ?? "hiện có"}. " +
+            "Bạn có thể theo dõi tiến độ xử lý tại báo cáo gốc. Cảm ơn đóng góp của bạn!",
+            notification.PrimaryReportId, // referenceId = primary report → mobile deep-link
             ct).ConfigureAwait(false);
     }
 }

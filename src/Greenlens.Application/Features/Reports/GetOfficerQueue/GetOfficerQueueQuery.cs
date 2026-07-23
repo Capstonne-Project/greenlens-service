@@ -17,6 +17,7 @@ public sealed record GetOfficerQueueQuery(
     DateTime? FromDate = null,
     DateTime? ToDate = null,
     bool? SlaBreached = null,
+    bool? IsPossibleDuplicate = null,
     // ── Search ──
     string? Search = null,
     // ── Sort ──
@@ -59,4 +60,11 @@ public sealed record OfficerQueueItem(
     DateTime CreatedAt,
     DateTime? SlaVerifyDueAt,
     DateTime? SlaResolveDueAt,
-    string? FirstImageUrl);
+    string? FirstImageUrl,
+    // ── Duplicate metadata ──
+    bool IsPossibleDuplicate,
+    Guid? PossibleDuplicateOfReportId,
+    string? PossibleDuplicateOfReportCode,
+    string? DuplicateDetectionSource,
+    decimal? AiSimilarityScore,
+    int DuplicateCandidateCount);
