@@ -26,4 +26,8 @@ public sealed record NotificationItem(
     Guid? ReferenceId,
     bool IsRead,
     DateTime? ReadAt,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    /// <summary>Pollution category display name when ReferenceId points to a report.</summary>
+    string? CategoryName = null,
+    /// <summary>First report image thumbnail when ReferenceId points to a report.</summary>
+    string? ThumbnailUrl = null);
