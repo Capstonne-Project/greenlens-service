@@ -32,17 +32,6 @@ public static partial class Errors
             "Email này thuộc tài khoản đã xóa. Vui lòng khôi phục tài khoản thay vì đăng ký mới.",
             ErrorType.Conflict);
 
-        /// <summary>BR-AUTH-014: CAPTCHA bắt buộc từ lần đăng nhập sai thứ 3.</summary>
-        public static Error CaptchaRequired => new(
-            "CAPTCHA_REQUIRED",
-            "Vui lòng xác minh CAPTCHA trước khi đăng nhập.",
-            ErrorType.Validation);
-
-        public static Error CaptchaInvalid => new(
-            "CAPTCHA_INVALID",
-            "Xác minh CAPTCHA không thành công. Vui lòng thử lại.",
-            ErrorType.Validation);
-
         public static Error OtpExpired => new(
             "OTP_EXPIRED",
             "Mã OTP đã hết hạn. Vui lòng yêu cầu mã mới.",

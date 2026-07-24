@@ -1,9 +1,7 @@
-using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Features.Auth.Login;
 using Greenlens.Domain.Entities;
-using Greenlens.Domain.Enums;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 
@@ -17,19 +15,17 @@ public sealed class LoginCommandHandlerTests
     private readonly IUnitOfWork _uow = Substitute.For<IUnitOfWork>();
     private readonly IJwtService _jwt = Substitute.For<IJwtService>();
     private readonly IPasswordHasher _hasher = Substitute.For<IPasswordHasher>();
-    private readonly ICaptchaValidator _captcha = Substitute.For<ICaptchaValidator>();
     private readonly LoginCommandHandler _sut;
 
     public LoginCommandHandlerTests()
     {
-        _captcha.ValidateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(true);
         _sut = new LoginCommandHandler(
-            _users, _refreshTokens, _companyStaff, _uow, _jwt, _hasher, _captcha,
+            _users, _refreshTokens, _companyStaff, _uow, _jwt, _hasher,
             NullLogger<LoginCommandHandler>.Instance);
     }
 
-    private static LoginCommand EmailLogin(string email, string password, string? captcha = null) =>
-        new(email, null, password, captcha);
+    private static LoginCommand EmailLogin(string email, string password) =>
+        new(email, password);
 
     private static User CreateUser(string email = "test@test.com")
     {
@@ -101,7 +97,7 @@ public sealed class LoginCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_RequiresCaptchaWithoutToken_ShouldReturnCaptchaRequired_BR_AUTH_014()
+    public async Task Handle_ThreeFailedAttempts_StillAllowsLoginAttempt_BR_AUTH_011()
     {
         var user = CreateUser();
         user.RecordFailedLogin();
@@ -109,11 +105,13 @@ public sealed class LoginCommandHandlerTests
         user.RecordFailedLogin();
 
         _users.GetByEmailAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(user);
+        _hasher.Verify(Arg.Any<string>(), Arg.Any<string>()).Returns(false);
 
-        var result = await _sut.Handle(EmailLogin("test@test.com", "pass"), CancellationToken.None);
+        var result = await _sut.Handle(EmailLogin("test@test.com", "wrong"), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal("CAPTCHA_REQUIRED", result.Error!.Code);
+        Assert.Equal("INVALID_CREDENTIALS", result.Error!.Code);
+        Assert.Equal(4, user.FailedLoginAttempts);
     }
 
     [Fact]

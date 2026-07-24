@@ -1,21 +1,32 @@
+using System.Text.RegularExpressions;
+
 namespace Greenlens.Application.Common;
 
 /// <summary>Normalizes VN phone numbers to international format without '+' (84xxxxxxxxx).</summary>
-public static class PhoneNumberNormalizer
+public static partial class PhoneNumberNormalizer
 {
+    // Matches Register/Login validators: 84 + 8–10 subscriber digits.
+    [GeneratedRegex(@"^84[0-9]{8,10}$")]
+    private static partial Regex NormalizedVnPhone();
+
     public static string? Normalize(string? phone)
     {
         if (string.IsNullOrWhiteSpace(phone))
             return null;
 
         phone = phone.Trim().Replace(" ", "").Replace("-", "");
-        if (phone.StartsWith("+84", StringComparison.Ordinal))
-            return phone[1..];
-        if (phone.StartsWith("84", StringComparison.Ordinal) && phone.Length >= 11)
-            return phone;
-        if (phone.StartsWith('0'))
-            return "84" + phone[1..];
 
-        return phone;
+        string? normalized = phone switch
+        {
+            _ when phone.StartsWith("+84", StringComparison.Ordinal) => phone[1..],
+            _ when phone.StartsWith("84", StringComparison.Ordinal) => phone,
+            _ when phone.StartsWith('0') => "84" + phone[1..],
+            _ => null
+        };
+
+        if (normalized is null || !NormalizedVnPhone().IsMatch(normalized))
+            return null;
+
+        return normalized;
     }
 }

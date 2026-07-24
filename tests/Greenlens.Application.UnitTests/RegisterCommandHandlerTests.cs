@@ -21,11 +21,10 @@ public sealed class RegisterCommandHandlerTests
         _sut = new RegisterCommandHandler(_users, _otps, _uow, _hasher, _email, NullLogger<RegisterCommandHandler>.Instance);
         _hasher.Hash(Arg.Any<string>()).Returns("hashed");
         _users.GetDeletedByEmailAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((User?)null);
-        _users.PhoneExistsIncludingDeletedAsync(Arg.Any<string>(), null, Arg.Any<CancellationToken>()).Returns(false);
     }
 
     private static RegisterCommand CreateCommand(string email) =>
-        new(email, "Password123!", "Password123!", "New User", null, true);
+        new(email, "Password123!", "New User", true);
 
     [Fact]
     public async Task Handle_NewUser_ShouldSucceed()
