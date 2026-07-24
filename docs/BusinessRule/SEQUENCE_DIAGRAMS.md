@@ -1171,71 +1171,107 @@ sequenceDiagram
 
 ### SD-44 ⭐ Add Comment (with Media & Moderation)
 
-**Actor:** Citizen · **BR:** BR-CMT-001, BR-CMT-002, BR-CMT-005
+**Actor:** Citizen · **BR:** BR-CMT-001, BR-CMT-002, BR-CMT-003
 
 ```mermaid
 sequenceDiagram
     actor Citizen
     participant App as Mobile App
     participant Ctrl as :CommentsController
-    participant Hdl as :CreateCommentHandler
+    participant Hdl as :AddCommentCommandHandler
+    participant UserRepo as :IUserRepository
     participant RptRepo as :IReportRepository
+    participant Access as CommentAccess
     participant Prof as :IProfanityFilter
-    participant CmtRepo as :ICommentRepository
+    participant DB as :IApplicationDbContext
     participant UoW as :IUnitOfWork
-    participant Notif as :INotificationService
-    participant DB as Database
+    participant Evt as DomainEvent
 
     Citizen->>+App: Viết bình luận + đính kèm ảnh (optional)
-    App->>+Ctrl: POST /api/reports/{reportId}/comments {content, mediaUrls?, parentId?}
-    Ctrl->>+Hdl: Send(CreateCommentCommand)
+    App->>+Ctrl: POST /api/v1/reports/{reportId}/comments<br/>{content, images?, parentCommentId?}
+    Ctrl->>+Hdl: Send(AddCommentCommand)
 
-    Hdl->>Hdl: Check user.IsCommentBanned() [BR-CMT-005]
-
-    Hdl->>+RptRepo: GetByIdAsync(reportId)
-    RptRepo->>+DB: SELECT * FROM reports WHERE id = ?
-    DB-->>-RptRepo: report
-    RptRepo-->>-Hdl: report ✓
-
-    alt parentId provided (reply)
-        Hdl->>+CmtRepo: GetByIdAsync(parentId)
-        CmtRepo->>+DB: SELECT * FROM comments WHERE id = ?
-        DB-->>-CmtRepo: parentComment
-        CmtRepo-->>-Hdl: parentComment ✓
+    Hdl->>Hdl: Check currentUser.IsAuthenticated [BR-CMT-001]
+    alt Chưa đăng nhập
+        Hdl-->>Ctrl: Result.Failure(LoginRequired)
+        Ctrl-->>App: 403 Forbidden
+        App-->>Citizen: "Bạn cần đăng nhập để bình luận"
     end
 
-    Hdl->>+Prof: ContainsProfanity(content)
-    Prof-->>-Hdl: hasProfanity
+    Hdl->>+UserRepo: GetByIdAsync(currentUser.UserId)
+    UserRepo-->>-Hdl: user
+    alt User không tồn tại
+        Hdl-->>Ctrl: Result.Failure(UserNotFound)
+        Ctrl-->>App: 404 Not Found
+    end
 
-    alt Content has profanity
+    Hdl->>Hdl: user.IsCommentBanned()? [BR-CMT-003]
+    alt Bị cấm bình luận
+        Hdl-->>Ctrl: Result.Failure(CommentBanned)
+        Ctrl-->>App: 422 "Tài khoản bị khóa bình luận"
+        App-->>Citizen: "Bạn đã bị khóa bình luận"
+    end
+
+    Hdl->>+RptRepo: GetByIdAsync(reportId)
+    RptRepo-->>-Hdl: report
+    alt Report không tồn tại
+        Hdl-->>Ctrl: Result.Failure(ReportNotFound)
+        Ctrl-->>App: 404 Not Found
+    end
+
+    Hdl->>+Access: CanCommentOnReport(hideReporterName,<br/>role, userId, reporterId) [BR-CMT-001]
+    Access-->>-Hdl: allowed?
+    alt Không có quyền comment (anonymous report guard)
+        Hdl-->>Ctrl: Result.Failure(CommentNotAllowed)
+        Ctrl-->>App: 403 Forbidden
+        App-->>Citizen: "Bạn không có quyền bình luận trên báo cáo này"
+    end
+
+    opt parentCommentId provided (reply)
+        Hdl->>+DB: Set<Comment>().FirstOrDefaultAsync(parentId, reportId)
+        DB-->>-Hdl: parentComment
+        alt Parent comment không tồn tại
+            Hdl-->>Ctrl: Result.Failure(CommentNotFound)
+            Ctrl-->>App: 404 Not Found
+        end
+        Hdl->>Hdl: Flatten nested reply (TikTok-style):<br/>parentId = parent.ParentCommentId ?? parent.Id
+    end
+
+    Hdl->>+Prof: ContainsProfanity(content) [BR-CMT-003]
+    Prof-->>-Hdl: hasProfanity
+    alt Nội dung vi phạm
         Hdl->>Hdl: user.RecordCommentViolation()
-        Note over Hdl: 3 violations → ban 7d [BR-CMT-005]
-        Hdl-->>Ctrl: 400 InappropriateContent
-        Ctrl-->>App: 400
+        Note over Hdl: 3 violations → ban 7 ngày [BR-CMT-003]
+        Hdl->>+UoW: SaveChangesAsync()
+        UoW-->>-Hdl: OK (lưu violation count)
+        Hdl-->>Ctrl: Result.Failure(InappropriateContent)
+        Ctrl-->>App: 422 "Nội dung vi phạm quy tắc cộng đồng"
         App-->>Citizen: "Nội dung vi phạm quy tắc cộng đồng"
     end
 
-    Hdl->>Hdl: Comment.Create(reportId, authorId, content, parentId?)
-    Hdl->>CmtRepo: Add(comment)
+    Hdl->>Hdl: Comment.Create(reportId, userId, content, parentId?)
+    Note over Hdl: try/catch DomainException → DomainValidation error
 
-    opt mediaUrls provided [BR-CMT-002]
-        loop For each mediaUrl
+    Hdl->>Hdl: comment.AddDomainEvent(CommentPostedEvent)
+    Hdl->>DB: Set<Comment>().Add(comment)
+
+    opt images provided [BR-CMT-002]
+        loop For each image {url, mimeType, sizeBytes}
             Hdl->>Hdl: CommentMedia.Create(commentId, url, mime, size)
+            Hdl->>DB: Set<CommentMedia>().Add(media)
         end
     end
 
     Hdl->>+UoW: SaveChangesAsync()
     UoW->>+DB: INSERT INTO comments,<br/>INSERT INTO comment_media (optional)
     DB-->>-UoW: OK
+    Note over UoW: DomainEvent dispatch (MediatR IPublisher)
     UoW-->>-Hdl: OK
 
-    Hdl->>+Notif: NotifyAsync(reportOwner, NewComment)
-    Notif->>+DB: INSERT INTO notifications
-    DB-->>-Notif: OK
-    Notif-->>-Hdl: Sent
+    Evt-->>Evt: CommentPostedEvent →<br/>Notification handler gửi thông báo cho report owner
 
-    Hdl-->>-Ctrl: Result<CommentResponse>
-    Ctrl-->>-App: 201 Created {commentId}
+    Hdl-->>-Ctrl: Result<AddCommentResponse>
+    Ctrl-->>-App: 201 Created {id, reportId, content,<br/>createdAt, canEdit, parentCommentId, images}
     App-->>-Citizen: Hiển thị bình luận mới
 ```
 

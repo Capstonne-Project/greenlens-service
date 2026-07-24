@@ -142,7 +142,7 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 | BR-REP-019     | Draft max 3, xóa 7d                           |   ✅   | `SaveDraft/`, `GetMyDrafts/`, `DeleteDraft/` + `DraftCleanupJob` (daily 03:00)                  |
 | BR-REP-020/021 | State machine + role transitions              |   ✅   | `Report.cs` state machine methods                                                               |
 | BR-REP-022     | Reject reason ≥ 20 chars                      |   ✅   | `RejectReport/` validator                                                                       |
-| BR-REP-030     | Duplicate Tier 1 (geo ≤50m + category + 24h)  |   ✅   | Inline trong `SubmitPollutionReportCommandHandler` — `GeoMath.HaversineMeters` + bbox           |
+| BR-REP-030     | Duplicate Tier 1 (geo ≤50m + category)        |   ✅   | Inline trong `SubmitPollutionReportCommandHandler` — `GeoMath.HaversineMeters` + bbox           |
 | BR-REP-031     | LEO xác nhận / bác bỏ nghi ngờ trùng          |   ✅   | `ConfirmDuplicate/`, `DismissDuplicate/`, `GetDuplicateCandidates/`                             |
 | BR-REP-032     | Merge duplicate (+50% điểm, media + comments) |   ✅   | `ConfirmDuplicate` merge media + comments; `DuplicateMergedPointsHandler` (+50% ReportVerified) |
 | BR-REP-033     | Citizen flag ≥3 → LEO review                  |   ✅   | `FlagReport/` + `DuplicateReviewNeeded` template + `SendFromTemplateAsync`                      |
