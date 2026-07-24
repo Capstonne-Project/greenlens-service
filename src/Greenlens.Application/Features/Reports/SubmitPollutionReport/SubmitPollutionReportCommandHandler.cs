@@ -318,7 +318,7 @@ public sealed class SubmitPollutionReportCommandHandler(
             reportWasteTags.AddRange(newTags);
         }
 
-        // ── Tier 1 duplicate detection (BR-REP-030): same category + within 50m + within 24h ──
+        // ── Tier 1 duplicate detection (BR-REP-030): same category + within 50m ──
         // Runs inline (fast, free). Tier 2 (AI image compare) is triggered out-of-band via a
         // background job (see ReportPossibleDuplicateFlaggedEvent) to keep submit under p95<2s (BR-SYS-001).
         await FlagPossibleDuplicateAsync(report, cancellationToken).ConfigureAwait(false);
@@ -355,7 +355,7 @@ public sealed class SubmitPollutionReportCommandHandler(
 
     /// <summary>
     /// BR-REP-030: Tier 1 duplicate check — find the oldest active report with the same
-    /// category within ~50m and 24h, then flag this report as a possible duplicate.
+    /// category within ~50m, then flag this report as a possible duplicate.
     /// Uses a decimal bounding box (reports store lat/lng, not a PostGIS geometry column),
     /// refined with an exact Haversine distance to reject bounding-box corners.
     /// </summary>
@@ -367,13 +367,10 @@ public sealed class SubmitPollutionReportCommandHandler(
         var cosLat = Math.Max(Math.Cos((double)report.Latitude * Math.PI / 180.0), 1e-6);
         var lngDelta = (decimal)(radiusMeters / (111_320.0 * cosLat));
 
-        var since = report.CreatedAt.AddHours(-24);
-
         var candidates = await reports.QueryAsNoTracking()
             .Where(r => r.CategoryId == report.CategoryId)
             .Where(r => r.Id != report.Id)
             .Where(r => r.Status != ReportStatus.Duplicate && r.Status != ReportStatus.Rejected)
-            .Where(r => r.CreatedAt >= since)
             .Where(r => r.Latitude >= report.Latitude - latDelta && r.Latitude <= report.Latitude + latDelta)
             .Where(r => r.Longitude >= report.Longitude - lngDelta && r.Longitude <= report.Longitude + lngDelta)
             .OrderBy(r => r.CreatedAt)
@@ -386,7 +383,7 @@ public sealed class SubmitPollutionReportCommandHandler(
             GeoMath.HaversineMeters(report.Latitude, report.Longitude, c.Latitude, c.Longitude) <= radiusMeters);
 
         if (match is not null)
-            report.MarkPossibleDuplicate(match.Id, "geo_time");
+            report.MarkPossibleDuplicate(match.Id, "geo_category");
     }
 
     private async Task<string> GenerateUniqueCodeAsync(CancellationToken ct)
