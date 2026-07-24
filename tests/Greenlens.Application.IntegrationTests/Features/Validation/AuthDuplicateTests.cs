@@ -28,9 +28,7 @@ public sealed class AuthDuplicateTests(PostgresContainerFixture fixture)
         var result = await Mediator.Send(new RegisterCommand(
             email,
             "Password123!",
-            "Password123!",
             "Duplicate User",
-            null,
             true)).ConfigureAwait(false);
 
         result.IsFailure.Should().BeTrue();
@@ -52,9 +50,7 @@ public sealed class AuthDuplicateTests(PostgresContainerFixture fixture)
         var result = await Mediator.Send(new RegisterCommand(
             email,
             "Password123!",
-            "Password123!",
             "New User",
-            null,
             true)).ConfigureAwait(false);
 
         result.IsFailure.Should().BeTrue();

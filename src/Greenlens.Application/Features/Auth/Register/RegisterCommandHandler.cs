@@ -15,8 +15,8 @@ namespace Greenlens.Application.Features.Auth.Register;
 /// Register a new citizen account and send email verification OTP.
 /// </summary>
 /// <remarks>
-/// Implements: BR-AUTH-003/004 (phone), BR-AUTH-005 (password strength), BR-AUTH-006 (confirm password),
-/// BR-AUTH-021 (deleted email → restore hint), BR-DAT-001 (bcrypt ≥12).
+/// Implements: BR-AUTH-005 (password strength), BR-AUTH-021 (deleted email → restore hint),
+/// BR-DAT-001 (bcrypt ≥12).
 /// </remarks>
 public sealed class RegisterCommandHandler(
     IUserRepository users,
@@ -37,18 +37,8 @@ public sealed class RegisterCommandHandler(
         if (emailError is not null)
             return emailError;
 
-        var phoneError = await UserRegistrationGuard
-            .ValidateNewPhoneAsync(users, request.PhoneNumber, cancellationToken)
-            .ConfigureAwait(false);
-        if (phoneError is not null)
-            return phoneError;
-
         var passwordHash = passwordHasher.Hash(request.Password);
         var user = User.Create(request.Email, passwordHash, request.FullName);
-
-        var normalizedPhone = PhoneNumberNormalizer.Normalize(request.PhoneNumber);
-        if (normalizedPhone is not null)
-            user.VerifyPhone(normalizedPhone);
 
         users.Add(user);
 

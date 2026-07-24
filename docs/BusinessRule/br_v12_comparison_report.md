@@ -2,7 +2,41 @@
 
 > **Source of truth:** [SU26SE049_BusinessRules_v1_2.md](file:///d:/LEARNING/S9SU26/SEP490/greenlens-service/SU26SE049_BusinessRules_v1_2.md) (v1.2, 07/06/2026)
 > **OVERVIEW hiện tại:** [OVERVIEW.md](file:///d:/LEARNING/S9SU26/SEP490/greenlens-service/OVERVIEW.md) v1.5
-> **Cập nhật báo cáo:** 2026-07-15 — Comments, Duplicate Detection, AiRetryJob
+> **Cập nhật báo cáo:** 2026-07-24 — Revert API breaking auth (Login/Register); ghi chú defer BR-AUTH-003/004/006/013/014
+
+---
+
+## B.0 API contract — Auth (defer FE/mobile sync)
+
+> **2026-07-24:** Đã **gỡ** hai thay đổi breaking trên `POST /v1/auth/login` và `POST /v1/auth/register` để giữ contract tương thích FE/mobile hiện tại. Logic nội bộ (lockout, duplicate guard, soft-delete restore hint) vẫn giữ.
+
+| Endpoint | Thay đổi đã thử (validation-hardening) | Trạng thái hiện tại | Khi nào bật lại |
+| -------- | -------------------------------------- | :------------------: | --------------- |
+| `POST /v1/auth/login` | Email **hoặc** phone (XOR); `captchaToken` khi sai MK ≥ 3 lần | **Đã revert** — chỉ `email` + `password` | Sau khi FE/mobile gửi phone login + Turnstile |
+| `POST /v1/auth/register` | `confirmPassword` (bắt buộc); `phoneNumber` (tùy chọn) | **Đã revert** — `email`, `password`, `fullName`, `acceptTerms` | Sau khi FE/mobile thêm UI xác nhận MK + SĐT |
+
+**Contract hiện tại (stable):**
+
+```json
+// POST /v1/auth/login
+{ "email": "user@example.com", "password": "..." }
+
+// POST /v1/auth/register
+{ "email": "...", "password": "...", "fullName": "...", "acceptTerms": true }
+```
+
+**Backend vẫn có sẵn (chưa expose qua Register/Login):** `PhoneNumberNormalizer`, `IUserRepository.GetByPhoneAsync`, `UserRegistrationGuard.ValidateNewPhoneAsync`, `VerifyPhoneFirebase/` — dùng cho flow cập nhật SĐT / verify OTP riêng.
+
+**BR liên quan:**
+
+| BR | Mô tả | API hiện tại | Ghi chú |
+| --- | --- | :---: | --- |
+| BR-AUTH-003 | SĐT VN format | ⚠️ | Chưa nhận SĐT lúc đăng ký — validate ở `UpdateUser` / `VerifyPhoneFirebase` |
+| BR-AUTH-004 | SĐT unique | ⚠️ | Guard có trong `UserRegistrationGuard`; chưa gọi từ Register |
+| BR-AUTH-006 | Confirm password | ❌ | FE chưa gửi field — defer |
+| BR-AUTH-011 | Lockout 5 lần / 15' → 30' | ✅ | `LoginCommandHandler` + `User.RecordFailedLogin()` |
+| BR-AUTH-013 | Login email/SĐT | ⚠️ | Chỉ email; phone login defer |
+| BR-AUTH-014 | CAPTCHA từ lần 3 | ❌ | Chưa wire Turnstile — đã gỡ khỏi login |
 
 ---
 
@@ -62,38 +96,38 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 |      Trạng thái       | Modules                                                                                                                                                                   | % ước tính |
 | :-------------------: | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :--------: |
 |  ✅ Core hoàn thành   | Auth, Reports (36+ slices), Comments, Duplicate Detection, Organization, Inspection, Cleanup, Company, Admin, Gamification, Notifications, Map (2), Catalog, Media, Users |    ~89%    |
-| ⚠️ Implement một phần | Map (6 rules còn lại), AI (BR-AI-002/004/005/007), Global API rate limit middleware (BR-SYS-004)                                                                          |    ~6%     |
-|   ❌ Chưa implement   | Brute-force + CAPTCHA (BR-AUTH-014)                                                                                                                                       |    ~3%     |
+| ⚠️ Implement một phần | Map (6 rules còn lại), AI (BR-AI-002/004/005/007), Global API rate limit middleware (BR-SYS-004), Auth phone/confirm/CAPTCHA (BR-AUTH-003/004/006/013/014 — defer API) |    ~6%     |
+|   ❌ Chưa implement   | Brute-force CAPTCHA Turnstile (BR-AUTH-014)                                                                                                                               |    ~3%     |
 
 > **Cập nhật 2026-07-15:** BR-REP-004 (mô tả 10–1000 + profanity), BR-REP-010 (Redis rate limit 5/h, 20/24h), BR-REP-011 (EXIF stale → Suspicious). Comments, Duplicate, AiRetryJob.
 
 ---
 
-## B.1 Auth & Account (`BR-AUTH-001..021`) — ✅ 15/17 rules
+## B.1 Auth & Account (`BR-AUTH-001..021`) — ✅ 12/17 rules exposed via Login/Register API
 
 | BR          | Mô tả                                      | Status | Evidence                                                                 |
 | ----------- | ------------------------------------------ | :----: | ------------------------------------------------------------------------ |
 | BR-AUTH-001 | Email RFC 5322                             |   ✅   | `Register/` validator                                                    |
-| BR-AUTH-002 | Email unique                               |   ✅   | `Register/` handler                                                      |
-| BR-AUTH-003 | SĐT VN format                              |   ✅   | `Register/` validator                                                    |
-| BR-AUTH-004 | SĐT unique                                 |   ✅   | `Register/` handler                                                      |
+| BR-AUTH-002 | Email unique                               |   ✅   | `Register/` handler + `UserRegistrationGuard`                            |
+| BR-AUTH-003 | SĐT VN format                              |   ⚠️   | Có helper/validator riêng; **chưa** field `phoneNumber` trên Register — xem §B.0 |
+| BR-AUTH-004 | SĐT unique                                 |   ⚠️   | `UserRegistrationGuard.ValidateNewPhoneAsync`; **chưa** gọi từ Register — xem §B.0 |
 | BR-AUTH-005 | Password strength                          |   ✅   | `Register/` validator                                                    |
-| BR-AUTH-006 | Confirm password                           |   ✅   | `Register/` validator                                                    |
+| BR-AUTH-006 | Confirm password                           |   ❌   | **Defer** — API không nhận `confirmPassword` (§B.0)                      |
 | BR-AUTH-007 | OTP 10 phút                                |   ✅   | `RequestOtp/`, `VerifyOtp/`                                              |
 | BR-AUTH-008 | Default role Citizen                       |   ✅   | `Register/` handler                                                      |
 | BR-AUTH-009 | Phân cấp quyền tạo role (Admin/DEO/LEO/CM) |   ✅   | `UpdateUserRole/` handler — Admin only, DEO/LEO/CM dùng flow riêng       |
 | BR-AUTH-010 | Required fields                            |   ✅   | `Register/` validator                                                    |
-| BR-AUTH-011 | Tên 2-50 ký tự tiếng Việt                  |   ✅   | `Register/` validator — regex `[\p{L}\s]` 2-50 chars                     |
+| BR-AUTH-011 | Tên 2-50 ký tự + lockout 5 fails → 30'     |   ✅   | `Register/` validator; `Login/` lockout via `RecordFailedLogin()`        |
 | BR-AUTH-012 | Accept Terms                               |   ✅   | `RegisterCommand.AcceptTerms` + validator `.Equal(true)`                 |
-| BR-AUTH-013 | Login email/SĐT                            |   ✅   | `Login/` feature                                                         |
-| BR-AUTH-014 | Brute-force lock 30' + CAPTCHA lần 3       |   ❌   | Chưa có sliding window + Turnstile                                       |
+| BR-AUTH-013 | Login email/SĐT                            |   ⚠️   | Login **email only** — phone login defer (§B.0)                          |
+| BR-AUTH-014 | Brute-force lock 30' + CAPTCHA lần 3       |   ⚠️   | Lockout ✅; CAPTCHA ❌ (Turnstile chưa wire)                              |
 | BR-AUTH-015 | Block Inactive/Banned + Expired company    |   ✅   | Login check `IsBanned`, `IsDeleted`, company `Expired` + `ToggleBanUser` |
 | BR-AUTH-016 | JWT 24h + Refresh 30d                      |   ✅   | `RefreshToken/`, `JwtService.cs`                                         |
 | BR-AUTH-017 | Guest read-only (bỏ anonymous submit)      |   ✅   | `[Authorize]` trên submit endpoints                                      |
 | BR-AUTH-018 | Forgot/Reset password                      |   ✅   | `ForgotPassword/`, `ResetPassword/`                                      |
 | BR-AUTH-019 | Update profile                             |   ✅   | `Users/UpdateUserProfile/`                                               |
 | BR-AUTH-020 | Change password (không trùng 3 MK cũ)      |   ✅   | `ChangePassword/` + `PasswordHistory` entity, check last 3 hashes        |
-| BR-AUTH-021 | Xóa tài khoản soft delete 90d              |   ✅   | `RequestAccountDeletion/`, `RestoreAccount/`, `AccountHardDeleteJob`     |
+| BR-AUTH-021 | Xóa tài khoản soft delete 90d              |   ✅   | `RequestAccountDeletion/`, `RestoreAccount/`, `AccountHardDeleteJob`; Register trả `EMAIL_DELETED_RESTORE_AVAILABLE` |
 
 ---
 

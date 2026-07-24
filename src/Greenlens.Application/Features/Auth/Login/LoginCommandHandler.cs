@@ -10,9 +10,9 @@ using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Auth.Login;
 
-/// <summary>Login with email or phone and password.</summary>
+/// <summary>Login with email and password.</summary>
 /// <remarks>
-/// Implements: BR-AUTH-013 (login), BR-AUTH-014 (CAPTCHA + lockout), BR-AUTH-015 (block banned/expired),
+/// Implements: BR-AUTH-013 (login), BR-AUTH-011 (lockout), BR-AUTH-015 (block banned/expired),
 /// BR-AUTH-016 (JWT + refresh).
 /// </remarks>
 public sealed class LoginCommandHandler(
@@ -22,7 +22,6 @@ public sealed class LoginCommandHandler(
     IUnitOfWork uow,
     IJwtService jwtService,
     IPasswordHasher passwordHasher,
-    ICaptchaValidator captchaValidator,
     ILogger<LoginCommandHandler> logger)
     : IRequestHandler<LoginCommand, Result<LoginResponse>>
 {
@@ -30,23 +29,9 @@ public sealed class LoginCommandHandler(
         LoginCommand request,
         CancellationToken cancellationToken)
     {
-        User? user = null;
-
-        if (!string.IsNullOrWhiteSpace(request.Email))
-        {
-            var email = request.Email.Trim().ToLowerInvariant();
-            user = await users.GetByEmailAsync(email, cancellationToken)
-                .ConfigureAwait(false);
-        }
-        else if (!string.IsNullOrWhiteSpace(request.Phone))
-        {
-            var phone = PhoneNumberNormalizer.Normalize(request.Phone);
-            if (phone is not null)
-            {
-                user = await users.GetByPhoneAsync(phone, cancellationToken)
-                    .ConfigureAwait(false);
-            }
-        }
+        var user = await users.GetByEmailAsync(
+            request.Email.ToLowerInvariant(), cancellationToken)
+            .ConfigureAwait(false);
 
         if (user is null)
             return Errors.Auth.InvalidCredentials;
@@ -64,18 +49,6 @@ public sealed class LoginCommandHandler(
         {
             logger.LogWarning("Login attempt on locked account {UserId}", user.Id);
             return Errors.Auth.AccountLocked;
-        }
-
-        if (user.RequiresCaptcha())
-        {
-            if (string.IsNullOrWhiteSpace(request.CaptchaToken))
-                return Errors.Auth.CaptchaRequired;
-
-            var captchaOk = await captchaValidator
-                .ValidateAsync(request.CaptchaToken, cancellationToken)
-                .ConfigureAwait(false);
-            if (!captchaOk)
-                return Errors.Auth.CaptchaInvalid;
         }
 
         if (!user.IsEmailVerified)
