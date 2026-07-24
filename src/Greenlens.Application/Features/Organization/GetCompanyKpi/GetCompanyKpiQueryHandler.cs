@@ -49,9 +49,7 @@ public sealed class GetCompanyKpiQueryHandler(
         {
             // DEO/Admin must specify
             if (!request.CompanyId.HasValue)
-                return new Error("COMPANY_ID_REQUIRED",
-                    "CompanyId là bắt buộc cho DEO/Admin.",
-                    ErrorType.Validation);
+                return Errors.Organization.CompanyIdRequired;
 
             companyId = request.CompanyId.Value;
         }

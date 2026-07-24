@@ -1,3 +1,4 @@
+using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using MediatR;
@@ -18,8 +19,7 @@ public sealed class UpdateGamificationConfigCommandHandler(
         var config = await configs.GetByIdAsync(request.Id, ct).ConfigureAwait(false);
 
         if (config is null)
-            return Result.Failure(
-                new Error("GamificationConfig.NotFound", "Cấu hình điểm không tồn tại.", ErrorType.NotFound));
+            return Result.Failure(Errors.Admin.GamificationConfigNotFound);
 
         config.Update(request.Points, request.Description, request.IsActive);
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);

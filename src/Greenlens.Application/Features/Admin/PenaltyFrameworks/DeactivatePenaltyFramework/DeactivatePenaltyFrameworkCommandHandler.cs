@@ -1,3 +1,4 @@
+using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using MediatR;
@@ -18,8 +19,7 @@ public sealed class DeactivatePenaltyFrameworkCommandHandler(
         var entity = await penaltyFrameworks.GetByIdAsync(request.Id, ct).ConfigureAwait(false);
 
         if (entity is null)
-            return Result.Failure(
-                new Error("PenaltyFramework.NotFound", "Penalty framework entry not found.", ErrorType.NotFound));
+            return Result.Failure(Errors.Admin.PenaltyFrameworkNotFound);
 
         if (request.Activate)
             entity.Activate();

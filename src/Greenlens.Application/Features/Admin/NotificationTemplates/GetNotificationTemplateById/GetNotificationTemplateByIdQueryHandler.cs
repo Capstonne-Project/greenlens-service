@@ -1,3 +1,4 @@
+using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
@@ -38,8 +39,7 @@ public sealed class GetNotificationTemplateByIdQueryHandler(
             .ConfigureAwait(false);
 
         if (template is null)
-            return Result<NotificationTemplateDetailResponse>.Failure(
-                new Error("NotificationTemplate.NotFound", "Template không tồn tại.", ErrorType.NotFound));
+            return Result<NotificationTemplateDetailResponse>.Failure(Errors.Admin.NotificationTemplateNotFound);
 
         return template;
     }

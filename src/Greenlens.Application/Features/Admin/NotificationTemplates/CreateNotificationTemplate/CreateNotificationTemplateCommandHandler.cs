@@ -1,3 +1,4 @@
+using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
@@ -24,9 +25,7 @@ public sealed class CreateNotificationTemplateCommandHandler(
 
         if (duplicate)
             return Result<CreateNotificationTemplateResponse>.Failure(
-                new Error("NotificationTemplate.Duplicate",
-                    $"Template '{request.TemplateKey}' đã tồn tại cho channel {request.Channel}.",
-                    ErrorType.Conflict));
+                Errors.Admin.NotificationTemplateDuplicate(request.TemplateKey, request.Channel.ToString()));
 
         var entity = NotificationTemplate.Create(
             request.TemplateKey, request.TitleVi, request.BodyVi,

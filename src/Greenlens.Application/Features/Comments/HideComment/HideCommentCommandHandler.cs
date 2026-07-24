@@ -35,7 +35,7 @@ public sealed class HideCommentCommandHandler(
         }
         catch (DomainException ex)
         {
-            return new Error("VALIDATION_ERROR", ex.Message, ErrorType.Validation);
+            return Errors.Comments.DomainValidation(ex.Message);
         }
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);

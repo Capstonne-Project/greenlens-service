@@ -1,3 +1,4 @@
+using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
@@ -25,8 +26,7 @@ public sealed class CreatePenaltyFrameworkCommandHandler(
             .ConfigureAwait(false);
 
         if (!categoryExists)
-            return Result<CreatePenaltyFrameworkResponse>.Failure(
-                new Error("PenaltyFramework.CategoryNotFound", "Pollution category not found.", ErrorType.NotFound));
+            return Result<CreatePenaltyFrameworkResponse>.Failure(Errors.Admin.PenaltyFrameworkCategoryNotFound);
 
         // Check for duplicate active entry: same category + level + active
         var duplicate = await penaltyFrameworks
@@ -37,9 +37,7 @@ public sealed class CreatePenaltyFrameworkCommandHandler(
 
         if (duplicate)
             return Result<CreatePenaltyFrameworkResponse>.Failure(
-                new Error("PenaltyFramework.Duplicate",
-                    $"An active penalty framework already exists for this category and level '{request.ViolationLevel}'.",
-                    ErrorType.Conflict));
+                Errors.Admin.PenaltyFrameworkDuplicate(request.ViolationLevel.ToString()));
 
         var entity = PenaltyFramework.Create(
             request.CategoryId,

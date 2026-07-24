@@ -1,3 +1,4 @@
+using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Domain.Common;
 using MediatR;
@@ -17,7 +18,7 @@ public sealed class UpdateNotificationTemplateCommandHandler(
         var template = await db.Set<Greenlens.Domain.Entities.NotificationTemplate>().FindAsync([request.Id], ct);
         
         if (template is null)
-            return Result.Failure(new Error("NotificationTemplate.NotFound", "Template không tồn tại.", ErrorType.NotFound));
+            return Result.Failure(Errors.Admin.NotificationTemplateNotFound);
 
         template.Update(
             request.TitleVi,

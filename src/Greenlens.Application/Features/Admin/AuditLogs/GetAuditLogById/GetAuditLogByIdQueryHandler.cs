@@ -1,3 +1,4 @@
+using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
@@ -36,8 +37,7 @@ public sealed class GetAuditLogByIdQueryHandler(IApplicationDbContext db)
             .ConfigureAwait(false);
 
         if (log is null)
-            return Result<AuditLogDetailResponse>.Failure(
-                new Error("AuditLog.NotFound", "Audit log entry not found.", ErrorType.NotFound));
+            return Result<AuditLogDetailResponse>.Failure(Errors.Admin.AuditLogNotFound);
 
         return log;
     }
