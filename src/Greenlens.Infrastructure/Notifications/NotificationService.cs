@@ -140,9 +140,14 @@ internal sealed class NotificationService(
         {
             try
             {
-                var data = referenceId.HasValue
-                    ? new Dictionary<string, string> { ["referenceId"] = referenceId.Value.ToString(), ["type"] = type.ToString() }
-                    : null;
+                // Mobile deep-link + mark-read: notificationId required; referenceId optional.
+                var data = new Dictionary<string, string>
+                {
+                    ["notificationId"] = notification.Id.ToString(),
+                    ["type"] = type.ToString(),
+                };
+                if (referenceId.HasValue)
+                    data["referenceId"] = referenceId.Value.ToString();
 
                 await pushSender.SendPushAsync(recipient.FcmDeviceToken, title, message, data, ct)
                     .ConfigureAwait(false);
