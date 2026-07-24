@@ -55,5 +55,11 @@ public static partial class Errors
             "ALREADY_HIDDEN",
             "Bình luận đã bị ẩn.",
             ErrorType.BusinessRule);
+
+        /// <summary>Converts a DomainException to a typed validation error.</summary>
+        public static Error DomainValidation(string message) => new(
+            "COMMENT_VALIDATION_ERROR",
+            message,
+            ErrorType.Validation);
     }
 }

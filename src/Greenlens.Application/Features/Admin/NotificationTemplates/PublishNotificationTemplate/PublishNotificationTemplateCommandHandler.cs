@@ -1,3 +1,4 @@
+using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using MediatR;
@@ -15,8 +16,7 @@ public sealed class PublishNotificationTemplateCommandHandler(
         var template = await templates.GetByIdAsync(request.Id, ct).ConfigureAwait(false);
 
         if (template is null)
-            return Result.Failure(
-                new Error("NotificationTemplate.NotFound", "Template không tồn tại.", ErrorType.NotFound));
+            return Result.Failure(Errors.Admin.NotificationTemplateNotFound);
 
         if (request.Publish)
             template.Publish();

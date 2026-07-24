@@ -75,7 +75,7 @@ public sealed class AddCommentCommandHandler(
         }
         catch (DomainException ex)
         {
-            return new Error("VALIDATION_ERROR", ex.Message, ErrorType.Validation);
+            return Errors.Comments.DomainValidation(ex.Message);
         }
 
         comment.AddDomainEvent(new CommentPostedEvent(

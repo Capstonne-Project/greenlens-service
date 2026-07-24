@@ -220,5 +220,11 @@ public static partial class Errors
             "CROSS_COMPANY_ACCESS",
             "Bạn không có quyền truy cập dữ liệu của công ty khác.",
             ErrorType.Forbidden);
+
+        /// <summary>BR-CMP-020: DEO/Admin phải truyền CompanyId khi xem KPI.</summary>
+        public static Error CompanyIdRequired => new(
+            "COMPANY_ID_REQUIRED",
+            "CompanyId là bắt buộc cho DEO/Admin.",
+            ErrorType.Validation);
     }
 }

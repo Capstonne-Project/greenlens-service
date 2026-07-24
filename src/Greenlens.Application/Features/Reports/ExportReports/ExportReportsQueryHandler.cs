@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
@@ -28,8 +29,7 @@ public sealed class ExportReportsQueryHandler(
             .ConfigureAwait(false);
 
         if (user is null)
-            return Result<ExportReportsResponse>.Failure(
-                new Error("USER_NOT_FOUND", "Người dùng không tồn tại.", ErrorType.NotFound));
+            return Result<ExportReportsResponse>.Failure(Errors.Users.UserNotFound);
 
         // Build base query with scope filter
         var query = reports.QueryAsNoTracking();

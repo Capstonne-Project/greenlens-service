@@ -1,3 +1,4 @@
+using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
@@ -20,10 +21,10 @@ public sealed class HideReportCommandHandler(
         var report = await reports.GetByIdAsync(request.ReportId, ct).ConfigureAwait(false);
 
         if (report is null)
-            return Result.Failure(new Error("Report.NotFound", "Báo cáo không tồn tại.", ErrorType.NotFound));
+            return Result.Failure(Errors.Reports.ReportNotFound);
 
         if (report.IsHidden)
-            return Result.Failure(new Error("Report.AlreadyHidden", "Báo cáo đã bị ẩn.", ErrorType.Conflict));
+            return Result.Failure(Errors.Admin.ReportAlreadyHidden);
 
         report.Hide(currentUser.UserId, request.Reason);
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);

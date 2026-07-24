@@ -1,3 +1,4 @@
+using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using MediatR;
@@ -18,10 +19,10 @@ public sealed class UnhideReportCommandHandler(
         var report = await reports.GetByIdAsync(request.ReportId, ct).ConfigureAwait(false);
 
         if (report is null)
-            return Result.Failure(new Error("Report.NotFound", "Báo cáo không tồn tại.", ErrorType.NotFound));
+            return Result.Failure(Errors.Reports.ReportNotFound);
 
         if (!report.IsHidden)
-            return Result.Failure(new Error("Report.NotHidden", "Báo cáo không bị ẩn.", ErrorType.Conflict));
+            return Result.Failure(Errors.Admin.ReportNotHidden);
 
         report.Unhide();
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);

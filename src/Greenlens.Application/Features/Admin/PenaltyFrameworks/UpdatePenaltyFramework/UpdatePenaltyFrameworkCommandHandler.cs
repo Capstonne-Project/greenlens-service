@@ -1,3 +1,4 @@
+using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using MediatR;
@@ -18,8 +19,7 @@ public sealed class UpdatePenaltyFrameworkCommandHandler(
         var entity = await penaltyFrameworks.GetByIdAsync(request.Id, ct).ConfigureAwait(false);
 
         if (entity is null)
-            return Result.Failure(
-                new Error("PenaltyFramework.NotFound", "Penalty framework entry not found.", ErrorType.NotFound));
+            return Result.Failure(Errors.Admin.PenaltyFrameworkNotFound);
 
         entity.Update(request.MinAmount, request.MaxAmount, request.EffectiveFrom, request.EffectiveTo);
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);

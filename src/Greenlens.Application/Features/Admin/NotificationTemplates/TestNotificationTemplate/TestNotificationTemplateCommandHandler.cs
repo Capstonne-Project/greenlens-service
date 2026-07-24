@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
@@ -28,8 +29,7 @@ public sealed class TestNotificationTemplateCommandHandler(
             .ConfigureAwait(false);
 
         if (template is null)
-            return Result<TestNotificationTemplateResponse>.Failure(
-                new Error("NotificationTemplate.NotFound", "Template không tồn tại.", ErrorType.NotFound));
+            return Result<TestNotificationTemplateResponse>.Failure(Errors.Admin.NotificationTemplateNotFound);
 
         // Render placeholders
         var renderedTitle = RenderPlaceholders(template.TitleVi, request.SampleData);
