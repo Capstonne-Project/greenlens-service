@@ -52,7 +52,9 @@ namespace Greenlens.Api.Controllers;
 [ApiController]
 [Route("v1/reports")]
 [Produces("application/json")]
-public sealed class ReportsController(ISender sender) : ControllerBase
+public sealed class ReportsController(
+    ISender sender,
+    ILogger<ReportsController> logger) : ControllerBase
 {
     // ═══════════════════════════════════════════
     // ██  AI ANALYZE (Step 1)
@@ -117,7 +119,14 @@ public sealed class ReportsController(ISender sender) : ControllerBase
     public async Task<IActionResult> AnalyzeUploadedAsync(
         [FromBody] AnalyzeUploadedReportImageCommand command,
         CancellationToken ct)
-        => (await sender.Send(command, ct)).ToHttp();
+    {
+        logger.LogInformation(
+            "[AI-DIAG] HTTP POST /v1/reports/analyze-uploaded received | file={FileName} key={Key} sizeBytes={SizeBytes}",
+            command.FileName,
+            command.Key,
+            command.SizeBytes);
+        return (await sender.Send(command, ct)).ToHttp();
+    }
 
     // ═══════════════════════════════════════════
     // ██  CRUD

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
@@ -14,7 +15,7 @@ namespace Greenlens.Application.Features.Reports.AnalyzeUploadedReportImage;
 /// Download an owned R2 object and run synchronous AI pre-analysis.
 /// </summary>
 /// <remarks>
-/// Implements: BR-AI-001 (classification), BR-AI-006 (5-second timeout fallback),
+/// Implements: BR-AI-001 (classification), BR-AI-006 (timeout fallback),
 /// BR-REP-001 (image required), BR-REP-002 (image size limit).
 /// The image is uploaded once by Mobile and reused during report submission.
 /// </remarks>
@@ -33,26 +34,69 @@ public sealed class AnalyzeUploadedReportImageCommandHandler(
         AnalyzeUploadedReportImageCommand request,
         CancellationToken cancellationToken)
     {
+        var totalSw = Stopwatch.StartNew();
+
+        logger.LogInformation(
+            "[AI-DIAG] analyze-uploaded HIT | key={Key} file={FileName} sizeBytes={SizeBytes} contentType={ContentType} urlHost={UrlHost}",
+            request.Key,
+            request.FileName,
+            request.SizeBytes,
+            request.ContentType,
+            TryGetHost(request.PublicUrl));
+
         if (!fileStorage.IsOwnedPublicUrl(request.PublicUrl, request.Key))
+        {
+            logger.LogWarning(
+                "[AI-DIAG] analyze-uploaded REJECT InvalidStorageUrl | key={Key} url={Url}",
+                request.Key,
+                request.PublicUrl);
             return Errors.Media.InvalidStorageUrl;
+        }
 
         if (!ReportImageContentTypes.TryResolve(
                 request.FileName,
                 request.ContentType,
                 out var contentType))
+        {
+            logger.LogWarning(
+                "[AI-DIAG] analyze-uploaded REJECT InvalidImageType | file={FileName} contentType={ContentType}",
+                request.FileName,
+                request.ContentType);
             return Errors.Media.InvalidImageType;
+        }
 
+        var downloadSw = Stopwatch.StartNew();
         var stored = await fileStorage.DownloadAsync(
                 request.Key,
                 MaxImageSizeBytes,
                 cancellationToken)
             .ConfigureAwait(false);
+        downloadSw.Stop();
 
         if (stored is null)
+        {
+            logger.LogWarning(
+                "[AI-DIAG] analyze-uploaded REJECT UploadNotFound after R2 download {DownloadMs}ms | key={Key}",
+                downloadSw.ElapsedMilliseconds,
+                request.Key);
             return Errors.Media.UploadNotFound;
+        }
+
+        logger.LogInformation(
+            "[AI-DIAG] R2 download OK in {DownloadMs}ms | key={Key} bytes={Bytes}",
+            downloadSw.ElapsedMilliseconds,
+            request.Key,
+            stored.SizeBytes);
 
         if (stored.SizeBytes != request.SizeBytes)
+        {
+            logger.LogWarning(
+                "[AI-DIAG] analyze-uploaded REJECT UploadMetadataMismatch | key={Key} claimed={Claimed} actual={Actual}",
+                request.Key,
+                request.SizeBytes,
+                stored.SizeBytes);
             return Errors.Media.UploadMetadataMismatch;
+        }
 
         using var stream = new MemoryStream(stored.Bytes, writable: false);
         var aiResult = await aiService.ClassifyAsync(
@@ -63,7 +107,15 @@ public sealed class AnalyzeUploadedReportImageCommandHandler(
             .ConfigureAwait(false);
 
         if (aiResult is null)
+        {
+            totalSw.Stop();
+            logger.LogWarning(
+                "[AI-DIAG] analyze-uploaded FAIL AI_SERVICE_UNAVAILABLE after {TotalMs}ms | key={Key} file={FileName} — xem log [AI-DIAG] Classify * phía trên",
+                totalSw.ElapsedMilliseconds,
+                request.Key,
+                request.FileName);
             return Errors.Ai.ServiceUnavailable;
+        }
 
         var analysisId = await tempStore.SaveAsync(
                 stored.Bytes,
@@ -80,17 +132,34 @@ public sealed class AnalyzeUploadedReportImageCommandHandler(
                 cancellationToken)
             .ConfigureAwait(false);
 
+        totalSw.Stop();
         logger.LogInformation(
-            "Uploaded R2 image analyzed. Key={Key}, decision={Decision}, category={Category}",
+            "[AI-DIAG] analyze-uploaded OK in {TotalMs}ms | key={Key} decision={Decision} primary={Primary} conf={Confidence:F3} suggestedCategory={CategoryCode} tempImageId={TempId}",
+            totalSw.ElapsedMilliseconds,
             request.Key,
             aiResult.Decision,
-            aiResult.Classify.PrimaryClass);
+            aiResult.Classify.PrimaryClass,
+            aiResult.Classify.Confidence,
+            suggestedCategory?.Code ?? "(none)",
+            analysisId);
 
         return new AnalyzeReportImageResponse(
             analysisId,
             TempTtlSeconds,
             MapAiResult(aiResult),
             suggestedCategory);
+    }
+
+    private static string TryGetHost(string url)
+    {
+        try
+        {
+            return new Uri(url).Host;
+        }
+        catch
+        {
+            return "(invalid-url)";
+        }
     }
 
     private async Task<PollutionCategoryListItemDto?> ResolveSuggestedCategoryAsync(
