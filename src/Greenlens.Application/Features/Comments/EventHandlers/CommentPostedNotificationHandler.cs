@@ -14,12 +14,14 @@ internal sealed class CommentPostedNotificationHandler(
 {
     public async Task Handle(CommentPostedEvent notification, CancellationToken ct)
     {
-        if (notification.ReporterId is null || notification.ReporterId == notification.AuthorId)
-            return;
+        logger.LogInformation("Getting comment posted notification");
 
-        logger.LogDebug(
-            "Notification: new comment on report {ReportId} → notify reporter {UserId}",
-            notification.ReportId, notification.ReporterId);
+        if (notification.ReporterId is null || notification.ReporterId == notification.AuthorId)
+        {
+            logger.LogWarning("Notification not sent for reporter {UserId} or author {UserId}", notification.ReporterId, notification.AuthorId);
+            return;
+        }
+        logger.LogInformation("Notification: new comment on report {ReportId} → notify reporter {UserId}", notification.ReportId, notification.ReporterId);
 
         await notificationService.SendFromTemplateAsync(
             notification.ReporterId.Value,
@@ -30,5 +32,7 @@ internal sealed class CommentPostedNotificationHandler(
             },
             notification.ReportId,
             ct).ConfigureAwait(false);
+
+        logger.LogInformation("Notification sent for reporter {UserId}", notification.ReporterId);
     }
 }

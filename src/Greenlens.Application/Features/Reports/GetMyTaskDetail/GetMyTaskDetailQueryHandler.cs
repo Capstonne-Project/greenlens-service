@@ -23,6 +23,8 @@ public sealed class GetMyTaskDetailQueryHandler(
     public async Task<Result<MyTaskDetailResponse>> Handle(
         GetMyTaskDetailQuery request, CancellationToken ct)
     {
+        logger.LogInformation("Getting my task detail for user {UserId}", currentUser.UserId);
+
         // Any member of the team can view (not just leader)
         var membership = await teamMembers
             .QueryAsNoTracking()
@@ -30,7 +32,10 @@ public sealed class GetMyTaskDetailQueryHandler(
             .ConfigureAwait(false);
 
         if (membership is null)
+        {
+            logger.LogWarning("Team member not found for user {UserId}", currentUser.UserId);
             return Errors.Reports.NotTeamMember;
+        }
 
         var assignment = await assignments
             .QueryAsNoTracking()
@@ -46,7 +51,10 @@ public sealed class GetMyTaskDetailQueryHandler(
             .ConfigureAwait(false);
 
         if (assignment is null)
+        {
+            logger.LogWarning("Assignment not found for report ID {ReportId} and team ID {TeamId}", request.ReportId, membership.TeamId);
             return Errors.Reports.AssignmentNotFound;
+        }
 
         var report = assignment.Report!;
 

@@ -56,6 +56,11 @@ public static partial class Errors
             "Bình luận đã bị ẩn.",
             ErrorType.BusinessRule);
 
+        public static Error CommentAlreadyDeleted => new(
+            "COMMENT_ALREADY_DELETED",
+            "Bình luận đã được xóa trước đó.",
+            ErrorType.Conflict);
+
         /// <summary>Converts a DomainException to a typed validation error.</summary>
         public static Error DomainValidation(string message) => new(
             "COMMENT_VALIDATION_ERROR",

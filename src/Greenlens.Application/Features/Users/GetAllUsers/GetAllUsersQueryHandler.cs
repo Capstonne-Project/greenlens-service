@@ -17,6 +17,8 @@ public sealed class GetAllUsersQueryHandler(IUserRepository users,
         GetAllUsersQuery request,
         CancellationToken cancellationToken)
     {
+        logger.LogInformation("Getting all users");
+
         var list = await users.QueryAsNoTracking()
             .OrderByDescending(u => u.CreatedAt)
             .Select(u => new UserListItemDto(

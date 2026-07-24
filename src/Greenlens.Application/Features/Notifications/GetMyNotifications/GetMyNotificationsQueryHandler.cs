@@ -1,10 +1,10 @@
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
-using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Notifications.GetMyNotifications;
 
@@ -15,19 +15,26 @@ namespace Greenlens.Application.Features.Notifications.GetMyNotifications;
 internal sealed class GetMyNotificationsQueryHandler(
     ICurrentUser currentUser,
     INotificationRepository notificationRepo,
-    IReportRepository reports)
+    IReportRepository reports,
+    ILogger<GetMyNotificationsQueryHandler> logger)
     : IRequestHandler<GetMyNotificationsQuery, Result<GetMyNotificationsResponse>>
 {
     public async Task<Result<GetMyNotificationsResponse>> Handle(
         GetMyNotificationsQuery request, CancellationToken ct)
     {
+        logger.LogInformation("Getting my notifications");
+
         var userId = currentUser.UserId;
+        logger.LogInformation("User ID: {UserId}", userId);
 
         var query = notificationRepo.Query()
             .Where(n => n.RecipientId == userId);
 
         if (request.IsRead.HasValue)
+        {
+            logger.LogInformation("Is read: {IsRead}", request.IsRead.Value);
             query = query.Where(n => n.IsRead == request.IsRead.Value);
+        }
 
         var totalCount = await query.CountAsync(ct).ConfigureAwait(false);
 
@@ -60,7 +67,10 @@ internal sealed class GetMyNotificationsQueryHandler(
             .ToList();
 
         if (reportIds.Count == 0)
+        {
+            logger.LogInformation("No report IDs found");
             return new GetMyNotificationsResponse(items, totalCount, unreadCount);
+        }
 
         var reportMeta = await reports.QueryAsNoTracking()
             .Where(r => reportIds.Contains(r.Id))
@@ -77,6 +87,8 @@ internal sealed class GetMyNotificationsQueryHandler(
             .ToDictionaryAsync(x => x.Id, ct)
             .ConfigureAwait(false);
 
+        logger.LogInformation("Report meta: {ReportMeta}", reportMeta);
+
         var enriched = items.Select(n =>
         {
             if (!n.ReferenceId.HasValue || !reportMeta.TryGetValue(n.ReferenceId.Value, out var meta))
@@ -88,6 +100,8 @@ internal sealed class GetMyNotificationsQueryHandler(
                 ThumbnailUrl = meta.ThumbnailUrl
             };
         }).ToList();
+
+        logger.LogInformation("Enriched notifications: {Enriched}", enriched);
 
         return new GetMyNotificationsResponse(enriched, totalCount, unreadCount);
     }

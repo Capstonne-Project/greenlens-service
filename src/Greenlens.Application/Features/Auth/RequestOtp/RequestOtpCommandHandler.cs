@@ -24,16 +24,23 @@ public sealed class RequestOtpCommandHandler(
         RequestOtpCommand request,
         CancellationToken cancellationToken)
     {
+        logger.LogInformation("Getting OTP request");
+
         // Find user by email
         var user = await users.GetByEmailAsync(request.Email, cancellationToken)
             .ConfigureAwait(false);
 
         if (user is null)
+        {
+            logger.LogWarning("User not found for email {Email}", request.Email);
             return Errors.Auth.UserNotFound;
+        }
 
         // Invalidate previous OTPs for the same purpose
         await otps.InvalidateAllAsync(request.Email, request.Purpose, cancellationToken)
             .ConfigureAwait(false);
+
+        logger.LogInformation("Invalidating previous OTPs");
 
         // Generate 6-digit OTP and hash for storage
         var otpCode = RandomNumberGenerator.GetInt32(100000, 999999).ToString();
@@ -41,6 +48,8 @@ public sealed class RequestOtpCommandHandler(
 
         var otp = OtpCode.Create(request.Email, codeHash, request.Purpose);
         otps.Add(otp);
+
+        logger.LogInformation("OTP added: {Otp}", otp);
 
         await uow.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 

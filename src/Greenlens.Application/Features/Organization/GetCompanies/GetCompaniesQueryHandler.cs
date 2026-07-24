@@ -5,6 +5,7 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Organization.GetCompanies;
 
@@ -17,13 +18,16 @@ namespace Greenlens.Application.Features.Organization.GetCompanies;
 public sealed class GetCompaniesQueryHandler(
     IEnvironmentalServiceCompanyRepository companies,
     ICurrentUser currentUser,
-    IUserRepository users)
+    IUserRepository users,
+    ILogger<GetCompaniesQueryHandler> logger)
     : IRequestHandler<GetCompaniesQuery, Result<GetCompaniesResponse>>
 {
     public async Task<Result<GetCompaniesResponse>> Handle(
         GetCompaniesQuery request,
         CancellationToken ct)
     {
+        logger.LogInformation("Getting companies for user {UserId}", currentUser.UserId);
+
         var query = companies.QueryAsNoTracking()
             .Include(c => c.ServiceAreas)
             .Include(c => c.Staff)
@@ -33,6 +37,7 @@ public sealed class GetCompaniesQueryHandler(
         var user = await users.GetByIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
         if (user is not null && user.Role == UserRole.DEO && user.DepartmentId.HasValue)
         {
+            logger.LogInformation("User {UserId} is a DEO with department {DepartmentId}", currentUser.UserId, user.DepartmentId.Value);
             // Resolve province code through the user's department
             var userWithDept = await users.QueryAsNoTracking()
                 .Include(u => u.Department)
@@ -93,6 +98,8 @@ public sealed class GetCompaniesQueryHandler(
             .ConfigureAwait(false);
 
         var pagination = PaginationMeta.Create(request.Page, request.PageSize, totalCount);
+
+        logger.LogInformation("Companies found: {TotalCount}", totalCount);
 
         return new GetCompaniesResponse(items, pagination);
     }

@@ -178,9 +178,13 @@ public sealed class CompaniesController(ISender sender) : ControllerBase
     [Tags("🔍 DEO Dashboard")]
     [SwaggerOperation(
         Summary = "[DEO] Xóa công ty (Soft Delete)",
-        Description = "Xóa mềm công ty khỏi hệ thống. Các liên kết cũ vẫn được giữ nhưng công ty sẽ không hiển thị nữa.")]
+        Description = "Lưu trữ (soft-delete) công ty đã chấm dứt hợp đồng. " +
+            "Yêu cầu Status = Terminated (hoặc PendingActivation chưa có nhân sự). " +
+            "Dùng POST /{id}/terminate trước nếu công ty đang Active/Suspended.")]
     [SwaggerResponse(200, "Đã xóa", typeof(ApiResponse))]
     [SwaggerResponse(404, "Công ty không tồn tại", typeof(ApiResponse))]
+    [SwaggerResponse(409, "Công ty đã bị xóa", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Công ty chưa Terminated — phải chấm dứt hợp đồng trước", typeof(ApiResponse))]
     public async Task<IActionResult> DeleteCompanyAsync(
         [FromRoute] Guid id, CancellationToken ct)
         => (await sender.Send(new DeleteEnvironmentalCompanyCommand(id), ct)).ToHttpNoContent("Đã xóa công ty.");

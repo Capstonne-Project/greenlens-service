@@ -20,10 +20,16 @@ public sealed class DeleteBlockedWordCommandHandler(
     {
         var entity = await blockedWords.GetByIdAsync(request.Id, ct).ConfigureAwait(false);
         if (entity is null)
+        {
+            logger.LogWarning("Blocked word not found: {Id}", request.Id);
             return Errors.BlockedWords.NotFound;
+        }
 
         if (!entity.IsActive)
+        {
+            logger.LogWarning("Blocked word is already deactivated: {Id}", request.Id);
             return Result.Success();
+        }
 
         var oldSnapshot = JsonSerializer.Serialize(new { entity.Word, entity.Note, entity.IsActive });
 

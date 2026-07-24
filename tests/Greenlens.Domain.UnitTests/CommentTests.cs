@@ -60,6 +60,16 @@ public sealed class CommentTests
     }
 
     [Fact]
+    public void DeleteByAuthor_AlreadyDeleted_Throws_BR_CMT_004()
+    {
+        var authorId = Guid.NewGuid();
+        var comment = Comment.Create(Guid.NewGuid(), authorId, "Xóa tôi");
+        comment.DeleteByAuthor(authorId);
+
+        Assert.Throws<DomainException>(() => comment.DeleteByAuthor(authorId));
+    }
+
+    [Fact]
     public void Hide_WithReason_SetsHidden_BR_CMT_004()
     {
         var comment = CreateComment();

@@ -5,7 +5,7 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-
+using Microsoft.Extensions.Logging;
 namespace Greenlens.Application.Features.Analytics.GetCompanyStaffPerformance;
 
 /// <summary>
@@ -17,20 +17,28 @@ public sealed class GetCompanyStaffPerformanceQueryHandler(
     IUserRepository users,
     ICompanyStaffRepository companyStaff,
     ICurrentUser currentUser,
-    IDateTimeProvider clock)
+    IDateTimeProvider clock,
+    ILogger<GetCompanyStaffPerformanceQueryHandler> logger)
     : IRequestHandler<GetCompanyStaffPerformanceQuery, Result<List<StaffPerformanceItem>>>
 {
     public async Task<Result<List<StaffPerformanceItem>>> Handle(
         GetCompanyStaffPerformanceQuery request, CancellationToken ct)
     {
+        logger.LogInformation("Getting company staff performance");
+
         var companyIdResult = await CompanyContextResolver
             .ResolveCompanyIdAsync(companyStaff, currentUser.UserId, ct)
             .ConfigureAwait(false);
+        logger.LogInformation("Company ID: {CompanyId}", companyIdResult.Value);
         if (companyIdResult.IsFailure)
-            return companyIdResult.Error!;
-
+            {
+                logger.LogError("Failed to resolve company ID: {Error}", companyIdResult.Error);
+                return companyIdResult.Error!;
+            }
         var companyId = companyIdResult.Value;
+        logger.LogInformation("Company ID: {CompanyId}", companyId);
         var (from, to) = DateRangeDefaults.Resolve(request.From, request.To, clock.UtcNow);
+        logger.LogInformation("From: {From}, To: {To}", from, to);
 
         var staffAssignments = await assignments.QueryAsNoTracking()
             .Where(a => a.Team!.CompanyId == companyId
@@ -39,6 +47,8 @@ public sealed class GetCompanyStaffPerformanceQueryHandler(
             .Select(a => new { StaffId = a.ProgressUpdatedByUserId!.Value, a.Status })
             .ToListAsync(ct)
             .ConfigureAwait(false);
+
+        logger.LogInformation("Staff assignments: {StaffAssignments}", staffAssignments);
 
         var staffIds = staffAssignments.Select(a => a.StaffId).Distinct().ToList();
         var staffNames = await users.QueryAsNoTracking()
@@ -66,6 +76,8 @@ public sealed class GetCompanyStaffPerformanceQueryHandler(
             })
             .OrderByDescending(i => i.CompletionRate)
             .ToList();
+
+        logger.LogInformation("Company staff performance retrieved successfully");
 
         return result;
     }

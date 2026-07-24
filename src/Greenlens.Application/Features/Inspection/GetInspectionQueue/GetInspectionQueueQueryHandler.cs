@@ -3,9 +3,9 @@ using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Common.Models;
 using Greenlens.Domain.Common;
-using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Inspection.GetInspectionQueue;
 
@@ -13,12 +13,15 @@ namespace Greenlens.Application.Features.Inspection.GetInspectionQueue;
 public sealed class GetInspectionQueueQueryHandler(
     IInspectionReportRepository inspections,
     ITeamMemberRepository teamMembers,
-    ICurrentUser currentUser)
+    ICurrentUser currentUser,
+    ILogger<GetInspectionQueueQueryHandler> logger)
     : IRequestHandler<GetInspectionQueueQuery, Result<GetInspectionQueueResponse>>
 {
     public async Task<Result<GetInspectionQueueResponse>> Handle(
         GetInspectionQueueQuery request, CancellationToken ct)
     {
+        logger.LogInformation("Getting inspection queue");
+
         // Find teams the current user belongs to (Inspection type)
         var myTeams = await teamMembers.Query()
             .Where(tm => tm.UserId == currentUser.UserId)
@@ -27,15 +30,21 @@ public sealed class GetInspectionQueueQueryHandler(
             .ConfigureAwait(false);
 
         if (myTeams.Count == 0)
+        {
+            logger.LogWarning("No teams found for user {UserId}", currentUser.UserId);
             return Result<GetInspectionQueueResponse>.Success(
                 new GetInspectionQueueResponse([], PaginationMeta.Create(request.Page, request.PageSize, 0)));
+        }
 
         var query = inspections.QueryAsNoTracking()
             .Include(ir => ir.Report)
             .Where(ir => ir.AssignedTeamId != null && myTeams.Contains(ir.AssignedTeamId.Value));
 
         if (request.Status.HasValue)
+        {
+            logger.LogWarning("Status {Status} not found", request.Status.Value);
             query = query.Where(ir => ir.Status == request.Status.Value);
+        }
 
         var totalCount = await query.CountAsync(ct).ConfigureAwait(false);
 
@@ -60,8 +69,10 @@ public sealed class GetInspectionQueueQueryHandler(
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
-        var pagination = PaginationMeta.Create(request.Page, request.PageSize, totalCount);
+        logger.LogInformation("Inspection queue: {Items}", items);
 
+        var pagination = PaginationMeta.Create(request.Page, request.PageSize, totalCount);
+        
         return new GetInspectionQueueResponse(items, pagination);
     }
 }

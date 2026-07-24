@@ -18,11 +18,23 @@ public sealed class RegisterCommandValidator : AbstractValidator<RegisterCommand
             .Matches(@"\d").WithMessage("Password must contain at least one digit.")
             .Matches(@"[\W_]").WithMessage("Password must contain at least one special character.");
 
+        /// BR-AUTH-006: Confirm password must match.
+        RuleFor(x => x.ConfirmPassword)
+            .Equal(x => x.Password).WithMessage("Mật khẩu xác nhận không khớp.");
+
         /// BR-AUTH-011: Họ tên 2–50 ký tự, chỉ chữ cái (kể cả dấu tiếng Việt) và khoảng trắng.
         RuleFor(x => x.FullName)
             .NotEmpty().WithMessage("Họ tên là bắt buộc.")
             .Length(2, 50).WithMessage("Họ tên từ 2-50 ký tự.")
             .Matches(@"^[\p{L}\s]+$").WithMessage("Họ tên không hợp lệ (không chứa ký tự đặc biệt).");
+
+        /// BR-AUTH-003/004: Optional VN phone at registration.
+        When(x => !string.IsNullOrWhiteSpace(x.PhoneNumber), () =>
+        {
+            RuleFor(x => x.PhoneNumber!)
+                .Matches(@"^(\+84|84|0)[0-9]{8,10}$")
+                .WithMessage("Số điện thoại không hợp lệ.");
+        });
 
         /// BR-AUTH-012: Phải đồng ý điều khoản sử dụng trước khi đăng ký.
         RuleFor(x => x.AcceptTerms)

@@ -54,7 +54,10 @@ public sealed class GetMyAssignmentsQueryHandler(
             .Where(a => myTeamIds.Contains(a.TeamId));
 
         if (request.AssignmentStatus.HasValue)
+        {
+            logger.LogInformation("Filtering by assignment status: {Status}", request.AssignmentStatus.Value);
             query = query.Where(a => a.Status == request.AssignmentStatus.Value);
+        }
 
         var totalCount = await query.CountAsync(ct).ConfigureAwait(false);
 

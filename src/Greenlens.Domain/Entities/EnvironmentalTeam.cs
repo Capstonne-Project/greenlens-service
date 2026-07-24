@@ -1,5 +1,6 @@
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
+using Greenlens.Domain.Exceptions;
 
 namespace Greenlens.Domain.Entities;
 
@@ -89,6 +90,20 @@ public sealed class EnvironmentalTeam : SoftDeletableEntity
     public void TransferToOffice(Guid newOfficeId)
     {
         LocalOfficeId = newOfficeId;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>BR-CMP-004: Archive team — deactivate first, block when assignments are in flight.</summary>
+    public void Archive(string? deletedBy = null, bool hasActiveAssignments = false)
+    {
+        if (IsDeleted)
+            throw new DomainException("Team is already archived.");
+
+        if (hasActiveAssignments)
+            throw new DomainException("Cannot archive team with active assignments.");
+
+        Deactivate();
+        SoftDelete(deletedBy);
         UpdatedAt = DateTime.UtcNow;
     }
 }

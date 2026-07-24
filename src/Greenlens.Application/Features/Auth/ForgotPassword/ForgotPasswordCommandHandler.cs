@@ -26,7 +26,7 @@ public sealed class ForgotPasswordCommandHandler(
         // Find user by email
         var user = await users.GetByEmailAsync(request.Email, cancellationToken)
             .ConfigureAwait(false);
-
+        logger.LogInformation("User: {User}", user);
         // Always return success to prevent email enumeration
         if (user is null)
         {

@@ -5,7 +5,7 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-
+using Microsoft.Extensions.Logging;
 namespace Greenlens.Application.Features.Analytics.GetCompanyRecentActivities;
 
 /// <summary>Recent lifecycle events for reports dispatched to the caller's company.</summary>
@@ -13,7 +13,8 @@ public sealed class GetCompanyRecentActivitiesQueryHandler(
     IReportStatusHistoryRepository history,
     ICompanyStaffRepository companyStaff,
     ICurrentUser currentUser,
-    IDateTimeProvider clock)
+    IDateTimeProvider clock,
+    ILogger<GetCompanyRecentActivitiesQueryHandler> logger)
     : IRequestHandler<GetCompanyRecentActivitiesQuery, Result<List<CompanyRecentActivityItem>>>
 {
     private const int MaxItems = 50;
@@ -21,14 +22,22 @@ public sealed class GetCompanyRecentActivitiesQueryHandler(
     public async Task<Result<List<CompanyRecentActivityItem>>> Handle(
         GetCompanyRecentActivitiesQuery request, CancellationToken ct)
     {
+        logger.LogInformation("Getting company recent activities");
+
         var companyIdResult = await CompanyContextResolver
             .ResolveCompanyIdAsync(companyStaff, currentUser.UserId, ct)
             .ConfigureAwait(false);
-        if (companyIdResult.IsFailure)
-            return companyIdResult.Error!;
+        logger.LogInformation("Company ID: {CompanyId}", companyIdResult.Value);
+            if (companyIdResult.IsFailure)
+            {
+                logger.LogError("Failed to resolve company ID: {Error}", companyIdResult.Error);
+                return companyIdResult.Error!;
+            }
 
         var companyId = companyIdResult.Value;
+        logger.LogInformation("Company ID: {CompanyId}", companyId);
         var (from, to) = DateRangeDefaults.Resolve(request.From, request.To, clock.UtcNow);
+        logger.LogInformation("From: {From}, To: {To}", from, to);
 
         var items = await history.QueryAsNoTracking()
             .Include(h => h.Report)
@@ -43,6 +52,8 @@ public sealed class GetCompanyRecentActivitiesQueryHandler(
                     + (h.Reason != null ? $" ({h.Reason})" : string.Empty)))
             .ToListAsync(ct)
             .ConfigureAwait(false);
+
+        logger.LogInformation("Company recent activities retrieved successfully");
 
         return items;
     }

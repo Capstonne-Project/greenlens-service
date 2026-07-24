@@ -4,6 +4,7 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Admin.AuditLogs.GetAuditLogById;
 
@@ -11,13 +12,15 @@ namespace Greenlens.Application.Features.Admin.AuditLogs.GetAuditLogById;
 /// Returns a single audit log entry with full values for admin detail view.
 /// </summary>
 /// <remarks>Implements: BR-ADM-010.</remarks>
-public sealed class GetAuditLogByIdQueryHandler(IApplicationDbContext db)
-    : IRequestHandler<GetAuditLogByIdQuery, Result<AuditLogDetailResponse>>
+public sealed class GetAuditLogByIdQueryHandler(IApplicationDbContext db, 
+    ILogger<GetAuditLogByIdQueryHandler> logger) : IRequestHandler<GetAuditLogByIdQuery, Result<AuditLogDetailResponse>>
 {
     public async Task<Result<AuditLogDetailResponse>> Handle(
         GetAuditLogByIdQuery request,
         CancellationToken ct)
     {
+        logger.LogInformation("Getting audit log for ID {Id}", request.Id);
+
         var log = await db.Set<AuditLog>()
             .AsNoTracking()
             .Where(a => a.Id == request.Id)
@@ -37,7 +40,10 @@ public sealed class GetAuditLogByIdQueryHandler(IApplicationDbContext db)
             .ConfigureAwait(false);
 
         if (log is null)
+        {
+            logger.LogWarning("Audit log not found for ID {Id}", request.Id);
             return Result<AuditLogDetailResponse>.Failure(Errors.Admin.AuditLogNotFound);
+        }
 
         return log;
     }

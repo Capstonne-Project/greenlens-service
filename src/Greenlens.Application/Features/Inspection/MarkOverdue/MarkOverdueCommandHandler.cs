@@ -15,15 +15,24 @@ public sealed class MarkOverdueCommandHandler(
 {
     public async Task<Result> Handle(MarkOverdueCommand request, CancellationToken ct)
     {
+        logger.LogInformation("Getting mark overdue");
+
         var inspection = await inspections.GetByIdAsync(request.InspectionId, ct).ConfigureAwait(false);
         if (inspection is null)
+        {
+            logger.LogWarning("Inspection not found for inspection {InspectionId}", request.InspectionId);
             return Errors.Inspections.InspectionNotFound;
+        }
 
         var result = inspection.MarkOverdue();
-        if (result.IsFailure) return result;
+        if (result.IsFailure)
+        {
+            logger.LogWarning("Failed to mark overdue for inspection {InspectionId}", request.InspectionId);
+            return result;
+        }
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
-        logger.LogWarning("InspectionReport {Id} marked as OVERDUE", request.InspectionId);
+        logger.LogInformation("InspectionReport {Id} marked as OVERDUE", request.InspectionId);
         return Result.Success();
     }
 }

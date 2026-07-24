@@ -15,15 +15,17 @@ public sealed class CreateWasteTagCommandHandler(
     public async Task<Result<CreateWasteTagResponse>> Handle(
         CreateWasteTagCommand request, CancellationToken ct)
     {
-        // Check code uniqueness
-        var exists = await wasteTags.ExistsAsync(
-            t => t.Code == request.Code, ct).ConfigureAwait(false);
-
+        // Check code uniqueness (include soft-deleted — DB unique index is not filtered)
+        var code = request.Code.Trim().ToUpperInvariant();
+        var exists = await wasteTags.CodeExistsAsync(code, ct: ct).ConfigureAwait(false);
         if (exists)
+        {
+            logger.LogWarning("Waste tag code already exists: {Code}", code);
             return Errors.Reports.WasteTagCodeExists;
+        }
 
         var tag = WasteTag.Create(
-            request.Code,
+            code,
             request.NameVi,
             request.NameEn,
             request.IconUrl,

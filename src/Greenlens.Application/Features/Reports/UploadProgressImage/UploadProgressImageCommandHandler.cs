@@ -21,14 +21,23 @@ public sealed class UploadProgressImageCommandHandler(
         UploadProgressImageCommand request,
         CancellationToken ct)
     {
+        logger.LogInformation("Uploading progress image for report {ReportId} team {TeamId}",
+            request.ReportId, request.TeamId);
+
         var reportAssignments = await assignments.GetByReportIdAsync(request.ReportId, ct).ConfigureAwait(false);
         var assignment = reportAssignments.FirstOrDefault(a => a.TeamId == request.TeamId);
 
         if (assignment is null)
+        {
+            logger.LogWarning("Assignment not found for report {ReportId} and team {TeamId}", request.ReportId, request.TeamId);
             return Errors.Reports.AssignmentNotFound;
+        }
 
         if (assignment.Status != AssignmentStatus.InProgress)
+        {
+            logger.LogWarning("Assignment {AssignmentId} is not in a valid status for progress image upload", assignment.Id);
             return Errors.Reports.AssignmentNotInProgress;
+        }
 
         var folder = $"reports/{request.ReportId}/progress/{request.TeamId}";
         using var stream = new MemoryStream(request.ImageBytes);

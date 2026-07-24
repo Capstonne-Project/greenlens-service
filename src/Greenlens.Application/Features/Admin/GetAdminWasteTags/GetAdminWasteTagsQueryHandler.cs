@@ -3,26 +3,29 @@ using Greenlens.Application.Common.Models;
 using Greenlens.Domain.Common;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-
+using Microsoft.Extensions.Logging;
 namespace Greenlens.Application.Features.Admin.GetAdminWasteTags;
 
 /// <summary>
 /// Handles the GetAdminWasteTagsQuery — returns all waste tags with
 /// search, filter (isActive), sort, and pagination for Admin Dashboard.
 /// </summary>
-public sealed class GetAdminWasteTagsQueryHandler(IWasteTagRepository wasteTags)
+public sealed class GetAdminWasteTagsQueryHandler(IWasteTagRepository wasteTags, ILogger<GetAdminWasteTagsQueryHandler> logger)
     : IRequestHandler<GetAdminWasteTagsQuery, Result<GetAdminWasteTagsResponse>>
 {
     public async Task<Result<GetAdminWasteTagsResponse>> Handle(
         GetAdminWasteTagsQuery request,
         CancellationToken ct)
     {
+        logger.LogInformation("Getting admin waste tags");
+
         // 1. Base query — include inactive tags for admin
         var baseQuery = wasteTags.QueryAsNoTracking();
 
         // 2. Apply search (code, nameVi, nameEn, description)
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
+            logger.LogInformation("Search: {Search}", request.Search);
             var keyword = request.Search.Trim().ToLower();
             baseQuery = baseQuery.Where(t =>
                 t.Code.ToLower().Contains(keyword) ||
@@ -35,14 +38,17 @@ public sealed class GetAdminWasteTagsQueryHandler(IWasteTagRepository wasteTags)
         if (request.IsActive.HasValue)
         {
             baseQuery = baseQuery.Where(t => t.IsActive == request.IsActive.Value);
+            logger.LogInformation("Is active: {IsActive}", request.IsActive.Value);
         }
 
         // 4. Count total
         var totalItems = await baseQuery.CountAsync(ct).ConfigureAwait(false);
+        logger.LogInformation("Total items: {TotalItems}", totalItems);
         var pagination = PaginationMeta.Create(request.Page, request.PageSize, totalItems);
 
         // 5. Apply sorting
         var sortBy = request.SortBy?.Trim().ToLowerInvariant();
+        logger.LogInformation("Sort by: {SortBy}", sortBy);
         var orderedQuery = sortBy switch
         {
             "code" => request.SortDesc
@@ -83,6 +89,8 @@ public sealed class GetAdminWasteTagsQueryHandler(IWasteTagRepository wasteTags)
                 t.CreatedAt))
             .ToListAsync(ct)
             .ConfigureAwait(false);
+
+        logger.LogInformation("Admin waste tags retrieved successfully");
 
         return new GetAdminWasteTagsResponse(items, pagination);
     }

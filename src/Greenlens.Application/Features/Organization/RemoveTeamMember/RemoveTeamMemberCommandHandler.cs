@@ -15,13 +15,18 @@ public sealed class RemoveTeamMemberCommandHandler(
 {
     public async Task<Result> Handle(RemoveTeamMemberCommand request, CancellationToken ct)
     {
+        logger.LogInformation("Removing team member for user {UserId}", request.UserId);
+
         // Find member by team + user composite key
         var member = await members.QueryAsNoTracking()
             .FirstOrDefaultAsync(m => m.TeamId == request.TeamId && m.UserId == request.UserId, ct)
             .ConfigureAwait(false);
 
         if (member is null)
+        {
+            logger.LogWarning("Member not found for team ID {TeamId} and user ID {UserId}", request.TeamId, request.UserId);
             return Errors.Organization.MemberNotFound;
+        }
 
         // Re-fetch tracked
         var tracked = await members.GetByIdAsync(member.Id, ct).ConfigureAwait(false);

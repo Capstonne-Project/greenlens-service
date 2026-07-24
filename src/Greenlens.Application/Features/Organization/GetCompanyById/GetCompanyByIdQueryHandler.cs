@@ -3,6 +3,7 @@ using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Organization.GetCompanyById;
 
@@ -10,13 +11,16 @@ namespace Greenlens.Application.Features.Organization.GetCompanyById;
 /// Returns full company detail with service areas and staff count.
 /// </summary>
 public sealed class GetCompanyByIdQueryHandler(
-    IEnvironmentalServiceCompanyRepository companies)
+    IEnvironmentalServiceCompanyRepository companies,
+    ILogger<GetCompanyByIdQueryHandler> logger)
     : IRequestHandler<GetCompanyByIdQuery, Result<CompanyDetailResponse>>
 {
     public async Task<Result<CompanyDetailResponse>> Handle(
         GetCompanyByIdQuery request,
         CancellationToken ct)
     {
+        logger.LogInformation("Getting company by ID {Id}", request.Id);
+
         var company = await companies.QueryAsNoTracking()
             .Include(c => c.Department)
             .Include(c => c.ServiceAreas)
@@ -26,7 +30,10 @@ public sealed class GetCompanyByIdQueryHandler(
             .ConfigureAwait(false);
 
         if (company is null)
+        {
+            logger.LogWarning("Company {Id} not found", request.Id);
             return Errors.Organization.CompanyNotFound;
+        }
 
         var serviceAreas = company.ServiceAreas
             .OrderBy(sa => sa.Ward?.Name)
@@ -36,6 +43,11 @@ public sealed class GetCompanyByIdQueryHandler(
                 sa.Ward?.Name ?? sa.WardCode,
                 sa.Ward?.ProvinceCode ?? ""))
             .ToList();
+
+        logger.LogInformation("Company {Id} found", request.Id);
+        logger.LogInformation("Service areas: {ServiceAreas}", serviceAreas);
+        logger.LogInformation("Staff count: {StaffCount}", company.Staff.Count);
+        logger.LogInformation("Created at: {CreatedAt}", company.CreatedAt);
 
         return new CompanyDetailResponse(
             company.Id,

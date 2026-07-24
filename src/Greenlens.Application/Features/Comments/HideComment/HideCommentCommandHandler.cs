@@ -20,14 +20,22 @@ public sealed class HideCommentCommandHandler(
 {
     public async Task<Result> Handle(HideCommentCommand request, CancellationToken ct)
     {
+        logger.LogInformation("Getting hide comment");
+
         var comment = await db.Set<Comment>()
             .FirstOrDefaultAsync(c => c.Id == request.CommentId, ct)
             .ConfigureAwait(false);
         if (comment is null)
+        {
+            logger.LogWarning("Comment not found for comment {CommentId}", request.CommentId);
             return Errors.Comments.CommentNotFound;
+        }
 
         if (comment.IsHidden)
+        {
+            logger.LogWarning("Comment {CommentId} already hidden", request.CommentId);
             return Errors.Comments.AlreadyHidden;
+        }
 
         try
         {
@@ -35,12 +43,13 @@ public sealed class HideCommentCommandHandler(
         }
         catch (DomainException ex)
         {
+            logger.LogWarning("Domain validation error for comment {CommentId}: {Message}", request.CommentId, ex.Message);
             return Errors.Comments.DomainValidation(ex.Message);
         }
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 
-        logger.LogInformation("Comment {CommentId} hidden", comment.Id);
+        logger.LogInformation("Comment {CommentId} hidden by {UserId}", comment.Id, currentUser.UserId);
         return Result.Success();
     }
 }

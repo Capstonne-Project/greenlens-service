@@ -29,12 +29,20 @@ public sealed class GetReportProgressBoardQueryHandler(
     public async Task<Result<GetReportProgressBoardResponse>> Handle(
         GetReportProgressBoardQuery request, CancellationToken ct)
     {
+        logger.LogInformation("Getting report progress board for user {UserId}", currentUser.UserId);
+
         var user = await users.GetByIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
         if (user is null)
+        {
+            logger.LogWarning("User not found for ID {UserId}", currentUser.UserId);
             return Errors.Users.UserNotFound;
+        }
 
         if (!user.LocalOfficeId.HasValue)
+        {
+            logger.LogWarning("User {UserId} is not linked to an office", currentUser.UserId);
             return Errors.Users.UserNotFound; // LEO must be linked to an office
+        }
 
         // ── Base query: InProgress reports in this LEO's office ───
         var baseQuery = reports.QueryAsNoTracking()
@@ -49,12 +57,18 @@ public sealed class GetReportProgressBoardQueryHandler(
 
         // ── Optional filters ──────────────────────────────────────
         if (request.Severity.HasValue)
+        {
+            logger.LogInformation("Filtering by severity: {Severity}", request.Severity.Value);
             baseQuery = baseQuery.Where(r => r.Severity == request.Severity.Value);
+        }
 
         if (request.SlaBreachedOnly)
+        {
+            logger.LogInformation("Filtering by SLA breach only");
             baseQuery = baseQuery.Where(r =>
                 r.SlaResolveDueAt.HasValue &&
                 r.SlaResolveDueAt.Value < DateTime.UtcNow);
+        }
 
         // ── Pagination ────────────────────────────────────────────
         var totalCount = await baseQuery.CountAsync(ct).ConfigureAwait(false);

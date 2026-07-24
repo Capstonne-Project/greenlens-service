@@ -14,9 +14,14 @@ public sealed class UpdateTeamCommandHandler(
 {
     public async Task<Result> Handle(UpdateTeamCommand request, CancellationToken ct)
     {
+        logger.LogInformation("Updating team for team {TeamId}", request.Id);
+
         var team = await teams.GetByIdAsync(request.Id, ct).ConfigureAwait(false);
         if (team is null)
+        {
+            logger.LogWarning("Team not found for ID {Id}", request.Id);
             return Errors.Organization.TeamNotFound;
+        }
 
         // Update team name
         team.Update(request.Name);

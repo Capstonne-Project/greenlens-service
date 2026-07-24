@@ -23,6 +23,8 @@ public sealed class GetProvincesQueryHandler(
         GetProvincesQuery request,
         CancellationToken cancellationToken)
     {
+        logger.LogInformation("Getting provinces");
+
         var items = await provinces.QueryAsNoTracking()
             .OrderBy(p => p.Name)
             .Select(p => new ProvinceListItemDto(p.Code, p.Name, p.BoundaryUrl))

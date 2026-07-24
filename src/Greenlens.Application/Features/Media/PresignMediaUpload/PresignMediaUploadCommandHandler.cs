@@ -24,21 +24,34 @@ public sealed class PresignMediaUploadCommandHandler(
         PresignMediaUploadCommand request,
         CancellationToken cancellationToken)
     {
+        logger.LogInformation("Getting presign media upload");
+
         if (!CanUploadPurpose(currentUser.Role, request.Purpose))
+        {
+            logger.LogWarning("Upload purpose {Purpose} is forbidden", request.Purpose);
             return Errors.Media.UploadPurposeForbidden;
+        }
 
         if (!TryResolveLimits(request.Purpose, out var folderTemplate, out var maxBytes, out var requireImageMime))
+        {
+            logger.LogWarning("Invalid upload purpose {Purpose}", request.Purpose);
             return Errors.Media.InvalidUploadPurpose;
-
+        }
         var safeFileName = Path.GetFileName(request.FileName.Trim());
         if (string.IsNullOrWhiteSpace(safeFileName))
+        {
+            logger.LogWarning("Invalid file name {FileName}", request.FileName);
             return Errors.Media.InvalidFileName;
+        }
 
         string contentType;
         if (requireImageMime)
         {
             if (!ReportImageContentTypes.TryResolve(safeFileName, request.ContentType, out contentType))
+            {
+                logger.LogWarning("Invalid image type {ContentType}", request.ContentType);
                 return Errors.Media.InvalidImageType;
+            }
         }
         else
         {
@@ -46,7 +59,10 @@ public sealed class PresignMediaUploadCommandHandler(
         }
 
         if (request.FileSizeBytes is > 0 and var size && size > maxBytes)
+        {
+            logger.LogWarning("Image too large {Size} bytes", size);
             return Errors.Media.ImageTooLarge;
+        }
 
         var folder = folderTemplate
             .Replace("{reportId}", request.ReportId?.ToString("N") ?? "unknown", StringComparison.Ordinal);

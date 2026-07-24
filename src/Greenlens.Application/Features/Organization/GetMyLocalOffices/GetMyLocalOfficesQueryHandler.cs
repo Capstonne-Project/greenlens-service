@@ -43,7 +43,10 @@ public sealed class GetMyLocalOfficesQueryHandler(
             .ConfigureAwait(false);
 
         if (deptInfo is null || deptInfo.DepartmentId == Guid.Empty)
+        {
+            logger.LogWarning("Department not found for user ID {UserId}", currentUser.UserId);
             return Errors.Organization.DepartmentNotFound;
+        }
 
         // 2. Build base query
         var baseQuery = localOffices.QueryAsNoTracking()
@@ -62,6 +65,7 @@ public sealed class GetMyLocalOfficesQueryHandler(
         // 4. Apply isOnboarded filter
         if (request.IsOnboarded.HasValue)
         {
+            logger.LogInformation("Filtering local offices by onboarded status: {IsOnboarded}", request.IsOnboarded.Value);
             baseQuery = baseQuery.Where(o => o.IsOnboarded == request.IsOnboarded.Value);
         }
 

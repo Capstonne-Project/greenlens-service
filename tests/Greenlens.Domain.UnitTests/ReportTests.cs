@@ -450,4 +450,26 @@ public sealed class ReportTests
         Assert.Equal(ReportStatus.Closed, report.Status);
         Assert.NotNull(report.ClosedAt);
     }
+
+    [Fact]
+    public void AnonymizeReporter_ShouldClearReporterIdAndHideName_BR_AUTH_021()
+    {
+        var reporterId = Guid.NewGuid();
+        var report = Report.Create(
+            code: "RPT-2026-000099",
+            reporterId: reporterId,
+            categoryId: Guid.NewGuid(),
+            severity: Severity.Medium,
+            description: "Test",
+            latitude: 10.7626m,
+            longitude: 106.6602m,
+            address: "123 ABC",
+            wardCode: "00001",
+            provinceCode: "79");
+
+        report.AnonymizeReporter();
+
+        Assert.Null(report.ReporterId);
+        Assert.True(report.HideReporterName);
+    }
 }

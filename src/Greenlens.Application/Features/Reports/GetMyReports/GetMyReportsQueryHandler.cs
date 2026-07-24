@@ -17,14 +17,18 @@ public sealed class GetMyReportsQueryHandler(
     public async Task<Result<GetMyReportsResponse>> Handle(
         GetMyReportsQuery request, CancellationToken ct)
     {
+        logger.LogInformation("Getting my reports for user {UserId}", currentUser.UserId);
+
         var query = reports.QueryAsNoTracking()
             .Include(r => r.Category)
             .Include(r => r.Media)
             .Where(r => r.ReporterId == currentUser.UserId);
 
         if (request.Status.HasValue)
+        {
+            logger.LogInformation("Filtering by report status: {Status}", request.Status.Value);
             query = query.Where(r => r.Status == request.Status.Value);
-
+        }
         var totalCount = await query.CountAsync(ct).ConfigureAwait(false);
 
         var pagination = PaginationMeta.Create(request.Page, request.PageSize, totalCount);

@@ -20,6 +20,8 @@ public sealed class GetMyProgressHistoryQueryHandler(
     public async Task<Result<GetMyProgressHistoryResponse>> Handle(
         GetMyProgressHistoryQuery request, CancellationToken ct)
     {
+        logger.LogInformation("Getting my progress history for user {UserId}", currentUser.UserId);
+
         var leader = await teamMembers.GetLeaderByUserIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
         if (leader is null)
         {

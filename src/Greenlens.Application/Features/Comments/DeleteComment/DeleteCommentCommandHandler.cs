@@ -20,14 +20,28 @@ public sealed class DeleteCommentCommandHandler(
 {
     public async Task<Result> Handle(DeleteCommentCommand request, CancellationToken ct)
     {
+        logger.LogInformation("Getting delete comment");
+
         if (!currentUser.IsAuthenticated)
+        {
+            logger.LogWarning("Delete comment attempt by unauthenticated user");
             return Errors.Comments.LoginRequired;
+        }
 
         var comment = await db.Set<Comment>()
             .FirstOrDefaultAsync(c => c.Id == request.CommentId, ct)
             .ConfigureAwait(false);
         if (comment is null)
+        {
+            logger.LogWarning("Comment not found for comment {CommentId}", request.CommentId);
             return Errors.Comments.CommentNotFound;
+        }
+
+        if (comment.IsDeleted)
+        {
+            logger.LogWarning("Comment {CommentId} already deleted", request.CommentId);
+            return Errors.Comments.CommentAlreadyDeleted;
+        }
 
         try
         {
@@ -35,10 +49,17 @@ public sealed class DeleteCommentCommandHandler(
         }
         catch (DomainException ex) when (ex.Message.Contains("author", StringComparison.OrdinalIgnoreCase))
         {
+            logger.LogWarning("Comment {CommentId} is not author by {UserId}", request.CommentId, currentUser.UserId);
             return Errors.Comments.NotCommentAuthor;
+        }
+        catch (DomainException ex) when (ex.Message.Contains("already deleted", StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogWarning("Comment {CommentId} already deleted", request.CommentId);
+            return Errors.Comments.CommentAlreadyDeleted;
         }
         catch (DomainException)
         {
+            logger.LogWarning("Edit window expired for comment {CommentId}", request.CommentId);
             return Errors.Comments.EditWindowExpired;
         }
 

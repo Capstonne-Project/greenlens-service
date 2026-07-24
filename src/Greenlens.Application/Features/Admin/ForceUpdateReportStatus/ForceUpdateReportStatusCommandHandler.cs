@@ -19,7 +19,10 @@ public sealed class ForceUpdateReportStatusCommandHandler(
     {
         var report = await reports.GetByIdAsync(request.ReportId, ct).ConfigureAwait(false);
         if (report is null)
+        {
+            logger.LogWarning("Report not found: {ReportId}", request.ReportId);
             return Errors.Reports.ReportNotFound;
+        }
 
         var fromStatus = report.Status;
 

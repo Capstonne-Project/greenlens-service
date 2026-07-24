@@ -22,17 +22,28 @@ public sealed class EditCommentCommandHandler(
 {
     public async Task<Result<EditCommentResponse>> Handle(EditCommentCommand request, CancellationToken ct)
     {
+        logger.LogInformation("Getting edit comment");
+
         if (!currentUser.IsAuthenticated)
+        {
+            logger.LogWarning("Edit comment attempt by unauthenticated user");
             return Errors.Comments.LoginRequired;
+        }
 
         var comment = await db.Set<Comment>()
             .FirstOrDefaultAsync(c => c.Id == request.CommentId, ct)
             .ConfigureAwait(false);
         if (comment is null)
+        {
+            logger.LogWarning("Comment not found for comment {CommentId}", request.CommentId);
             return Errors.Comments.CommentNotFound;
+        }
 
         if (comment.AuthorId != currentUser.UserId)
+        {
+            logger.LogWarning("Comment {CommentId} is not author by {UserId}", request.CommentId, currentUser.UserId);
             return Errors.Comments.NotCommentAuthor;
+        }
 
         if (profanityFilter.ContainsProfanity(request.Content))
         {
@@ -41,6 +52,7 @@ public sealed class EditCommentCommandHandler(
             {
                 user.RecordCommentViolation();
                 await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+                logger.LogWarning("Inappropriate content detected for user {UserId}", currentUser.UserId);
             }
 
             return Errors.Comments.InappropriateContent;
@@ -52,6 +64,7 @@ public sealed class EditCommentCommandHandler(
         }
         catch (DomainException)
         {
+            logger.LogWarning("Edit window expired for comment {CommentId}", request.CommentId);
             return Errors.Comments.EditWindowExpired;
         }
 

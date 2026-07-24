@@ -4,16 +4,20 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Inspection.GetInspectionReportById;
 
 public sealed class GetInspectionReportByIdQueryHandler(
-    IInspectionReportRepository inspections)
+    IInspectionReportRepository inspections,
+    ILogger<GetInspectionReportByIdQueryHandler> logger)
     : IRequestHandler<GetInspectionReportByIdQuery, Result<InspectionReportDetailResponse>>
 {
     public async Task<Result<InspectionReportDetailResponse>> Handle(
         GetInspectionReportByIdQuery request, CancellationToken ct)
     {
+        logger.LogInformation("Getting inspection report by id");
+
         var ir = await inspections.QueryAsNoTracking()
             .Include(x => x.Report)
             .Include(x => x.CreatedByOfficer)
@@ -25,7 +29,10 @@ public sealed class GetInspectionReportByIdQueryHandler(
             .ConfigureAwait(false);
 
         if (ir is null)
+        {
+            logger.LogWarning("Inspection not found for inspection {InspectionId}", request.InspectionId);
             return Errors.Inspections.InspectionNotFound;
+        }
 
         var veDto = ir.ViolatingEntity is not null
             ? new ViolatingEntityEmbeddedDto(
@@ -50,6 +57,8 @@ public sealed class GetInspectionReportByIdQueryHandler(
                 p.RecordedByUser?.FullName,
                 p.CreatedAt))
             .ToList();
+
+        logger.LogInformation("Inspection report: {InspectionReport}", ir);
 
         return new InspectionReportDetailResponse(
             ir.Id,

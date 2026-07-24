@@ -32,16 +32,27 @@ public sealed class VerifyReportCommandHandler(
 {
     public async Task<Result> Handle(VerifyReportCommand request, CancellationToken ct)
     {
+        logger.LogInformation("Verifying report {ReportId} for user {UserId}", request.ReportId, currentUser.UserId);
+
         var report = await reports.GetByIdAsync(request.ReportId, ct).ConfigureAwait(false);
         if (report is null)
+        {
+            logger.LogWarning("Report not found for ID {ReportId}", request.ReportId);
             return Errors.Reports.ReportNotFound;
+        }
 
         if (report.Status != ReportStatus.Submitted)
+        {
+            logger.LogWarning("Report {ReportId} is not in a valid status for verification", request.ReportId);
             return Errors.Reports.InvalidStatusTransition;
+        }
 
         // BR-OFF-004: conflict of interest — LEO cannot verify own report
         if (report.ReporterId == currentUser.UserId)
+        {
+            logger.LogWarning("Report {ReportId} is verified by the reporter {UserId}", request.ReportId, currentUser.UserId);
             return Errors.Reports.ConflictOfInterest;
+        }
 
         // BR-ORG-012: LEO cannot verify reports outside their assigned ward
         // (unless report is in Department queue with no AssignedOfficeId — DEO/Admin handles)
@@ -52,7 +63,10 @@ public sealed class VerifyReportCommandHandler(
                 .ConfigureAwait(false);
 
             if (leoOffice is null || leoOffice.Id != report.AssignedOfficeId)
+            {
+                logger.LogWarning("Report {ReportId} is outside the jurisdiction of the LEO {UserId}", request.ReportId, currentUser.UserId);
                 return Errors.Reports.OutsideJurisdiction;
+            }
         }
 
         // Validate overrideCategoryId if provided
@@ -63,7 +77,10 @@ public sealed class VerifyReportCommandHandler(
                 .ConfigureAwait(false);
 
             if (!categoryExists)
+            {
+                logger.LogWarning("Category not found for ID {CategoryId}", request.OverrideCategoryId.Value);
                 return Errors.Reports.CategoryNotFound;
+            }
         }
 
         // Validate and persist waste tags if provided
@@ -71,21 +88,31 @@ public sealed class VerifyReportCommandHandler(
         {
             var tags = await wasteTags.GetByIdsAsync(request.WasteTagIds, ct).ConfigureAwait(false);
             if (tags.Count != request.WasteTagIds.Count)
+            {
+                logger.LogWarning("Waste tag not found for IDs {WasteTagIds}", request.WasteTagIds);
                 return Errors.Reports.WasteTagNotFound;
+            }
 
             var inactiveTags = tags.Where(t => !t.IsActive).ToList();
             if (inactiveTags.Count > 0)
+            {
+                logger.LogWarning("Waste tag inactive for IDs {WasteTagIds}", request.WasteTagIds);
                 return Errors.Reports.WasteTagInactive;
+            }
 
             // Remove existing tags (in case of re-verify scenario)
             var existing = await reportWasteTags.GetByReportIdAsync(request.ReportId, ct).ConfigureAwait(false);
             if (existing.Count > 0)
+            {
+                logger.LogInformation("Removing existing tags for report {ReportId}", request.ReportId);
                 reportWasteTags.RemoveRange(existing);
+            }
 
             var newTags = request.WasteTagIds
                 .Select(tagId => ReportWasteTag.Create(request.ReportId, tagId, currentUser.UserId))
                 .ToList();
 
+            logger.LogInformation("Adding new tags for report {ReportId}", request.ReportId);
             reportWasteTags.AddRange(newTags);
         }
 

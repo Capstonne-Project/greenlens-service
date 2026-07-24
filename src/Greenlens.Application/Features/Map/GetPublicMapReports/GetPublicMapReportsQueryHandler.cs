@@ -29,6 +29,8 @@ public sealed class GetPublicMapReportsQueryHandler(
         GetPublicMapReportsQuery request,
         CancellationToken cancellationToken)
     {
+        logger.LogInformation("Getting public map reports");
+
         if (request.CategoryId.HasValue)
         {
             var categoryOk = await categories.ExistsAsync(
@@ -37,7 +39,7 @@ public sealed class GetPublicMapReportsQueryHandler(
                 .ConfigureAwait(false);
             if (!categoryOk)
             {
-                logger.LogWarning("Không tìm thấy danh mục với ID: {CategoryId}", request.CategoryId);
+                logger.LogWarning("Category {CategoryId} not found", request.CategoryId.Value);
                 return Errors.Reports.CategoryNotFound;
             }
         }

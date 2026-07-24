@@ -3,20 +3,27 @@ using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Inspection.GetInspectionsByReport;
 
 public sealed class GetInspectionsByReportQueryHandler(
     IInspectionReportRepository inspections,
-    IReportRepository reports)
+    IReportRepository reports,
+    ILogger<GetInspectionsByReportQueryHandler> logger)
     : IRequestHandler<GetInspectionsByReportQuery, Result<GetInspectionsByReportResponse>>
 {
     public async Task<Result<GetInspectionsByReportResponse>> Handle(
         GetInspectionsByReportQuery request, CancellationToken ct)
     {
+        logger.LogInformation("Getting inspections by report");
+
         var report = await reports.GetByIdAsync(request.ReportId, ct).ConfigureAwait(false);
         if (report is null)
+        {
+            logger.LogWarning("Report not found for report {ReportId}", request.ReportId);
             return Errors.Reports.ReportNotFound;
+        }
 
         var items = await inspections.QueryAsNoTracking()
             .Include(ir => ir.CreatedByOfficer)
@@ -40,6 +47,8 @@ public sealed class GetInspectionsByReportQueryHandler(
                 ir.CreatedAt))
             .ToListAsync(ct)
             .ConfigureAwait(false);
+
+        logger.LogInformation("Inspections by report: {Items}", items);
 
         return new GetInspectionsByReportResponse(items);
     }

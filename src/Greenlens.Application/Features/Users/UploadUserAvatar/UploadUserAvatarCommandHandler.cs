@@ -30,19 +30,30 @@ public sealed class UploadUserAvatarCommandHandler(
         UploadUserAvatarCommand request,
         CancellationToken cancellationToken)
     {
+        logger.LogInformation("Uploading avatar for user {UserId}", currentUser.UserId);
+
         // ── Validate file ──
         if (!AllowedContentTypes.Contains(request.ContentType))
+        {
+            logger.LogWarning("Invalid file type {ContentType}", request.ContentType);
             return Errors.Users.InvalidFileType;
+        }
 
         if (request.FileSize > MaxFileSizeBytes)
+        {
+            logger.LogWarning("File too large {FileSize}", request.FileSize);
             return Errors.Users.FileTooLarge;
+        }
 
         // ── Load user ──
         var user = await users.GetByIdAsync(currentUser.UserId, cancellationToken)
             .ConfigureAwait(false);
 
         if (user is null)
+        {
+            logger.LogWarning("User not found for ID {UserId}", currentUser.UserId);
             return Errors.Users.UserNotFound;
+        }
 
         // ── Upload to R2 ──
         FileUploadResult uploadResult;

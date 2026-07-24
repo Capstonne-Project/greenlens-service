@@ -202,6 +202,26 @@ public static partial class Errors
             "Chỉ có thể kích hoạt lại công ty đang bị tạm ngưng.",
             ErrorType.BusinessRule);
 
+        public static Error CompanyAlreadyDeleted => new(
+            "COMPANY_ALREADY_DELETED",
+            "Công ty đã được xóa trước đó.",
+            ErrorType.Conflict);
+
+        public static Error CompanyMustTerminateFirst => new(
+            "COMPANY_MUST_TERMINATE_FIRST",
+            "Phải chấm dứt hợp đồng (Terminate) trước khi xóa công ty.",
+            ErrorType.BusinessRule);
+
+        public static Error TeamAlreadyDeleted => new(
+            "TEAM_ALREADY_DELETED",
+            "Team đã được xóa trước đó.",
+            ErrorType.Conflict);
+
+        public static Error TeamHasActiveAssignments => new(
+            "TEAM_HAS_ACTIVE_ASSIGNMENTS",
+            "Không thể xóa team đang có nhiệm vụ đang xử lý.",
+            ErrorType.BusinessRule);
+
         // ── Contract Renewal (BR-CMP-006) ──
 
         public static Error SubsidiaryCannotRenew => new(

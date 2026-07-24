@@ -3,6 +3,7 @@ using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Notifications.MarkAllRead;
 
@@ -15,17 +16,22 @@ public sealed record MarkAllReadResponse(int MarkedCount);
 internal sealed class MarkAllReadCommandHandler(
     ICurrentUser currentUser,
     INotificationRepository notificationRepo,
-    IUnitOfWork unitOfWork)
+    IUnitOfWork unitOfWork,
+    ILogger<MarkAllReadCommandHandler> logger)
     : IRequestHandler<MarkAllReadCommand, Result<MarkAllReadResponse>>
 {
     public async Task<Result<MarkAllReadResponse>> Handle(
         MarkAllReadCommand request, CancellationToken ct)
     {
+        logger.LogInformation("Marking all notifications as read");
+
         var userId = currentUser.UserId;
 
         var unreadNotifications = await notificationRepo.Query()
             .Where(n => n.RecipientId == userId && !n.IsRead)
             .ToListAsync(ct).ConfigureAwait(false);
+
+        logger.LogInformation("Unread notifications: {UnreadNotifications}", unreadNotifications);
 
         foreach (var notification in unreadNotifications)
         {
@@ -33,6 +39,8 @@ internal sealed class MarkAllReadCommandHandler(
         }
 
         await unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        logger.LogInformation("Marked {Count} notifications as read", unreadNotifications.Count);
 
         return new MarkAllReadResponse(unreadNotifications.Count);
     }

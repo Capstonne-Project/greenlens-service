@@ -122,6 +122,15 @@ public static class DependencyInjection
         // ── Firebase Phone Auth ──────────────────────────
         services.AddScoped<IFirebasePhoneAuthService, FirebasePhoneAuthService>();
 
+        // ── CAPTCHA (BR-AUTH-014) ────────────────────────
+        services.AddOptions<CaptchaOptions>()
+            .Bind(configuration.GetSection(CaptchaOptions.SectionName));
+        services.AddHttpClient("Turnstile", client =>
+        {
+            client.BaseAddress = new Uri("https://challenges.cloudflare.com/turnstile/v0/siteverify");
+        });
+        services.AddScoped<ICaptchaValidator, TurnstileCaptchaValidator>();
+
         // ── File Storage (R2 Cloudflare) ────────────────
         services.AddScoped<IFileStorageService, Storage.R2FileStorageService>();
 

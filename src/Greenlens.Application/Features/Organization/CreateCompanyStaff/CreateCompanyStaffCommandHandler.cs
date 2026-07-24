@@ -31,22 +31,29 @@ public sealed class CreateCompanyStaffCommandHandler(
         CreateCompanyStaffCommand request,
         CancellationToken ct)
     {
+        logger.LogInformation("Creating company staff for user {Email}", request.Email);
+
         // ── 1. Resolve CM's company ──
         var cmStaff = await companyStaffRepo.GetByUserIdAsync(currentUser.UserId, ct)
             .ConfigureAwait(false);
 
         if (cmStaff is null)
+        {
+            logger.LogWarning("Company manager not found for user ID {UserId}", currentUser.UserId);
             return Errors.Organization.NotCompanyManager;
+        }
 
         var companyId = cmStaff.CompanyId;
 
         // ── 2. Check email uniqueness ──
-        var emailExists = await users.ExistsAsync(
-            u => u.Email == request.Email.ToLowerInvariant(), ct)
+        var emailError = await UserRegistrationGuard
+            .ValidateNewEmailForProvisioningAsync(users, request.Email, ct)
             .ConfigureAwait(false);
-
-        if (emailExists)
-            return Errors.Organization.ManagerEmailAlreadyExists;
+        if (emailError is not null)
+        {
+            logger.LogWarning("Email {Email} is already in use", request.Email);
+            return emailError;
+        }
 
         // ── 3. Validate team belongs to this company (if specified) ──
         EnvironmentalTeam? team = null;
@@ -56,10 +63,16 @@ public sealed class CreateCompanyStaffCommandHandler(
                 .ConfigureAwait(false);
 
             if (team is null)
+            {
+                logger.LogWarning("Team {TeamId} not found", request.TeamId.Value);
                 return Errors.Organization.TeamNotFound;
+            }
 
             if (team.CompanyId != companyId)
+            {
+                logger.LogWarning("Team {TeamId} is not in company {CompanyId}", request.TeamId.Value, companyId);
                 return Errors.Organization.TeamNotInCompany;
+            }
         }
 
         // ── 4. Create User (role=CompanyStaff, MustChangePassword=true) ──
@@ -87,7 +100,17 @@ public sealed class CreateCompanyStaffCommandHandler(
             assignedTeamId = team.Id;
         }
 
-        await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+        try
+        {
+            await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+        }
+        catch (DbUpdateException ex)
+        {
+            var mapped = PostgresUniqueViolationMapper.TryMap(ex);
+            if (mapped is not null)
+                return mapped;
+            throw;
+        }
 
         logger.LogInformation(
             "CM {CmId} created staff {StaffEmail} for company {CompanyId}, team={TeamId}",

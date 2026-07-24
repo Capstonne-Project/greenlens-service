@@ -30,21 +30,35 @@ public sealed class ConfirmDuplicateCommandHandler(
 {
     public async Task<Result> Handle(ConfirmDuplicateCommand request, CancellationToken ct)
     {
+        logger.LogInformation("Confirming duplicate for report {ReportId}", request.ReportId);
+
         if (request.ReportId == request.PrimaryReportId)
+        {
+            logger.LogWarning("Report {ReportId} cannot merge into self", request.ReportId);
             return Errors.Reports.CannotMergeIntoSelf;
+        }
 
         var report = await reports.GetByIdAsync(request.ReportId, ct).ConfigureAwait(false);
         if (report is null)
+        {
+            logger.LogWarning("Report not found for ID {ReportId}", request.ReportId);
             return Errors.Reports.ReportNotFound;
+        }
 
         var primary = await reports.GetByIdAsync(request.PrimaryReportId, ct).ConfigureAwait(false);
         if (primary is null)
+        {
+            logger.LogWarning("Primary report not found for ID {PrimaryReportId}", request.PrimaryReportId);
             return Errors.Reports.PrimaryReportNotFound;
+        }
 
         // BR-REP-032: report must be verified before it can be confirmed as duplicate.
         // Already-Duplicate or Rejected reports cannot be merged again.
         if (report.Status is ReportStatus.Submitted or ReportStatus.Duplicate or ReportStatus.Rejected)
+        {
+            logger.LogWarning("Report {ReportId} is not valid for duplicate", request.ReportId);
             return Errors.Reports.InvalidStatusTransition;
+        }
 
         var fromStatus = report.Status;
 

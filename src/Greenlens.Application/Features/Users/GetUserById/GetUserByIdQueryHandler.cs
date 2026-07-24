@@ -18,6 +18,8 @@ public sealed class GetUserByIdQueryHandler(IUserRepository users,
         GetUserByIdQuery request,
         CancellationToken cancellationToken)
     {
+        logger.LogInformation("Getting user by ID {UserId}", request.UserId);
+
         var dto = await users.QueryAsNoTracking()
             .Where(u => u.Id == request.UserId)
             .Select(u => new UserDetailDto(

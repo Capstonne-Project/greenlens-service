@@ -501,4 +501,12 @@ public sealed class Report : SoftDeletableEntity
         HiddenBy = null;
         HiddenReason = null;
     }
+
+    /// <summary>BR-AUTH-021/022: Detach reporter identity; report data is retained.</summary>
+    public void AnonymizeReporter()
+    {
+        ReporterId = null;
+        HideReporterName = true;
+        UpdatedAt = DateTime.UtcNow;
+    }
 }

@@ -3,12 +3,13 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-
+using Microsoft.Extensions.Logging;
 namespace Greenlens.Application.Features.Analytics.GetAdminAlerts;
 
 /// <summary>System-wide operational alerts: SLA breaches, overdue reports, unresolved possible duplicates.</summary>
 public sealed class GetAdminAlertsQueryHandler(
-    IReportRepository reports)
+    IReportRepository reports,
+    ILogger<GetAdminAlertsQueryHandler> logger)
     : IRequestHandler<GetAdminAlertsQuery, Result<List<AlertItem>>>
 {
     private static readonly ReportStatus[] OpenStatuses =
@@ -17,12 +18,15 @@ public sealed class GetAdminAlertsQueryHandler(
     public async Task<Result<List<AlertItem>>> Handle(
         GetAdminAlertsQuery request, CancellationToken ct)
     {
+        logger.LogInformation("Getting admin alerts");
+
         var alerts = new List<AlertItem>();
 
         var slaBreachCount = await reports.QueryAsNoTracking()
             .CountAsync(r => OpenStatuses.Contains(r.Status)
                               && (r.SlaVerifyBreached || r.SlaResolveBreached), ct)
             .ConfigureAwait(false);
+        logger.LogInformation("SLA breach count: {SlaBreachCount}", slaBreachCount);
 
         if (slaBreachCount > 0)
             alerts.Add(new AlertItem(
@@ -33,6 +37,7 @@ public sealed class GetAdminAlertsQueryHandler(
         var overdueCount = await reports.QueryAsNoTracking()
             .CountAsync(r => OpenStatuses.Contains(r.Status) && r.IsOverdue, ct)
             .ConfigureAwait(false);
+        logger.LogInformation("Overdue count: {OverdueCount}", overdueCount);
 
         if (overdueCount > 0)
             alerts.Add(new AlertItem(
@@ -43,6 +48,7 @@ public sealed class GetAdminAlertsQueryHandler(
         var possibleDuplicateCount = await reports.QueryAsNoTracking()
             .CountAsync(r => r.IsPossibleDuplicate, ct)
             .ConfigureAwait(false);
+        logger.LogInformation("Possible duplicate count: {PossibleDuplicateCount}", possibleDuplicateCount);
 
         if (possibleDuplicateCount > 0)
             alerts.Add(new AlertItem(
@@ -53,12 +59,15 @@ public sealed class GetAdminAlertsQueryHandler(
         var suspiciousCount = await reports.QueryAsNoTracking()
             .CountAsync(r => r.IsSuspicious && OpenStatuses.Contains(r.Status), ct)
             .ConfigureAwait(false);
+        logger.LogInformation("Suspicious count: {SuspiciousCount}", suspiciousCount);
 
         if (suspiciousCount > 0)
             alerts.Add(new AlertItem(
                 "SUSPICIOUS_REPORTS",
                 "Medium",
                 $"{suspiciousCount} báo cáo bị gắn cờ khả nghi bởi AI."));
+
+        logger.LogInformation("Admin alerts retrieved successfully");
 
         return alerts;
     }

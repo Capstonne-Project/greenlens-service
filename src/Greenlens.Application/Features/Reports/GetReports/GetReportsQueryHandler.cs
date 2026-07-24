@@ -15,6 +15,7 @@ public sealed class GetReportsQueryHandler(
     public async Task<Result<GetReportsResponse>> Handle(
         GetReportsQuery request, CancellationToken ct)
     {
+        
         var query = reports.QueryAsNoTracking()
             .Include(r => r.Category)
             .Where(r => !r.IsHidden) // BR-ADM-006: hide moderated reports from public

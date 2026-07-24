@@ -3,17 +3,20 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-
+using Microsoft.Extensions.Logging;
 namespace Greenlens.Application.Features.Analytics.GetAdminRecentActivities;
 
 /// <summary>Recent report lifecycle events (status transitions) across the whole system.</summary>
 public sealed class GetAdminRecentActivitiesQueryHandler(
-    IReportStatusHistoryRepository history)
+    IReportStatusHistoryRepository history,
+    ILogger<GetAdminRecentActivitiesQueryHandler> logger)
     : IRequestHandler<GetAdminRecentActivitiesQuery, Result<List<RecentActivityItem>>>
 {
     public async Task<Result<List<RecentActivityItem>>> Handle(
         GetAdminRecentActivitiesQuery request, CancellationToken ct)
     {
+        logger.LogInformation("Getting admin recent activities");
+
         var items = await history.QueryAsNoTracking()
             .Include(h => h.Report)
             .OrderByDescending(h => h.CreatedAt)
@@ -26,6 +29,8 @@ public sealed class GetAdminRecentActivitiesQueryHandler(
                     + (h.Reason != null ? $" ({h.Reason})" : string.Empty)))
             .ToListAsync(ct)
             .ConfigureAwait(false);
+
+        logger.LogInformation("Admin recent activities retrieved successfully");
 
         return items;
     }

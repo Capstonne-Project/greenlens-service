@@ -12,6 +12,7 @@ public sealed class DeleteUserCommandHandlerTests
 {
     private readonly IUserRepository _users = Substitute.For<IUserRepository>();
     private readonly IUserPointsRepository _userPoints = Substitute.For<IUserPointsRepository>();
+    private readonly IReportRepository _reports = Substitute.For<IReportRepository>();
     private readonly IUnitOfWork _uow = Substitute.For<IUnitOfWork>();
     private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
     private readonly DeleteUserCommandHandler _sut;
@@ -23,7 +24,9 @@ public sealed class DeleteUserCommandHandlerTests
     {
         _currentUser.UserId.Returns(AdminId);
         _currentUser.Email.Returns("admin@greenlens.com.vn");
-        _sut = new DeleteUserCommandHandler(_users, _userPoints, _uow, _currentUser, NullLogger<DeleteUserCommandHandler>.Instance);
+        _reports.AnonymizeReporterAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(2);
+        _sut = new DeleteUserCommandHandler(
+            _users, _userPoints, _reports, _uow, _currentUser, NullLogger<DeleteUserCommandHandler>.Instance);
     }
 
     [Fact]
@@ -37,6 +40,7 @@ public sealed class DeleteUserCommandHandlerTests
         Assert.True(result.IsSuccess);
         Assert.True(user.IsDeleted);
         Assert.Equal("admin@greenlens.com.vn", user.DeletedBy);
+        await _reports.Received(1).AnonymizeReporterAsync(user.Id, Arg.Any<CancellationToken>());
         await _uow.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 

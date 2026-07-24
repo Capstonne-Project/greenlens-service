@@ -21,6 +21,8 @@ internal sealed class ReportVerifiedNotificationHandler(
 {
     public async Task Handle(ReportVerifiedEvent notification, CancellationToken ct)
     {
+        logger.LogInformation("Getting report verified notification");
+
         logger.LogDebug("Notification: Report {ReportId} verified → notify reporter {UserId}",
             notification.ReportId, notification.ReporterId);
 

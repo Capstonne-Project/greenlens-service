@@ -24,6 +24,8 @@ public sealed class VerifyPhoneFirebaseCommandHandler(
         VerifyPhoneFirebaseCommand request,
         CancellationToken cancellationToken)
     {
+        logger.LogInformation("Verifying phone number for user {UserId}", currentUser.UserId);
+
         // 1. Verify the Firebase token and extract phone number
         var phoneInfo = await firebasePhoneAuth
             .VerifyPhoneTokenAsync(request.FirebaseIdToken, cancellationToken)
@@ -38,22 +40,30 @@ public sealed class VerifyPhoneFirebaseCommandHandler(
         var phone = NormalizePhone(phoneInfo.PhoneNumber);
 
         if (string.IsNullOrWhiteSpace(phone))
+        {
+            logger.LogWarning("Phone number missing for user {UserId}", currentUser.UserId);
             return Errors.Phone.FirebasePhoneMissing;
-
+        }
         // 2. Check if phone is already used by another user
         var phoneInUse = await users
-            .ExistsAsync(u => u.PhoneNumber == phone && u.Id != currentUser.UserId, cancellationToken)
+            .PhoneExistsIncludingDeletedAsync(phone, currentUser.UserId, cancellationToken)
             .ConfigureAwait(false);
 
         if (phoneInUse)
+        {
+            logger.LogWarning("Phone number {Phone} is already in use", phone);
             return Errors.Phone.PhoneAlreadyUsed;
+        }
 
         // 3. Update the current user's phone
         var user = await users.GetByIdAsync(currentUser.UserId, cancellationToken)
             .ConfigureAwait(false);
 
         if (user is null)
+        {
+            logger.LogWarning("User not found for ID {UserId}", currentUser.UserId);
             return Errors.Auth.UserNotFound;
+        }
 
         user.VerifyPhone(phone);
 

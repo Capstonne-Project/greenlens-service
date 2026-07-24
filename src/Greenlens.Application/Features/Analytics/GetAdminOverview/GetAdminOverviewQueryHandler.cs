@@ -6,7 +6,7 @@ using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-
+using Microsoft.Extensions.Logging;
 namespace Greenlens.Application.Features.Analytics.GetAdminOverview;
 
 /// <summary>
@@ -17,7 +17,8 @@ public sealed class GetAdminOverviewQueryHandler(
     IUserRepository users,
     IEnvironmentalServiceCompanyRepository companies,
     IEnvironmentalTeamRepository teams,
-    IDateTimeProvider clock)
+    IDateTimeProvider clock,
+    ILogger<GetAdminOverviewQueryHandler> logger)
     : IRequestHandler<GetAdminOverviewQuery, Result<AdminOverviewResponse>>
 {
     private static readonly ReportStatus[] PendingStatuses =
@@ -28,10 +29,14 @@ public sealed class GetAdminOverviewQueryHandler(
     public async Task<Result<AdminOverviewResponse>> Handle(
         GetAdminOverviewQuery request, CancellationToken ct)
     {
+        logger.LogInformation("Getting admin overview");
+
         var (from, to) = DateRangeDefaults.Resolve(request.From, request.To, clock.UtcNow);
 
         var reportsInRange = reports.QueryAsNoTracking()
             .Where(r => r.CreatedAt >= from && r.CreatedAt <= to);
+
+        logger.LogInformation("Reports in range: {ReportsInRange}", reportsInRange);
 
         var totalUsers = await users.QueryAsNoTracking().CountAsync(ct).ConfigureAwait(false);
         var totalReports = await reportsInRange.CountAsync(ct).ConfigureAwait(false);
@@ -69,6 +74,8 @@ public sealed class GetAdminOverviewQueryHandler(
         var averageResolutionHours = resolutionHoursSamples.Count == 0
             ? 0m
             : Math.Round(resolutionHoursSamples.Average(), 1);
+
+        logger.LogInformation("Admin overview retrieved successfully");
 
         return new AdminOverviewResponse(
             totalUsers,

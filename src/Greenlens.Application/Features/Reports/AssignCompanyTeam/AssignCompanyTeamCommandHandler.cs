@@ -30,43 +30,66 @@ public sealed class AssignCompanyTeamCommandHandler(
 {
     public async Task<Result> Handle(AssignCompanyTeamCommand request, CancellationToken ct)
     {
+        
         if (request.Teams.Count == 0)
+        {
+            logger.LogWarning("No teams provided for report {ReportId}", request.ReportId);
             return Errors.Reports.AtLeastOneTeam;
+        }
 
         // Resolve caller's company
         var staff = await companyStaff.GetByUserIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
         if (staff is null || !staff.IsActive)
+        {
+            logger.LogWarning("Company staff not found for user ID {UserId}", currentUser.UserId);
             return Errors.Reports.ReportNotDispatchedToYourCompany;
+        }
 
         var callerCompanyId = staff.CompanyId;
 
         var report = await reports.GetByIdAsync(request.ReportId, ct).ConfigureAwait(false);
         if (report is null)
+        {
+            logger.LogWarning("Report not found for ID {ReportId}", request.ReportId);
             return Errors.Reports.ReportNotFound;
+        }
 
         // Must be Verified and dispatched to caller's company
         if (report.Status != ReportStatus.Verified)
+        {
+            logger.LogWarning("Report {ReportId} is not verified", request.ReportId);
             return Errors.Reports.InvalidStatusTransition;
-
+        }
         if (report.AssignedCompanyId != callerCompanyId)
+        {
+            logger.LogWarning("Report {ReportId} is not dispatched to caller's company", request.ReportId);
             return Errors.Reports.ReportNotDispatchedToYourCompany;
-
+        }
         // Validate each team
         foreach (var item in request.Teams)
         {
             var team = await teams.GetByIdAsync(item.TeamId, ct).ConfigureAwait(false);
             if (team is null)
+            {
+                logger.LogWarning("Team not found for ID {TeamId}", item.TeamId);
                 return Errors.Organization.TeamNotFound;
+            }
 
             // Team must belong to caller's company
             if (team.CompanyId != callerCompanyId)
+            {
+                logger.LogWarning("Team {TeamId} is not in caller's company", item.TeamId);
                 return Errors.Reports.ReportNotDispatchedToYourCompany;
+            }
 
             // BR-OFF-013: configurable workload limit (default 6, warning at 5)
             var limits = workloadOptions.Value;
             var workload = await assignments.CountInProgressByTeamAsync(item.TeamId, ct).ConfigureAwait(false);
             if (workload >= limits.MaxTasksPerTeam)
+            {
+                logger.LogWarning("Team {TeamId} workload exceeded: {Current}/{Max}", item.TeamId, workload, limits.MaxTasksPerTeam);
                 return Errors.Reports.TeamWorkloadExceeded;
+            }
             if (workload >= limits.WarningThreshold)
                 logger.LogWarning("Company team {TeamId} approaching workload limit: {Current}/{Max}",
                     item.TeamId, workload, limits.MaxTasksPerTeam);

@@ -30,8 +30,13 @@ public sealed class AnalyzeReportImageCommandHandler(
         AnalyzeReportImageCommand request,
         CancellationToken cancellationToken)
     {
+        logger.LogInformation("Analyzing report image for file {FileName}", request.FileName);
+
         if (!ReportImageContentTypes.TryResolve(request.FileName, request.ContentType, out var contentType))
+        {
+            logger.LogWarning("Invalid image type for file {FileName}", request.FileName);
             return Errors.Media.InvalidImageType;
+        }
 
         // Call AI Service — timeout/down returns null (BR-AI-006)
         using var stream = new MemoryStream(request.ImageBytes);

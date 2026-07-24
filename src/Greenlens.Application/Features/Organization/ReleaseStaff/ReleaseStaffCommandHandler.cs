@@ -23,23 +23,35 @@ public sealed class ReleaseStaffCommandHandler(
 {
     public async Task<Result> Handle(ReleaseStaffCommand request, CancellationToken ct)
     {
+        logger.LogInformation("Releasing staff for user {UserId}", request.UserId);
+
         var targetUser = await users.GetByIdAsync(request.UserId, ct).ConfigureAwait(false);
         if (targetUser is null)
+        {
+            logger.LogWarning("Target user not found for ID {UserId}", request.UserId);
             return Errors.Users.UserNotFound;
+        }
 
         // Cannot release a Citizen
         if (targetUser.Role == UserRole.Citizen)
+        {
+            logger.LogWarning("Target user {UserId} is a citizen", request.UserId);
             return Errors.Organization.CannotReleaseCitizen;
+        }
 
         // LEO can only release staff in their own office
         var leo = await users.GetByIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
         if (leo is null)
+        {
+            logger.LogWarning("LEO not found for user ID {UserId}", currentUser.UserId);
             return Errors.Users.UserNotFound;
+        }
 
         if (leo.LocalOfficeId.HasValue
             && targetUser.LocalOfficeId.HasValue
             && leo.LocalOfficeId != targetUser.LocalOfficeId)
         {
+            logger.LogWarning("Target user {UserId} is not in the LEO's office", request.UserId);
             return Errors.Organization.UserNotInYourOffice;
         }
 

@@ -23,29 +23,49 @@ public sealed class DeclineAssignmentCommandHandler(
 {
     public async Task<Result> Handle(DeclineAssignmentCommand request, CancellationToken ct)
     {
+        logger.LogInformation("Declining assignment for report {ReportId}", request.ReportId);
+
         if (request.Reason.Length < 20)
+        {
+            logger.LogWarning("Reason is too short for report {ReportId}", request.ReportId);
             return Errors.Reports.ReasonTooShort;
+        }
 
         var report = await reports.GetByIdAsync(request.ReportId, ct).ConfigureAwait(false);
         if (report is null)
+        {
+            logger.LogWarning("Report not found for ID {ReportId}", request.ReportId);
             return Errors.Reports.ReportNotFound;
+        }
 
         if (report.Status != ReportStatus.InProgress)
+        {
+            logger.LogWarning("Report {ReportId} is not in progress", request.ReportId);
             return Errors.Reports.InvalidStatusTransition;
+        }
 
         var reportAssignments = await assignments.GetByReportIdAsync(request.ReportId, ct).ConfigureAwait(false);
         var assignment = reportAssignments.FirstOrDefault(a => a.TeamId == request.TeamId);
 
         if (assignment is null)
+        {
+            logger.LogWarning("Assignment not found for report ID {ReportId} and team ID {TeamId}", request.ReportId, request.TeamId);
             return Errors.Reports.AssignmentNotFound;
+        }
 
         // DC1: must be Assigned (not yet accepted) to decline
         if (assignment.Status != AssignmentStatus.Assigned)
+        {
+            logger.LogWarning("Assignment {AssignmentId} is not assigned", assignment.Id);
             return Errors.Reports.InvalidStatusTransition;
+        }
 
         // BR-CLN-007, BR-INS-003: 24h window (updated from 2h per business decision)
         if ((DateTime.UtcNow - assignment.AssignedAt).TotalHours > 24)
+        {
+            logger.LogWarning("Decline window expired for assignment {AssignmentId}", assignment.Id);
             return Errors.Reports.DeclineWindowExpired;
+        }
 
         assignment.Decline(request.Reason);
 

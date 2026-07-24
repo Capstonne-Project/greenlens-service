@@ -16,7 +16,16 @@ public sealed class UpdateCategoryCommandHandler(
     {
         var category = await categories.GetByIdAsync(request.Id, ct).ConfigureAwait(false);
         if (category is null)
+        {
+            logger.LogWarning("Category not found: {Id}", request.Id);
             return Errors.Reports.CategoryNotFound;
+        }
+
+        if (category.IsDeleted)
+        {
+            logger.LogWarning("Category already deleted: {Id}", request.Id);
+            return Errors.Reports.CategoryAlreadyDeleted;
+        }
 
         // Update category details
         category.Update(request.NameVi, request.NameEn, request.IconUrl);

@@ -9,6 +9,9 @@ public abstract class SoftDeletableEntity : AuditableEntity
 
     public void SoftDelete(string? deletedBy = null)
     {
+        if (IsDeleted)
+            return;
+
         DeletedAt = DateTime.UtcNow;
         DeletedBy = deletedBy;
     }

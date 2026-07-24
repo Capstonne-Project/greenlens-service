@@ -4,6 +4,7 @@ using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.DeleteDraft;
 
@@ -11,18 +12,24 @@ namespace Greenlens.Application.Features.Reports.DeleteDraft;
 public sealed class DeleteDraftCommandHandler(
     IReportDraftRepository drafts,
     ICurrentUser currentUser,
-    IUnitOfWork uow)
+    IUnitOfWork uow,
+    ILogger<DeleteDraftCommandHandler> logger)
     : IRequestHandler<DeleteDraftCommand, Result<Unit>>
 {
     public async Task<Result<Unit>> Handle(
         DeleteDraftCommand request,
         CancellationToken cancellationToken)
     {
+        logger.LogInformation("Deleting draft for report {DraftId}", request.DraftId);
+
         var draft = await drafts.GetByIdAsync(request.DraftId, cancellationToken)
             .ConfigureAwait(false);
 
         if (draft is null || draft.UserId != currentUser.UserId)
+        {
+            logger.LogWarning("Draft not found for ID {DraftId}", request.DraftId);
             return Errors.Reports.DraftNotFound;
+        }
 
         drafts.Remove(draft);
         await uow.SaveChangesAsync(cancellationToken).ConfigureAwait(false);

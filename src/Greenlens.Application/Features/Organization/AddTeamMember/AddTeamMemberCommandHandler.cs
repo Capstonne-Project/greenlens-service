@@ -23,17 +23,25 @@ public sealed class AddTeamMemberCommandHandler(
         AddTeamMemberCommand request,
         CancellationToken cancellationToken)
     {
+        logger.LogInformation("Adding team member {UserId} to team {TeamId}", request.UserId, request.TeamId);
+
         var team = await teams.GetByIdAsync(request.TeamId, cancellationToken)
             .ConfigureAwait(false);
 
         if (team is null)
+        {
+            logger.LogWarning("Team {TeamId} not found", request.TeamId);
             return Errors.Organization.TeamNotFound;
+        }
 
         var user = await users.GetByIdAsync(request.UserId, cancellationToken)
             .ConfigureAwait(false);
 
         if (user is null)
+        {
+            logger.LogWarning("User {UserId} not found", request.UserId);
             return Errors.Users.UserNotFound;
+        }
 
         // Validate role compatibility: Cleanup team → Cleaner role, Inspection team → Inspector role
         var validRole = team.TeamType switch
@@ -44,14 +52,20 @@ public sealed class AddTeamMemberCommandHandler(
         };
 
         if (!validRole)
+        {
+            logger.LogWarning("User {UserId} has invalid role for team {TeamId}", request.UserId, request.TeamId);
             return Errors.Organization.InvalidRoleForTeamMember;
+        }
 
         // Check if already a member
         var alreadyMember = await teamMembers.IsUserInTeamAsync(request.TeamId, request.UserId, cancellationToken)
             .ConfigureAwait(false);
 
         if (alreadyMember)
+        {
+            logger.LogWarning("User {UserId} is already a member of team {TeamId}", request.UserId, request.TeamId);
             return Errors.Organization.MemberAlreadyInTeam;
+        }
 
         var member = TeamMember.Create(request.TeamId, request.UserId, request.IsLeader);
         teamMembers.Add(member);

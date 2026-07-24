@@ -25,7 +25,10 @@ public sealed class UpdateUserProfileCommandHandler(
             .ConfigureAwait(false);
 
         if (user is null)
+        {
+            logger.LogWarning("User not found for ID {UserId}", currentUser.UserId);
             return Errors.Users.UserNotFound;
+        }
 
         user.UpdateProfile(request.FullName);
 

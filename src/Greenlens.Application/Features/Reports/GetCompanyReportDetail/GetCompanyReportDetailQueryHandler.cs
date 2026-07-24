@@ -35,7 +35,10 @@ public sealed class GetCompanyReportDetailQueryHandler(
         // ── 1. Resolve caller's company ──
         var staff = await companyStaff.GetByUserIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
         if (staff is null || !staff.IsActive)
+        {
+            logger.LogWarning("Staff not found for user {UserId}", currentUser.UserId);
             return Errors.Reports.ReportNotDispatchedToYourCompany;
+        }
 
         var companyId = staff.CompanyId;
 
@@ -51,7 +54,10 @@ public sealed class GetCompanyReportDetailQueryHandler(
             .ConfigureAwait(false);
 
         if (r is null)
+        {
+            logger.LogWarning("Report not found for ID {ReportId}", request.ReportId);
             return Errors.Reports.ReportNotFound;
+        }
 
         // ── 3. Verify report belongs to this company ──
         if (r.AssignedCompanyId != companyId)
