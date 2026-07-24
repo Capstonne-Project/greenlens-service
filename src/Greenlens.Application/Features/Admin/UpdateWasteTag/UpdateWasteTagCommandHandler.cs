@@ -15,7 +15,16 @@ public sealed class UpdateWasteTagCommandHandler(
     {
         var tag = await wasteTags.GetByIdAsync(request.Id, ct).ConfigureAwait(false);
         if (tag is null)
+        {
+            logger.LogWarning("Waste tag not found: {Id}", request.Id);
             return Errors.Reports.WasteTagNotFound;
+        }
+
+        if (tag.IsDeleted)
+        {
+            logger.LogWarning("Waste tag already deleted: {Id}", request.Id);
+            return Errors.Reports.WasteTagAlreadyDeleted;
+        }
 
         tag.Update(request.NameVi, request.NameEn, request.IconUrl,
             request.Description, request.DisplayOrder);

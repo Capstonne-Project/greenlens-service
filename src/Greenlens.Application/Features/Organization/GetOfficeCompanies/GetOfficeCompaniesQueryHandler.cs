@@ -5,6 +5,7 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Organization.GetOfficeCompanies;
 
@@ -17,19 +18,25 @@ namespace Greenlens.Application.Features.Organization.GetOfficeCompanies;
 public sealed class GetOfficeCompaniesQueryHandler(
     ICurrentUser currentUser,
     ILocalOfficeRepository offices,
-    IEnvironmentalServiceCompanyRepository companies)
+    IEnvironmentalServiceCompanyRepository companies,
+    ILogger<GetOfficeCompaniesQueryHandler> logger)
     : IRequestHandler<GetOfficeCompaniesQuery, Result<GetOfficeCompaniesResponse>>
 {
     public async Task<Result<GetOfficeCompaniesResponse>> Handle(
         GetOfficeCompaniesQuery request, CancellationToken ct)
     {
+        logger.LogInformation("Getting office companies for user {UserId}", currentUser.UserId);
+
         // 1. Find LEO's assigned office
         var office = await offices.QueryAsNoTracking()
             .FirstOrDefaultAsync(o => o.OfficerId == currentUser.UserId, ct)
             .ConfigureAwait(false);
 
         if (office is null)
+        {
+            logger.LogWarning("Office not found for user ID {UserId}", currentUser.UserId);
             return Errors.Organization.OfficeNotFound;
+        }
 
         // 2. Find active companies serving this ward
         var items = await companies.QueryAsNoTracking()
@@ -50,6 +57,8 @@ public sealed class GetOfficeCompaniesQueryHandler(
                 c.Staff.Count))
             .ToListAsync(ct)
             .ConfigureAwait(false);
+
+        logger.LogInformation("Office companies found: {Count}", items.Count);
 
         return new GetOfficeCompaniesResponse(items);
     }

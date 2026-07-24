@@ -26,7 +26,7 @@ public sealed class AuthController(ISender sender) : ControllerBase
     [AllowAnonymous]
     [SwaggerOperation(
         Summary = "Register",
-        Description = "Register a new citizen account with email and password. An OTP will be sent for email verification.")]
+        Description = "Register a new citizen account. Requires email, password, confirmPassword, fullName, and acceptTerms. Optional phoneNumber (VN format). Returns 409 EMAIL_TAKEN or EMAIL_DELETED_RESTORE_AVAILABLE.")]
     [SwaggerResponse(200, "Registration successful", typeof(ApiResponse<RegisterResponse>))]
     [SwaggerResponse(409, "Email already taken", typeof(ApiResponse))]
     [SwaggerResponse(422, "Validation error", typeof(ApiResponse))]
@@ -39,7 +39,7 @@ public sealed class AuthController(ISender sender) : ControllerBase
     [AllowAnonymous]
     [SwaggerOperation(
         Summary = "Login",
-        Description = "Login with email and password. Returns accessToken and refreshToken in response data.")]
+        Description = "Login with email OR phone (mutually exclusive) and password. captchaToken required after 3 failed attempts (BR-AUTH-014). Returns accessToken and refreshToken.")]
     [SwaggerResponse(200, "Login successful", typeof(ApiResponse<LoginResponse>))]
     [SwaggerResponse(422, "Invalid credentials", typeof(ApiResponse))]
     [SwaggerResponse(422, "Email not verified", typeof(ApiResponse))]

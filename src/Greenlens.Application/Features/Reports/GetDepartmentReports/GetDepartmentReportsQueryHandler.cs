@@ -38,7 +38,10 @@ public sealed class GetDepartmentReportsQueryHandler(
             .ConfigureAwait(false);
 
         if (deptInfo is null || deptInfo.DepartmentId == Guid.Empty)
+        {
+            logger.LogWarning("Department not found for user {UserId}", currentUser.UserId);
             return Errors.Organization.DepartmentNotFound;
+        }
 
         // 2. Base query — all reports in this department
         var baseQuery = reports.QueryAsNoTracking()
@@ -47,6 +50,7 @@ public sealed class GetDepartmentReportsQueryHandler(
         // 3. Apply search (code, description, address)
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
+            logger.LogInformation("Searching by report code, description, or address: {Search}", request.Search);
             var keyword = request.Search.Trim().ToLower();
             baseQuery = baseQuery.Where(r =>
                 r.Code.ToLower().Contains(keyword) ||

@@ -17,17 +17,28 @@ public sealed class GetTeamsQueryHandler(
     public async Task<Result<GetTeamsResponse>> Handle(
         GetTeamsQuery request, CancellationToken ct)
     {
+        logger.LogInformation("Getting teams for local office {LocalOfficeId}", request.LocalOfficeId);
+
         var query = teams.QueryAsNoTracking()
             .Include(t => t.LocalOffice)
             .Include(t => t.Members)
             .AsQueryable();
 
         if (request.LocalOfficeId.HasValue)
+        {
+            logger.LogInformation("Filtering teams by local office ID: {LocalOfficeId}", request.LocalOfficeId.Value);
             query = query.Where(t => t.LocalOfficeId == request.LocalOfficeId.Value);
+        }
         if (request.TeamType.HasValue)
+        {
+            logger.LogInformation("Filtering teams by team type: {TeamType}", request.TeamType.Value);
             query = query.Where(t => t.TeamType == request.TeamType.Value);
+        }
         if (request.IsActive.HasValue)
+        {
+            logger.LogInformation("Filtering teams by active status: {IsActive}", request.IsActive.Value);
             query = query.Where(t => t.IsActive == request.IsActive.Value);
+        }
 
         // Load active assignment counts for availability
         var activeStatuses = new[] { AssignmentStatus.Assigned, AssignmentStatus.InProgress };

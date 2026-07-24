@@ -31,6 +31,8 @@ public sealed class GetReportProgressQueryHandler(
     public async Task<Result<ReportProgressResponse>> Handle(
         GetReportProgressQuery request, CancellationToken ct)
     {
+        logger.LogInformation("Getting report progress for report {ReportId}", request.ReportId);
+
         var report = await reports.QueryAsNoTracking()
             .Include(x => x.Category)
             .Include(x => x.Media)
@@ -44,7 +46,10 @@ public sealed class GetReportProgressQueryHandler(
             .ConfigureAwait(false);
 
         if (report is null)
+        {
+            logger.LogWarning("Report not found for ID {ReportId}", request.ReportId);
             return Errors.Reports.ReportNotFound;
+        }
 
         // ── SLA countdown ──────────────────────────────────────────
         int? hoursRemaining = report.SlaResolveDueAt.HasValue
@@ -133,7 +138,7 @@ public sealed class GetReportProgressQueryHandler(
                 sh.Reason))
             .ToList();
 
-        logger.LogInformation("LEO fetched progress for report {ReportId}", report.Id);
+        logger.LogInformation("Progress fetched successfully for report {ReportId}", report.Id);
 
         return new ReportProgressResponse(
             report.Id,

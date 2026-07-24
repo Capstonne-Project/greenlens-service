@@ -77,6 +77,9 @@ public sealed class Comment : SoftDeletableEntity
     /// <summary>BR-CMT-004: author may soft-delete within 15 minutes.</summary>
     public void DeleteByAuthor(Guid authorId)
     {
+        if (IsDeleted)
+            throw new DomainException("Comment already deleted.");
+
         if (AuthorId != authorId)
             throw new DomainException("Only the author can delete this comment.");
 

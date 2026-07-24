@@ -28,6 +28,8 @@ public sealed class GetMapViewportSummaryQueryHandler(
         GetMapViewportSummaryQuery request,
         CancellationToken cancellationToken)
     {
+        logger.LogInformation("Getting map viewport summary");
+
         if (request.CategoryId.HasValue)
         {
             var categoryOk = await categories.ExistsAsync(
@@ -57,7 +59,10 @@ public sealed class GetMapViewportSummaryQueryHandler(
             .Where(r => r.CreatedAt >= sinceUtc);
 
         if (request.CategoryId.HasValue)
+        {
             baseQuery = baseQuery.Where(r => r.CategoryId == request.CategoryId.Value);
+            logger.LogWarning("Category {CategoryId} not found", request.CategoryId.Value);
+        }
 
         var reportCount = await baseQuery.CountAsync(cancellationToken).ConfigureAwait(false);
 

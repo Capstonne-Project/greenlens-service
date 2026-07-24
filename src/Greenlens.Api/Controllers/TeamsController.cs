@@ -366,6 +366,8 @@ public sealed class TeamsController(ISender sender) : ControllerBase
         Description = "Xóa mềm team. Dữ liệu team không bị mất nhưng không còn xuất hiện trên hệ thống.")]
     [SwaggerResponse(200, "Đã xóa", typeof(ApiResponse))]
     [SwaggerResponse(404, "Không tìm thấy team", typeof(ApiResponse))]
+    [SwaggerResponse(409, "Team đã bị xóa", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Team còn nhiệm vụ đang xử lý", typeof(ApiResponse))]
     public async Task<IActionResult> DeleteCompanyTeamAsync(
         [FromRoute] Guid id, CancellationToken ct)
         => (await sender.Send(new SoftDeleteCompanyTeamCommand(id), ct))

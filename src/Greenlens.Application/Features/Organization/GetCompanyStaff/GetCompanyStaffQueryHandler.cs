@@ -5,6 +5,7 @@ using Greenlens.Application.Common.Models;
 using Greenlens.Domain.Common;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Organization.GetCompanyStaff;
 
@@ -15,19 +16,25 @@ public sealed class GetCompanyStaffQueryHandler(
     ICompanyStaffRepository companyStaffRepo,
     ITeamMemberRepository teamMembers,
     IEnvironmentalTeamRepository teams,
-    ICurrentUser currentUser)
+    ICurrentUser currentUser,
+    ILogger<GetCompanyStaffQueryHandler> logger)
     : IRequestHandler<GetCompanyStaffQuery, Result<GetCompanyStaffResponse>>
 {
     public async Task<Result<GetCompanyStaffResponse>> Handle(
         GetCompanyStaffQuery request,
         CancellationToken ct)
     {
+        logger.LogInformation("Getting company staff for user {UserId}", currentUser.UserId);
+
         // ── 1. Resolve CM's company ──
         var cmStaff = await companyStaffRepo.GetByUserIdAsync(currentUser.UserId, ct)
             .ConfigureAwait(false);
 
         if (cmStaff is null)
+        {
+            logger.LogWarning("Company manager not found for user ID {UserId}", currentUser.UserId);
             return Errors.Organization.NotCompanyManager;
+        }
 
         var companyId = cmStaff.CompanyId;
 
@@ -37,7 +44,10 @@ public sealed class GetCompanyStaffQueryHandler(
             .Where(s => s.CompanyId == companyId);
 
         if (request.IsActive.HasValue)
+        {
+            logger.LogInformation("Filtering staff by active status: {IsActive}", request.IsActive.Value);
             query = query.Where(s => s.IsActive == request.IsActive.Value);
+        }
 
         var totalCount = await query.CountAsync(ct).ConfigureAwait(false);
 
@@ -87,6 +97,10 @@ public sealed class GetCompanyStaffQueryHandler(
         }).ToList();
 
         var pagination = PaginationMeta.Create(request.Page, request.PageSize, totalCount);
+
+        logger.LogInformation("Company staff found: {TotalCount}", totalCount);
+        logger.LogInformation("Company staff items: {Items}", items);
+        logger.LogInformation("Company staff pagination: {Pagination}", pagination);
 
         return new GetCompanyStaffResponse(items, pagination);
     }

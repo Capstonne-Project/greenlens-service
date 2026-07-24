@@ -15,6 +15,8 @@ public sealed class GetLocalOfficeByIdQueryHandler(
     public async Task<Result<LocalOfficeDetailResponse>> Handle(
         GetLocalOfficeByIdQuery request, CancellationToken ct)
     {
+        logger.LogInformation("Getting local office by ID {Id}", request.Id);
+
         var office = await offices.QueryAsNoTracking()
             .Include(o => o.Department)
             .Include(o => o.Ward)

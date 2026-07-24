@@ -27,18 +27,27 @@ public sealed class CheckInInspectionCommandHandler(
     {
         var inspection = await inspections.GetByIdAsync(request.InspectionId, ct).ConfigureAwait(false);
         if (inspection is null)
+        {
+            logger.LogWarning("Inspection not found for inspection {InspectionId}", request.InspectionId);
             return Errors.Inspections.InspectionNotFound;
+        }
 
         // Verify current user belongs to assigned team
         var authError = await InspectionTeamAuthorization.ValidateTeamMemberAsync(
             inspection, teamMembers, currentUser, ct).ConfigureAwait(false);
         if (authError is not null)
+        {
+            logger.LogWarning("Team member validation failed for inspection {InspectionId}", request.InspectionId);
             return authError;
+        }
 
         // Get report location for distance check
         var report = await reports.GetByIdAsync(inspection.ReportId, ct).ConfigureAwait(false);
         if (report is null)
+        {
+            logger.LogWarning("Report not found for inspection {InspectionId}", request.InspectionId);
             return Errors.Reports.ReportNotFound;
+        }
 
         // BR-INS-004: PostGIS distance check ≤ 200m
         var distance = await geoDistance.GetDistanceInMetersAsync(
@@ -46,11 +55,18 @@ public sealed class CheckInInspectionCommandHandler(
             report.Latitude, report.Longitude, ct).ConfigureAwait(false);
 
         if (distance > MaxCheckInDistanceMeters)
+        {
+            logger.LogWarning("Distance check failed for inspection {InspectionId}. Distance: {Distance}m", request.InspectionId, distance);
             return Errors.Inspections.TooFarFromSite;
+        }
 
         // Draft → InProgress
         var result = inspection.CheckIn(request.Latitude, request.Longitude, request.Note);
-        if (result.IsFailure) return result;
+        if (result.IsFailure)
+        {
+            logger.LogWarning("Check in failed for inspection {InspectionId}. Result: {Result}", request.InspectionId, result.Error);
+            return result;
+        }
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 

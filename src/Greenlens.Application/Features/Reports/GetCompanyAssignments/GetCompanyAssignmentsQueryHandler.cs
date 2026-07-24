@@ -24,12 +24,19 @@ public sealed class GetCompanyAssignmentsQueryHandler(
     public async Task<Result<GetCompanyAssignmentsResponse>> Handle(
         GetCompanyAssignmentsQuery request, CancellationToken ct)
     {
+        logger.LogInformation("Getting company assignments for user {UserId}", currentUser.UserId);
+
         // ── 1. Resolve caller's company ──
         var staff = await companyStaff.GetByUserIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
         if (staff is null || !staff.IsActive)
+        {
+            logger.LogWarning("Staff not found for user {UserId}", currentUser.UserId);
             return Errors.Reports.ReportNotDispatchedToYourCompany;
+        }
 
         var companyId = staff.CompanyId;
+
+        logger.LogInformation("Company ID: {CompanyId}", companyId);
 
         // ── 2. Build query: all assignments where team belongs to this company ──
         var baseQuery = assignments.QueryAsNoTracking()
@@ -40,15 +47,22 @@ public sealed class GetCompanyAssignmentsQueryHandler(
 
         // Filter by assignment status
         if (request.Status.HasValue)
+        {
+            logger.LogInformation("Filtering by assignment status: {Status}", request.Status.Value);
             baseQuery = baseQuery.Where(a => a.Status == request.Status.Value);
+        }
 
         // Filter by report status
         if (request.ReportStatus.HasValue)
+        {
+            logger.LogInformation("Filtering by report status: {Status}", request.ReportStatus.Value);
             baseQuery = baseQuery.Where(a => a.Report!.Status == request.ReportStatus.Value);
+        }
 
         // Search by report code or address
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
+            logger.LogInformation("Searching by report code or address: {Search}", request.Search);
             var search = request.Search.Trim().ToLower();
             baseQuery = baseQuery.Where(a =>
                 a.Report!.Code.ToLower().Contains(search) ||

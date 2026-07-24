@@ -25,20 +25,34 @@ public sealed class RejectReportCommandHandler(
 {
     public async Task<Result> Handle(RejectReportCommand request, CancellationToken ct)
     {
+        logger.LogInformation("Rejecting report {ReportId}", request.ReportId);
+
         // Validate rejection reason length (BR-REP-022 / BR-ORG-015)
         if (request.Reason.Length < 20)
+        {
+            logger.LogWarning("Reason is too short for report {ReportId}", request.ReportId);
             return Errors.Reports.ReasonTooShort;
+        }
 
         var report = await reports.GetByIdAsync(request.ReportId, ct).ConfigureAwait(false);
         if (report is null)
+        {
+            logger.LogWarning("Report not found for ID {ReportId}", request.ReportId);
             return Errors.Reports.ReportNotFound;
+        }
 
         if (report.Status != ReportStatus.Submitted)
+        {
+            logger.LogWarning("Report {ReportId} is not in a valid status for rejection", request.ReportId);
             return Errors.Reports.InvalidStatusTransition;
+        }
 
         // BR-OFF-004: conflict of interest — cannot reject own report
         if (report.ReporterId == currentUser.UserId)
+        {
+            logger.LogWarning("Report {ReportId} is rejected by the reporter {UserId}", request.ReportId, currentUser.UserId);
             return Errors.Reports.ConflictOfInterest;
+        }
 
         // BR-ORG-015: Reject re-queues to Department — status stays Submitted,
         // AssignedOfficeId cleared so DEO sees it in common queue

@@ -16,7 +16,10 @@ public sealed class UpdateLocalOfficeCommandHandler(
     {
         var office = await offices.GetByIdAsync(request.Id, ct).ConfigureAwait(false);
         if (office is null)
+        {
+            logger.LogWarning("Local office not found for ID {Id}", request.Id);
             return Errors.Organization.OfficeNotFound;
+        }
 
         // Update office name
         office.Update(request.Name);

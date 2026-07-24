@@ -21,13 +21,21 @@ public sealed class TerminateCompanyCommandHandler(
 {
     public async Task<Result> Handle(TerminateCompanyCommand request, CancellationToken ct)
     {
+        logger.LogInformation("Terminating company {CompanyId}", request.CompanyId);
+
         var company = await companies.GetByIdAsync(request.CompanyId, ct).ConfigureAwait(false);
         if (company is null)
+        {
+            logger.LogWarning("Company {CompanyId} not found", request.CompanyId);
             return Errors.Organization.CompanyNotFound;
+        }
 
         // BR-CMP-004: Cannot terminate from PendingActivation or already Terminated
         if (company.Status is CompanyStatus.Terminated or CompanyStatus.PendingActivation)
+        {
+            logger.LogWarning("Company {CompanyId} cannot be terminated", request.CompanyId);
             return Errors.Organization.CompanyCannotTerminate;
+        }
 
         // BR-CMP-004: → Terminated
         company.Terminate();

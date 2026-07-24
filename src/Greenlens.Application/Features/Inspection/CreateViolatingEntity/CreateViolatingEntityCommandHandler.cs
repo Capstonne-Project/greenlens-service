@@ -20,20 +20,32 @@ public sealed class CreateViolatingEntityCommandHandler(
 {
     public async Task<Result<Guid>> Handle(CreateViolatingEntityCommand request, CancellationToken ct)
     {
-        // Check duplicate TaxCode for Business
+        logger.LogInformation("Getting create violating entity");
+
+        // Check duplicate TaxCode for Business (include soft-deleted — DB unique index is not filtered)
         if (!string.IsNullOrWhiteSpace(request.TaxCode))
         {
-            var existing = await violatingEntities.FindByTaxCodeAsync(request.TaxCode, ct).ConfigureAwait(false);
-            if (existing is not null)
+            var taxExists = await violatingEntities
+                .TaxCodeExistsAsync(request.TaxCode, ct: ct)
+                .ConfigureAwait(false);
+            if (taxExists)
+            {
+                logger.LogWarning("Duplicate TaxCode {TaxCode} found", request.TaxCode);
                 return Result<Guid>.Failure(Errors.Inspections.ViolatingEntityDuplicateTaxCode);
+            }
         }
 
         // Check duplicate IdentityNumber for Individual
         if (!string.IsNullOrWhiteSpace(request.IdentityNumber))
         {
-            var existing = await violatingEntities.FindByIdentityNumberAsync(request.IdentityNumber, ct).ConfigureAwait(false);
-            if (existing is not null)
+            var identityExists = await violatingEntities
+                .IdentityNumberExistsAsync(request.IdentityNumber, ct: ct)
+                .ConfigureAwait(false);
+            if (identityExists)
+            {
+                logger.LogWarning("Duplicate IdentityNumber {IdentityNumber} found", request.IdentityNumber);
                 return Result<Guid>.Failure(Errors.Inspections.ViolatingEntityDuplicateIdentityNumber);
+            }
         }
 
         var entity = ViolatingEntity.Create(

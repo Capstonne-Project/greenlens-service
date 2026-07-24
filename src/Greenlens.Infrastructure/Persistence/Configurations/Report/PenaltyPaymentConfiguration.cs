@@ -33,5 +33,7 @@ internal sealed class PenaltyPaymentConfiguration : IEntityTypeConfiguration<Pen
         // ── Indexes ──
         builder.HasIndex(pp => pp.InspectionReportId);
         builder.HasIndex(pp => pp.RecordedByUserId);
+
+        builder.HasQueryFilter(pp => pp.DeletedAt == null);
     }
 }

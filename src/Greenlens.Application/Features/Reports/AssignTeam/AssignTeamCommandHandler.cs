@@ -33,15 +33,22 @@ public sealed class AssignTeamCommandHandler(
     public async Task<Result> Handle(AssignTeamCommand request, CancellationToken ct)
     {
         if (request.Teams.Count == 0)
+        {
+            logger.LogWarning("No teams provided for report {ReportId}", request.ReportId);
             return Errors.Reports.AtLeastOneTeam;
+        }
 
         var report = await reports.GetByIdAsync(request.ReportId, ct).ConfigureAwait(false);
         if (report is null)
+        {
+            logger.LogWarning("Report not found for ID {ReportId}", request.ReportId);
             return Errors.Reports.ReportNotFound;
+        }
 
         // v3.0: Verified → InProgress (no more Dispatched step)
         if (report.Status != ReportStatus.Verified)
         {
+            logger.LogWarning("Report {ReportId} is not verified", request.ReportId);
             return report.Status == ReportStatus.InProgress
                 ? Errors.Reports.ReportAlreadyAssigned
                 : Errors.Reports.InvalidStatusTransition;
@@ -52,17 +59,26 @@ public sealed class AssignTeamCommandHandler(
         {
             var team = await teams.GetByIdAsync(item.TeamId, ct).ConfigureAwait(false);
             if (team is null)
+            {
+                logger.LogWarning("Team not found for ID {TeamId}", item.TeamId);
                 return Errors.Organization.TeamNotFound;
+            }
 
             // Guard: LEO cannot assign company teams directly — must use dispatch-to-company flow
             if (team.IsCompanyTeam)
+            {
+                logger.LogWarning("Team {TeamId} is a company team", item.TeamId);
                 return Errors.Reports.CannotAssignCompanyTeamDirectly;
+            }
 
             // BR-OFF-013: configurable workload limit (default 6, warning at 5)
             var limits = workloadOptions.Value;
             var workload = await assignments.CountInProgressByTeamAsync(item.TeamId, ct).ConfigureAwait(false);
             if (workload >= limits.MaxTasksPerTeam)
+            {
+                logger.LogWarning("Team {TeamId} workload exceeded: {Current}/{Max}", item.TeamId, workload, limits.MaxTasksPerTeam);
                 return Errors.Reports.TeamWorkloadExceeded;
+            }
             if (workload >= limits.WarningThreshold)
                 logger.LogWarning("Team {TeamId} approaching workload limit: {Current}/{Max}",
                     item.TeamId, workload, limits.MaxTasksPerTeam);
@@ -73,22 +89,35 @@ public sealed class AssignTeamCommandHandler(
         {
             var tags = await wasteTags.GetByIdsAsync(request.WasteTagIds, ct).ConfigureAwait(false);
             if (tags.Count != request.WasteTagIds.Count)
+            {
+                logger.LogWarning("Waste tags not found for IDs {WasteTagIds}", request.WasteTagIds);
                 return Errors.Reports.WasteTagNotFound;
+            }
 
             var inactiveTags = tags.Where(t => !t.IsActive).ToList();
             if (inactiveTags.Count > 0)
+            {
+                logger.LogWarning("Waste tags inactive for IDs {WasteTagIds}", inactiveTags.Select(t => t.Id));
                 return Errors.Reports.WasteTagInactive;
+            }
 
             // Remove existing tags, then add new ones
             var existing = await reportWasteTags.GetByReportIdAsync(request.ReportId, ct).ConfigureAwait(false);
             if (existing.Count > 0)
+            {
+                logger.LogWarning("Existing waste tags found for report {ReportId}", request.ReportId);
                 reportWasteTags.RemoveRange(existing);
+            }
 
             var newTags = request.WasteTagIds
                 .Select(tagId => ReportWasteTag.Create(request.ReportId, tagId, currentUser.UserId))
                 .ToList();
 
-            reportWasteTags.AddRange(newTags);
+            if (newTags.Count > 0)
+            {
+                logger.LogWarning("New waste tags added for report {ReportId}", request.ReportId);
+                reportWasteTags.AddRange(newTags);
+            }
         }
 
         // Create assignments — all teams equal

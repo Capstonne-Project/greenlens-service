@@ -2,7 +2,7 @@ using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using MediatR;
-
+using Microsoft.Extensions.Logging;
 namespace Greenlens.Application.Features.Admin.ContentModeration.UnhideReport;
 
 /// <summary>
@@ -11,7 +11,8 @@ namespace Greenlens.Application.Features.Admin.ContentModeration.UnhideReport;
 /// <remarks>Implements: BR-ADM-006.</remarks>
 public sealed class UnhideReportCommandHandler(
     IReportRepository reports,
-    IUnitOfWork uow)
+    IUnitOfWork uow,
+    ILogger<UnhideReportCommandHandler> logger)
     : IRequestHandler<UnhideReportCommand, Result>
 {
     public async Task<Result> Handle(UnhideReportCommand request, CancellationToken ct)
@@ -19,13 +20,21 @@ public sealed class UnhideReportCommandHandler(
         var report = await reports.GetByIdAsync(request.ReportId, ct).ConfigureAwait(false);
 
         if (report is null)
-            return Result.Failure(Errors.Reports.ReportNotFound);
+        {
+            logger.LogWarning("Report not found: {ReportId}", request.ReportId);
+            return Errors.Reports.ReportNotFound;
+        }
 
         if (!report.IsHidden)
-            return Result.Failure(Errors.Admin.ReportNotHidden);
+        {
+            logger.LogWarning("Report is not hidden: {ReportId}", request.ReportId);
+            return Errors.Admin.ReportNotHidden;
+        }
 
         report.Unhide();
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        logger.LogInformation("Report unhidden successfully: {ReportId}", request.ReportId);
 
         return Result.Success();
     }

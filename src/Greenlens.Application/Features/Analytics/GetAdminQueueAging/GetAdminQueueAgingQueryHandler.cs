@@ -4,7 +4,7 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-
+using Microsoft.Extensions.Logging;
 namespace Greenlens.Application.Features.Analytics.GetAdminQueueAging;
 
 /// <summary>
@@ -12,7 +12,8 @@ namespace Greenlens.Application.Features.Analytics.GetAdminQueueAging;
 /// </summary>
 public sealed class GetAdminQueueAgingQueryHandler(
     IReportRepository reports,
-    IDateTimeProvider clock)
+    IDateTimeProvider clock,
+    ILogger<GetAdminQueueAgingQueryHandler> logger)
     : IRequestHandler<GetAdminQueueAgingQuery, Result<List<QueueAgingBucket>>>
 {
     private static readonly ReportStatus[] PendingStatuses =
@@ -21,7 +22,11 @@ public sealed class GetAdminQueueAgingQueryHandler(
     public async Task<Result<List<QueueAgingBucket>>> Handle(
         GetAdminQueueAgingQuery request, CancellationToken ct)
     {
+        logger.LogInformation("Getting admin queue aging");
+
         var now = clock.UtcNow;
+
+        logger.LogInformation("Now: {Now}", now);
 
         var createdAtList = await reports.QueryAsNoTracking()
             .Where(r => PendingStatuses.Contains(r.Status))
@@ -42,6 +47,8 @@ public sealed class GetAdminQueueAgingQueryHandler(
         var result = buckets
             .Select(b => new QueueAgingBucket(b.Range, ageHours.Count(h => b.Match(h))))
             .ToList();
+
+        logger.LogInformation("Admin queue aging retrieved successfully");
 
         return result;
     }

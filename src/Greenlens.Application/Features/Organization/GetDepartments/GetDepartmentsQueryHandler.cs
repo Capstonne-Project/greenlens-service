@@ -21,7 +21,10 @@ public sealed class GetDepartmentsQueryHandler(
             .AsQueryable();
 
         if (request.IsActive.HasValue)
+        {
+            logger.LogInformation("Filtering departments by active status: {IsActive}", request.IsActive.Value);
             query = query.Where(d => d.IsActive == request.IsActive.Value);
+        }
 
         var totalCount = await query.CountAsync(ct).ConfigureAwait(false);
         var pagination = PaginationMeta.Create(request.Page, request.PageSize, totalCount);

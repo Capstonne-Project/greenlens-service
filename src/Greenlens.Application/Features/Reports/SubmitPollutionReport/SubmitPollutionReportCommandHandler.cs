@@ -57,7 +57,10 @@ public sealed class SubmitPollutionReportCommandHandler(
         CancellationToken cancellationToken)
     {
         if (!currentUser.IsAuthenticated)
+        {
+            logger.LogWarning("User is not authenticated");
             return Errors.Reports.LoginRequired;
+        }
 
         if (request.Images is { Count: > 0 })
         {
@@ -67,7 +70,10 @@ public sealed class SubmitPollutionReportCommandHandler(
                     ? fileStorage.IsOwnedPublicUrl(image.Url)
                     : fileStorage.IsOwnedPublicUrl(image.Url, image.Key);
                 if (!owned)
+                {
+                    logger.LogWarning("Invalid storage URL for image {Url}", image.Url);
                     return Errors.Media.InvalidStorageUrl;
+                }
             }
         }
 
@@ -75,24 +81,36 @@ public sealed class SubmitPollutionReportCommandHandler(
         var rateLimit = await rateLimiter.TryAcquireAsync(currentUser.UserId, cancellationToken)
             .ConfigureAwait(false);
         if (!rateLimit.IsAllowed)
+        {
+            logger.LogWarning("Rate limit exceeded for user {UserId}", currentUser.UserId);
             return Errors.Reports.RateLimitExceeded(rateLimit.RetryAfterMinutes);
+        }
 
         // ── BR-REP-004: profanity filter when description provided ─────────
         if (!string.IsNullOrWhiteSpace(request.Description)
             && profanityFilter.ContainsProfanity(request.Description))
+        {
+            logger.LogWarning("Inappropriate description for report {Description}", request.Description);
             return Errors.Reports.InappropriateDescription;
+        }
 
         // ── BR-DAT-005: Consent check ────────────────────────────────────────
         var submitter = await users.GetByIdAsync(currentUser.UserId, cancellationToken)
             .ConfigureAwait(false);
         if (submitter is not null && !submitter.HasDataConsent)
+        {
+            logger.LogWarning("User {UserId} does not have data consent", currentUser.UserId);
             return Errors.Users.DataConsentRequired;
+        }
 
         // ── Validate category ───────────────────────────────────────────────
         var category = await categories.GetByIdAsync(request.CategoryId, cancellationToken)
             .ConfigureAwait(false);
         if (category is null || !category.IsActive)
+        {
+            logger.LogWarning("Category not found for ID {CategoryId}", request.CategoryId);
             return Errors.Reports.CategoryNotFound;
+        }
 
         // ── Validate ward/province pair ─────────────────────────────────────
         var provinceCode = request.ProvinceCode?.Trim();
@@ -103,7 +121,10 @@ public sealed class SubmitPollutionReportCommandHandler(
                     w => w.Code == wardCode && w.ProvinceCode == provinceCode, cancellationToken)
                 .ConfigureAwait(false);
             if (!wardOk)
+            {
+                logger.LogWarning("Invalid ward/province pair for report {WardCode} and {ProvinceCode}", wardCode, provinceCode);
                 return Errors.Reports.InvalidWardProvincePair;
+            }
         }
 
         var reporterId = currentUser.UserId;
@@ -118,10 +139,16 @@ public sealed class SubmitPollutionReportCommandHandler(
             var tempEntry = await tempStore.GetAsync(request.TempImageId, cancellationToken)
                 .ConfigureAwait(false);
             if (tempEntry is null)
+            {
+                logger.LogWarning("Temp image not found for ID {TempImageId}", request.TempImageId);
                 return Errors.Ai.TempImageNotFound;
+            }
 
             if (tempEntry.AiResult?.Decision == AiDecision.IrrelevantOrSuspectedAbusive)
+            {
+                logger.LogWarning("Image rejected by AI for report {TempImageId}", request.TempImageId);
                 return Errors.Ai.ImageRejectedByAi;
+            }
 
             if (request.Images is { Count: > 0 })
             {
@@ -131,13 +158,19 @@ public sealed class SubmitPollutionReportCommandHandler(
                         tempEntry.PublicUrl,
                         first.Url.Trim(),
                         StringComparison.Ordinal))
-                    return Errors.Media.UploadMetadataMismatch;
+                    {
+                        logger.LogWarning("Upload metadata mismatch for image {Url}", first.Url);
+                        return Errors.Media.UploadMetadataMismatch;
+                    }
                 if (tempEntry.StorageKey is not null
                     && !string.Equals(
                         tempEntry.StorageKey,
                         first.Key?.Trim(),
                         StringComparison.Ordinal))
-                    return Errors.Media.UploadMetadataMismatch;
+                    {
+                        logger.LogWarning("Upload metadata mismatch for image {Url}", first.Url);
+                        return Errors.Media.UploadMetadataMismatch;
+                    }
 
                 resolvedImage = new ResolvedImage(
                     Url: first.Url.Trim(),
@@ -160,6 +193,7 @@ public sealed class SubmitPollutionReportCommandHandler(
                 }
                 catch
                 {
+                    logger.LogWarning("Storage upload failed for image {Url}", tempEntry.FileName);
                     return Errors.Users.StorageUploadFailed;
                 }
 
@@ -186,7 +220,10 @@ public sealed class SubmitPollutionReportCommandHandler(
                         cancellationToken)
                     .ConfigureAwait(false);
                 if (stored is null || stored.SizeBytes != first.SizeBytes)
+                {
+                    logger.LogWarning("Upload metadata mismatch for image {Url}", first.Url);
                     return Errors.Media.UploadMetadataMismatch;
+                }
                 manualBytes = stored.Bytes;
             }
             else
@@ -206,6 +243,7 @@ public sealed class SubmitPollutionReportCommandHandler(
         }
 
         // ── Create Report ───────────────────────────────────────────────────
+        logger.LogInformation("Creating report for user {UserId}", currentUser.UserId);
         var code = await GenerateUniqueCodeAsync(cancellationToken).ConfigureAwait(false);
 
         var report = Report.Create(
@@ -223,6 +261,7 @@ public sealed class SubmitPollutionReportCommandHandler(
                 AiSeverityMapper.Parse(analyzed.Classify.Severity));
         }
 
+        logger.LogInformation("Adding report {ReportCode} to database", report.Code);
         reports.Add(report);
 
         // ── Auto-routing: report goes directly to LocalOffice by WardCode ──
@@ -235,6 +274,7 @@ public sealed class SubmitPollutionReportCommandHandler(
 
             if (office is not null)
             {
+                logger.LogInformation("Routing report {ReportCode} to LocalOffice {OfficeId}", report.Code, office.Id);
                 report.RouteToLocalOffice(office.Id, office.DepartmentId);
             }
         }
@@ -248,7 +288,10 @@ public sealed class SubmitPollutionReportCommandHandler(
                 .ConfigureAwait(false);
 
             if (dept is not null)
+            {
+                logger.LogInformation("Routing report {ReportCode} to Department {DepartmentId}", report.Code, dept.Id);
                 report.RouteToDepartment(dept.Id);
+            }
         }
 
         // ── Persist primary image ───────────────────────────────────────────
@@ -306,11 +349,17 @@ public sealed class SubmitPollutionReportCommandHandler(
                 .ConfigureAwait(false);
 
             if (tags.Count != request.WasteTagIds.Count)
+            {
+                logger.LogWarning("Waste tag not found for IDs {WasteTagIds}", request.WasteTagIds);
                 return Errors.Reports.WasteTagNotFound;
+            }
 
             var inactiveTags = tags.Where(t => !t.IsActive).ToList();
             if (inactiveTags.Count > 0)
+            {
+                logger.LogWarning("Waste tag inactive for IDs {WasteTagIds}", request.WasteTagIds);
                 return Errors.Reports.WasteTagInactive;
+            }
 
             var newTags = request.WasteTagIds
                 .Select(tagId => ReportWasteTag.Create(report.Id, tagId, reporterId))
@@ -323,7 +372,17 @@ public sealed class SubmitPollutionReportCommandHandler(
         // background job (see ReportPossibleDuplicateFlaggedEvent) to keep submit under p95<2s (BR-SYS-001).
         await FlagPossibleDuplicateAsync(report, cancellationToken).ConfigureAwait(false);
 
-        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (DbUpdateException ex)
+        {
+            var mapped = PostgresUniqueViolationMapper.TryMap(ex);
+            if (mapped is not null)
+                return mapped;
+            throw;
+        }
 
         logger.LogInformation(
             "Report {ReportCode} submitted by {ReporterId}, routed to office {OfficeId} / department {DepartmentId}",

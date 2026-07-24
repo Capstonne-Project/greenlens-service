@@ -21,15 +21,22 @@ public sealed class UpdateBlockedWordCommandHandler(
     {
         var entity = await blockedWords.GetByIdAsync(request.Id, ct).ConfigureAwait(false);
         if (entity is null)
+        {
+            logger.LogWarning("Blocked word not found: {Id}", request.Id);
             return Errors.BlockedWords.NotFound;
+        }
 
         var normalized = BlockedWord.NormalizeWord(request.Word);
         if (await blockedWords.ExistsWordAsync(normalized, request.Id, ct).ConfigureAwait(false))
+        {
+            logger.LogWarning("Blocked word already exists: {Word}", request.Word);
             return Errors.BlockedWords.Duplicate;
+        }
 
         var oldSnapshot = JsonSerializer.Serialize(new { entity.Word, entity.Note, entity.IsActive });
 
         entity.Update(request.Word, request.Note, request.IsActive);
+        logger.LogInformation("Updating blocked word: {Word}", request.Word);
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 
         await cache.RefreshAsync(ct).ConfigureAwait(false);

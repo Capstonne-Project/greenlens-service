@@ -22,9 +22,13 @@ public sealed class CreateBlockedWordCommandHandler(
         var normalized = BlockedWord.NormalizeWord(request.Word);
 
         if (await blockedWords.ExistsWordAsync(normalized, excludeId: null, ct).ConfigureAwait(false))
+        {
+            logger.LogWarning("Blocked word already exists: {Word}", request.Word);
             return Errors.BlockedWords.Duplicate;
+        }
 
         var entity = BlockedWord.Create(request.Word, request.Note);
+        logger.LogInformation("Creating blocked word: {Word}", request.Word);
         blockedWords.Add(entity);
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 

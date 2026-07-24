@@ -27,5 +27,6 @@ internal sealed class ReportSatisfactionConfiguration : IEntityTypeConfiguration
 
         // ── Indexes ──
         builder.HasIndex(s => s.ReportId);
+        builder.HasIndex(s => new { s.ReportId, s.UserId }).IsUnique();
     }
 }

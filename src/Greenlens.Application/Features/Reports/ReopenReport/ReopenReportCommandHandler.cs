@@ -22,10 +22,16 @@ public sealed class ReopenReportCommandHandler(
         // Find report
         var report = await reports.GetByIdAsync(request.ReportId, ct).ConfigureAwait(false);
         if (report is null)
+        {
+            logger.LogWarning("Report not found for ID {ReportId}", request.ReportId);
             return Errors.Reports.ReportNotFound;
+        }
 
         if (report.ReporterId != currentUser.UserId)
+        {
+            logger.LogWarning("Report {ReportId} is not reported by the citizen {UserId}", request.ReportId, currentUser.UserId);
             return Errors.Reports.NotReporter;
+        }
 
         // BR-REP-015: Check 7-day reopen window (distinct error from limit reached)
         if (report.Status == ReportStatus.Resolved

@@ -33,11 +33,17 @@ public sealed class GetReportByIdQueryHandler(
             .ConfigureAwait(false);
 
         if (r is null)
+        {
+            logger.LogWarning("Report not found for ID {ReportId}", request.Id);
             return Errors.Reports.ReportNotFound;
+        }
 
         // BR-ADM-006: hidden reports are invisible to public
         if (r.IsHidden)
+        {
+            logger.LogWarning("Report {ReportId} is hidden", request.Id);
             return Errors.Reports.ReportNotFound;
+        }
 
         var media = r.Media.Select(m => new ReportMediaItem(
             m.Id, m.Type.ToString(), m.Url, m.MimeType, m.SizeBytes)).ToList();

@@ -15,6 +15,9 @@ internal sealed class ReportWasteTagRepository(ApplicationDbContext context)
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
+    public Task<bool> ExistsByWasteTagIdAsync(Guid wasteTagId, CancellationToken ct = default) =>
+        _dbSet.AnyAsync(rt => rt.WasteTagId == wasteTagId, ct);
+
     public void AddRange(IEnumerable<ReportWasteTag> entities) => _dbSet.AddRange(entities);
 
     public void RemoveRange(IEnumerable<ReportWasteTag> entities) => _dbSet.RemoveRange(entities);

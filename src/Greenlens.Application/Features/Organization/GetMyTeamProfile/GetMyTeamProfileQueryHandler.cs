@@ -18,6 +18,8 @@ public sealed class GetMyTeamProfileQueryHandler(
     public async Task<Result<TeamDetailResponse>> Handle(
         GetMyTeamProfileQuery request, CancellationToken ct)
     {
+        logger.LogInformation("Getting my team profile for user {UserId}", currentUser.UserId);
+
         var team = await teams.QueryAsNoTracking()
             .Include(t => t.LocalOffice)
             .Include(t => t.Members).ThenInclude(m => m.User)
@@ -26,7 +28,10 @@ public sealed class GetMyTeamProfileQueryHandler(
             .ConfigureAwait(false);
 
         if (team is null)
+        {
+            logger.LogWarning("Team not found for user {UserId}", currentUser.UserId);
             return Errors.Organization.TeamNotFound;
+        }
 
         var members = team.Members.Select(m => new MemberInTeam(
             m.UserId, m.User?.FullName, m.User?.Email, m.User?.PhoneNumber,

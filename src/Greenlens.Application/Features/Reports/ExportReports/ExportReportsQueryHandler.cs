@@ -4,9 +4,9 @@ using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
-using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.ExportReports;
 
@@ -18,18 +18,24 @@ namespace Greenlens.Application.Features.Reports.ExportReports;
 public sealed class ExportReportsQueryHandler(
     IReportRepository reports,
     IUserRepository users,
-    ICurrentUser currentUser)
+    ICurrentUser currentUser,
+    ILogger<ExportReportsQueryHandler> logger)
     : IRequestHandler<ExportReportsQuery, Result<ExportReportsResponse>>
 {
     public async Task<Result<ExportReportsResponse>> Handle(
         ExportReportsQuery request,
         CancellationToken cancellationToken)
     {
+        logger.LogInformation("Exporting reports for user {UserId}", currentUser.UserId);
+
         var user = await users.GetByIdAsync(currentUser.UserId, cancellationToken)
             .ConfigureAwait(false);
 
         if (user is null)
+        {
+            logger.LogWarning("User not found for ID {UserId}", currentUser.UserId);
             return Result<ExportReportsResponse>.Failure(Errors.Users.UserNotFound);
+        }
 
         // Build base query with scope filter
         var query = reports.QueryAsNoTracking();

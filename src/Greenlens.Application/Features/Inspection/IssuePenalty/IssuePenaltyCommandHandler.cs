@@ -26,21 +26,32 @@ public sealed class IssuePenaltyCommandHandler(
 {
     public async Task<Result> Handle(IssuePenaltyCommand request, CancellationToken ct)
     {
+        logger.LogInformation("Getting issue penalty");
+
         var inspection = await inspections.GetByIdAsync(request.InspectionId, ct).ConfigureAwait(false);
         if (inspection is null)
+        {
+            logger.LogWarning("Inspection not found for inspection {InspectionId}", request.InspectionId);
             return Errors.Inspections.InspectionNotFound;
+        }
 
         var authError = await InspectionTeamAuthorization.ValidateTeamLeaderAsync(
             inspection, teamMembers, currentUser, ct).ConfigureAwait(false);
         if (authError is not null)
+        {
+            logger.LogWarning("Team leader validation failed for inspection {InspectionId}", request.InspectionId);
             return authError;
+        }
 
         // BR-INS-010: Enforce ≥ 2 evidence images before issuing penalty
         var evidenceCount = await reportMedia.QueryAsNoTracking()
             .CountAsync(m => m.ReportId == inspection.ReportId && m.Type == MediaType.Inspection, ct)
             .ConfigureAwait(false);
         if (evidenceCount < 2)
+        {
+            logger.LogWarning("Insufficient evidence images for inspection {InspectionId}", request.InspectionId);
             return Errors.Inspections.InsufficientEvidenceImages;
+        }
 
         // BR-INS-022: Check repeat offender
         var isRepeatOffender = false;
@@ -50,14 +61,22 @@ public sealed class IssuePenaltyCommandHandler(
             // Preferred path: query by FK for accuracy
             var count = await violatingEntities.CountInspectionsInPeriodAsync(
                 inspection.ViolatingEntityId.Value, 12, ct).ConfigureAwait(false);
-            isRepeatOffender = count >= 1; // current one will be the 2nd+
+            if (count >= 1) // current one will be the 2nd+
+            {
+                logger.LogWarning("Violating entity {ViolatingEntityId} is a repeat offender", inspection.ViolatingEntityId.Value);
+                isRepeatOffender = true;
+            }
         }
         else if (!string.IsNullOrWhiteSpace(inspection.ViolatorIdentity))
         {
             // Fallback: string-match for backward compatibility
             var count = await inspections.CountByViolatorInPeriodAsync(
                 inspection.ViolatorIdentity, 12, ct).ConfigureAwait(false);
-            isRepeatOffender = count >= 1;
+            if (count >= 1)
+            {
+                logger.LogWarning("Violator identity {ViolatorIdentity} is a repeat offender", inspection.ViolatorIdentity);
+                isRepeatOffender = true;
+            }
         }
 
         var dueDate = DateTime.UtcNow.AddDays(request.PaymentDueDays);
@@ -71,7 +90,11 @@ public sealed class IssuePenaltyCommandHandler(
             request.AdditionalMeasures,
             isRepeatOffender);
 
-        if (result.IsFailure) return result;
+        if (result.IsFailure)
+        {
+            logger.LogWarning("Failed to issue penalty for inspection {InspectionId}", request.InspectionId);
+            return result;
+        }
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 

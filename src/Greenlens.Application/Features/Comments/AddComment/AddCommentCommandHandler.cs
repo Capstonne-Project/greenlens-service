@@ -29,23 +29,40 @@ public sealed class AddCommentCommandHandler(
 {
     public async Task<Result<AddCommentResponse>> Handle(AddCommentCommand request, CancellationToken ct)
     {
+        logger.LogInformation("Getting add comment");
+
         if (!currentUser.IsAuthenticated)
+        {
+            logger.LogWarning("Add comment attempt by unauthenticated user");
             return Errors.Comments.LoginRequired;
+        }
 
         var user = await users.GetByIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
         if (user is null)
+        {
+            logger.LogWarning("User not found for user {UserId}", currentUser.UserId);
             return Errors.Users.UserNotFound;
+        }
 
         if (user.IsCommentBanned())
+        {
+            logger.LogWarning("User {UserId} is comment banned", currentUser.UserId);
             return Errors.Comments.CommentBanned;
+        }
 
         var report = await reports.GetByIdAsync(request.ReportId, ct).ConfigureAwait(false);
         if (report is null)
+        {
+            logger.LogWarning("Report not found for report {ReportId}", request.ReportId);
             return Errors.Reports.ReportNotFound;
+        }
 
         if (!CommentAccess.CanCommentOnReport(
                 report.HideReporterName, currentUser.Role, currentUser.UserId, report.ReporterId))
+        {
+            logger.LogWarning("Comment not allowed for report {ReportId}", request.ReportId);
             return Errors.Comments.CommentNotAllowed;
+        }
 
         Guid? parentId = request.ParentCommentId;
         if (parentId is not null)
@@ -55,7 +72,10 @@ public sealed class AddCommentCommandHandler(
                 .ConfigureAwait(false);
 
             if (parent is null)
+            {
+                logger.LogWarning("Parent comment not found for comment {ParentCommentId}", parentId.Value);
                 return Errors.Comments.CommentNotFound;
+            }
 
             // Flatten nested replies to one level under the root parent (TikTok-style).
             parentId = parent.ParentCommentId ?? parent.Id;
@@ -65,6 +85,7 @@ public sealed class AddCommentCommandHandler(
         {
             user.RecordCommentViolation();
             await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+            logger.LogWarning("Inappropriate content detected for user {UserId}", currentUser.UserId);
             return Errors.Comments.InappropriateContent;
         }
 
@@ -75,11 +96,14 @@ public sealed class AddCommentCommandHandler(
         }
         catch (DomainException ex)
         {
+            logger.LogWarning("Domain validation error for comment {ReportId}: {Message}", request.ReportId, ex.Message);
             return Errors.Comments.DomainValidation(ex.Message);
         }
 
         comment.AddDomainEvent(new CommentPostedEvent(
             comment.Id, report.Id, currentUser.UserId, report.ReporterId));
+
+        logger.LogInformation("Comment created: {Comment}", comment);
 
         db.Set<Comment>().Add(comment);
 

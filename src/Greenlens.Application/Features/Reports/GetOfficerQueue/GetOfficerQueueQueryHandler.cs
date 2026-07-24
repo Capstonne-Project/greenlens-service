@@ -26,6 +26,8 @@ public sealed class GetOfficerQueueQueryHandler(
         GetOfficerQueueQuery request,
         CancellationToken ct)
     {
+        logger.LogInformation("Getting officer queue for user {UserId}", currentUser.UserId);
+
         var user = await users.GetByIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
         if (user is null)
             return Errors.Users.UserNotFound;
@@ -37,6 +39,7 @@ public sealed class GetOfficerQueueQueryHandler(
         // ── Role-based scope filtering ──
         if (user.Role == UserRole.DEO && user.DepartmentId.HasValue)
         {
+            logger.LogInformation("DEO sees reports that fell into department queue (no LocalOffice assigned)");
             // DEO sees reports that fell into department queue (no LocalOffice assigned)
             query = query.Where(r =>
                 r.AssignedDepartmentId == user.DepartmentId.Value &&
@@ -44,6 +47,7 @@ public sealed class GetOfficerQueueQueryHandler(
         }
         else if (user.Role == UserRole.LEO && user.LocalOfficeId.HasValue)
         {
+            logger.LogInformation("LEO sees Submitted (needs verify) + Verified (needs team assignment) in their office");
             // LEO sees Submitted (needs verify) + Verified (needs team assignment) in their office
             query = query.Where(r =>
                 r.AssignedOfficeId == user.LocalOfficeId.Value &&

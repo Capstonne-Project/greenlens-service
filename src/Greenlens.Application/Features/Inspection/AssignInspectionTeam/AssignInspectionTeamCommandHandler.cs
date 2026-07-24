@@ -26,23 +26,37 @@ public sealed class AssignInspectionTeamCommandHandler(
 {
     public async Task<Result> Handle(AssignInspectionTeamCommand request, CancellationToken ct)
     {
+        logger.LogInformation("Getting assign inspection team");
+
         // 1. Validate inspection exists
         var inspection = await inspections.GetByIdAsync(request.InspectionId, ct).ConfigureAwait(false);
         if (inspection is null)
+        {
+            logger.LogWarning("Inspection not found for inspection {InspectionId}", request.InspectionId);
             return Errors.Inspections.InspectionNotFound;
+        }
 
         // 2. Validate team exists and is of type Inspection
         var team = await teams.GetByIdAsync(request.TeamId, ct).ConfigureAwait(false);
         if (team is null)
+        {
+            logger.LogWarning("Team not found for team {TeamId}", request.TeamId);
             return Errors.Inspections.TeamNotFound;
+        }
 
         if (team.TeamType != TeamType.Inspection)
+        {
+            logger.LogWarning("Team {TeamId} is not of type Inspection", request.TeamId);
             return Errors.Inspections.TeamNotInspectionType;
+        }
 
         // 3. Assign team via domain method (validates status = Draft or InProgress)
         var assignResult = inspection.AssignTeam(request.TeamId);
         if (!assignResult.IsSuccess)
+        {
+            logger.LogWarning("Failed to assign team {TeamId} to inspection {InspectionId}", request.TeamId, request.InspectionId);
             return assignResult;
+        }
 
         // 4. Transition parent Report: Verified → InProgress (if still Verified)
         var report = await reports.GetByIdAsync(inspection.ReportId, ct).ConfigureAwait(false);

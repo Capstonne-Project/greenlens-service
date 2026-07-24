@@ -22,26 +22,36 @@ public sealed class CreateLocalOfficeCommandHandler(
         CreateLocalOfficeCommand request,
         CancellationToken cancellationToken)
     {
+        logger.LogInformation("Creating local office {Name} for department {DepartmentId} and ward {WardCode}", request.Name, request.DepartmentId, request.WardCode);
+
         // Verify department exists
         var department = await departments.GetByIdAsync(request.DepartmentId, cancellationToken)
             .ConfigureAwait(false);
 
         if (department is null)
+        {
+            logger.LogWarning("Department {DepartmentId} not found", request.DepartmentId);
             return Errors.Organization.DepartmentNotFound;
+        }
 
         // Verify ward exists
         var ward = await wards.GetByCodeAsync(request.WardCode, cancellationToken)
             .ConfigureAwait(false);
 
         if (ward is null)
+        {
+            logger.LogWarning("Ward {WardCode} not found", request.WardCode);
             return Errors.Organization.WardNotFound;
-
+        }
         // Check uniqueness: one office per ward
         var exists = await localOffices.ExistsByWardCodeAsync(request.WardCode, cancellationToken)
             .ConfigureAwait(false);
 
         if (exists)
+        {
+            logger.LogWarning("Local office {Name} for ward {WardCode} already exists", request.Name, request.WardCode);
             return Errors.Organization.LocalOfficeAlreadyExists;
+        }
 
         var office = LocalOffice.Create(
             request.Name,

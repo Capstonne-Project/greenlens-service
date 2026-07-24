@@ -28,8 +28,9 @@ internal sealed class ViolatingEntityConfiguration : IEntityTypeConfiguration<Vi
             .IsUnique()
             .HasFilter("tax_code IS NOT NULL");
 
-        // IdentityNumber indexed for Individual lookup
+        // IdentityNumber unique (filtered — only Individual entities have IdentityNumber)
         builder.HasIndex(ve => ve.IdentityNumber)
+            .IsUnique()
             .HasFilter("identity_number IS NOT NULL");
 
         builder.HasIndex(ve => ve.Name);

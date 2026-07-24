@@ -5,6 +5,7 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.GetOfficerKpi;
 
@@ -16,20 +17,26 @@ public sealed class GetOfficerKpiQueryHandler(
     IReportStatusHistoryRepository statusHistoryRepo,
     IReportRepository reports,
     IUserRepository users,
-    ICurrentUser currentUser)
+    ICurrentUser currentUser,
+    ILogger<GetOfficerKpiQueryHandler> logger)
     : IRequestHandler<GetOfficerKpiQuery, Result<OfficerKpiResponse>>
 {
     public async Task<Result<OfficerKpiResponse>> Handle(
         GetOfficerKpiQuery request,
         CancellationToken cancellationToken)
     {
+        logger.LogInformation("Getting officer KPI for user {UserId}", currentUser.UserId);
+
         // Resolve officer ID — LEO sees own, DEO/Admin can specify
         var officerId = request.OfficerId ?? currentUser.UserId;
 
         var officer = await users.GetByIdAsync(officerId, cancellationToken)
             .ConfigureAwait(false);
         if (officer is null)
+        {
+            logger.LogWarning("Officer not found for ID {UserId}", officerId);
             return Errors.Users.UserNotFound;
+        }
 
         // Resolve period
         var (from, to) = ResolvePeriod(request);

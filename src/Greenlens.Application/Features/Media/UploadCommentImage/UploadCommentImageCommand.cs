@@ -31,11 +31,19 @@ public sealed class UploadCommentImageCommandHandler(
         UploadCommentImageCommand request,
         CancellationToken ct)
     {
+        logger.LogInformation("Getting upload comment image");
+
         if (!ReportImageContentTypes.TryResolve(request.FileName, request.ContentType, out var contentType))
+        {
+            logger.LogWarning("Invalid image type {ContentType}", request.ContentType);
             return Errors.Media.InvalidImageType;
+        }
 
         if (request.FileSize > MaxFileSizeBytes)
+        {
+            logger.LogWarning("Comment image too large {Size} bytes", request.FileSize);
             return Errors.Comments.CommentImageTooLarge;
+        }
 
         try
         {

@@ -5,7 +5,7 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-
+using Microsoft.Extensions.Logging;
 namespace Greenlens.Application.Features.Analytics.GetAdminCompanyPerformance;
 
 /// <summary>
@@ -17,12 +17,15 @@ namespace Greenlens.Application.Features.Analytics.GetAdminCompanyPerformance;
 public sealed class GetAdminCompanyPerformanceQueryHandler(
     IReportRepository reports,
     IEnvironmentalServiceCompanyRepository companies,
-    IDateTimeProvider clock)
+    IDateTimeProvider clock,
+    ILogger<GetAdminCompanyPerformanceQueryHandler> logger)
     : IRequestHandler<GetAdminCompanyPerformanceQuery, Result<List<CompanyPerformanceItem>>>
 {
     public async Task<Result<List<CompanyPerformanceItem>>> Handle(
         GetAdminCompanyPerformanceQuery request, CancellationToken ct)
     {
+        logger.LogInformation("Getting admin company performance");
+
         var (from, to) = DateRangeDefaults.Resolve(request.From, request.To, clock.UtcNow);
 
         var dispatched = await reports.QueryAsNoTracking()
@@ -48,17 +51,31 @@ public sealed class GetAdminCompanyPerformanceQueryHandler(
             .GroupBy(r => r.CompanyId)
             .Select(g =>
             {
+                logger.LogInformation("Processing company: {CompanyId}", g.Key);
+
                 var assigned = g.Count();
+                logger.LogInformation("Assigned: {Assigned}", assigned);
+
                 var completed = g.Count(r => r.Status is ReportStatus.Resolved or ReportStatus.Closed);
+                logger.LogInformation("Completed: {Completed}", completed);
+
                 var onTimeCompleted = g.Count(r =>
                     r.Status is ReportStatus.Resolved or ReportStatus.Closed
                     && r.ResolvedAt.HasValue
                     && (!r.SlaResolveDueAt.HasValue || r.ResolvedAt.Value <= r.SlaResolveDueAt.Value));
+                logger.LogInformation("On time completed: {OnTimeCompleted}", onTimeCompleted);
+
                 var notBreached = g.Count(r => !r.SlaResolveBreached);
+                logger.LogInformation("Not breached: {NotBreached}", notBreached);
 
                 var onTimeRate = completed == 0 ? 0m : Math.Round(100m * onTimeCompleted / completed, 1);
+                logger.LogInformation("On time rate: {OnTimeRate}", onTimeRate);
+
                 var slaRate = assigned == 0 ? 0m : Math.Round(100m * notBreached / assigned, 1);
+                logger.LogInformation("SLA rate: {SlaRate}", slaRate);
+
                 var performanceScore = Math.Round(0.6m * slaRate + 0.4m * onTimeRate, 1);
+                logger.LogInformation("Performance score: {PerformanceScore}", performanceScore);
 
                 return new CompanyPerformanceItem(
                     g.Key,
@@ -71,6 +88,8 @@ public sealed class GetAdminCompanyPerformanceQueryHandler(
             })
             .OrderByDescending(i => i.PerformanceScore)
             .ToList();
+
+        logger.LogInformation("Admin company performance retrieved successfully");
 
         return result;
     }

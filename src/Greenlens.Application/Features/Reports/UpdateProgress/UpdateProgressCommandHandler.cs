@@ -27,30 +27,51 @@ public sealed class UpdateProgressCommandHandler(
 
     public async Task<Result<UpdateProgressResponse>> Handle(UpdateProgressCommand request, CancellationToken ct)
     {
+        logger.LogInformation("Updating progress for report {ReportId} with {ProgressPercent}% and {ImageUrls} for user {UserId}",
+            request.ReportId, request.ProgressPercent, request.ImageUrls, currentUser.UserId);
+        
         if (request.ProgressPercent is < 0 or > 100)
+        {
+            logger.LogWarning("Invalid progress percent for report {ReportId}", request.ReportId);
             return Errors.Reports.InvalidProgressPercent;
+        }
 
         if (request.ImageUrls.Count > MaxImages)
+        {
+            logger.LogWarning("Too many images for report {ReportId}", request.ReportId);
             return Errors.Media.TooManyImages;
+        }
 
         foreach (var url in request.ImageUrls)
         {
             if (!fileStorage.IsOwnedPublicUrl(url))
+            {
+                logger.LogWarning("Invalid storage URL for image {Url}", url);
                 return Errors.Media.InvalidStorageUrl;
+            }
         }
 
         var leader = await teamMembers.GetLeaderByUserIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
         if (leader is null)
+        {
+            logger.LogWarning("Team leader not found for user {UserId}", currentUser.UserId);
             return Errors.Reports.NotTeamLeader;
+        }
 
         var reportAssignments = await assignments.GetByReportIdAsync(request.ReportId, ct).ConfigureAwait(false);
         var assignment = reportAssignments.FirstOrDefault(a => a.TeamId == leader.TeamId);
 
         if (assignment is null)
+        {
+            logger.LogWarning("Assignment not found for report {ReportId} and team {TeamId}", request.ReportId, leader.TeamId);
             return Errors.Reports.AssignmentNotFound;
+        }
 
         if (assignment.Status != AssignmentStatus.InProgress)
+        {
+            logger.LogWarning("Assignment {AssignmentId} is not in a valid status for progress update", assignment.Id);
             return Errors.Reports.AssignmentNotInProgress;
+        }
 
         var savedUrls = new List<string>(request.ImageUrls.Count);
         foreach (var url in request.ImageUrls)

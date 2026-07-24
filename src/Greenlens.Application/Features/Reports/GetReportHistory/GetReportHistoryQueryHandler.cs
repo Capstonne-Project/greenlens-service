@@ -14,6 +14,8 @@ public sealed class GetReportHistoryQueryHandler(
     public async Task<Result<GetReportHistoryResponse>> Handle(
         GetReportHistoryQuery request, CancellationToken ct)
     {
+        logger.LogInformation("Getting report history for report {ReportId}", request.ReportId);
+
         var items = await statusHistory.QueryAsNoTracking()
             .Include(h => h.ChangedByUser)
             .Where(h => h.ReportId == request.ReportId)

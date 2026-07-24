@@ -32,15 +32,24 @@ public sealed class RateReportCommandHandler(
             .ConfigureAwait(false);
 
         if (report is null)
+        {
+            logger.LogWarning("Report not found for ID {ReportId}", request.ReportId);
             return Errors.Reports.ReportNotFound;
+        }
 
         // Only Resolved or Closed reports can be rated
         if (report.Status is not (ReportStatus.Resolved or ReportStatus.Closed))
+        {
+            logger.LogWarning("Report {ReportId} is not in a valid status for rating", request.ReportId);
             return Errors.Reports.InvalidStatusTransition;
+        }
 
         // Only the reporter can rate
         if (report.ReporterId != currentUser.UserId)
+        {
+            logger.LogWarning("Report {ReportId} is not rated by the reporter {UserId}", request.ReportId, currentUser.UserId);
             return Errors.Reports.NotReporter;
+        }
 
         // Check if already rated (one per report per user)
         var alreadyRated = await satisfactions.ExistsAsync(
@@ -48,7 +57,10 @@ public sealed class RateReportCommandHandler(
             cancellationToken).ConfigureAwait(false);
 
         if (alreadyRated)
+        {
+            logger.LogWarning("Report {ReportId} is already rated by user {UserId}", request.ReportId, currentUser.UserId);
             return Errors.Reports.AlreadyRated;
+        }
 
         var satisfaction = ReportSatisfaction.Create(
             request.ReportId,

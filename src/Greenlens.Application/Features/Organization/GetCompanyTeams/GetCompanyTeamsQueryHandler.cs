@@ -5,6 +5,7 @@ using Greenlens.Application.Common.Models;
 using Greenlens.Domain.Common;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Organization.GetCompanyTeams;
 
@@ -15,17 +16,23 @@ namespace Greenlens.Application.Features.Organization.GetCompanyTeams;
 public sealed class GetCompanyTeamsQueryHandler(
     ICompanyStaffRepository companyStaff,
     IEnvironmentalTeamRepository teams,
-    ICurrentUser currentUser) : IRequestHandler<GetCompanyTeamsQuery, Result<GetCompanyTeamsResponse>>
+    ICurrentUser currentUser,
+    ILogger<GetCompanyTeamsQueryHandler> logger) : IRequestHandler<GetCompanyTeamsQuery, Result<GetCompanyTeamsResponse>>
 {
     public async Task<Result<GetCompanyTeamsResponse>> Handle(
         GetCompanyTeamsQuery request,
         CancellationToken cancellationToken)
     {
+        logger.LogInformation("Getting company teams for user {UserId}", currentUser.UserId);
+
         var staff = await companyStaff.GetByUserIdAsync(currentUser.UserId, cancellationToken)
             .ConfigureAwait(false);
 
         if (staff is null)
+        {
+            logger.LogWarning("Company manager not found for user ID {UserId}", currentUser.UserId);
             return Errors.Organization.NotCompanyManager;
+        }
 
         var companyId = staff.CompanyId;
 
@@ -35,7 +42,10 @@ public sealed class GetCompanyTeamsQueryHandler(
             .Where(t => t.CompanyId == companyId);
 
         if (request.IsActive.HasValue)
+        {
+            logger.LogInformation("Filtering teams by active status: {IsActive}", request.IsActive.Value);
             query = query.Where(t => t.IsActive == request.IsActive.Value);
+        }
 
         var totalCount = await query.CountAsync(cancellationToken).ConfigureAwait(false);
 
@@ -56,6 +66,10 @@ public sealed class GetCompanyTeamsQueryHandler(
             .ConfigureAwait(false);
 
         var pagination = PaginationMeta.Create(request.Page, request.PageSize, totalCount);
+
+        logger.LogInformation("Company teams found: {TotalCount}", totalCount);
+        logger.LogInformation("Company teams items: {Items}", items);
+        logger.LogInformation("Company teams pagination: {Pagination}", pagination);
 
         return new GetCompanyTeamsResponse(items, pagination);
     }

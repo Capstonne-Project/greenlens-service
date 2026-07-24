@@ -34,4 +34,10 @@ internal sealed class InspectionReportRepository(ApplicationDbContext context)
             .Include(ir => ir.Payments)
             .FirstOrDefaultAsync(ir => ir.Payments.Any(p => p.Id == paymentId), ct)
             .ConfigureAwait(false);
+
+    public Task<PenaltyPayment?> FindPaymentByIdAsync(Guid paymentId, CancellationToken ct = default) =>
+        Context.Set<PenaltyPayment>()
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == paymentId, ct);
 }

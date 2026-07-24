@@ -22,14 +22,22 @@ public sealed class RecordPaymentCommandHandler(
 {
     public async Task<Result> Handle(RecordPaymentCommand request, CancellationToken ct)
     {
+        logger.LogInformation("Getting record payment");
+
         var inspection = await inspections.GetByIdAsync(request.InspectionId, ct).ConfigureAwait(false);
         if (inspection is null)
+        {
+            logger.LogWarning("Inspection not found for inspection {InspectionId}", request.InspectionId);
             return Errors.Inspections.InspectionNotFound;
+        }
 
         var authError = await InspectionTeamAuthorization.ValidateTeamLeaderAsync(
             inspection, teamMembers, currentUser, ct).ConfigureAwait(false);
         if (authError is not null)
+        {
+            logger.LogWarning("Team leader validation failed for inspection {InspectionId}", request.InspectionId);
             return authError;
+        }
 
         // Create PenaltyPayment record (in-person at ward office)
         var payment = PenaltyPayment.Create(
@@ -41,7 +49,11 @@ public sealed class RecordPaymentCommandHandler(
             request.Note);
 
         var result = inspection.RecordPayment(payment);
-        if (result.IsFailure) return result;
+        if (result.IsFailure)
+        {
+            logger.LogWarning("Failed to record payment for inspection {InspectionId}", request.InspectionId);
+            return result;
+        }
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 

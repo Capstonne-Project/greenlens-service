@@ -29,13 +29,21 @@ public sealed class RecruitStaffCommandHandler(
         RecruitStaffCommand request,
         CancellationToken ct)
     {
+        logger.LogInformation("Recruiting staff for user {UserId}", currentUser.UserId);
+
         // ── 1. Verify current user is LEO with an assigned office ──
         var leo = await users.GetByIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
         if (leo is null)
+        {
+            logger.LogWarning("LEO not found for user ID {UserId}", currentUser.UserId);
             return Errors.Users.UserNotFound;
+        }
 
         if (!leo.LocalOfficeId.HasValue)
+        {
+            logger.LogWarning("LEO {UserId} has no office", currentUser.UserId);
             return Errors.Organization.OfficerNoOffice;
+        }
 
         var leoOfficeId = leo.LocalOfficeId.Value;
 
@@ -44,19 +52,29 @@ public sealed class RecruitStaffCommandHandler(
             .ConfigureAwait(false);
 
         if (targetUser is null)
+        {
+            logger.LogWarning("Target user not found for email {Email}", request.Email);
             return Errors.Users.UserNotFound;
+        }
 
         // ── 3. Validate current role = Citizen ──
         if (targetUser.Role != UserRole.Citizen)
+        {
+            logger.LogWarning("Target user {UserId} is not a citizen", targetUser.Id);
             return Errors.Organization.InvalidRoleForRecruit;
-
+        }
         // ── 4. Validate target role is Cleaner or Inspector ──
         if (request.TargetRole is not (UserRole.Cleaner or UserRole.Inspector))
+        {
+            logger.LogWarning("Target role {Role} is not a cleaner or inspector", request.TargetRole);
             return Errors.Organization.InvalidRoleForTeamMember;
-
+        }
         // ── 5. Check user not already assigned to another office ──
         if (targetUser.LocalOfficeId.HasValue)
+        {
+            logger.LogWarning("Target user {UserId} is already assigned to another office", targetUser.Id);
             return Errors.Organization.UserAlreadyInOffice;
+        }
 
         // ── 6. Check no existing pending invitation for this user ──
         var hasPending = await invitations.ExistsAsync(
@@ -64,7 +82,10 @@ public sealed class RecruitStaffCommandHandler(
             .ConfigureAwait(false);
 
         if (hasPending)
+        {
+            logger.LogWarning("Target user {UserId} already has a pending invitation", targetUser.Id);
             return Errors.Organization.DuplicateInvitation;
+        }
 
         // ── 7. Validate team if provided ──
         Guid? assignedTeamId = null;
@@ -73,10 +94,16 @@ public sealed class RecruitStaffCommandHandler(
             var team = await teams.GetByIdAsync(request.TeamId.Value, ct).ConfigureAwait(false);
 
             if (team is null)
+            {
+                logger.LogWarning("Team {TeamId} not found", request.TeamId.Value);
                 return Errors.Organization.TeamNotFound;
+            }
 
             if (team.LocalOfficeId != leoOfficeId)
+            {
+                logger.LogWarning("Team {TeamId} is not in the LEO's office", request.TeamId.Value);
                 return Errors.Organization.TeamNotInOffice;
+            }
 
             // Role-TeamType compatibility
             var roleMatchesTeam = (request.TargetRole, team.TeamType) switch
@@ -87,7 +114,10 @@ public sealed class RecruitStaffCommandHandler(
             };
 
             if (!roleMatchesTeam)
+            {
+                logger.LogWarning("Target role {Role} is not compatible with team type {TeamType}", request.TargetRole, team.TeamType);
                 return Errors.Organization.InvalidRoleForTeamMember;
+            }
 
             assignedTeamId = team.Id;
         }

@@ -30,23 +30,37 @@ public sealed class UploadInspectionEvidenceCommandHandler(
     public async Task<Result<UploadInspectionEvidenceResponse>> Handle(
         UploadInspectionEvidenceCommand request, CancellationToken ct)
     {
+        logger.LogInformation("Getting upload inspection evidence");
+
         if (request.Images.Count == 0)
+        {
+            logger.LogWarning("No images provided for inspection {InspectionId}", request.InspectionId);
             return Errors.Inspections.EvidenceImagesRequired;
+        }
 
         var inspection = await inspections.GetByIdAsync(request.InspectionId, ct)
             .ConfigureAwait(false);
         if (inspection is null)
+        {
+            logger.LogWarning("Inspection not found for inspection {InspectionId}", request.InspectionId);
             return Errors.Inspections.InspectionNotFound;
+        }
 
         // Only allow upload while Draft or InProgress
         if (inspection.Status is not (InspectionStatus.Draft or InspectionStatus.InProgress))
+        {
+            logger.LogWarning("Inspection {InspectionId} is not in draft or in progress status", request.InspectionId);
             return Errors.Inspections.InvalidStatusTransition;
+        }
 
         // Verify caller is part of the assigned inspection team
         var authError = await InspectionTeamAuthorization.ValidateTeamMemberAsync(
             inspection, teamMembers, currentUser, ct).ConfigureAwait(false);
         if (authError is not null)
+        {
+            logger.LogWarning("Team member validation failed for inspection {InspectionId}", request.InspectionId);
             return authError;
+        }
 
         // Upload images to cloud storage and persist as ReportMedia
         var uploadedUrls = new List<string>();
@@ -66,6 +80,9 @@ public sealed class UploadInspectionEvidenceCommandHandler(
                 image.ContentType,
                 image.Bytes.LongLength,
                 currentUser.UserId);
+
+            logger.LogInformation("Uploaded image {ImageName} for inspection {InspectionId}", image.FileName, inspection.Id);
+
             reportMedia.Add(media);
 
             uploadedUrls.Add(uploaded.Url);

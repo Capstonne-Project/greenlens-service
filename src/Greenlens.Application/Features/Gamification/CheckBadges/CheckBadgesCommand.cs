@@ -30,6 +30,8 @@ public sealed class CheckBadgesCommandHandler(
     public async Task<Result<CheckBadgesResponse>> Handle(
         CheckBadgesCommand request, CancellationToken ct)
     {
+        logger.LogInformation("Getting check badges");
+
         changeTrackerCleaner.ClearTrackedEntities();
 
         var userPoints = await userPointsRepo
@@ -57,10 +59,16 @@ public sealed class CheckBadgesCommandHandler(
         foreach (var badge in allBadges)
         {
             if (earnedBadgeIds.Contains(badge.Id))
+            {
+                logger.LogWarning("Badge {BadgeId} already awarded to user {UserId}", badge.Id, request.UserId);
                 continue;
+            }
 
             if (!IsEligible(badge, totalPoints, verifiedReportCount))
+            {
+                logger.LogWarning("Badge {BadgeId} not eligible for user {UserId}", badge.Id, request.UserId);
                 continue;
+            }
 
             var userBadge = UserBadge.Create(request.UserId, badge.Id);
             userBadgeRepo.Add(userBadge);
@@ -75,6 +83,8 @@ public sealed class CheckBadgesCommandHandler(
         {
             await unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
         }
+
+        logger.LogInformation("Check badges completed: {NewlyAwarded}", newlyAwarded);
 
         return new CheckBadgesResponse(newlyAwarded);
     }

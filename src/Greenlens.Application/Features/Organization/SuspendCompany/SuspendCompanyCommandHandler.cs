@@ -21,12 +21,20 @@ public sealed class SuspendCompanyCommandHandler(
 {
     public async Task<Result> Handle(SuspendCompanyCommand request, CancellationToken ct)
     {
+        logger.LogInformation("Suspending company {CompanyId}", request.CompanyId);
+
         var company = await companies.GetByIdAsync(request.CompanyId, ct).ConfigureAwait(false);
         if (company is null)
+        {
+            logger.LogWarning("Company {CompanyId} not found", request.CompanyId);
             return Errors.Organization.CompanyNotFound;
+        }
 
         if (company.Status != CompanyStatus.Active)
+        {
+            logger.LogWarning("Company {CompanyId} is not active", request.CompanyId);
             return Errors.Organization.CompanyNotActive;
+        }
 
         // BR-CMP-004: Active → Suspended
         company.Suspend();

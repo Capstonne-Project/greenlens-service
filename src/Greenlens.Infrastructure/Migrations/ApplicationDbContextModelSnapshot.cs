@@ -2735,6 +2735,10 @@ namespace Greenlens.Infrastructure.Migrations
                     b.HasIndex("UserId")
                         .HasDatabaseName("ix_report_satisfactions_user_id");
 
+                    b.HasIndex("ReportId", "UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_report_satisfactions_report_id_user_id");
+
                     b.ToTable("report_satisfactions", (string)null);
                 });
 
@@ -3279,6 +3283,7 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasName("pk_violating_entities");
 
                     b.HasIndex("IdentityNumber")
+                        .IsUnique()
                         .HasDatabaseName("ix_violating_entities_identity_number")
                         .HasFilter("identity_number IS NOT NULL");
 

@@ -23,26 +23,39 @@ public sealed class RemoveCompanyTeamMemberCommandHandler(
 {
     public async Task<Result> Handle(RemoveCompanyTeamMemberCommand request, CancellationToken ct)
     {
+        logger.LogInformation("Removing company team member for user {UserId}", request.UserId);
+
         // 1. Resolve CM's company
         var staff = await companyStaff.GetByUserIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
         if (staff is null)
+        {
+            logger.LogWarning("Company staff not found for user ID {UserId}", currentUser.UserId);
             return Errors.Organization.NotCompanyManager;
+        }
 
         // 2. Validate team belongs to CM's company
         var team = await teams.GetByIdAsync(request.TeamId, ct).ConfigureAwait(false);
         if (team is null)
+        {
+            logger.LogWarning("Team not found for ID {TeamId}", request.TeamId);
             return Errors.Organization.TeamNotFound;
+        }
 
         if (team.CompanyId != staff.CompanyId)
+        {
+            logger.LogWarning("Team {TeamId} is not in the company {CompanyId}", request.TeamId, staff.CompanyId);
             return Errors.Organization.TeamNotInCompany;
-
+        }
         // 3. Find member in team
         var member = await members.QueryAsNoTracking()
             .FirstOrDefaultAsync(m => m.TeamId == request.TeamId && m.UserId == request.UserId, ct)
             .ConfigureAwait(false);
 
         if (member is null)
+        {
+            logger.LogWarning("Member not found for team ID {TeamId} and user ID {UserId}", request.TeamId, request.UserId);
             return Errors.Organization.MemberNotFound;
+        }
 
         // 4. Re-fetch tracked and remove
         var tracked = await members.GetByIdAsync(member.Id, ct).ConfigureAwait(false);

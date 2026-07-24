@@ -15,6 +15,8 @@ public sealed class GetLocalOfficesQueryHandler(
     public async Task<Result<GetLocalOfficesResponse>> Handle(
         GetLocalOfficesQuery request, CancellationToken ct)
     {
+        logger.LogInformation("Getting local offices for department {DepartmentId}", request.DepartmentId);
+
         var query = offices.QueryAsNoTracking()
             .Include(o => o.Department)
             .Include(o => o.Ward)
@@ -23,9 +25,15 @@ public sealed class GetLocalOfficesQueryHandler(
             .AsQueryable();
 
         if (request.DepartmentId.HasValue)
+        {
+            logger.LogInformation("Filtering local offices by department ID: {DepartmentId}", request.DepartmentId.Value);
             query = query.Where(o => o.DepartmentId == request.DepartmentId.Value);
+        }
         if (request.IsOnboarded.HasValue)
+        {
+            logger.LogInformation("Filtering local offices by onboarded status: {IsOnboarded}", request.IsOnboarded.Value);
             query = query.Where(o => o.IsOnboarded == request.IsOnboarded.Value);
+        }
 
         var totalCount = await query.CountAsync(ct).ConfigureAwait(false);
 

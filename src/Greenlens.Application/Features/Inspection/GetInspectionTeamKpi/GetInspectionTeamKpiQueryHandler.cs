@@ -6,6 +6,7 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Inspection.GetInspectionTeamKpi;
 
@@ -17,13 +18,16 @@ public sealed class GetInspectionTeamKpiQueryHandler(
     IInspectionReportRepository inspectionRepo,
     IEnvironmentalTeamRepository teams,
     ITeamMemberRepository teamMembers,
-    ICurrentUser currentUser)
+    ICurrentUser currentUser,
+    ILogger<GetInspectionTeamKpiQueryHandler> logger)
     : IRequestHandler<GetInspectionTeamKpiQuery, Result<InspectionTeamKpiResponse>>
 {
     public async Task<Result<InspectionTeamKpiResponse>> Handle(
         GetInspectionTeamKpiQuery request,
         CancellationToken ct)
     {
+        logger.LogInformation("Getting inspection team kpi");
+
         // Resolve team ID — Inspector sees own team, LEO/Admin can specify
         Guid teamId;
         if (request.TeamId.HasValue)
@@ -34,13 +38,19 @@ public sealed class GetInspectionTeamKpiQueryHandler(
         {
             var member = await teamMembers.GetByUserIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
             if (member is null)
+            {
+                logger.LogWarning("Member not found for user {UserId}", currentUser.UserId);
                 return Errors.Inspections.NotAssignedToYourTeam;
+            }
             teamId = member.TeamId;
         }
 
         var team = await teams.GetByIdAsync(teamId, ct).ConfigureAwait(false);
         if (team is null)
+        {
+            logger.LogWarning("Team not found for team {TeamId}", teamId);
             return Errors.Inspections.TeamNotFound;
+        }
 
         // Resolve period
         var (from, to) = ResolvePeriod(request);
@@ -53,6 +63,8 @@ public sealed class GetInspectionTeamKpiQueryHandler(
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
+        logger.LogInformation("Inspections: {Inspections}", inspections);
+
         var totalInspections = inspections.Count;
 
         // Penalty issued
@@ -63,6 +75,8 @@ public sealed class GetInspectionTeamKpiQueryHandler(
                 or InspectionStatus.Overdue
                 or InspectionStatus.Closed)
             .ToList();
+
+        logger.LogInformation("Penalty issued: {PenaltyIssued}", penaltyIssued);
 
         var penaltyIssuedCount = penaltyIssued.Count;
 

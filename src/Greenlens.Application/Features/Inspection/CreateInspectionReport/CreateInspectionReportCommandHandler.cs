@@ -26,30 +26,47 @@ public sealed class CreateInspectionReportCommandHandler(
 {
     public async Task<Result<Guid>> Handle(CreateInspectionReportCommand request, CancellationToken ct)
     {
+        logger.LogInformation("Getting create inspection report");
+
         // 1. Validate report exists and is Verified
         var report = await reports.GetByIdAsync(request.ReportId, ct).ConfigureAwait(false);
         if (report is null)
+        {
+            logger.LogWarning("Report not found for report {ReportId}", request.ReportId);
             return Errors.Reports.ReportNotFound;
+        }
 
         if (report.Status != ReportStatus.Verified && report.Status != ReportStatus.InProgress)
+        {
+            logger.LogWarning("Report {ReportId} is not verified or in progress", request.ReportId);
             return Errors.Inspections.ReportNotVerified;
+        }
 
         // 2. Check for existing active inspection on same report
         var existing = await inspections.GetByReportIdAsync(request.ReportId, ct).ConfigureAwait(false);
         var hasActive = existing.Any(ir =>
             ir.Status is not (InspectionStatus.Closed or InspectionStatus.ClosedNoViolation));
         if (hasActive)
+        {
+            logger.LogWarning("Inspection already exists for report {ReportId}", request.ReportId);
             return Errors.Inspections.InspectionAlreadyExistsForReport;
+        }
 
         // 3. Validate team if provided
         if (request.AssignedTeamId.HasValue)
         {
             var team = await teams.GetByIdAsync(request.AssignedTeamId.Value, ct).ConfigureAwait(false);
             if (team is null)
+            {
+                logger.LogWarning("Team not found for team {TeamId}", request.AssignedTeamId.Value);
                 return Errors.Inspections.TeamNotFound;
+            }
 
             if (team.TeamType != TeamType.Inspection)
+            {
+                logger.LogWarning("Team {TeamId} is not of type Inspection", request.AssignedTeamId.Value);
                 return Errors.Inspections.TeamNotInspectionType;
+            }
         }
 
         // 4. Create inspection report

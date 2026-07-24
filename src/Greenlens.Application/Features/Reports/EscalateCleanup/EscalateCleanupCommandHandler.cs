@@ -24,24 +24,41 @@ public sealed class EscalateCleanupCommandHandler(
 {
     public async Task<Result> Handle(EscalateCleanupCommand request, CancellationToken ct)
     {
+        logger.LogInformation("Escalating cleanup for report {ReportId}", request.ReportId);
+
         if (request.Reason.Length < 20)
+        {
+            logger.LogWarning("Reason is too short for report {ReportId}", request.ReportId);
             return Errors.Cleanup.EscalateReasonRequired;
+        }
 
         var report = await reports.GetByIdAsync(request.ReportId, ct).ConfigureAwait(false);
         if (report is null)
+        {
+            logger.LogWarning("Report not found for ID {ReportId}", request.ReportId);
             return Errors.Reports.ReportNotFound;
+        }
 
         if (report.Status != ReportStatus.InProgress)
+        {
+            logger.LogWarning("Report {ReportId} is not in progress", request.ReportId);
             return Errors.Reports.InvalidStatusTransition;
+        }
 
         var reportAssignments = await assignments.GetByReportIdAsync(request.ReportId, ct).ConfigureAwait(false);
         var assignment = reportAssignments.FirstOrDefault(a => a.TeamId == request.TeamId);
 
         if (assignment is null)
+        {
+            logger.LogWarning("Assignment not found for report ID {ReportId} and team ID {TeamId}", request.ReportId, request.TeamId);
             return Errors.Reports.AssignmentNotFound;
+        }
 
         if (assignment.Status != AssignmentStatus.InProgress)
+        {
+            logger.LogWarning("Assignment {AssignmentId} is not in progress", assignment.Id);
             return Errors.Cleanup.AssignmentNotInProgress;
+        }
 
         // Escalate this assignment
         assignment.Escalate(request.Reason);
@@ -58,6 +75,7 @@ public sealed class EscalateCleanupCommandHandler(
 
         if (allEscalatedOrDone)
         {
+            logger.LogWarning("All active assignments are now escalated/declined → reverting report {ReportId} to Verified", request.ReportId);
             report.ForceStatus(ReportStatus.Verified);
 
             var history = ReportStatusHistory.Create(

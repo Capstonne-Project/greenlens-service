@@ -1,3 +1,4 @@
+using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
@@ -16,8 +17,13 @@ public sealed class CreateCategoryCommandHandler(
     public async Task<Result<CreateCategoryResponse>> Handle(
         CreateCategoryCommand request, CancellationToken ct)
     {
+        var code = request.Code.Trim().ToUpperInvariant();
+        var exists = await categories.CodeExistsAsync(code, ct: ct).ConfigureAwait(false);
+        if (exists)
+            return Errors.Reports.CategoryCodeExists;
+
         var category = PollutionCategory.Create(
-            request.Code, request.NameVi, request.NameEn, request.IconUrl);
+            code, request.NameVi, request.NameEn, request.IconUrl);
 
         categories.Add(category);
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);

@@ -19,11 +19,14 @@ public sealed class GetAllUsersWithPagedQueryHandler(IUserRepository users,
         GetAllUsersWithPagedQuery request,
         CancellationToken cancellationToken)
     {
+        logger.LogInformation("Getting all users with pagination, search, and filtering");
+
         var query = users.QueryAsNoTracking();
 
         // ── Filter ──
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
+            logger.LogInformation("Searching for users with search term {Search}", request.Search);
             var search = request.Search.ToLowerInvariant();
             query = query.Where(u =>
                 u.Email.Contains(search) ||
@@ -32,14 +35,23 @@ public sealed class GetAllUsersWithPagedQueryHandler(IUserRepository users,
         }
 
         if (request.Role is not null)
+        {
+            logger.LogInformation("Filtering users with role {Role}", request.Role.Value);
             query = query.Where(u => u.Role == request.Role.Value);
+        }
 
         if (request.IsEmailVerified is not null)
+        {
+            logger.LogInformation("Filtering users with email verified {IsEmailVerified}", request.IsEmailVerified.Value);
             query = query.Where(u => u.IsEmailVerified == request.IsEmailVerified.Value);
+        }
 
         // ── Count + Page ──
+        logger.LogInformation("Counting users");
         var totalItems = await query.CountAsync(cancellationToken).ConfigureAwait(false);
+        logger.LogInformation("Total users: {TotalItems}", totalItems);
 
+        logger.LogInformation("Getting users with pagination");
         var items = await query
             .OrderByDescending(u => u.CreatedAt)
             .Skip((request.Page - 1) * request.PageSize)

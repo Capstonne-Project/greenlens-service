@@ -22,12 +22,19 @@ public sealed class GetCompanyQueueQueryHandler(
 {
     public async Task<Result<GetCompanyQueueResponse>> Handle(GetCompanyQueueQuery request, CancellationToken ct)
     {
+        logger.LogInformation("Getting company queue for user {UserId}", currentUser.UserId);
+
         // Resolve caller's company
         var staff = await companyStaff.GetByUserIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
         if (staff is null || !staff.IsActive)
+        {
+            logger.LogWarning("Staff not found for user {UserId}", currentUser.UserId);
             return Errors.Reports.ReportNotDispatchedToYourCompany;
+        }
 
         var companyId = staff.CompanyId;
+
+        logger.LogInformation("Company ID: {CompanyId}", companyId);
 
         // Query reports dispatched to this company, still Verified (awaiting CM team assignment)
         var baseQuery = reports.QueryAsNoTracking()
@@ -36,7 +43,10 @@ public sealed class GetCompanyQueueQueryHandler(
                         && r.AssignedCompanyId == companyId);
 
         if (request.Severity.HasValue)
+        {
+            logger.LogInformation("Filtering by severity: {Severity}", request.Severity.Value);
             baseQuery = baseQuery.Where(r => r.Severity == request.Severity.Value);
+        }
 
         var total = await baseQuery.CountAsync(ct).ConfigureAwait(false);
 

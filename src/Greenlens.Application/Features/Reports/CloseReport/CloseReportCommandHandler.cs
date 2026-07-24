@@ -21,18 +21,27 @@ public sealed class CloseReportCommandHandler(
     {
         var report = await reports.GetByIdAsync(request.ReportId, ct).ConfigureAwait(false);
         if (report is null)
+        {
+            logger.LogWarning("Report not found for ID {ReportId}", request.ReportId);
             return Errors.Reports.ReportNotFound;
+        }
 
         // Validate status — only Resolved can be closed
         if (report.Status != ReportStatus.Resolved)
+        {
+            logger.LogWarning("Report {ReportId} is not resolved", request.ReportId);
             return Errors.Reports.InvalidStatusTransition;
+        }
 
         if (report.ReporterId != currentUser.UserId)
+        {
+            logger.LogWarning("Report {ReportId} is not reporter", request.ReportId);
             return Errors.Reports.NotReporter;
+        }
 
         var fromStatus = report.Status;
         report.Close();
-
+    
         var history = ReportStatusHistory.Create(
             report.Id,
             fromStatus,

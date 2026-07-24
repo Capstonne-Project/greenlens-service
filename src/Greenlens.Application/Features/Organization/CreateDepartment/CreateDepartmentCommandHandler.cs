@@ -21,19 +21,27 @@ public sealed class CreateDepartmentCommandHandler(
         CreateDepartmentCommand request,
         CancellationToken cancellationToken)
     {
+        logger.LogInformation("Creating department {Name} for province {ProvinceCode}", request.Name, request.ProvinceCode);
+
         // Verify province exists
         var province = await provinces.GetByCodeAsync(request.ProvinceCode, cancellationToken)
             .ConfigureAwait(false);
 
         if (province is null)
+        {
+            logger.LogWarning("Province {ProvinceCode} not found", request.ProvinceCode);
             return Errors.Organization.ProvinceNotFound;
+        }
 
         // Check uniqueness: one department per province
         var exists = await departments.ExistsByProvinceCodeAsync(request.ProvinceCode, cancellationToken)
             .ConfigureAwait(false);
 
         if (exists)
+        {
+            logger.LogWarning("Department {Name} for province {ProvinceCode} already exists", request.Name, request.ProvinceCode);
             return Errors.Organization.DepartmentAlreadyExists;
+        }
 
         var department = Department.Create(request.Name, request.ProvinceCode);
         departments.Add(department);
@@ -41,7 +49,7 @@ public sealed class CreateDepartmentCommandHandler(
         await uow.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         logger.LogInformation("Department {DeptId} created for province {ProvinceCode}",
-            department.Id, department.ProvinceCode);
+            department.Id, request.ProvinceCode);
 
         return new CreateDepartmentResponse(department.Id, department.Name, department.ProvinceCode);
     }

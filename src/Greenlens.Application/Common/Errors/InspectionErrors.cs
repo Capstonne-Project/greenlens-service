@@ -106,6 +106,16 @@ public static partial class Errors
             "Số CMND/CCCD đã tồn tại trong hệ thống.",
             ErrorType.Conflict);
 
+        public static Error ViolatingEntityAlreadyDeleted => new(
+            "VIOLATING_ENTITY_ALREADY_DELETED",
+            "Đối tượng vi phạm đã được xóa trước đó.",
+            ErrorType.Conflict);
+
+        public static Error ViolatingEntityInUse => new(
+            "VIOLATING_ENTITY_IN_USE",
+            "Không thể xóa đối tượng vi phạm đang có biên bản kiểm tra liên quan.",
+            ErrorType.BusinessRule);
+
         public static Error EvidenceImagesRequired => new(
             "EVIDENCE_IMAGES_REQUIRED",
             "Vui lòng upload ít nhất 1 ảnh hiện trường.",
@@ -121,5 +131,10 @@ public static partial class Errors
             "PAYMENT_NOT_FOUND",
             "Không tìm thấy khoản thanh toán.",
             ErrorType.NotFound);
+
+        public static Error PaymentAlreadyDeleted => new(
+            "PAYMENT_ALREADY_DELETED",
+            "Khoản thanh toán đã được xóa trước đó.",
+            ErrorType.Conflict);
     }
 }

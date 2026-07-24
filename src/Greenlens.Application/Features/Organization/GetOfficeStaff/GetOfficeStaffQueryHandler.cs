@@ -24,13 +24,21 @@ public sealed class GetOfficeStaffQueryHandler(
         GetOfficeStaffQuery request,
         CancellationToken ct)
     {
+        logger.LogInformation("Getting office staff for user {UserId}", currentUser.UserId);
+
         // ── 1. Get LEO's office ──
         var leo = await userRepo.GetByIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
         if (leo is null)
+        {
+            logger.LogWarning("User not found for ID {UserId}", currentUser.UserId);
             return Errors.Users.UserNotFound;
+        }
 
         if (!leo.LocalOfficeId.HasValue)
+        {
+            logger.LogWarning("User {UserId} has no office", currentUser.UserId);
             return Errors.Organization.OfficerNoOffice;
+        }
 
         var officeId = leo.LocalOfficeId.Value;
 
@@ -41,10 +49,13 @@ public sealed class GetOfficeStaffQueryHandler(
 
         // ── 3. Filters ──
         if (request.RoleFilter.HasValue)
+        {
+            logger.LogInformation("Filtering staff by role: {Role}", request.RoleFilter.Value);
             staffQuery = staffQuery.Where(u => u.Role == request.RoleFilter.Value);
-
+        }
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
+            logger.LogInformation("Filtering staff by search: {Search}", request.Search);
             var keyword = request.Search.Trim().ToLower();
             staffQuery = staffQuery.Where(u =>
                 u.FullName.ToLower().Contains(keyword) ||
@@ -60,9 +71,15 @@ public sealed class GetOfficeStaffQueryHandler(
 
         // ── 5. Filter by HasTeam ──
         if (request.HasTeam == true)
+        {
+            logger.LogInformation("Filtering staff by has team: true");
             joinedQuery = joinedQuery.Where(x => x.TeamMember != null);
+        }
         else if (request.HasTeam == false)
+        {
+            logger.LogInformation("Filtering staff by has team: false");
             joinedQuery = joinedQuery.Where(x => x.TeamMember == null);
+        }
 
         var totalCount = await joinedQuery.CountAsync(ct).ConfigureAwait(false);
         var pagination = PaginationMeta.Create(request.Page, request.PageSize, totalCount);

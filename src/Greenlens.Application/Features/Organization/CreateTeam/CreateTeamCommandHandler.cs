@@ -24,13 +24,18 @@ public sealed class CreateTeamCommandHandler(
         CreateTeamCommand request,
         CancellationToken cancellationToken)
     {
+        logger.LogInformation("Creating team {Name} for office {OfficeId} and team type {TeamType}", request.Name, currentUser.UserId, request.TeamType);
+
         // ── Resolve LEO's office from token ──
         var office = await localOffices.QueryAsNoTracking()
             .FirstOrDefaultAsync(o => o.OfficerId == currentUser.UserId, cancellationToken)
             .ConfigureAwait(false);
 
         if (office is null)
+        {
+            logger.LogWarning("Office not found for user ID {UserId}", currentUser.UserId);
             return Errors.Organization.OfficeNotFound;
+        }
 
         var team = EnvironmentalTeam.Create(request.Name, office.Id, request.TeamType);
         teams.Add(team);

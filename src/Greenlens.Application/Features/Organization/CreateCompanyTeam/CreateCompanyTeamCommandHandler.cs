@@ -26,12 +26,17 @@ public sealed class CreateCompanyTeamCommandHandler(
         CreateCompanyTeamCommand request,
         CancellationToken cancellationToken)
     {
+        logger.LogInformation("Creating company team {Name} for company {CompanyId}", request.Name, currentUser.UserId);
+
         // Resolve CompanyId from current user
         var staff = await companyStaff.GetByUserIdAsync(currentUser.UserId, cancellationToken)
             .ConfigureAwait(false);
 
         if (staff is null)
+        {
+            logger.LogWarning("Company manager not found for user ID {UserId}", currentUser.UserId);
             return Errors.Organization.NotCompanyManager;
+        }
 
         var companyId = staff.CompanyId;
 

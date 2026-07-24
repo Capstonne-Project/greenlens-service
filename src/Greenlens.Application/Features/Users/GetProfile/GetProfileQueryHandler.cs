@@ -21,6 +21,8 @@ public sealed class GetProfileQueryHandler(
         GetProfileQuery request,
         CancellationToken cancellationToken)
     {
+        logger.LogInformation("Getting profile for user {UserId}", currentUser.UserId);
+
         var dto = await users.QueryAsNoTracking()
             .Where(u => u.Id == currentUser.UserId)
             .Select(u => new UserDetailDto(

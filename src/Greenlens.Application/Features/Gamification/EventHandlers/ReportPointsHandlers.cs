@@ -23,11 +23,13 @@ public sealed class ReportVerifiedPointsHandler(
 {
     public async Task Handle(ReportVerifiedEvent notification, CancellationToken ct)
     {
+        logger.LogInformation("Getting report verified points");
+
         var points = await GetConfiguredPointsAsync(PointReason.ReportVerified, 10, ct)
             .ConfigureAwait(false);
         if (points == 0) return; // BR-ADM-005: action disabled
 
-        logger.LogDebug("Gamification: ReportVerified → {Points} points for user {UserId}",
+        logger.LogInformation("Gamification: ReportVerified → {Points} points for user {UserId}",
             points, notification.ReporterId);
 
         await sender.Send(new AwardPointsCommand(

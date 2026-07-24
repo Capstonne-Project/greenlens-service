@@ -19,12 +19,20 @@ public sealed class DismissDuplicateCommandHandler(
 {
     public async Task<Result> Handle(DismissDuplicateCommand request, CancellationToken ct)
     {
+        logger.LogInformation("Dismissing duplicate for report {ReportId}", request.ReportId);
+
         var report = await reports.GetByIdAsync(request.ReportId, ct).ConfigureAwait(false);
         if (report is null)
+        {
+            logger.LogWarning("Report not found for ID {ReportId}", request.ReportId);
             return Errors.Reports.ReportNotFound;
+        }
 
         if (!report.IsPossibleDuplicate)
+        {
+            logger.LogWarning("Report {ReportId} is not a possible duplicate", request.ReportId);
             return Errors.Reports.NotPossibleDuplicate;
+        }
 
         report.DismissDuplicate();
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);

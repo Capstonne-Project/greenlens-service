@@ -23,6 +23,8 @@ public sealed class GetWardsByProvinceQueryHandler(
         GetWardsByProvinceQuery request,
         CancellationToken cancellationToken)
     {
+        logger.LogInformation("Getting wards by province");
+
         var code = request.ProvinceCode.Trim();
         var provinceExists = await provinces.ExistsAsync(p => p.Code == code, cancellationToken)
             .ConfigureAwait(false);

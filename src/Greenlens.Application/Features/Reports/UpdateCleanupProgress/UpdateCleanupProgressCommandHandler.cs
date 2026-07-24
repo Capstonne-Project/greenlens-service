@@ -23,19 +23,30 @@ public sealed class UpdateCleanupProgressCommandHandler(
     {
         var report = await reports.GetByIdAsync(request.ReportId, ct).ConfigureAwait(false);
         if (report is null)
+        {
+            logger.LogWarning("Report not found for ID {ReportId}", request.ReportId);
             return Errors.Reports.ReportNotFound;
+        }
 
         if (report.Status != ReportStatus.InProgress)
+        {
+            logger.LogWarning("Report {ReportId} is not in a valid status for cleanup progress update", request.ReportId);
             return Errors.Reports.InvalidStatusTransition;
+        }
 
         var reportAssignments = await assignments.GetByReportIdAsync(request.ReportId, ct).ConfigureAwait(false);
         var assignment = reportAssignments.FirstOrDefault(a => a.TeamId == request.TeamId);
 
         if (assignment is null)
+        {
+            logger.LogWarning("Assignment not found for report {ReportId} and team {TeamId}", request.ReportId, request.TeamId);
             return Errors.Reports.AssignmentNotFound;
-
+        }
         if (assignment.Status != AssignmentStatus.InProgress)
+        {
+            logger.LogWarning("Assignment {AssignmentId} is not in a valid status for cleanup progress update", assignment.Id);
             return Errors.Cleanup.AssignmentNotInProgress;
+        }
 
         assignment.UpdateProgress(request.Percent, request.Note, currentUser.UserId);
 

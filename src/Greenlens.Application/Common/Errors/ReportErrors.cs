@@ -142,6 +142,26 @@ public static partial class Errors
             "Mã tag loại rác đã tồn tại.",
             ErrorType.Conflict);
 
+        public static Error CategoryAlreadyDeleted => new(
+            "CATEGORY_ALREADY_DELETED",
+            "Danh mục ô nhiễm đã được xóa trước đó.",
+            ErrorType.Conflict);
+
+        public static Error CategoryInUse => new(
+            "CATEGORY_IN_USE",
+            "Không thể xóa danh mục đang được sử dụng bởi báo cáo.",
+            ErrorType.BusinessRule);
+
+        public static Error WasteTagAlreadyDeleted => new(
+            "WASTE_TAG_ALREADY_DELETED",
+            "Tag loại rác đã được xóa trước đó.",
+            ErrorType.Conflict);
+
+        public static Error WasteTagInUse => new(
+            "WASTE_TAG_IN_USE",
+            "Không thể xóa tag loại rác đang được gắn với báo cáo.",
+            ErrorType.BusinessRule);
+
         public static Error DispatchOutsideProvince => new(
             "DISPATCH_OUTSIDE_PROVINCE",
             "Chỉ có thể điều phối task đến xã/phường trong phạm vi tỉnh của bạn.",
@@ -188,6 +208,21 @@ public static partial class Errors
             "CANNOT_DELETE_REPORT",
             "Báo cáo đã được xác nhận hoặc đang xử lý, không thể xóa.",
             ErrorType.BusinessRule);
+
+        public static Error ReportAlreadyDeleted => new(
+            "REPORT_ALREADY_DELETED",
+            "Báo cáo đã được xóa trước đó.",
+            ErrorType.Conflict);
+
+        public static Error CategoryCodeExists => new(
+            "CATEGORY_CODE_EXISTS",
+            "Mã danh mục ô nhiễm đã tồn tại trong hệ thống.",
+            ErrorType.Conflict);
+
+        public static Error ReportCodeConflict => new(
+            "REPORT_CODE_CONFLICT",
+            "Không thể tạo mã báo cáo duy nhất. Vui lòng thử lại.",
+            ErrorType.Conflict);
 
         /// <summary>BR-REP-014: Missing before images on resolve.</summary>
         public static Error MissingBeforeImages => new(

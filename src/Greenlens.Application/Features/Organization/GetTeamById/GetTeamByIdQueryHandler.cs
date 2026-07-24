@@ -15,6 +15,8 @@ public sealed class GetTeamByIdQueryHandler(
     public async Task<Result<TeamDetailResponse>> Handle(
         GetTeamByIdQuery request, CancellationToken ct)
     {
+        logger.LogInformation("Getting team by ID {Id}", request.Id);
+
         var team = await teams.QueryAsNoTracking()
             .Include(t => t.LocalOffice)
             .Include(t => t.Members).ThenInclude(m => m.User)
@@ -22,7 +24,10 @@ public sealed class GetTeamByIdQueryHandler(
             .ConfigureAwait(false);
 
         if (team is null)
+        {
+            logger.LogWarning("Team {Id} not found", request.Id);
             return Errors.Organization.TeamNotFound;
+        }
 
         var members = team.Members.Select(m => new MemberInTeam(
             m.UserId, m.User?.FullName, m.User?.Email, m.User?.PhoneNumber,

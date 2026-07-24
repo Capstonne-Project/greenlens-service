@@ -23,14 +23,22 @@ public sealed class UpdateInspectionDetailsCommandHandler(
 {
     public async Task<Result> Handle(UpdateInspectionDetailsCommand request, CancellationToken ct)
     {
+        logger.LogInformation("Getting update inspection details");
+
         var inspection = await inspections.GetByIdAsync(request.InspectionId, ct).ConfigureAwait(false);
         if (inspection is null)
+        {
+            logger.LogWarning("Inspection not found for inspection {InspectionId}", request.InspectionId);
             return Errors.Inspections.InspectionNotFound;
+        }
 
         var authError = await InspectionTeamAuthorization.ValidateTeamLeaderAsync(
             inspection, teamMembers, currentUser, ct).ConfigureAwait(false);
         if (authError is not null)
+        {
+            logger.LogWarning("Team leader validation failed for inspection {InspectionId}", request.InspectionId);
             return authError;
+        }
 
         var result = inspection.UpdateDetails(
             request.ViolationDescription,
@@ -38,7 +46,11 @@ public sealed class UpdateInspectionDetailsCommandHandler(
             request.ViolatorAddress,
             request.ViolatorIdentity);
 
-        if (result.IsFailure) return result;
+        if (result.IsFailure)
+        {
+            logger.LogWarning("Failed to update inspection details for inspection {InspectionId}", request.InspectionId);
+            return result;
+        }
 
         // BR-INS-010/022: Link ViolatingEntity if provided
         if (request.ViolatingEntityId is not null)
@@ -47,10 +59,17 @@ public sealed class UpdateInspectionDetailsCommandHandler(
                 .ExistsAsync(ve => ve.Id == request.ViolatingEntityId.Value, ct)
                 .ConfigureAwait(false);
             if (!veExists)
+            {
+                logger.LogWarning("Violating entity not found for id {ViolatingEntityId}", request.ViolatingEntityId.Value);
                 return Errors.Inspections.ViolatingEntityNotFound;
+            }
 
             var linkResult = inspection.LinkViolatingEntity(request.ViolatingEntityId.Value);
-            if (linkResult.IsFailure) return linkResult;
+            if (linkResult.IsFailure)
+            {
+                logger.LogWarning("Failed to link violating entity for inspection {InspectionId}", request.InspectionId);
+                return linkResult;
+            }
         }
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);

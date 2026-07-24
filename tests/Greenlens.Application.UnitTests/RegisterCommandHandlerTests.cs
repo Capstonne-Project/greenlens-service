@@ -20,7 +20,12 @@ public sealed class RegisterCommandHandlerTests
     {
         _sut = new RegisterCommandHandler(_users, _otps, _uow, _hasher, _email, NullLogger<RegisterCommandHandler>.Instance);
         _hasher.Hash(Arg.Any<string>()).Returns("hashed");
+        _users.GetDeletedByEmailAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((User?)null);
+        _users.PhoneExistsIncludingDeletedAsync(Arg.Any<string>(), null, Arg.Any<CancellationToken>()).Returns(false);
     }
+
+    private static RegisterCommand CreateCommand(string email) =>
+        new(email, "Password123!", "Password123!", "New User", null, true);
 
     [Fact]
     public async Task Handle_NewUser_ShouldSucceed()
@@ -28,9 +33,7 @@ public sealed class RegisterCommandHandlerTests
         _users.ExistsAsync(Arg.Any<System.Linq.Expressions.Expression<Func<User, bool>>>(), Arg.Any<CancellationToken>())
             .Returns(false);
 
-        var result = await _sut.Handle(
-            new RegisterCommand("new@test.com", "Password123!", "New User", true),
-            CancellationToken.None);
+        var result = await _sut.Handle(CreateCommand("new@test.com"), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.Equal("new@test.com", result.Value!.Email);
@@ -45,9 +48,7 @@ public sealed class RegisterCommandHandlerTests
         _users.ExistsAsync(Arg.Any<System.Linq.Expressions.Expression<Func<User, bool>>>(), Arg.Any<CancellationToken>())
             .Returns(false);
 
-        await _sut.Handle(
-            new RegisterCommand("new@test.com", "Pass123!", "Test", true),
-            CancellationToken.None);
+        await _sut.Handle(CreateCommand("new@test.com"), CancellationToken.None);
 
         await _email.Received(1).SendOtpAsync(
             "new@test.com",
@@ -62,12 +63,24 @@ public sealed class RegisterCommandHandlerTests
         _users.ExistsAsync(Arg.Any<System.Linq.Expressions.Expression<Func<User, bool>>>(), Arg.Any<CancellationToken>())
             .Returns(true);
 
-        var result = await _sut.Handle(
-            new RegisterCommand("exists@test.com", "Pass123!", "User", true),
-            CancellationToken.None);
+        var result = await _sut.Handle(CreateCommand("exists@test.com"), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal("EMAIL_TAKEN", result.Error!.Code);
+    }
+
+    [Fact]
+    public async Task Handle_SoftDeletedEmail_ShouldReturnRestoreHint_BR_AUTH_021()
+    {
+        _users.ExistsAsync(Arg.Any<System.Linq.Expressions.Expression<Func<User, bool>>>(), Arg.Any<CancellationToken>())
+            .Returns(false);
+        _users.GetDeletedByEmailAsync("deleted@test.com", Arg.Any<CancellationToken>())
+            .Returns(User.Create("deleted@test.com", "hash", "Deleted User"));
+
+        var result = await _sut.Handle(CreateCommand("deleted@test.com"), CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("EMAIL_DELETED_RESTORE_AVAILABLE", result.Error!.Code);
     }
 
     [Fact]
@@ -76,9 +89,7 @@ public sealed class RegisterCommandHandlerTests
         _users.ExistsAsync(Arg.Any<System.Linq.Expressions.Expression<Func<User, bool>>>(), Arg.Any<CancellationToken>())
             .Returns(true);
 
-        await _sut.Handle(
-            new RegisterCommand("exists@test.com", "Pass123!", "User", true),
-            CancellationToken.None);
+        await _sut.Handle(CreateCommand("exists@test.com"), CancellationToken.None);
 
         _users.DidNotReceive().Add(Arg.Any<User>());
         await _uow.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());

@@ -4,18 +4,21 @@ using Greenlens.Application.Features.Analytics.Common;
 using Greenlens.Domain.Common;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-
+using Microsoft.Extensions.Logging;
 namespace Greenlens.Application.Features.Analytics.GetAdminReportStatusDistribution;
 
 /// <summary>Distribution of reports by lifecycle status, for the admin dashboard pie/bar chart.</summary>
 public sealed class GetAdminReportStatusDistributionQueryHandler(
     IReportRepository reports,
-    IDateTimeProvider clock)
+    IDateTimeProvider clock,
+    ILogger<GetAdminReportStatusDistributionQueryHandler> logger)
     : IRequestHandler<GetAdminReportStatusDistributionQuery, Result<List<ReportStatusDistributionItem>>>
 {
     public async Task<Result<List<ReportStatusDistributionItem>>> Handle(
         GetAdminReportStatusDistributionQuery request, CancellationToken ct)
     {
+        logger.LogInformation("Getting admin report status distribution");
+
         var (from, to) = DateRangeDefaults.Resolve(request.From, request.To, clock.UtcNow);
 
         var counts = await reports.QueryAsNoTracking()
@@ -24,6 +27,8 @@ public sealed class GetAdminReportStatusDistributionQueryHandler(
             .Select(g => new { Status = g.Key, Count = g.Count() })
             .ToListAsync(ct)
             .ConfigureAwait(false);
+
+        logger.LogInformation("Counts: {Counts}", counts);
 
         var total = counts.Sum(c => c.Count);
 
@@ -34,6 +39,8 @@ public sealed class GetAdminReportStatusDistributionQueryHandler(
                 total == 0 ? 0m : Math.Round(100m * c.Count / total, 1)))
             .OrderByDescending(i => i.Count)
             .ToList();
+
+        logger.LogInformation("Admin report status distribution retrieved successfully");
 
         return result;
     }

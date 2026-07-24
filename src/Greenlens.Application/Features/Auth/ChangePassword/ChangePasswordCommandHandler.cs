@@ -36,7 +36,10 @@ public sealed class ChangePasswordCommandHandler(
             .ConfigureAwait(false);
 
         if (user is null)
+        {
+            logger.LogWarning("User not found for user {UserId}", currentUser.UserId);
             return Errors.Auth.UserNotFound;
+        }
 
         // Verify current password before allowing change
         if (!passwordHasher.Verify(request.CurrentPassword, user.PasswordHash))
@@ -47,7 +50,10 @@ public sealed class ChangePasswordCommandHandler(
 
         // BR-AUTH-020: Check new password is not the same as current
         if (passwordHasher.Verify(request.NewPassword, user.PasswordHash))
+        {
+            logger.LogWarning("New password is the same as current password for user {UserId}", currentUser.UserId);
             return Errors.Auth.PasswordRecentlyUsed;
+        }
 
         // BR-AUTH-020: Check new password against last 3 passwords in history
         var recentPasswords = await passwordHistories
@@ -55,7 +61,10 @@ public sealed class ChangePasswordCommandHandler(
             .ConfigureAwait(false);
 
         if (recentPasswords.Any(h => passwordHasher.Verify(request.NewPassword, h.PasswordHash)))
+        {
+            logger.LogWarning("New password is the same as one of the recent passwords for user {UserId}", currentUser.UserId);
             return Errors.Auth.PasswordRecentlyUsed;
+        }
 
         // Save current password hash to history BEFORE changing
         passwordHistories.Add(PasswordHistory.Create(user.Id, user.PasswordHash));
