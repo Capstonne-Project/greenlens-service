@@ -11,7 +11,7 @@ namespace Greenlens.Application.Features.Admin.AuditLogs.GetAuditLogs;
 /// Returns a paginated list of audit log entries with optional filters.
 /// </summary>
 /// <remarks>Implements: BR-ADM-010.</remarks>
-public sealed class GetAuditLogsQueryHandler(IApplicationDbContext db, 
+public sealed class GetAuditLogsQueryHandler(IApplicationDbContext db,
     ILogger<GetAuditLogsQueryHandler> logger) : IRequestHandler<GetAuditLogsQuery, Result<GetAuditLogsResponse>>
 {
     public async Task<Result<GetAuditLogsResponse>> Handle(
@@ -81,6 +81,6 @@ public sealed class GetAuditLogsQueryHandler(IApplicationDbContext db,
         logger.LogInformation("Pagination: {Pagination}", pagination);
 
         logger.LogInformation("Audit logs retrieved successfully");
-        return Result<GetAuditLogsResponse>.Success(new GetAuditLogsResponse(items, pagination));
+        return new GetAuditLogsResponse(items, pagination);
     }
 }

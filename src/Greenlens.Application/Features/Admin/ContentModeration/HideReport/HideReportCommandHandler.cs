@@ -26,12 +26,6 @@ public sealed class HideReportCommandHandler(
             return Errors.Reports.ReportNotFound;
         }
 
-        if (report is null)
-        {
-            logger.LogWarning("Report is already hidden: {ReportId}", request.ReportId);
-            return Result.Failure(Errors.Reports.ReportNotFound);
-        }
-
         if (report.IsHidden)
         {
             logger.LogWarning("Report is already hidden: {ReportId}", request.ReportId);
