@@ -19,5 +19,7 @@ public sealed record GetOfficeReportsQuery(
     Guid? CategoryId = null,
     Severity? Severity = null,
     AssignmentStatus? AssignmentStatus = null,
+    DateTime? FromDate = null,
+    DateTime? ToDate = null,
     string? SortBy = null,
     bool SortDesc = false) : IRequest<Result<GetOfficeReportsResponse>>;

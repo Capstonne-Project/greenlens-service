@@ -88,6 +88,7 @@ public sealed class LocalOfficesController(ISender sender) : ControllerBase
             "tên team, loại team, trạng thái assignment, phần trăm tiến độ, ghi chú, thời gian. " +
             "Mỗi item có `thumbnails` (mảng URL ảnh đầu tiên của báo cáo, MediaType=Image). " +
             "Hỗ trợ tìm kiếm (mã báo cáo, mô tả, địa chỉ), lọc theo status/category/severity/assignmentStatus, " +
+            "khoảng ngày tạo (fromDate, toDate — ISO date, inclusive theo ngày UTC), " +
             "sắp xếp theo: code, status, severity, priority, createdAt, assignmentCount (mặc định: mới nhất).")]
     [SwaggerResponse(200, "Danh sách báo cáo kèm tiến độ", typeof(ApiResponse<GetOfficeReportsResponse>))]
     [SwaggerResponse(404, "Chưa gán local office", typeof(ApiResponse))]
@@ -96,10 +97,12 @@ public sealed class LocalOfficesController(ISender sender) : ControllerBase
         [FromQuery] string? search = null, [FromQuery] ReportStatus? status = null,
         [FromQuery] Guid? categoryId = null, [FromQuery] Severity? severity = null,
         [FromQuery] AssignmentStatus? assignmentStatus = null,
+        [FromQuery] DateTime? fromDate = null, [FromQuery] DateTime? toDate = null,
         [FromQuery] string? sortBy = null, [FromQuery] bool sortDesc = false,
         CancellationToken ct = default)
         => (await sender.Send(new GetOfficeReportsQuery(
-            page, pageSize, search, status, categoryId, severity, assignmentStatus, sortBy, sortDesc), ct)).ToHttp();
+            page, pageSize, search, status, categoryId, severity, assignmentStatus,
+            fromDate, toDate, sortBy, sortDesc), ct)).ToHttp();
 
     // ═══════════════════════════════════════════
     // ██  STAFF MANAGEMENT

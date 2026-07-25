@@ -77,6 +77,18 @@ public sealed class GetOfficeReportsQueryHandler(
                 r.Assignments.Any(a => a.Status == request.AssignmentStatus.Value));
         }
 
+        if (request.FromDate.HasValue)
+        {
+            var from = DateTime.SpecifyKind(request.FromDate.Value.Date, DateTimeKind.Utc);
+            baseQuery = baseQuery.Where(r => r.CreatedAt >= from);
+        }
+
+        if (request.ToDate.HasValue)
+        {
+            var toExclusive = DateTime.SpecifyKind(request.ToDate.Value.Date.AddDays(1), DateTimeKind.Utc);
+            baseQuery = baseQuery.Where(r => r.CreatedAt < toExclusive);
+        }
+
         // 5. Count total
         var totalItems = await baseQuery.CountAsync(ct).ConfigureAwait(false);
         var pagination = PaginationMeta.Create(request.Page, request.PageSize, totalItems);
