@@ -262,7 +262,7 @@ public sealed class ReportsController(
     [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(
         Summary = "[LEO] Điều phối task đến công ty",
-        Description = "LEO điều phối báo cáo đã xác minh đến công ty dịch vụ môi trường. Báo cáo giữ trạng thái Verified, CompanyManager sẽ phân công team sau.")]
+        Description = "LEO điều phối báo cáo đã xác minh đến công ty dịch vụ môi trường. Chuyển Verified → InProgress; CompanyManager phân công team sau.")]
     [SwaggerResponse(204, "Đã điều phối")]
     [SwaggerResponse(422, "Công ty không hoạt động hoặc hết hợp đồng", typeof(ApiResponse))]
     public async Task<IActionResult> DispatchToCompanyAsync(
@@ -275,7 +275,7 @@ public sealed class ReportsController(
     [Tags("🏢 Company Dashboard")]
     [SwaggerOperation(
         Summary = "[CompanyManager] Phân công team công ty",
-        Description = "CompanyManager phân công team của công ty mình cho báo cáo đã được LEO điều phối. Chuyển status Verified → InProgress.")]
+        Description = "CompanyManager phân công team của công ty mình cho báo cáo đã được LEO điều phối (status InProgress).")]
     [SwaggerResponse(204, "Đã phân công team")]
     [SwaggerResponse(422, "Team không thuộc công ty hoặc workload vượt quá", typeof(ApiResponse))]
     public async Task<IActionResult> AssignCompanyTeamAsync(
@@ -291,7 +291,7 @@ public sealed class ReportsController(
     [Tags("🏢 Company Dashboard")]
     [SwaggerOperation(
         Summary = "[CompanyManager] Danh sách task chờ phân công",
-        Description = "CompanyManager xem các báo cáo đã được LEO điều phối đến công ty (Status == Verified + AssignedCompanyId).")]
+        Description = "CompanyManager xem các báo cáo đã được LEO điều phối, chờ phân công team (InProgress + AssignedCompanyId, chưa có assignment).")]
     [SwaggerResponse(200, "Danh sách task", typeof(ApiResponse<GetCompanyQueueResponse>))]
     public async Task<IActionResult> GetCompanyQueueAsync(
         [FromQuery] int page = 1,

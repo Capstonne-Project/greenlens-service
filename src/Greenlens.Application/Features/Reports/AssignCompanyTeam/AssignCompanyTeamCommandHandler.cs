@@ -13,15 +13,14 @@ namespace Greenlens.Application.Features.Reports.AssignCompanyTeam;
 
 /// <summary>
 /// CompanyManager assigns their company's team(s) to a report dispatched to their company.
-/// Validates: report dispatched to caller's company, teams belong to that company, workload ok.
-/// Transitions report: Verified → InProgress.
+/// Validates: report InProgress + dispatched to caller's company, teams belong to that company, workload ok.
+/// Report status remains InProgress (set at LEO dispatch).
 /// </summary>
 /// <remarks>Implements: BR-CMP-005, BR-OFF-011.</remarks>
 public sealed class AssignCompanyTeamCommandHandler(
     IReportRepository reports,
     IEnvironmentalTeamRepository teams,
     IReportAssignmentRepository assignments,
-    IReportStatusHistoryRepository statusHistory,
     ICompanyStaffRepository companyStaff,
     ICurrentUser currentUser,
     IUnitOfWork uow,
@@ -54,10 +53,10 @@ public sealed class AssignCompanyTeamCommandHandler(
             return Errors.Reports.ReportNotFound;
         }
 
-        // Must be Verified and dispatched to caller's company
-        if (report.Status != ReportStatus.Verified)
+        // Must be InProgress and dispatched to caller's company
+        if (report.Status != ReportStatus.InProgress)
         {
-            logger.LogWarning("Report {ReportId} is not verified", request.ReportId);
+            logger.LogWarning("Report {ReportId} is not in progress", request.ReportId);
             return Errors.Reports.InvalidStatusTransition;
         }
         if (report.AssignedCompanyId != callerCompanyId)
@@ -107,16 +106,9 @@ public sealed class AssignCompanyTeamCommandHandler(
             assignments.Add(assignment);
         }
 
-        // Transition: Verified → InProgress (via CM)
+        // Record CM as assigner; status already InProgress from LEO dispatch
         report.AssignByCompanyManager(currentUser.UserId);
 
-        var history = ReportStatusHistory.Create(
-            report.Id,
-            ReportStatus.Verified,
-            ReportStatus.InProgress,
-            currentUser.UserId);
-
-        statusHistory.Add(history);
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 
         logger.LogInformation(

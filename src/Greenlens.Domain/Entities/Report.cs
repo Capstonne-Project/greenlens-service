@@ -252,8 +252,8 @@ public sealed class Report : SoftDeletableEntity
     }
 
     /// <summary>
-    /// LEO dispatches report to a company for cleanup. Report stays Verified.
-    /// CompanyManager will assign specific company teams later.
+    /// LEO dispatches report to a company for cleanup. Verified → InProgress.
+    /// CompanyManager assigns specific company teams later (status stays InProgress).
     /// </summary>
     public void DispatchToCompany(Guid companyId, Guid leoId)
     {
@@ -261,22 +261,24 @@ public sealed class Report : SoftDeletableEntity
 
         AssignedCompanyId = companyId;
         DispatchedToCompanyAt = DateTime.UtcNow;
-        // Status stays Verified — transitions to InProgress when CM assigns team
+        Status = ReportStatus.InProgress;
+        AssignedByOfficerId = leoId;
+        UpdatedAt = DateTime.UtcNow;
     }
 
     /// <summary>
-    /// CompanyManager assigns company team(s). Verified → InProgress.
+    /// CompanyManager assigns company team(s). Report must already be InProgress from dispatch.
     /// Only valid when report was dispatched to a company (AssignedCompanyId set).
     /// </summary>
     public void AssignByCompanyManager(Guid companyManagerId)
     {
-        EnsureStatus(ReportStatus.Verified);
+        EnsureStatus(ReportStatus.InProgress);
 
         if (!AssignedCompanyId.HasValue)
             throw new InvalidOperationException("Report must be dispatched to a company before CM can assign teams.");
 
-        Status = ReportStatus.InProgress;
         AssignedByOfficerId = companyManagerId;
+        UpdatedAt = DateTime.UtcNow;
     }
 
     /// <summary>Set StartedAt when first team accepts the assignment.</summary>

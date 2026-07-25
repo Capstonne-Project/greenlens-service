@@ -77,16 +77,18 @@ public sealed class DeclineAssignmentCommandHandler(
 
         if (allDeclinedOrPending)
         {
-            // Revert InProgress → Verified (LEO can re-assign teams)
-            report.ForceStatus(ReportStatus.Verified);
+            if (report.AssignedCompanyId is null)
+            {
+                // Community team flow — LEO re-assigns from Verified queue
+                report.ForceStatus(ReportStatus.Verified);
 
-            var history = ReportStatusHistory.Create(
-                report.Id,
-                ReportStatus.InProgress,
-                ReportStatus.Verified,
-                currentUser.UserId);
-
-            statusHistory.Add(history);
+                statusHistory.Add(ReportStatusHistory.Create(
+                    report.Id,
+                    ReportStatus.InProgress,
+                    ReportStatus.Verified,
+                    currentUser.UserId));
+            }
+            // Company-dispatched reports stay InProgress — CM re-assigns from company-queue
         }
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);

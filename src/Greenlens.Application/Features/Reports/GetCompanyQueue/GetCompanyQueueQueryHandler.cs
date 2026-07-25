@@ -12,7 +12,7 @@ namespace Greenlens.Application.Features.Reports.GetCompanyQueue;
 
 /// <summary>
 /// Returns reports dispatched to the caller's company that are awaiting team assignment.
-/// Filters: Status == Verified AND AssignedCompanyId == caller's companyId.
+/// Filters: Status == InProgress AND AssignedCompanyId == caller's companyId AND no active assignments.
 /// </summary>
 public sealed class GetCompanyQueueQueryHandler(
     IReportRepository reports,
@@ -36,11 +36,12 @@ public sealed class GetCompanyQueueQueryHandler(
 
         logger.LogInformation("Company ID: {CompanyId}", companyId);
 
-        // Query reports dispatched to this company, still Verified (awaiting CM team assignment)
+        // Query reports dispatched to this company, InProgress, awaiting CM team assignment
         var baseQuery = reports.QueryAsNoTracking()
             .Include(r => r.Category)
-            .Where(r => r.Status == ReportStatus.Verified
-                        && r.AssignedCompanyId == companyId);
+            .Where(r => r.Status == ReportStatus.InProgress
+                        && r.AssignedCompanyId == companyId
+                        && !r.Assignments.Any(a => a.Status != AssignmentStatus.Declined));
 
         if (request.Severity.HasValue)
         {

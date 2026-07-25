@@ -6,7 +6,8 @@ using MediatR;
 namespace Greenlens.Application.Features.Reports.GetCompanyQueue;
 
 /// <summary>
-/// CompanyManager views reports dispatched to their company (Status == Verified, AssignedCompanyId == myCompanyId).
+/// CompanyManager views reports dispatched to their company awaiting team assignment.
+/// Filters: Status == InProgress, AssignedCompanyId == myCompanyId, no active assignments.
 /// </summary>
 public sealed record GetCompanyQueueQuery(
     int Page = 1,

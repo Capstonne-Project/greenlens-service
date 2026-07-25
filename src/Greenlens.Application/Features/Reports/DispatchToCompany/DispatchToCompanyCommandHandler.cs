@@ -2,6 +2,7 @@ using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
+using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -9,13 +10,14 @@ using Microsoft.Extensions.Logging;
 namespace Greenlens.Application.Features.Reports.DispatchToCompany;
 
 /// <summary>
-/// LEO dispatches a verified report to a company. Report stays Verified.
-/// CompanyManager sees it in their queue and assigns company team(s).
+/// LEO dispatches a verified report to a company. Verified → InProgress.
+/// CompanyManager sees it in company-queue and assigns company team(s).
 /// </summary>
 /// <remarks>Implements: BR-CMP-005, BR-OFF-011.</remarks>
 public sealed class DispatchToCompanyCommandHandler(
     IReportRepository reports,
     IEnvironmentalServiceCompanyRepository companies,
+    IReportStatusHistoryRepository statusHistory,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     ILogger<DispatchToCompanyCommandHandler> logger) : IRequestHandler<DispatchToCompanyCommand, Result>
@@ -71,8 +73,14 @@ public sealed class DispatchToCompanyCommandHandler(
             }
         }
 
-        // Dispatch — report stays Verified, AssignedCompanyId set
+        // Dispatch — Verified → InProgress, AssignedCompanyId set
         report.DispatchToCompany(request.CompanyId, currentUser.UserId);
+
+        statusHistory.Add(ReportStatusHistory.Create(
+            report.Id,
+            ReportStatus.Verified,
+            ReportStatus.InProgress,
+            currentUser.UserId));
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 

@@ -142,6 +142,49 @@ public sealed class ReportTests
         Assert.Throws<InvalidOperationException>(() => report.Assign(Guid.NewGuid()));
     }
 
+    // ── Company dispatch ──
+
+    [Fact]
+    public void DispatchToCompany_FromVerified_ShouldMoveToInProgress()
+    {
+        var report = CreateTestReport();
+        report.Verify(Guid.NewGuid());
+        var leoId = Guid.NewGuid();
+        var companyId = Guid.NewGuid();
+
+        report.DispatchToCompany(companyId, leoId);
+
+        Assert.Equal(ReportStatus.InProgress, report.Status);
+        Assert.Equal(companyId, report.AssignedCompanyId);
+        Assert.Equal(leoId, report.AssignedByOfficerId);
+        Assert.NotNull(report.DispatchedToCompanyAt);
+    }
+
+    [Fact]
+    public void AssignByCompanyManager_FromInProgress_ShouldKeepInProgress()
+    {
+        var report = CreateTestReport();
+        report.Verify(Guid.NewGuid());
+        var leoId = Guid.NewGuid();
+        var cmId = Guid.NewGuid();
+        report.DispatchToCompany(Guid.NewGuid(), leoId);
+
+        report.AssignByCompanyManager(cmId);
+
+        Assert.Equal(ReportStatus.InProgress, report.Status);
+        Assert.Equal(cmId, report.AssignedByOfficerId);
+    }
+
+    [Fact]
+    public void AssignByCompanyManager_WithoutDispatch_ShouldThrow()
+    {
+        var report = CreateTestReport();
+        report.Verify(Guid.NewGuid());
+        report.Assign(Guid.NewGuid());
+
+        Assert.Throws<InvalidOperationException>(() => report.AssignByCompanyManager(Guid.NewGuid()));
+    }
+
     // ── Resolve ──
 
     [Fact]
