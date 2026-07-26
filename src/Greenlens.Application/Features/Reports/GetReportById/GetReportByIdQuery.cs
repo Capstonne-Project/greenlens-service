@@ -24,7 +24,23 @@ public sealed record ReportDetailResponse(
     DateTime? ResolvedAt, DateTime? ClosedAt,
     DateTime? SlaVerifyDueAt, DateTime? SlaResolveDueAt,
     ReportSatisfactionInfo? Satisfaction,
-    bool HasCurrentUserRated);
+    bool HasCurrentUserRated,
+    /// <summary>When this report is Duplicate — primary it was merged into (BR-REP-032).</summary>
+    Guid? MergedIntoPrimaryReportId = null,
+    string? MergedIntoPrimaryReportCode = null,
+    /// <summary>
+    /// Reports merged into this primary. imageUrl is projected from primary media
+    /// where SourceReportId = child id (BR-REP-032).
+    /// </summary>
+    IReadOnlyList<MergedReportItem>? MergedReports = null);
+
+/// <summary>Child report that was confirmed as duplicate of the primary (BR-REP-032).</summary>
+public sealed record MergedReportItem(
+    Guid Id,
+    string Code,
+    string? ImageUrl,
+    DateTime CreatedAt,
+    ReportStatus Status);
 
 public sealed record ReportMediaItem(
     Guid Id, string MediaType, string Url, string MimeType, long SizeBytes);
