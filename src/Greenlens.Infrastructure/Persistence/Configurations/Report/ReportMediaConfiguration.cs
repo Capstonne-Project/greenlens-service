@@ -32,6 +32,8 @@ internal sealed class ReportMediaConfiguration : IEntityTypeConfiguration<Report
 
         // ── Indexes ──
         builder.HasIndex(m => m.ReportId);
+        // BR-REP-032: project thumbs for merged Duplicate reports by origin
+        builder.HasIndex(m => m.SourceReportId);
         builder.HasIndex(m => m.PHash);
 
         // ── Soft delete filter ──

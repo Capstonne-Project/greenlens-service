@@ -2,6 +2,7 @@ using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
+using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -9,13 +10,14 @@ using Microsoft.Extensions.Logging;
 namespace Greenlens.Application.Features.Reports.GetReportById;
 
 /// <summary>
-/// Return full report detail including satisfaction feedback.
+/// Return full report detail including satisfaction feedback and merged-duplicate thumbs.
 /// </summary>
 /// <remarks>
-/// Implements: BR-REP-018 (satisfaction in response).
+/// Implements: BR-REP-018 (satisfaction in response), BR-REP-032 (mergedReports + SourceReportId thumbs).
 /// </remarks>
 public sealed class GetReportByIdQueryHandler(
     IReportRepository reports,
+    IReportMediaRepository reportMedia,
     IReportSatisfactionRepository satisfactions,
     ICurrentUser currentUser,
     ILogger<GetReportByIdQueryHandler> logger)
@@ -29,6 +31,7 @@ public sealed class GetReportByIdQueryHandler(
             .Include(x => x.Media)
             .Include(x => x.Assignments).ThenInclude(a => a.Team)
             .Include(x => x.WasteTags).ThenInclude(wt => wt.WasteTag)
+            .Include(x => x.ParentReport)
             .FirstOrDefaultAsync(x => x.Id == request.Id, ct)
             .ConfigureAwait(false);
 
@@ -63,7 +66,6 @@ public sealed class GetReportByIdQueryHandler(
             .ToList();
 
         // ── Satisfaction (BR-REP-018) ──
-        // Fetch reporter's satisfaction (there is at most one per report per user).
         var reporterSatisfaction = await satisfactions.QueryAsNoTracking()
             .Where(s => s.ReportId == request.Id && s.UserId == r.ReporterId)
             .Select(s => new ReportSatisfactionInfo(
@@ -75,6 +77,44 @@ public sealed class GetReportByIdQueryHandler(
             && await satisfactions.ExistsAsync(
                 s => s.ReportId == request.Id && s.UserId == currentUser.UserId, ct)
                 .ConfigureAwait(false);
+
+        // ── Merged duplicates (BR-REP-032) ──
+        var children = await reports.QueryAsNoTracking()
+            .Where(c => c.ParentReportId == r.Id)
+            .Select(c => new { c.Id, c.Code, c.CreatedAt, c.Status })
+            .OrderBy(c => c.CreatedAt)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        IReadOnlyList<MergedReportItem> mergedReports = [];
+        if (children.Count > 0)
+        {
+            var childIds = children.Select(c => c.Id).ToList();
+            var thumbsBySource = await reportMedia.QueryAsNoTracking()
+                .Where(m => m.ReportId == r.Id
+                            && m.SourceReportId != null
+                            && childIds.Contains(m.SourceReportId.Value))
+                .OrderBy(m => m.UploadedAt)
+                .Select(m => new { SourceId = m.SourceReportId!.Value, Url = m.ThumbnailUrl ?? m.Url })
+                .ToListAsync(ct)
+                .ConfigureAwait(false);
+
+            var firstThumb = thumbsBySource
+                .GroupBy(x => x.SourceId)
+                .ToDictionary(g => g.Key, g => g.First().Url);
+
+            mergedReports = children
+                .Select(c => new MergedReportItem(
+                    c.Id,
+                    c.Code,
+                    firstThumb.GetValueOrDefault(c.Id),
+                    c.CreatedAt,
+                    c.Status))
+                .ToList();
+        }
+
+        Guid? mergedIntoPrimaryId = r.ParentReportId;
+        string? mergedIntoPrimaryCode = r.ParentReport?.Code;
 
         logger.LogInformation("Lấy chi tiết báo cáo thành công. Mã báo cáo: {ReportCode}", r.Code);
         return new ReportDetailResponse(
@@ -92,6 +132,9 @@ public sealed class GetReportByIdQueryHandler(
             r.ResolvedAt, r.ClosedAt,
             r.SlaVerifyDueAt, r.SlaResolveDueAt,
             reporterSatisfaction,
-            hasCurrentUserRated);
+            hasCurrentUserRated,
+            mergedIntoPrimaryId,
+            mergedIntoPrimaryCode,
+            mergedReports);
     }
 }

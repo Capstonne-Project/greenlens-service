@@ -1,17 +1,19 @@
 # Mobile App — Duplicate Report Merge Integration Guide
 
 > **Backend branch:** `develop`
-> **Ngày cập nhật:** 2026-07-23
+> **Ngày cập nhật:** 2026-07-26
 > **Liên quan:** BR-REP-031, BR-REP-032, BR-NTF-002
+> **Request liên quan:** [`fe-be-request-merged-report-images.md`](./fe-be-request-merged-report-images.md)
 
 ---
 
 ## 1. Thay đổi API: `GET /v1/reports/my`
 
-### 2 field mới trong `MyReportItem`
+### Field merge + thumbnail
 
 | Field | Type | Nullable | Mô tả |
 |-------|------|----------|-------|
+| `imageUrl` | `string?` | ✅ | Ảnh đại diện. Với `status=Duplicate`, vẫn trả thumb sau khi media đã reassign sang primary (project theo `ReportMedia.SourceReportId`). |
 | `mergedIntoPrimaryReportId` | `Guid?` | ✅ | ID của báo cáo gốc mà báo cáo này đã được gộp vào. `null` nếu không phải duplicate. |
 | `mergedIntoPrimaryReportCode` | `string?` | ✅ | Mã hiển thị của báo cáo gốc (e.g. `RPT-2026-0045`). `null` nếu không phải duplicate. |
 
@@ -88,7 +90,57 @@ if (item.status == "Duplicate" && item.mergedIntoPrimaryReportId != null) {
 
 ---
 
-## 2. Thay đổi Notification
+## 2. Thay đổi API: `GET /v1/reports/{id}` (primary detail)
+
+### Field mới trên `ReportDetailResponse`
+
+| Field | Type | Nullable | Mô tả |
+|-------|------|----------|-------|
+| `mergedIntoPrimaryReportId` | `Guid?` | ✅ | Nếu báo cáo này là Duplicate → ID primary. |
+| `mergedIntoPrimaryReportCode` | `string?` | ✅ | Mã primary tương ứng. |
+| `mergedReports` | `MergedReportItem[]` | ✅ | Các báo cáo đã gộp **vào** primary này (rỗng/`[]` nếu không có). |
+
+### `MergedReportItem`
+
+| Field | Type | Nullable | Mô tả |
+|-------|------|----------|-------|
+| `id` | `Guid` | ❌ | ID báo cáo Duplicate |
+| `code` | `string` | ❌ | Mã hiển thị |
+| `imageUrl` | `string?` | ✅ | Thumb của report con — lấy từ media trên primary có `sourceReportId = id` |
+| `createdAt` | `datetime` | ❌ | Thời điểm tạo |
+| `status` | `string` | ❌ | Thường `Duplicate` |
+
+**Cách lấy `imageUrl` (BE):** lúc `confirm-duplicate`, `ReportMedia.ReassignToReport` set `SourceReportId` = id report con rồi chuyển `ReportId` sang primary. Projection đọc media primary theo `SourceReportId`.
+
+> **Lưu ý:** merge **trước** migration `source_report_id` không có origin → `imageUrl` có thể null cho các child cũ.
+
+### Response mẫu (primary)
+
+```json
+{
+  "data": {
+    "id": "a1b2c3d4-0000-0000-0000-000000000001",
+    "code": "RPT-2026-0045",
+    "status": "InProgress",
+    "reporterCount": 3,
+    "mergedIntoPrimaryReportId": null,
+    "mergedIntoPrimaryReportCode": null,
+    "mergedReports": [
+      {
+        "id": "d1a2b3c4-0000-0000-0000-000000000048",
+        "code": "RPT-2026-0048",
+        "imageUrl": "https://cdn.example.com/img/thumb_child_48.jpg",
+        "createdAt": "2026-07-22T14:30:00Z",
+        "status": "Duplicate"
+      }
+    ]
+  }
+}
+```
+
+---
+
+## 3. Thay đổi Notification
 
 ### Trước (cũ)
 
@@ -139,10 +191,12 @@ onNotificationTap(notification) {
 
 ---
 
-## 3. Checklist tích hợp
+## 4. Checklist tích hợp
 
-- [ ] Cập nhật model `MyReportItem` thêm 2 field mới (`mergedIntoPrimaryReportId`, `mergedIntoPrimaryReportCode`)
+- [ ] Cập nhật model `MyReportItem` (`mergedIntoPrimaryReportId`, `mergedIntoPrimaryReportCode`, `imageUrl` vẫn có khi Duplicate)
+- [ ] Cập nhật model `ReportDetail` thêm `mergedReports[]` + `mergedIntoPrimary*`
+- [ ] UI section “báo cáo đã gộp” trên primary detail dùng `mergedReports[].imageUrl`
 - [ ] Xử lý UI khi `status == "Duplicate"` → hiện badge "Đã gộp" + link báo cáo gốc
 - [ ] Cập nhật notification handler: `referenceId` giờ trỏ đến **primary report**
 - [ ] Deep-link notification tap → `ReportDetailScreen(referenceId)`
-- [ ] Test: submit 2 báo cáo cùng vị trí → confirm duplicate → verify notification + my reports
+- [ ] Test: submit 2 báo cáo cùng vị trí → confirm duplicate → verify notification + my reports + primary `mergedReports`
