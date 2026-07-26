@@ -43,7 +43,7 @@ public sealed class ReportMediaTests
     }
 
     [Fact]
-    public void ReassignToReport_MovesMediaToPrimary_BR_REP_032()
+    public void ReassignToReport_MovesMediaToPrimary_AndSetsSourceReportId_BR_REP_032()
     {
         var originalReportId = Guid.NewGuid();
         var primaryReportId = Guid.NewGuid();
@@ -53,5 +53,22 @@ public sealed class ReportMediaTests
         media.ReassignToReport(primaryReportId);
 
         Assert.Equal(primaryReportId, media.ReportId);
+        Assert.Equal(originalReportId, media.SourceReportId);
+    }
+
+    [Fact]
+    public void ReassignToReport_KeepsFirstSourceReportId_WhenReassignedAgain_BR_REP_032()
+    {
+        var originalReportId = Guid.NewGuid();
+        var firstPrimaryId = Guid.NewGuid();
+        var secondPrimaryId = Guid.NewGuid();
+        var media = ReportMedia.Create(originalReportId, MediaType.Image,
+            "https://cdn/dup.jpg", "image/jpeg", 1000, null);
+
+        media.ReassignToReport(firstPrimaryId);
+        media.ReassignToReport(secondPrimaryId);
+
+        Assert.Equal(secondPrimaryId, media.ReportId);
+        Assert.Equal(originalReportId, media.SourceReportId);
     }
 }
