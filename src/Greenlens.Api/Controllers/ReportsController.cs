@@ -486,7 +486,8 @@ public sealed class ReportsController(
     [SwaggerOperation(
         Summary = "[LEO/DEO] Xác nhận & gộp báo cáo trùng lặp",
         Description = "BR-REP-032: LEO xác nhận báo cáo là trùng lặp của một báo cáo gốc. " +
-            "Báo cáo chuyển sang Duplicate, tăng reporter count của báo cáo gốc, và cộng điểm cho người gửi.")]
+            "Báo cáo gốc phải đã Verified (hoặc InProgress); báo cáo trùng có thể đang Submitted. " +
+            "Báo cáo trùng chuyển sang Duplicate, tăng reporter count của báo cáo gốc, và cộng điểm cho người gửi.")]
     [SwaggerResponse(200, "Đã gộp báo cáo trùng", typeof(ApiResponse))]
     [SwaggerResponse(404, "Không tìm thấy báo cáo hoặc báo cáo gốc", typeof(ApiResponse))]
     [SwaggerResponse(422, "Trạng thái không hợp lệ hoặc gộp vào chính nó", typeof(ApiResponse))]

@@ -17,7 +17,8 @@ namespace Greenlens.Application.Features.Reports.ConfirmDuplicate;
 /// </summary>
 /// <remarks>
 /// Implements: BR-REP-031 (LEO makes the final duplicate decision),
-/// BR-REP-032 (link to primary, merge images + comments, +50% points, +1 reporter count).
+/// BR-REP-032 (primary must be Verified/InProgress; duplicate may be Submitted;
+/// link to primary, merge images + comments, +50% points, +1 reporter count).
 /// </remarks>
 public sealed class ConfirmDuplicateCommandHandler(
     IReportRepository reports,
@@ -52,11 +53,20 @@ public sealed class ConfirmDuplicateCommandHandler(
             return Errors.Reports.PrimaryReportNotFound;
         }
 
-        // BR-REP-032: report must be verified before it can be confirmed as duplicate.
-        // Already-Duplicate or Rejected reports cannot be merged again.
-        if (report.Status is ReportStatus.Submitted or ReportStatus.Duplicate or ReportStatus.Rejected)
+        // BR-REP-032: primary must be verified before any duplicate can merge into it.
+        if (primary.Status is not (ReportStatus.Verified or ReportStatus.InProgress))
         {
-            logger.LogWarning("Report {ReportId} is not valid for duplicate", request.ReportId);
+            logger.LogWarning(
+                "Primary report {PrimaryReportId} must be Verified or InProgress (current: {Status})",
+                primary.Id, primary.Status);
+            return Errors.Reports.InvalidStatusTransition;
+        }
+
+        // Duplicate side: Submitted (and Verified) may merge; reports already in cleanup or terminal states may not.
+        if (report.Status is ReportStatus.Duplicate or ReportStatus.Rejected
+            or ReportStatus.InProgress or ReportStatus.Resolved or ReportStatus.Closed)
+        {
+            logger.LogWarning("Report {ReportId} is not valid for duplicate (status {Status})", request.ReportId, report.Status);
             return Errors.Reports.InvalidStatusTransition;
         }
 

@@ -1,4 +1,5 @@
 using Greenlens.Application.Common.Interfaces;
+using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using Greenlens.Infrastructure.Persistence;
 using Hangfire;
@@ -13,11 +14,11 @@ namespace Greenlens.Infrastructure.BackgroundJobs;
 /// </summary>
 /// <remarks>
 /// Implements: BR-REP-030, BR-REP-031, BR-AI-002 (image similarity), BR-AI-006 (timeout → keep Tier 1).
-/// Idempotent: only acts while the report is still a "geo_time" possible duplicate.
+/// Idempotent: only acts while the report is still a Tier 1 (geo_category) possible duplicate.
 /// Decision matrix:
-///   AI same scene   → upgrade source to "geo_time_ai" + record confidence
+///   AI same scene   → upgrade source to geo_category_ai + record confidence
 ///   AI different    → dismiss the possible-duplicate flag
-///   AI null/timeout → keep Tier 1 (geo_time)
+///   AI null/timeout → keep Tier 1 (geo_category)
 /// </remarks>
 [AutomaticRetry(Attempts = 2)]
 internal sealed class CompareDuplicateImagesJob(
@@ -50,7 +51,7 @@ internal sealed class CompareDuplicateImagesJob(
         var result = await aiImageCompare.CompareAsync(reportImage, candidateImage, ct).ConfigureAwait(false);
         if (result is null)
         {
-            // AI unavailable / timeout → keep Tier 1 (geo_time).
+            // AI unavailable / timeout → keep Tier 1 (geo_category).
             logger.LogInformation("CompareDuplicateImagesJob: AI unavailable for {Id}, keeping Tier 1", reportId);
             return;
         }
@@ -79,7 +80,7 @@ internal sealed class CompareDuplicateImagesJob(
     private static bool StillNeedsTier2Compare(Domain.Entities.Report? report) =>
         report is not null
         && report.IsPossibleDuplicate
-        && report.DuplicateDetectionSource == "geo_time"
+        && DuplicateDetectionSources.IsTier1PendingAi(report.DuplicateDetectionSource)
         && report.Status is not (ReportStatus.Duplicate or ReportStatus.Rejected);
 
     private async Task<bool> StillNeedsTier2CompareAsync(Guid reportId, CancellationToken ct)
@@ -92,7 +93,7 @@ internal sealed class CompareDuplicateImagesJob(
 
         return state is not null
                && state.IsPossibleDuplicate
-               && state.DuplicateDetectionSource == "geo_time"
+               && DuplicateDetectionSources.IsTier1PendingAi(state.DuplicateDetectionSource)
                && state.Status is not (ReportStatus.Duplicate or ReportStatus.Rejected);
     }
 

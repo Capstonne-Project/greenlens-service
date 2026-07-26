@@ -1,4 +1,3 @@
-using Greenlens.Application.Features.Reports;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
@@ -413,15 +412,15 @@ public sealed class SubmitPollutionReportCommandHandler(
     }
 
     /// <summary>
-    /// BR-REP-030: Tier 1 duplicate check — find the oldest active report with the same
-    /// category within ~50m, then flag this report as a possible duplicate.
-    /// Uses a decimal bounding box (reports store lat/lng, not a PostGIS geometry column),
-    /// refined with an exact Haversine distance to reject bounding-box corners.
+    /// BR-REP-030: Tier 1 duplicate check — find the canonical primary (Verified/InProgress first,
+    /// else oldest) with the same category within ~50m, then flag this report as a possible duplicate.
+    /// Closed reports (BR-REP-016 auto-close) are excluded — new submissions at the same spot
+    /// start a fresh report, not a duplicate of a finished case.
+    /// Each flagged report gets its own Tier 2 AI job vs that primary.
     /// </summary>
     private async Task FlagPossibleDuplicateAsync(Report report, CancellationToken ct)
     {
-        const double radiusMeters = 50.0;
-        // 1 deg latitude ≈ 111_320 m. Longitude shrinks by cos(latitude).
+        const double radiusMeters = DuplicateTier1PrimarySelector.DefaultRadiusMeters;
         var latDelta = (decimal)(radiusMeters / 111_320.0);
         var cosLat = Math.Max(Math.Cos((double)report.Latitude * Math.PI / 180.0), 1e-6);
         var lngDelta = (decimal)(radiusMeters / (111_320.0 * cosLat));
@@ -429,20 +428,21 @@ public sealed class SubmitPollutionReportCommandHandler(
         var candidates = await reports.QueryAsNoTracking()
             .Where(r => r.CategoryId == report.CategoryId)
             .Where(r => r.Id != report.Id)
-            .Where(r => r.Status != ReportStatus.Duplicate && r.Status != ReportStatus.Rejected)
+            .Where(r => r.Status != ReportStatus.Duplicate
+                     && r.Status != ReportStatus.Rejected
+                     && r.Status != ReportStatus.Closed)
             .Where(r => r.Latitude >= report.Latitude - latDelta && r.Latitude <= report.Latitude + latDelta)
             .Where(r => r.Longitude >= report.Longitude - lngDelta && r.Longitude <= report.Longitude + lngDelta)
-            .OrderBy(r => r.CreatedAt)
-            .Select(r => new { r.Id, r.Latitude, r.Longitude })
-            .Take(10)
+            .Select(r => new DuplicateNearbyReport(r.Id, r.Latitude, r.Longitude, r.Status, r.CreatedAt))
+            .Take(20)
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
-        var match = candidates.FirstOrDefault(c =>
-            GeoMath.HaversineMeters(report.Latitude, report.Longitude, c.Latitude, c.Longitude) <= radiusMeters);
+        var primaryId = DuplicateTier1PrimarySelector.SelectPrimary(
+            report.Latitude, report.Longitude, candidates, radiusMeters);
 
-        if (match is not null)
-            report.MarkPossibleDuplicate(match.Id, "geo_category");
+        if (primaryId is not null)
+            report.MarkPossibleDuplicate(primaryId.Value, DuplicateTier1PrimarySelector.Tier1Source);
     }
 
     private async Task<string> GenerateUniqueCodeAsync(CancellationToken ct)

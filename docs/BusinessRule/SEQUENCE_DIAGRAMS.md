@@ -621,7 +621,7 @@ sequenceDiagram
     Job->>+DB: SELECT reports<br/>WHERE same category + within 50m + within 24h
     DB-->>-Job: candidates[]
     alt Match found (Haversine ≤ 50m)
-        Job->>Job: report.MarkPossibleDuplicate(candidateId, "geo_time")
+        Job->>Job: report.MarkPossibleDuplicate(candidateId, "geo_category")
         Job->>+DB: UPDATE reports SET is_possible_duplicate = true
         DB-->>-Job: OK
     end

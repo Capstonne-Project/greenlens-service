@@ -74,7 +74,7 @@ public sealed class Report : SoftDeletableEntity
     public bool IsPossibleDuplicate { get; private set; }
     /// <summary>The oldest candidate report this one likely duplicates.</summary>
     public Guid? PossibleDuplicateOfReportId { get; private set; }
-    /// <summary>How the duplicate was detected: "geo_time" (Tier 1) or "geo_time_ai" (Tier 2 CLIP/DINOv2).</summary>
+    /// <summary>How the duplicate was detected: "geo_category" (Tier 1) or "geo_category_ai" (Tier 2).</summary>
     public string? DuplicateDetectionSource { get; private set; }
     /// <summary>Image similarity score 0.0–1.0 from the AI compare service (Tier 2 only).</summary>
     public decimal? AiSimilarityScore { get; private set; }
@@ -327,7 +327,8 @@ public sealed class Report : SoftDeletableEntity
     /// <summary>Mark as duplicate of another report. BR-REP-030, BR-REP-032.</summary>
     public void MarkDuplicate(Guid primaryReportId)
     {
-        if (Status is ReportStatus.Submitted or ReportStatus.Duplicate or ReportStatus.Rejected)
+        if (Status is ReportStatus.Duplicate or ReportStatus.Rejected
+            or ReportStatus.InProgress or ReportStatus.Resolved or ReportStatus.Closed)
             throw new InvalidOperationException($"Cannot mark as duplicate from status {Status}.");
 
         Status = ReportStatus.Duplicate;
@@ -344,7 +345,7 @@ public sealed class Report : SoftDeletableEntity
     // ── Duplicate detection (BR-REP-030/031) ──
 
     /// <summary>
-    /// Tier 1 flag: same category + within 50m + within 24h of an existing report.
+    /// Tier 1 flag: same category + within 50m of an existing report.
     /// Raises an event so Tier 2 (AI image compare) can run in the background.
     /// </summary>
     /// <remarks>Implements: BR-REP-030 (definition), BR-REP-031 (possible_duplicate flag).</remarks>
@@ -369,7 +370,7 @@ public sealed class Report : SoftDeletableEntity
 
     /// <summary>
     /// Tier 2 result from the AI image compare service (BR-AI-002).
-    /// Same scene → upgrade source to "geo_time_ai" and record score; different scene → dismiss.
+    /// Same scene → upgrade source to <see cref="DuplicateDetectionSources.Tier2Ai"/> and record score; different scene → dismiss.
     /// </summary>
     public void ApplyDuplicateAiResult(bool isSameScene, decimal confidence)
     {
@@ -386,7 +387,7 @@ public sealed class Report : SoftDeletableEntity
             return;
         }
 
-        DuplicateDetectionSource = "geo_time_ai";
+        DuplicateDetectionSource = DuplicateDetectionSources.Tier2Ai;
         AiSimilarityScore = confidence;
     }
 

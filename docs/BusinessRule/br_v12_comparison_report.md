@@ -185,7 +185,7 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 
 | Tầng       | Cơ chế                                                                                      | Files chính                                                     |
 | ---------- | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| Tier 1     | Inline submit: ≤50m + cùng category + ≤24h → `MarkPossibleDuplicate("geo_time")`            | `GeoMath.cs`, `SubmitPollutionReportCommandHandler`             |
+| Tier 1     | Inline submit: ≤50m + cùng category → `MarkPossibleDuplicate("geo_category")`. **Loại trừ** `Closed` (BR-REP-016 auto-close) | `GeoMath.cs`, `SubmitPollutionReportCommandHandler`, `DuplicateTier1PrimarySelector` |
 | Tier 2     | Hangfire `CompareDuplicateImagesJob` → Python `POST /api/v1/compare-images` (DINOv2)        | `AiImageCompareService`, `EnqueueDuplicateCompareHandler`       |
 | LEO review | `GET duplicate-candidates`, `POST confirm-duplicate`, `POST dismiss-duplicate`, `POST flag` | `ReportsController`, docs `fe-leo-duplicate-detection-guide.md` |
 | Migrations | `AddDuplicateDetectionFields`, `AddPenaltyPaymentSoftDelete`                                | Chưa apply DB dev (cần `dotnet ef database update`)             |

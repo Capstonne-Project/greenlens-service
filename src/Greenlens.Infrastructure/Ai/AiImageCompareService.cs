@@ -12,7 +12,7 @@ namespace Greenlens.Infrastructure.Ai;
 /// </summary>
 /// <remarks>
 /// Implements: BR-AI-002 (image similarity for duplicate detection),
-/// BR-AI-006 (timeout → return null so caller falls back to Tier 1 geo_time).
+/// BR-AI-006 (timeout → return null so caller falls back to Tier 1 geo_category).
 /// Uses CompareTimeoutSeconds (default 15s) — background job, HEIC inference often &gt;5s.
 /// Endpoint: POST /api/v1/compare-images  body: { image_url_a, image_url_b }.
 /// Reuses the named "AiService" HttpClient (same BaseUrl as classify/moderation).
