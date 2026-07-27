@@ -2,14 +2,22 @@ using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
+using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Organization.DeclineInvitation;
 
-/// <summary>BR-ORG-021: Citizen declines — keeps Citizen role, invitation marked Declined.</summary>
+/// <summary>
+/// BR-ORG-021: Citizen declines — keeps Citizen role, invitation marked Declined.
+/// BR-NTF-002: Notify LEO when invitation is declined.
+/// </summary>
 public sealed class DeclineInvitationCommandHandler(
     IStaffInvitationRepository invitations,
+    IUserRepository users,
+    ILocalOfficeRepository localOffices,
+    IEnvironmentalTeamRepository teams,
+    INotificationService notifications,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     ILogger<DeclineInvitationCommandHandler> logger)
@@ -42,6 +50,31 @@ public sealed class DeclineInvitationCommandHandler(
         }
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        var user = await users.GetByIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
+        if (user is not null)
+        {
+            var (officeName, teamName) = await StaffInvitationNotificationPlaceholders
+                .ResolveContextAsync(
+                    invitation.LocalOfficeId,
+                    invitation.TeamId,
+                    localOffices,
+                    teams,
+                    ct)
+                .ConfigureAwait(false);
+
+            await notifications.SendFromTemplateAsync(
+                invitation.InvitedByUserId,
+                NotificationType.StaffInvitationDeclined,
+                StaffInvitationNotificationPlaceholders.ForResponded(
+                    user.FullName,
+                    officeName,
+                    invitation.TargetRole,
+                    teamName),
+                invitation.Id,
+                ct).ConfigureAwait(false);
+        }
+
         logger.LogInformation("Invitation {InvitationId} declined for user {UserId}", request.InvitationId, currentUser.UserId);
         return Result.Success();
     }

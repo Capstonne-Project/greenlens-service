@@ -29,7 +29,6 @@ internal sealed class CleanupProgressSlaJob(
         // Assignments InProgress that haven't been updated in > 24h
         var staleAssignments = await db.ReportAssignments
             .Include(a => a.Report)
-            .Include(a => a.Team)
             .Where(a => a.Status == AssignmentStatus.InProgress)
             .Where(a => a.ProgressUpdatedAt == null
                 ? a.StartedAt < threshold24h
@@ -42,6 +41,13 @@ internal sealed class CleanupProgressSlaJob(
             logger.LogInformation("CleanupProgressSlaJob: No stale assignments.");
             return;
         }
+
+        var teamNames = await db.EnvironmentalTeams
+            .IgnoreQueryFilters()
+            .Where(t => staleAssignments.Select(a => a.TeamId).Distinct().Contains(t.Id))
+            .Select(t => new { t.Id, t.Name })
+            .ToDictionaryAsync(t => t.Id, t => t.Name)
+            .ConfigureAwait(false);
 
         var notified = 0;
         var escalated = 0;
@@ -66,7 +72,7 @@ internal sealed class CleanupProgressSlaJob(
 
             if (isEscalation && leoId.HasValue && leoId != Guid.Empty)
             {
-                var teamName = assignment.Team?.Name ?? "đội xử lý";
+                var teamName = teamNames.GetValueOrDefault(assignment.TeamId) ?? "đội xử lý";
 
                 // > 48h → notify LEO
                 db.Notifications.Add(Notification.Create(

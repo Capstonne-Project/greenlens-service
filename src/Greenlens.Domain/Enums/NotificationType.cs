@@ -30,5 +30,14 @@ public enum NotificationType
     ReopenRequestDecided,
 
     /// <summary>BR-OFF-002: New Submitted report routed to LEO/DEO verification queue.</summary>
-    ReportVerificationNeeded
+    ReportVerificationNeeded,
+
+    /// <summary>BR-ORG-020: LEO invited Citizen to join a ward team.</summary>
+    StaffInvitationReceived,
+
+    /// <summary>BR-ORG-020/021: Citizen accepted a staff invitation.</summary>
+    StaffInvitationAccepted,
+
+    /// <summary>BR-ORG-021: Citizen declined a staff invitation.</summary>
+    StaffInvitationDeclined
 }

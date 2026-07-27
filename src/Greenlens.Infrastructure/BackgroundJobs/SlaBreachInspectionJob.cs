@@ -24,6 +24,7 @@ internal sealed class SlaBreachInspectionJob(
         var now = DateTime.UtcNow;
 
         var breachedInspections = await db.InspectionReports
+            .Include(ir => ir.Report)
             .Where(ir => ir.Status == InspectionStatus.Draft
                       || ir.Status == InspectionStatus.InProgress)
             .Where(ir => ir.SlaInspectionDueAt != null
@@ -42,13 +43,15 @@ internal sealed class SlaBreachInspectionJob(
         {
             inspection.MarkSlaInspectionBreached();
 
+            var reportCode = inspection.Report?.Code ?? "liên quan";
+
             // Notify LEO who created this inspection
             db.Notifications.Add(Notification.Create(
                 inspection.CreatedByOfficerId,
                 NotificationType.SlaBreachWarning,
                 "Vượt SLA xử phạt",
-                $"Hồ sơ xử phạt {inspection.Id} đã vượt SLA. Vui lòng kiểm tra.",
-                referenceId: inspection.Id));
+                $"Hồ sơ xử phạt liên quan báo cáo {reportCode} đã vượt SLA. Vui lòng kiểm tra.",
+                referenceId: inspection.ReportId));
         }
 
         await db.SaveChangesAsync().ConfigureAwait(false);

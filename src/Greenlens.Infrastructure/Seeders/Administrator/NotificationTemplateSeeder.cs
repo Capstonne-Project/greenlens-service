@@ -138,7 +138,31 @@ internal static class NotificationTemplateSeeder
             "Báo cáo {report_code} vừa được gửi và đang chờ bạn xác minh.",
             "New report awaiting verification",
             "Report {report_code} was just submitted and is waiting for your verification.",
-            NotificationType.ReportVerificationNeeded)
+            NotificationType.ReportVerificationNeeded),
+
+        Create(
+            "staff_invitation_received",
+            "Lời mời tham gia đội môi trường",
+            "{inviter_name} đã mời bạn tham gia vai trò {target_role} tại {office_name}{team_clause}. Vui lòng xem và phản hồi trong 7 ngày.",
+            "Staff invitation received",
+            "{inviter_name} invited you to join as {target_role} at {office_name}{team_clause}. Please respond within 7 days.",
+            NotificationType.StaffInvitationReceived),
+
+        Create(
+            "staff_invitation_accepted",
+            "Thành viên đã chấp nhận lời mời",
+            "{member_name} đã chấp nhận lời mời tham gia vai trò {target_role} tại {office_name}{team_clause}.",
+            "Staff invitation accepted",
+            "{member_name} accepted your invitation to join as {target_role} at {office_name}{team_clause}.",
+            NotificationType.StaffInvitationAccepted),
+
+        Create(
+            "staff_invitation_declined",
+            "Thành viên đã từ chối lời mời",
+            "{member_name} đã từ chối lời mời tham gia vai trò {target_role} tại {office_name}.",
+            "Staff invitation declined",
+            "{member_name} declined your invitation to join as {target_role} at {office_name}.",
+            NotificationType.StaffInvitationDeclined)
     ];
 
     private static NotificationTemplate Create(

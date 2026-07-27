@@ -3,6 +3,7 @@ using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
+using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -12,11 +13,17 @@ namespace Greenlens.Application.Features.Organization.AcceptInvitation;
 /// <summary>
 /// Citizen accepts a staff invitation — role changes, assigned to office + optional team.
 /// </summary>
-/// <remarks>Implements: BR-ORG-021 (accept invitation, single-use, role change).</remarks>
+/// <remarks>
+/// Implements: BR-ORG-021 (accept invitation, single-use, role change),
+/// BR-NTF-002 (notify LEO when invitation is accepted).
+/// </remarks>
 public sealed class AcceptInvitationCommandHandler(
     IStaffInvitationRepository invitations,
     IUserRepository users,
     ITeamMemberRepository teamMembers,
+    ILocalOfficeRepository localOffices,
+    IEnvironmentalTeamRepository teams,
+    INotificationService notifications,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     ILogger<AcceptInvitationCommandHandler> logger)
@@ -94,6 +101,26 @@ public sealed class AcceptInvitationCommandHandler(
         logger.LogInformation(
             "User {UserId} accepted invitation {InvitationId}, now {Role} in office {OfficeId}",
             user.Id, invitation.Id, invitation.TargetRole, invitation.LocalOfficeId);
+
+        var (officeName, teamName) = await StaffInvitationNotificationPlaceholders
+            .ResolveContextAsync(
+                invitation.LocalOfficeId,
+                invitation.TeamId,
+                localOffices,
+                teams,
+                ct)
+            .ConfigureAwait(false);
+
+        await notifications.SendFromTemplateAsync(
+            invitation.InvitedByUserId,
+            NotificationType.StaffInvitationAccepted,
+            StaffInvitationNotificationPlaceholders.ForResponded(
+                user.FullName,
+                officeName,
+                invitation.TargetRole,
+                teamName),
+            invitation.Id,
+            ct).ConfigureAwait(false);
 
         return new AcceptInvitationResponse(
             user.Id,
