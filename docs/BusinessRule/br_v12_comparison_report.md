@@ -169,7 +169,7 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 | BR-REP-012     | Bắt buộc đăng nhập + tùy chọn ẩn tên          |   ✅   | `LoginRequired` + `HideReporterName` trên submit (BR-REP-012 + comment guard CMT-001)           |
 | BR-REP-013     | Initial status = Submitted                    |   ✅   | `Report.cs` factory                                                                             |
 | BR-REP-014     | Ảnh before/after khi Resolved                 |   ✅   | `UploadBeforeImages/` + enforce ≥ 1 before trên `ResolveReportHandler`                          |
-| BR-REP-015     | Citizen xác nhận (7d, max 2 re-open)          |   ✅   | `TryReopen()` 7-day window + max 2. `ReopenWindowExpired` error                                 |
+| BR-REP-015     | Citizen yêu cầu reopen → LEO duyệt (7d, max 1) |   ✅   | `RequestReopenReport/` (lý do + ≥1 ảnh, video optional, không bắt buộc rate). LEO: `ApproveReopenRequest/`, `RejectReopenRequest/`, `GET reopen-requests`. Status **Reopened** sau duyệt; `AssignTeam` nhận Verified **hoặc** Reopened. `HasPendingReopenRequest` + auto-close skip pending. |
 | BR-REP-016     | Auto-close 7 ngày                             |   ✅   | `AutoCloseResolvedReportJob` + StatusHistory + Notification                                     |
 | BR-REP-017     | Không xóa report đã verified                  |   ✅   | `DeleteReport/` + `CanDelete()` guard (Submitted only, no AI/Officer)                           |
 | BR-REP-018     | Đánh giá của Citizen sau Resolved             |   ✅   | `RateReport/` — check Resolved/Closed, 1 lần/report. `POST /reports/{id}/rate`                  |

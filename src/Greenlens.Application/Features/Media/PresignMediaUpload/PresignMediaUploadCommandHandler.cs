@@ -1,5 +1,6 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
+using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -10,10 +11,11 @@ namespace Greenlens.Application.Features.Media.PresignMediaUpload;
 /// Create a presigned R2 PUT URL for direct client upload.
 /// </summary>
 /// <remarks>
-/// Implements: BR-REP-001 (allowed image MIME), BR-SYS-002 (object storage).
+/// Implements: BR-REP-001 (allowed image MIME), BR-SYS-002 (object storage), BR-REP-015 (reopen evidence guard).
 /// </remarks>
 public sealed class PresignMediaUploadCommandHandler(
     IFileStorageService fileStorage,
+    IReportRepository reports,
     ICurrentUser currentUser,
     ILogger<PresignMediaUploadCommandHandler> logger)
     : IRequestHandler<PresignMediaUploadCommand, Result<PresignMediaUploadResponse>>
@@ -30,6 +32,20 @@ public sealed class PresignMediaUploadCommandHandler(
         {
             logger.LogWarning("Upload purpose {Purpose} is forbidden", request.Purpose);
             return Errors.Media.UploadPurposeForbidden;
+        }
+
+        if (request.Purpose is MediaUploadPurpose.ReopenEvidence)
+        {
+            var reopenGuardError = await ValidateReopenEvidenceUploadAsync(request.ReportId, cancellationToken)
+                .ConfigureAwait(false);
+            if (reopenGuardError is not null)
+            {
+                logger.LogWarning(
+                    "Reopen evidence presign blocked: {ErrorCode}, ReportId={ReportId}",
+                    reopenGuardError.Code,
+                    request.ReportId);
+                return reopenGuardError;
+            }
         }
 
         if (!TryResolveLimits(request.Purpose, out var folderTemplate, out var maxBytes, out var requireImageMime))
@@ -131,6 +147,10 @@ public sealed class PresignMediaUploadCommandHandler(
                 folderTemplate = "users/avatars";
                 maxBytes = 5 * 1024 * 1024;
                 return true;
+            case MediaUploadPurpose.ReopenEvidence:
+                folderTemplate = "reports/{reportId}/reopen";
+                maxBytes = 10 * 1024 * 1024;
+                return true;
             default:
                 folderTemplate = string.Empty;
                 maxBytes = 0;
@@ -152,8 +172,33 @@ public sealed class PresignMediaUploadCommandHandler(
                 normalizedRole is "CLEANER" or "COMPANYSTAFF" or "INSPECTOR",
             MediaUploadPurpose.ReportImage or
             MediaUploadPurpose.Comment or
-            MediaUploadPurpose.Avatar => true,
+            MediaUploadPurpose.Avatar or
+            MediaUploadPurpose.ReopenEvidence => true,
             _ => false
         };
+    }
+
+    private async Task<Error?> ValidateReopenEvidenceUploadAsync(Guid? reportId, CancellationToken ct)
+    {
+        if (!reportId.HasValue || reportId.Value == Guid.Empty)
+        {
+            logger.LogWarning("Report ID is required for reopen evidence upload");
+            return Errors.Reports.ReportNotFound;
+        }
+
+        var report = await reports.GetByIdAsync(reportId.Value, ct).ConfigureAwait(false);
+        if (report is null)
+        {
+            logger.LogWarning("Report not found for ID {ReportId}", reportId.Value);
+            return Errors.Reports.ReportNotFound;
+        }
+
+        if (report.ReporterId != currentUser.UserId)
+        {
+            logger.LogWarning("Report {ReportId} is not owned by user {UserId}", report.Id, currentUser.UserId);
+            return Errors.Reports.NotReporter;
+        }
+
+        return ReopenRequestEligibility.ValidateCitizenCanRequest(report, DateTime.UtcNow);
     }
 }

@@ -14,7 +14,9 @@ public enum MediaUploadPurpose
     Progress = 2,
     After = 3,
     Comment = 4,
-    Avatar = 5
+    Avatar = 5,
+    /// <summary>BR-REP-015: Citizen evidence when requesting reopen.</summary>
+    ReopenEvidence = 6
 }
 
 /// <summary>

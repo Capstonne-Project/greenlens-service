@@ -14,13 +14,14 @@ namespace Greenlens.Domain.Entities;
 ///   LEO:      SUBMITTED → VERIFIED → IN_PROGRESS → RESOLVED → CLOSED
 ///   Reject:   SUBMITTED → REJECTED (LEO, reason ≥ 20 chars)
 ///   Duplicate: SUBMITTED/VERIFIED → DUPLICATE
-///   Reopen:   RESOLVED → IN_PROGRESS (max 2 times)
+///   Reopen:   RESOLVED → [pending request] → REOPENED (LEO approve) → IN_PROGRESS (assign)
 ///
 /// InspectionReport runs as a parallel sub-process (BR-INS-001).
 /// </remarks>
 public sealed class Report : SoftDeletableEntity
 {
-    private Report() { }
+    /// <summary>BR-REP-015: max approved reopens per report.</summary>
+    public const int MaxApprovedReopens = 1;
 
     // ── Identity ──
     public string Code { get; private set; } = default!;
@@ -98,6 +99,9 @@ public sealed class Report : SoftDeletableEntity
     public DateTime? ClosedAt { get; private set; }
     public int ReopenedCount { get; private set; }
 
+    /// <summary>True while a citizen reopen request awaits LEO review (BR-REP-015).</summary>
+    public bool HasPendingReopenRequest { get; private set; }
+
     // ── SLA ──
     public DateTime? SlaVerifyDueAt { get; private set; }
     public DateTime? SlaResolveDueAt { get; private set; }
@@ -131,6 +135,7 @@ public sealed class Report : SoftDeletableEntity
     public ICollection<ReportAssignment> Assignments { get; private set; } = [];
     public ICollection<ReportWasteTag> WasteTags { get; private set; } = [];
     public ICollection<Comment> Comments { get; private set; } = [];
+    public ICollection<ReportReopenRequest> ReopenRequests { get; private set; } = [];
 
     // ── AI-suggested waste tags (set by AI service, officer can override) ──
     /// <summary>Comma-separated tag codes suggested by AI, e.g. "HOUSEHOLD,MEDICAL,ANIMAL_CARCASS".</summary>
@@ -241,10 +246,10 @@ public sealed class Report : SoftDeletableEntity
             AddDomainEvent(new ReportRejectedEvent(Id, ReporterId.Value));
     }
 
-    /// <summary>LEO assigns community team(s). Verified → InProgress. BR-OFF-011.</summary>
+    /// <summary>LEO assigns community team(s). Verified/Reopened → InProgress. BR-OFF-011.</summary>
     public void Assign(Guid leoId)
     {
-        EnsureStatus(ReportStatus.Verified);
+        EnsureAssignableForCleanup();
 
         Status = ReportStatus.InProgress;
         AssignedByOfficerId = leoId;
@@ -252,12 +257,12 @@ public sealed class Report : SoftDeletableEntity
     }
 
     /// <summary>
-    /// LEO dispatches report to a company for cleanup. Verified → InProgress.
+    /// LEO dispatches report to a company for cleanup. Verified/Reopened → InProgress.
     /// CompanyManager assigns specific company teams later (status stays InProgress).
     /// </summary>
     public void DispatchToCompany(Guid companyId, Guid leoId)
     {
-        EnsureStatus(ReportStatus.Verified);
+        EnsureAssignableForCleanup();
 
         AssignedCompanyId = companyId;
         DispatchedToCompanyAt = DateTime.UtcNow;
@@ -308,13 +313,50 @@ public sealed class Report : SoftDeletableEntity
         ClosedAt = DateTime.UtcNow;
     }
 
-    /// <summary>Citizen not satisfied — reopen. Max 2 times, within 7 days. Resolved → InProgress. BR-REP-015.</summary>
-    public bool TryReopen()
+    /// <summary>
+    /// Citizen requests reopen while Resolved. Report stays Resolved until LEO approves.
+    /// BR-REP-015: max 1 approved reopen, within 7 days of ResolvedAt, reason + ≥1 image required.
+    /// </summary>
+    public bool CanRequestReopen(DateTime utcNow)
     {
-        if (Status != ReportStatus.Resolved || ReopenedCount >= 2)
+        if (Status != ReportStatus.Resolved || HasPendingReopenRequest || ReopenedCount >= MaxApprovedReopens)
             return false;
 
-        // BR-REP-015: only reopen within 7 days of Resolved
+        if (ResolvedAt.HasValue && utcNow - ResolvedAt.Value > TimeSpan.FromDays(7))
+            return false;
+
+        return true;
+    }
+
+    public void MarkPendingReopenRequest() => HasPendingReopenRequest = true;
+
+    public void ClearPendingReopenRequest() => HasPendingReopenRequest = false;
+
+    /// <summary>LEO approves reopen. Resolved → Reopened. BR-REP-015.</summary>
+    public bool ApproveReopen(Guid leoId)
+    {
+        if (Status != ReportStatus.Resolved || ReopenedCount >= MaxApprovedReopens)
+            return false;
+
+        Status = ReportStatus.Reopened;
+        ReopenedCount++;
+        ResolvedAt = null;
+        HasPendingReopenRequest = false;
+        SlaResolveDueAt = ComputeSlaResolveDue(Severity);
+        AssignedByOfficerId = null;
+        AssignedCompanyId = null;
+        DispatchedToCompanyAt = null;
+        UpdatedAt = DateTime.UtcNow;
+        _ = leoId;
+        return true;
+    }
+
+    [Obsolete("Use citizen reopen request + LEO ApproveReopen flow (BR-REP-015 v1.2).")]
+    public bool TryReopen()
+    {
+        if (Status != ReportStatus.Resolved || ReopenedCount >= MaxApprovedReopens)
+            return false;
+
         if (ResolvedAt.HasValue && DateTime.UtcNow - ResolvedAt.Value > TimeSpan.FromDays(7))
             return false;
 
@@ -463,6 +505,13 @@ public sealed class Report : SoftDeletableEntity
         if (Status != expected)
             throw new InvalidOperationException(
                 $"Invalid state transition: expected {expected} but current is {Status}.");
+    }
+
+    private void EnsureAssignableForCleanup()
+    {
+        if (Status is not (ReportStatus.Verified or ReportStatus.Reopened))
+            throw new InvalidOperationException(
+                $"Cannot assign cleanup from status {Status}. Must be Verified or Reopened.");
     }
 
     private static DateTime ComputeSlaResolveDue(Severity severity) => severity switch

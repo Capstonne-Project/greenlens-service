@@ -32,6 +32,7 @@ internal sealed class AutoCloseResolvedReportJob(
         {
             var reports = await db.Reports
                 .Where(r => r.Status == ReportStatus.Resolved
+                         && !r.HasPendingReopenRequest
                          && r.ResolvedAt != null
                          && r.ResolvedAt <= cutoff)
                 .OrderBy(r => r.ResolvedAt)

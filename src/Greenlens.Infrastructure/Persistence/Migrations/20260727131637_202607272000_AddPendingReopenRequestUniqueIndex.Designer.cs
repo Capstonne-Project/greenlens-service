@@ -3,17 +3,20 @@ using System;
 using Greenlens.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace Greenlens.Infrastructure.Migrations
+namespace Greenlens.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260727131637_202607272000_AddPendingReopenRequestUniqueIndex")]
+    partial class _202607272000_AddPendingReopenRequestUniqueIndex
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2650,10 +2653,6 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("size_bytes");
 
-                    b.Property<Guid?>("SourceReportId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("source_report_id");
-
                     b.Property<string>("ThumbnailUrl")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
@@ -2702,9 +2701,6 @@ namespace Greenlens.Infrastructure.Migrations
 
                     b.HasIndex("ReportId")
                         .HasDatabaseName("ix_report_media_report_id");
-
-                    b.HasIndex("SourceReportId")
-                        .HasDatabaseName("ix_report_media_source_report_id");
 
                     b.HasIndex("UploadedBy")
                         .HasDatabaseName("ix_report_media_uploaded_by");

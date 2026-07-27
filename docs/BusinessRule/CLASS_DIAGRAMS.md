@@ -100,7 +100,6 @@ classDiagram
 
 | Relationship | Loại | Lý do |
 |---|---|---|
-| User → RefreshToken | **Composition** ◆ | Token không có ý nghĩa nếu User bị xóa |
 | User → OtpCode | **Composition** ◆ | OTP gắn chặt với User |
 | User → PasswordHistory | **Composition** ◆ | Lịch sử MK thuộc về User |
 | SoftDeletableEntity → User | **Inheritance** △ | User kế thừa SoftDeletableEntity |

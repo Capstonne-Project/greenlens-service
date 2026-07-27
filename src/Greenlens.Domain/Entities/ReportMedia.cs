@@ -33,9 +33,11 @@ public sealed class ReportMedia : SoftDeletableEntity
     public string? ExifData { get; private set; }
     public Guid? UploadedBy { get; private set; }
     public DateTime UploadedAt { get; private set; }
+    public Guid? ReopenRequestId { get; private set; }
 
     // ── Navigation ──
     public Report Report { get; private set; } = default!;
+    public ReportReopenRequest? ReopenRequest { get; private set; }
     public User? Uploader { get; private set; }
 
     public static ReportMedia Create(
@@ -50,7 +52,8 @@ public sealed class ReportMedia : SoftDeletableEntity
         int? height = null,
         int? durationSeconds = null,
         string? pHash = null,
-        string? exifData = null)
+        string? exifData = null,
+        Guid? reopenRequestId = null)
     {
         return new ReportMedia
         {
@@ -66,9 +69,12 @@ public sealed class ReportMedia : SoftDeletableEntity
             PHash = pHash,
             ExifData = exifData,
             UploadedBy = uploadedBy,
-            UploadedAt = DateTime.UtcNow
+            UploadedAt = DateTime.UtcNow,
+            ReopenRequestId = reopenRequestId
         };
     }
+
+    public void LinkToReopenRequest(Guid reopenRequestId) => ReopenRequestId = reopenRequestId;
 
     public void SetThumbnail(string thumbnailUrl) => ThumbnailUrl = thumbnailUrl;
 

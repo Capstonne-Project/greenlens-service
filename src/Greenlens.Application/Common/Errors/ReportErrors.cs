@@ -79,7 +79,7 @@ public static partial class Errors
 
         public static Error ReopenLimitReached => new(
             "REOPEN_LIMIT_REACHED",
-            "Đã hết số lần mở lại báo cáo (tối đa 2 lần).",
+            "Đã hết số lần mở lại báo cáo (tối đa 1 lần).",
             ErrorType.BusinessRule);
 
         public static Error DeclineWindowExpired => new(
@@ -301,5 +301,59 @@ public static partial class Errors
             "RATE_LIMIT_EXCEEDED",
             $"Bạn đã đạt giới hạn gửi báo cáo. Thử lại sau {retryAfterMinutes} phút.",
             ErrorType.RateLimited);
+
+        /// <summary>BR-REP-015: A pending reopen request already exists for this report.</summary>
+        public static Error PendingReopenRequestExists => new(
+            "PENDING_REOPEN_REQUEST_EXISTS",
+            "Đã có yêu cầu mở lại đang chờ LEO xử lý.",
+            ErrorType.Conflict);
+
+        /// <summary>BR-REP-015: Reopen request requires at least one image.</summary>
+        public static Error ReopenEvidenceRequired => new(
+            "REOPEN_EVIDENCE_REQUIRED",
+            "Cần ít nhất 1 ảnh minh chứng khi yêu cầu mở lại.",
+            ErrorType.Validation);
+
+        /// <summary>BR-REP-015: Reopen request not found.</summary>
+        public static Error ReopenRequestNotFound => new(
+            "REOPEN_REQUEST_NOT_FOUND",
+            "Không tìm thấy yêu cầu mở lại.",
+            ErrorType.NotFound);
+
+        /// <summary>BR-REP-015: Deprecated PUT /reopen — use POST reopen-requests.</summary>
+        public static Error ReopenUseRequestEndpoint => new(
+            "REOPEN_USE_REQUEST_ENDPOINT",
+            "Vui lòng gửi yêu cầu mở lại kèm lý do và ảnh minh chứng qua POST /v1/reports/{id}/reopen-requests.",
+            ErrorType.BusinessRule);
+
+        /// <summary>BR-REP-015: Reopen request is not pending review.</summary>
+        public static Error ReopenRequestNotPending => new(
+            "REOPEN_REQUEST_NOT_PENDING",
+            "Yêu cầu mở lại không ở trạng thái chờ duyệt.",
+            ErrorType.BusinessRule);
+
+        /// <summary>BR-REP-015: Report is Closed — reopen requests are not allowed.</summary>
+        public static Error CannotReopenFromClosed => new(
+            "CANNOT_REOPEN_FROM_CLOSED",
+            "Không thể yêu cầu mở lại báo cáo đã đóng.",
+            ErrorType.BusinessRule);
+
+        /// <summary>BR-REP-015: Report must be Resolved to request or presign reopen evidence.</summary>
+        public static Error CannotReopenNotResolved => new(
+            "CANNOT_REOPEN_NOT_RESOLVED",
+            "Chỉ có thể yêu cầu mở lại khi báo cáo đang ở trạng thái Resolved.",
+            ErrorType.BusinessRule);
+
+        /// <summary>BR-REP-015: LEO approve attempted while report is no longer Resolved.</summary>
+        public static Error ReportNotResolvedForReopenApproval => new(
+            "REPORT_NOT_RESOLVED_FOR_REOPEN_APPROVAL",
+            "Báo cáo không còn ở trạng thái Resolved, không thể duyệt yêu cầu mở lại.",
+            ErrorType.BusinessRule);
+
+        /// <summary>BR-REP-015: Only LEO/Admin may review reopen requests.</summary>
+        public static Error ReopenReviewForbidden => new(
+            "REOPEN_REVIEW_FORBIDDEN",
+            "Bạn không có quyền xử lý yêu cầu mở lại báo cáo.",
+            ErrorType.Forbidden);
     }
 }

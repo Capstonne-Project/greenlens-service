@@ -45,10 +45,10 @@ public sealed class AssignTeamCommandHandler(
             return Errors.Reports.ReportNotFound;
         }
 
-        // v3.0: Verified → InProgress (no more Dispatched step)
-        if (report.Status != ReportStatus.Verified)
+        // v3.0: Verified/Reopened → InProgress
+        if (report.Status is not (ReportStatus.Verified or ReportStatus.Reopened))
         {
-            logger.LogWarning("Report {ReportId} is not verified", request.ReportId);
+            logger.LogWarning("Report {ReportId} is not ready for assignment", request.ReportId);
             return report.Status == ReportStatus.InProgress
                 ? Errors.Reports.ReportAlreadyAssigned
                 : Errors.Reports.InvalidStatusTransition;
@@ -132,12 +132,13 @@ public sealed class AssignTeamCommandHandler(
             assignments.Add(assignment);
         }
 
-        // Transition report: Verified → InProgress
+        // Transition report: Verified/Reopened → InProgress
+        var fromStatus = report.Status;
         report.Assign(currentUser.UserId);
 
         var history = ReportStatusHistory.Create(
             report.Id,
-            ReportStatus.Verified,
+            fromStatus,
             ReportStatus.InProgress,
             currentUser.UserId);
 

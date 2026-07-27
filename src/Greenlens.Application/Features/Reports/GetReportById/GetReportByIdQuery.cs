@@ -25,6 +25,8 @@ public sealed record ReportDetailResponse(
     DateTime? SlaVerifyDueAt, DateTime? SlaResolveDueAt,
     ReportSatisfactionInfo? Satisfaction,
     bool HasCurrentUserRated,
+    bool HasPendingReopenRequest,
+    PendingReopenRequestInfo? PendingReopenRequest,
     /// <summary>When this report is Duplicate — primary it was merged into (BR-REP-032).</summary>
     Guid? MergedIntoPrimaryReportId = null,
     string? MergedIntoPrimaryReportCode = null,
@@ -33,6 +35,12 @@ public sealed record ReportDetailResponse(
     /// where SourceReportId = child id (BR-REP-032).
     /// </summary>
     IReadOnlyList<MergedReportItem>? MergedReports = null);
+
+public sealed record PendingReopenRequestInfo(
+    Guid RequestId,
+    string Reason,
+    DateTime RequestedAt,
+    IReadOnlyList<ReportMediaItem> EvidenceMedia);
 
 /// <summary>Child report that was confirmed as duplicate of the primary (BR-REP-032).</summary>
 public sealed record MergedReportItem(
