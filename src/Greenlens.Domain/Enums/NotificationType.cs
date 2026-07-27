@@ -10,10 +10,41 @@ public enum NotificationType
     NewComment,
     BadgeEarned,
     LevelUp,
+    /// <summary>Generic SLA breach warning (legacy). Prefer specific SLA types below.</summary>
     SlaBreachWarning,
+
+    /// <summary>BR-OFF-002: LEO — report exceeded 24h verification SLA.</summary>
+    SlaVerificationBreachedLeo,
+
+    /// <summary>BR-OFF-002: DEO — escalated report entered department queue.</summary>
+    SlaVerificationEscalatedDeo,
+
+    /// <summary>BR-OFF-020: LEO — report exceeded resolution SLA.</summary>
+    SlaResolutionBreached,
+
+    /// <summary>BR-INS-030: Officer — inspection penalty dossier exceeded SLA.</summary>
+    SlaInspectionBreached,
+
+    /// <summary>BR-CLN-004: LEO — cleanup team stale progress &gt; 48h.</summary>
+    CleanupProgressStale,
+
+    /// <summary>BR-CLN-001: Cleanup team member — new task assigned to the team.</summary>
+    CleanupTaskAssigned,
+
     NearbyReport,
     PenaltyIssued,
+    /// <summary>BR-CMP-007: Contract expired — company deactivated (legacy generic).</summary>
     ContractExpiry,
+
+    /// <summary>BR-CMP-007: Bidding company contract has expired.</summary>
+    ContractExpired,
+
+    /// <summary>BR-CMP-007: Contract expiry warning (30/7/1 days before end).</summary>
+    ContractExpiryWarning,
+
+    /// <summary>BR-CMP-005: CompanyManager — LEO dispatched a report to the company queue.</summary>
+    CompanyReportDispatched,
+
     /// <summary>BR-REP-008: Report pending > 72h.</summary>
     ReportOverdue,
     /// <summary>BR-REP-009: Verified report unassigned > 24h.</summary>

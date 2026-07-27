@@ -258,6 +258,7 @@ public sealed class Report : SoftDeletableEntity
         Status = ReportStatus.InProgress;
         AssignedByOfficerId = leoId;
         // StartedAt is set when the first team accepts (not at assign time)
+        AddDomainEvent(new ReportInProgressEvent(Id, ReporterId));
     }
 
     /// <summary>
@@ -273,6 +274,7 @@ public sealed class Report : SoftDeletableEntity
         Status = ReportStatus.InProgress;
         AssignedByOfficerId = leoId;
         UpdatedAt = DateTime.UtcNow;
+        AddDomainEvent(new ReportInProgressEvent(Id, ReporterId));
     }
 
     /// <summary>
@@ -352,6 +354,7 @@ public sealed class Report : SoftDeletableEntity
         DispatchedToCompanyAt = null;
         UpdatedAt = DateTime.UtcNow;
         _ = leoId;
+
         return true;
     }
 

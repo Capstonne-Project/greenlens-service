@@ -222,6 +222,14 @@ public sealed class InspectionReport : SoftDeletableEntity
         AdditionalPenaltyMeasures = additionalMeasures;
         IsRepeatOffender = isRepeatOffender;
         UpdatedAt = DateTime.UtcNow;
+
+        AddDomainEvent(new PenaltyIssuedEvent(
+            Id,
+            ReportId,
+            amount,
+            decisionNumber,
+            violationLevel));
+
         return Result.Success();
     }
 

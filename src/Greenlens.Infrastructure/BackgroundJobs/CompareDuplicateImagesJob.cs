@@ -13,10 +13,11 @@ namespace Greenlens.Infrastructure.BackgroundJobs;
 /// using the AI image-compare service (DINOv2). Runs out of band so submit stays fast.
 /// </summary>
 /// <remarks>
-/// Implements: BR-REP-030, BR-REP-031, BR-AI-002 (image similarity), BR-AI-006 (timeout → keep Tier 1).
+/// Implements: BR-REP-030, BR-REP-031, BR-AI-002 (image similarity), BR-AI-006 (timeout → keep Tier 1),
+/// BR-REP-032 (notify LEO on AI-confirmed match), BR-NTF-002.
 /// Idempotent: only acts while the report is still a Tier 1 (geo_category) possible duplicate.
 /// Decision matrix:
-///   AI same scene   → upgrade source to geo_category_ai + record confidence
+///   AI same scene   → upgrade source to geo_category_ai + record confidence + notify LEO
 ///   AI different    → dismiss the possible-duplicate flag
 ///   AI null/timeout → keep Tier 1 (geo_category)
 /// </remarks>
@@ -24,6 +25,8 @@ namespace Greenlens.Infrastructure.BackgroundJobs;
 internal sealed class CompareDuplicateImagesJob(
     ApplicationDbContext db,
     IAiImageCompareService aiImageCompare,
+    INotificationService notificationService,
+    IOfficerRecipientQuery officerRecipients,
     ILogger<CompareDuplicateImagesJob> logger)
 {
     public async Task ExecuteAsync(Guid reportId, Guid candidateReportId, CancellationToken ct = default)
@@ -51,12 +54,10 @@ internal sealed class CompareDuplicateImagesJob(
         var result = await aiImageCompare.CompareAsync(reportImage, candidateImage, ct).ConfigureAwait(false);
         if (result is null)
         {
-            // AI unavailable / timeout → keep Tier 1 (geo_category).
             logger.LogInformation("CompareDuplicateImagesJob: AI unavailable for {Id}, keeping Tier 1", reportId);
             return;
         }
 
-        // Re-load after the async AI call so concurrent confirm/dismiss is not overwritten.
         var report = await db.Reports
             .FirstOrDefaultAsync(r => r.Id == reportId, ct)
             .ConfigureAwait(false);
@@ -75,6 +76,38 @@ internal sealed class CompareDuplicateImagesJob(
         logger.LogInformation(
             "CompareDuplicateImagesJob: report {Id} — confidence {Confidence}, sameScene {SameScene}, model {Model}",
             reportId, result.Confidence, result.IsSameScene, result.Model);
+
+        if (!result.IsSameScene || !report.AssignedOfficeId.HasValue)
+            return;
+
+        var primaryCode = await db.Reports.AsNoTracking()
+            .Where(r => r.Id == candidateReportId)
+            .Select(r => r.Code)
+            .FirstOrDefaultAsync(ct)
+            .ConfigureAwait(false);
+
+        var leoIds = await officerRecipients
+            .GetLeoIdsByOfficeAsync(report.AssignedOfficeId.Value, ct)
+            .ConfigureAwait(false);
+
+        var placeholders = JobNotificationPlaceholders.ForDuplicateReviewFromAi(
+            report.Code,
+            primaryCode ?? "báo cáo hiện có",
+            result.Confidence);
+
+        foreach (var leoId in leoIds)
+        {
+            await notificationService.SendFromTemplateAsync(
+                leoId,
+                NotificationType.DuplicateReviewNeeded,
+                placeholders,
+                report.Id,
+                ct).ConfigureAwait(false);
+        }
+
+        logger.LogInformation(
+            "CompareDuplicateImagesJob: notified {Count} LEO(s) for AI-confirmed duplicate on report {ReportCode}",
+            leoIds.Count, report.Code);
     }
 
     private static bool StillNeedsTier2Compare(Domain.Entities.Report? report) =>

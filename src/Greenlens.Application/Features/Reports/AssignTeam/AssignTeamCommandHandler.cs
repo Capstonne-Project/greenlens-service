@@ -2,6 +2,7 @@ using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Common.Options;
+using Greenlens.Application.Features.Notifications;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
@@ -27,6 +28,7 @@ public sealed class AssignTeamCommandHandler(
     IReportWasteTagRepository reportWasteTags,
     ICurrentUser currentUser,
     IUnitOfWork uow,
+    ICleanupTaskAssignedNotifier taskNotifier,
     IOptions<WorkloadLimitsOptions> workloadOptions,
     ILogger<AssignTeamCommandHandler> logger) : IRequestHandler<AssignTeamCommand, Result>
 {
@@ -144,6 +146,15 @@ public sealed class AssignTeamCommandHandler(
 
         statusHistory.Add(history);
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        foreach (var item in request.Teams)
+        {
+            await taskNotifier.NotifyTeamAsync(
+                item.TeamId,
+                report.Id,
+                report.Code,
+                ct).ConfigureAwait(false);
+        }
 
         logger.LogInformation("Report {ReportId} assigned to {TeamCount} team(s) by LEO {UserId}",
             report.Id, request.Teams.Count, currentUser.UserId);

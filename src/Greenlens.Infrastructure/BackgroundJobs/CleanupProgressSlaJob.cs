@@ -1,4 +1,4 @@
-using Greenlens.Domain.Entities;
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Domain.Enums;
 using Greenlens.Infrastructure.Persistence;
 using Hangfire;
@@ -13,9 +13,11 @@ namespace Greenlens.Infrastructure.BackgroundJobs;
 /// > 48h → escalate flag, notify LEO.
 /// Runs every 1 hour.
 /// </summary>
+/// <remarks>Implements: BR-CLN-004, BR-NTF-002.</remarks>
 [AutomaticRetry(Attempts = 2)]
 internal sealed class CleanupProgressSlaJob(
     ApplicationDbContext db,
+    INotificationService notificationService,
     ILogger<CleanupProgressSlaJob> logger)
 {
     public async Task ExecuteAsync()
@@ -26,7 +28,6 @@ internal sealed class CleanupProgressSlaJob(
         var threshold24h = now.AddHours(-24);
         var threshold48h = now.AddHours(-48);
 
-        // Assignments InProgress that haven't been updated in > 24h
         var staleAssignments = await db.ReportAssignments
             .Include(a => a.Report)
             .Where(a => a.Status == AssignmentStatus.InProgress)
@@ -57,13 +58,14 @@ internal sealed class CleanupProgressSlaJob(
             var lastUpdate = assignment.ProgressUpdatedAt ?? assignment.StartedAt;
             var isEscalation = lastUpdate < threshold48h;
 
-            if (assignment.Report is null) continue;
+            if (assignment.Report is null)
+                continue;
 
-            // Find LEO for this report's office
             Guid? leoId = null;
             if (assignment.Report.AssignedOfficeId.HasValue)
             {
                 leoId = await db.Users
+                    .AsNoTracking()
                     .Where(u => u.LocalOfficeId == assignment.Report.AssignedOfficeId && !u.IsBanned)
                     .Select(u => u.Id)
                     .FirstOrDefaultAsync()
@@ -74,23 +76,20 @@ internal sealed class CleanupProgressSlaJob(
             {
                 var teamName = teamNames.GetValueOrDefault(assignment.TeamId) ?? "đội xử lý";
 
-                // > 48h → notify LEO
-                db.Notifications.Add(Notification.Create(
+                await notificationService.SendFromTemplateAsync(
                     leoId.Value,
-                    NotificationType.SlaBreachWarning,
-                    "Cleanup tiến độ trễ >48h",
-                    $"Đội {teamName} chưa cập nhật tiến độ >48h cho báo cáo {assignment.Report.Code}.",
-                    referenceId: assignment.ReportId));
+                    NotificationType.CleanupProgressStale,
+                    JobNotificationPlaceholders.ForCleanupStale(
+                        assignment.Report.Code,
+                        teamName),
+                    assignment.ReportId).ConfigureAwait(false);
                 escalated++;
             }
             else
             {
-                // > 24h → notify team (via assignment — team members can see)
                 notified++;
             }
         }
-
-        await db.SaveChangesAsync().ConfigureAwait(false);
 
         logger.LogWarning(
             "CleanupProgressSlaJob: {Notified} reminders, {Escalated} escalations",

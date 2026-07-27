@@ -1,6 +1,7 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Notifications;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
@@ -13,11 +14,13 @@ namespace Greenlens.Application.Features.Reports.DispatchToCompany;
 /// LEO dispatches a verified report to a company. Verified → InProgress.
 /// CompanyManager sees it in company-queue and assigns company team(s).
 /// </summary>
-/// <remarks>Implements: BR-CMP-005, BR-OFF-011.</remarks>
+/// <remarks>Implements: BR-CMP-005, BR-OFF-011, BR-NTF-002.</remarks>
 public sealed class DispatchToCompanyCommandHandler(
     IReportRepository reports,
     IEnvironmentalServiceCompanyRepository companies,
     IReportStatusHistoryRepository statusHistory,
+    INotificationService notifications,
+    ICompanyManagerRecipientQuery companyManagers,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     ILogger<DispatchToCompanyCommandHandler> logger) : IRequestHandler<DispatchToCompanyCommand, Result>
@@ -39,7 +42,6 @@ public sealed class DispatchToCompanyCommandHandler(
             return Errors.Reports.InvalidStatusTransition;
         }
 
-        // Prevent double-dispatch
         if (report.AssignedCompanyId.HasValue)
         {
             logger.LogWarning("Report {ReportId} is already dispatched to company {CompanyId}", request.ReportId, request.CompanyId);
@@ -53,14 +55,12 @@ public sealed class DispatchToCompanyCommandHandler(
             return Errors.Reports.CompanyNotFound;
         }
 
-        // BR-CMP-005: company must be active (contract dates are metadata only, not routing gate)
         if (!company.IsActive)
         {
             logger.LogWarning("Company {CompanyId} is not active", request.CompanyId);
             return Errors.Reports.CompanyNotActive;
         }
 
-        // BR-CMP-008: company must serve the ward where the report is located
         if (!string.IsNullOrEmpty(report.WardCode))
         {
             var servesWard = await companies.ServesWardAsync(
@@ -84,10 +84,48 @@ public sealed class DispatchToCompanyCommandHandler(
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 
+        await NotifyCompanyManagersAsync(report, company, ct).ConfigureAwait(false);
+
         logger.LogInformation(
             "Report {ReportId} dispatched to Company {CompanyId} by LEO {UserId}",
             report.Id, request.CompanyId, currentUser.UserId);
 
         return Result.Success();
+    }
+
+    private async Task NotifyCompanyManagersAsync(
+        Report report,
+        EnvironmentalServiceCompany company,
+        CancellationToken ct)
+    {
+        var managerIds = await companyManagers
+            .GetActiveManagerIdsByCompanyAsync(company.Id, ct)
+            .ConfigureAwait(false);
+
+        if (managerIds.Count == 0)
+        {
+            logger.LogWarning(
+                "CompanyReportDispatched skipped: no active CompanyManager for company {CompanyId}",
+                company.Id);
+            return;
+        }
+
+        var placeholders = NotificationPlaceholders.ForCompanyReportDispatched(
+            report.Code,
+            company.Name);
+
+        foreach (var managerId in managerIds)
+        {
+            await notifications.SendFromTemplateAsync(
+                managerId,
+                NotificationType.CompanyReportDispatched,
+                placeholders,
+                report.Id,
+                ct).ConfigureAwait(false);
+        }
+
+        logger.LogInformation(
+            "Notified {Count} CompanyManager(s) about report {ReportCode} dispatched to {CompanyName}",
+            managerIds.Count, report.Code, company.Name);
     }
 }

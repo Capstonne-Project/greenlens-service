@@ -133,6 +133,8 @@ public sealed class ReportTests
 
         Assert.Equal(ReportStatus.InProgress, report.Status);
         Assert.Equal(officerId, report.AssignedByOfficerId);
+        var inProgressEvt = Assert.Single(report.DomainEvents.OfType<ReportInProgressEvent>());
+        Assert.Equal(report.Id, inProgressEvt.ReportId);
     }
 
     [Fact]
@@ -159,6 +161,7 @@ public sealed class ReportTests
         Assert.Equal(companyId, report.AssignedCompanyId);
         Assert.Equal(leoId, report.AssignedByOfficerId);
         Assert.NotNull(report.DispatchedToCompanyAt);
+        Assert.Contains(report.DomainEvents, e => e is ReportInProgressEvent);
     }
 
     [Fact]

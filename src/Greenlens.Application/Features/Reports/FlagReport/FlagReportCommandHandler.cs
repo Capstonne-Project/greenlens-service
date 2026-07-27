@@ -1,6 +1,7 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Notifications;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
@@ -23,6 +24,7 @@ public sealed class FlagReportCommandHandler(
     IApplicationDbContext db,
     ICurrentUser currentUser,
     INotificationService notifications,
+    IOfficerRecipientQuery officerRecipients,
     IUnitOfWork uow,
     ILogger<FlagReportCommandHandler> logger) : IRequestHandler<FlagReportCommand, Result>
 {
@@ -90,27 +92,20 @@ public sealed class FlagReportCommandHandler(
         if (report.AssignedOfficeId is null)
             return;
 
-        var reviewerIds = await db.Set<User>()
-            .Where(u => u.Role == UserRole.LEO
-                        && u.LocalOfficeId == report.AssignedOfficeId
-                        && !u.IsBanned)
-            .Select(u => u.Id)
-            .ToListAsync(ct)
+        var reviewerIds = await officerRecipients
+            .GetLeoIdsByOfficeAsync(report.AssignedOfficeId.Value, ct)
             .ConfigureAwait(false);
 
         logger.LogInformation("Found {Count} reviewers for report {ReportId} of type {FlagType}", reviewerIds.Count, report.Id, type);
+
+        var placeholders = NotificationPlaceholders.ForDuplicateReviewFromFlags(report.Code, type, count);
 
         foreach (var reviewerId in reviewerIds)
         {
             await notifications.SendFromTemplateAsync(
                 reviewerId,
                 NotificationType.DuplicateReviewNeeded,
-                new Dictionary<string, string>
-                {
-                    ["report_code"] = report.Code,
-                    ["flag_count"] = count.ToString(),
-                    ["flag_type"] = type.ToString()
-                },
+                placeholders,
                 report.Id,
                 ct).ConfigureAwait(false);
         }

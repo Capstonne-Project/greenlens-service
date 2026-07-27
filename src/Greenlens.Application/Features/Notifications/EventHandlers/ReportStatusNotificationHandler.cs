@@ -116,7 +116,7 @@ internal sealed class ReportVerifiedNotificationHandler(
         logger.LogDebug("Notification: Report {ReportId} verified → notify reporter {UserId}",
             notification.ReportId, notification.ReporterId);
 
-        var categoryName = await ResolveCategoryNameAsync(reports, notification.ReportId, ct)
+        var reportCode = await ResolveReportCodeAsync(reports, notification.ReportId, ct)
             .ConfigureAwait(false);
 
         await notificationService.SendFromTemplateAsync(
@@ -124,23 +124,23 @@ internal sealed class ReportVerifiedNotificationHandler(
             NotificationType.ReportStatusChanged,
             new Dictionary<string, string>
             {
-                ["report_id"] = categoryName,
+                ["report_code"] = reportCode,
                 ["status"] = "Verified"
             },
             notification.ReportId,
             ct).ConfigureAwait(false);
     }
 
-    internal static async Task<string> ResolveCategoryNameAsync(
+    internal static async Task<string> ResolveReportCodeAsync(
         IReportRepository reports, Guid reportId, CancellationToken ct)
     {
-        var name = await reports.QueryAsNoTracking()
+        var code = await reports.QueryAsNoTracking()
             .Where(r => r.Id == reportId)
-            .Select(r => r.Category.NameVi)
+            .Select(r => r.Code)
             .FirstOrDefaultAsync(ct)
             .ConfigureAwait(false);
 
-        return string.IsNullOrWhiteSpace(name) ? "Báo cáo ô nhiễm" : name;
+        return string.IsNullOrWhiteSpace(code) ? "báo cáo" : code;
     }
 }
 
@@ -155,8 +155,8 @@ internal sealed class ReportRejectedNotificationHandler(
         logger.LogDebug("Notification: Report {ReportId} rejected → notify reporter {UserId}",
             notification.ReportId, notification.ReporterId);
 
-        var categoryName = await ReportVerifiedNotificationHandler
-            .ResolveCategoryNameAsync(reports, notification.ReportId, ct)
+        var reportCode = await ReportVerifiedNotificationHandler
+            .ResolveReportCodeAsync(reports, notification.ReportId, ct)
             .ConfigureAwait(false);
 
         await notificationService.SendFromTemplateAsync(
@@ -164,7 +164,7 @@ internal sealed class ReportRejectedNotificationHandler(
             NotificationType.ReportStatusChanged,
             new Dictionary<string, string>
             {
-                ["report_id"] = categoryName,
+                ["report_code"] = reportCode,
                 ["status"] = "Rejected"
             },
             notification.ReportId,
@@ -183,8 +183,8 @@ internal sealed class ReportResolvedNotificationHandler(
         logger.LogDebug("Notification: Report {ReportId} resolved → notify reporter {UserId}",
             notification.ReportId, notification.ReporterId);
 
-        var categoryName = await ReportVerifiedNotificationHandler
-            .ResolveCategoryNameAsync(reports, notification.ReportId, ct)
+        var reportCode = await ReportVerifiedNotificationHandler
+            .ResolveReportCodeAsync(reports, notification.ReportId, ct)
             .ConfigureAwait(false);
 
         await notificationService.SendFromTemplateAsync(
@@ -192,7 +192,7 @@ internal sealed class ReportResolvedNotificationHandler(
             NotificationType.ReportStatusChanged,
             new Dictionary<string, string>
             {
-                ["report_id"] = categoryName,
+                ["report_code"] = reportCode,
                 ["status"] = "Resolved"
             },
             notification.ReportId,

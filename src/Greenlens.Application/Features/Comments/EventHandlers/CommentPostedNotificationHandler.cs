@@ -37,7 +37,7 @@ internal sealed class CommentPostedNotificationHandler(
             NotificationType.NewComment,
             new Dictionary<string, string>
             {
-                ["report_id"] = string.IsNullOrWhiteSpace(reportCode) ? "báo cáo" : reportCode
+                ["report_code"] = string.IsNullOrWhiteSpace(reportCode) ? "báo cáo" : reportCode
             },
             notification.ReportId,
             ct).ConfigureAwait(false);
