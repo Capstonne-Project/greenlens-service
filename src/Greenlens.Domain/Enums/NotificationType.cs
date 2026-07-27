@@ -27,5 +27,8 @@ public enum NotificationType
     ReopenReviewNeeded,
 
     /// <summary>BR-REP-015: LEO approved or rejected a citizen reopen request.</summary>
-    ReopenRequestDecided
+    ReopenRequestDecided,
+
+    /// <summary>BR-OFF-002: New Submitted report routed to LEO/DEO verification queue.</summary>
+    ReportVerificationNeeded
 }

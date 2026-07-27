@@ -117,5 +117,6 @@ internal sealed class GetMyNotificationsQueryHandler(
         NotificationType.DuplicateReviewNeeded or
         NotificationType.ReopenReviewNeeded or
         NotificationType.ReopenRequestDecided or
+        NotificationType.ReportVerificationNeeded or
         NotificationType.PenaltyIssued;
 }

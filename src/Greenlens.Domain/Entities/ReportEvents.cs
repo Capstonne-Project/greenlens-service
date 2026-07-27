@@ -2,6 +2,9 @@ using Greenlens.Domain.Common;
 
 namespace Greenlens.Domain.Entities;
 
+/// <summary>Raised when a citizen submits a new report for LEO verification. BR-OFF-002.</summary>
+public sealed record ReportSubmittedEvent(Guid ReportId) : IDomainEvent;
+
 /// <summary>Raised when a report is verified by LEO (Submitted → Verified).</summary>
 public sealed record ReportVerifiedEvent(Guid ReportId, Guid ReporterId) : IDomainEvent;
 

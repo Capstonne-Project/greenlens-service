@@ -13,6 +13,96 @@ namespace Greenlens.Application.Features.Notifications.EventHandlers;
 /// Decoupled — zero changes to existing Report handlers.
 /// </summary>
 /// <remarks>Implements: BR-NTF-002 (report status change triggers notification).</remarks>
+internal sealed class ReportSubmittedNotificationHandler(
+    INotificationService notificationService,
+    IReportRepository reports,
+    IApplicationDbContext db,
+    ILogger<ReportSubmittedNotificationHandler> logger)
+    : INotificationHandler<ReportSubmittedEvent>
+{
+    public async Task Handle(ReportSubmittedEvent notification, CancellationToken ct)
+    {
+        var report = await reports.QueryAsNoTracking()
+            .Where(r => r.Id == notification.ReportId)
+            .Select(r => new
+            {
+                r.Id,
+                r.Code,
+                r.AssignedOfficeId,
+                r.AssignedDepartmentId
+            })
+            .FirstOrDefaultAsync(ct)
+            .ConfigureAwait(false);
+
+        if (report is null)
+        {
+            logger.LogWarning("ReportSubmitted notification skipped: report {ReportId} not found",
+                notification.ReportId);
+            return;
+        }
+
+        var recipientIds = await ResolveVerifierIdsAsync(
+                report.AssignedOfficeId,
+                report.AssignedDepartmentId,
+                ct)
+            .ConfigureAwait(false);
+
+        if (recipientIds.Count == 0)
+        {
+            logger.LogWarning(
+                "ReportSubmitted notification skipped: no LEO/DEO for report {ReportCode}",
+                report.Code);
+            return;
+        }
+
+        foreach (var recipientId in recipientIds)
+        {
+            await notificationService.SendFromTemplateAsync(
+                recipientId,
+                NotificationType.ReportVerificationNeeded,
+                new Dictionary<string, string> { ["report_code"] = report.Code },
+                report.Id,
+                ct).ConfigureAwait(false);
+        }
+
+        logger.LogInformation(
+            "Notified {Count} officer(s) about new report {ReportCode} awaiting verification",
+            recipientIds.Count, report.Code);
+    }
+
+    private async Task<List<Guid>> ResolveVerifierIdsAsync(
+        Guid? assignedOfficeId,
+        Guid? assignedDepartmentId,
+        CancellationToken ct)
+    {
+        if (assignedOfficeId.HasValue)
+        {
+            return await db.Set<User>()
+                .AsNoTracking()
+                .Where(u => u.Role == UserRole.LEO
+                            && u.LocalOfficeId == assignedOfficeId
+                            && !u.IsBanned)
+                .Select(u => u.Id)
+                .ToListAsync(ct)
+                .ConfigureAwait(false);
+        }
+
+        if (assignedDepartmentId.HasValue)
+        {
+            return await db.Set<User>()
+                .AsNoTracking()
+                .Where(u => u.Role == UserRole.DEO
+                            && u.DepartmentId == assignedDepartmentId
+                            && !u.IsBanned)
+                .Select(u => u.Id)
+                .ToListAsync(ct)
+                .ConfigureAwait(false);
+        }
+
+        return [];
+    }
+}
+
 internal sealed class ReportVerifiedNotificationHandler(
     INotificationService notificationService,
     IReportRepository reports,

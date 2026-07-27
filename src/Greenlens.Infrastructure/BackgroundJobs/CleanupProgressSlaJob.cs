@@ -29,6 +29,7 @@ internal sealed class CleanupProgressSlaJob(
         // Assignments InProgress that haven't been updated in > 24h
         var staleAssignments = await db.ReportAssignments
             .Include(a => a.Report)
+            .Include(a => a.Team)
             .Where(a => a.Status == AssignmentStatus.InProgress)
             .Where(a => a.ProgressUpdatedAt == null
                 ? a.StartedAt < threshold24h
@@ -65,12 +66,14 @@ internal sealed class CleanupProgressSlaJob(
 
             if (isEscalation && leoId.HasValue && leoId != Guid.Empty)
             {
+                var teamName = assignment.Team?.Name ?? "đội xử lý";
+
                 // > 48h → notify LEO
                 db.Notifications.Add(Notification.Create(
                     leoId.Value,
                     NotificationType.SlaBreachWarning,
                     "Cleanup tiến độ trễ >48h",
-                    $"Đội {assignment.TeamId} chưa cập nhật tiến độ >48h cho báo cáo {assignment.Report.Code}.",
+                    $"Đội {teamName} chưa cập nhật tiến độ >48h cho báo cáo {assignment.Report.Code}.",
                     referenceId: assignment.ReportId));
                 escalated++;
             }

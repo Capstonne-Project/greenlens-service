@@ -130,7 +130,15 @@ internal static class NotificationTemplateSeeder
             "Báo cáo {report_code} đã nhận {flag_count} cờ ({flag_type}). Vui lòng xem xét trong queue nghi ngờ trùng.",
             "Duplicate review needed",
             "Report {report_code} received {flag_count} flag(s) ({flag_type}). Please review the duplicate queue.",
-            NotificationType.DuplicateReviewNeeded)
+            NotificationType.DuplicateReviewNeeded),
+
+        Create(
+            "report_verification_needed",
+            "Báo cáo mới cần xác minh",
+            "Báo cáo {report_code} vừa được gửi và đang chờ bạn xác minh.",
+            "New report awaiting verification",
+            "Report {report_code} was just submitted and is waiting for your verification.",
+            NotificationType.ReportVerificationNeeded)
     ];
 
     private static NotificationTemplate Create(

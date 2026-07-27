@@ -371,6 +371,8 @@ public sealed class SubmitPollutionReportCommandHandler(
         // background job (see ReportPossibleDuplicateFlaggedEvent) to keep submit under p95<2s (BR-SYS-001).
         await FlagPossibleDuplicateAsync(report, cancellationToken).ConfigureAwait(false);
 
+        report.RaiseSubmittedForVerification();
+
         try
         {
             await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);

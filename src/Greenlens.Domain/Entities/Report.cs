@@ -199,6 +199,10 @@ public sealed class Report : SoftDeletableEntity
         // AssignedOfficeId stays null — DEO will handle manually
     }
 
+    /// <summary>BR-OFF-002: Notify assigned LEO/DEO that a new report awaits verification.</summary>
+    public void RaiseSubmittedForVerification() =>
+        AddDomainEvent(new ReportSubmittedEvent(Id));
+
     // ────────────────────────────────────────────────────
     // State machine transitions
     // ────────────────────────────────────────────────────
