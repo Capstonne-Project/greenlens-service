@@ -26,13 +26,29 @@ public sealed record ReportDetailResponse(
     ReportSatisfactionInfo? Satisfaction,
     bool HasCurrentUserRated,
     bool HasPendingReopenRequest,
-    PendingReopenRequestInfo? PendingReopenRequest);
+    PendingReopenRequestInfo? PendingReopenRequest,
+    /// <summary>When this report is Duplicate — primary it was merged into (BR-REP-032).</summary>
+    Guid? MergedIntoPrimaryReportId = null,
+    string? MergedIntoPrimaryReportCode = null,
+    /// <summary>
+    /// Reports merged into this primary. imageUrl is projected from primary media
+    /// where SourceReportId = child id (BR-REP-032).
+    /// </summary>
+    IReadOnlyList<MergedReportItem>? MergedReports = null);
 
 public sealed record PendingReopenRequestInfo(
     Guid RequestId,
     string Reason,
     DateTime RequestedAt,
     IReadOnlyList<ReportMediaItem> EvidenceMedia);
+
+/// <summary>Child report that was confirmed as duplicate of the primary (BR-REP-032).</summary>
+public sealed record MergedReportItem(
+    Guid Id,
+    string Code,
+    string? ImageUrl,
+    DateTime CreatedAt,
+    ReportStatus Status);
 
 public sealed record ReportMediaItem(
     Guid Id, string MediaType, string Url, string MimeType, long SizeBytes);

@@ -2650,6 +2650,10 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("size_bytes");
 
+                    b.Property<Guid?>("SourceReportId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("source_report_id");
+
                     b.Property<string>("ThumbnailUrl")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
@@ -2698,6 +2702,9 @@ namespace Greenlens.Infrastructure.Migrations
 
                     b.HasIndex("ReportId")
                         .HasDatabaseName("ix_report_media_report_id");
+
+                    b.HasIndex("SourceReportId")
+                        .HasDatabaseName("ix_report_media_source_report_id");
 
                     b.HasIndex("UploadedBy")
                         .HasDatabaseName("ix_report_media_uploaded_by");
