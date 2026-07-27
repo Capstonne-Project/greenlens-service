@@ -3,17 +3,20 @@ using System;
 using Greenlens.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace Greenlens.Infrastructure.Migrations
+namespace Greenlens.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260727124129_202607271930_AddReportReopenRequest")]
+    partial class _202607271930_AddReportReopenRequest
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2751,11 +2754,6 @@ namespace Greenlens.Infrastructure.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_report_reopen_requests");
-
-                    b.HasIndex("ReportId")
-                        .IsUnique()
-                        .HasDatabaseName("ix_report_reopen_requests_report_id")
-                        .HasFilter("status = 'Pending'");
 
                     b.HasIndex("RequestedAt")
                         .HasDatabaseName("ix_report_reopen_requests_requested_at");

@@ -30,6 +30,11 @@ internal sealed class ReportMediaConfiguration : IEntityTypeConfiguration<Report
             .HasForeignKey(m => m.UploadedBy)
             .OnDelete(DeleteBehavior.SetNull);
 
+        builder.HasOne(m => m.ReopenRequest)
+            .WithMany(r => r.Media)
+            .HasForeignKey(m => m.ReopenRequestId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         // ── Indexes ──
         builder.HasIndex(m => m.ReportId);
         builder.HasIndex(m => m.PHash);

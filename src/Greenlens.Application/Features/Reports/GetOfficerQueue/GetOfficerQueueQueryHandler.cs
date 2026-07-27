@@ -48,10 +48,12 @@ public sealed class GetOfficerQueueQueryHandler(
         else if (user.Role == UserRole.LEO && user.LocalOfficeId.HasValue)
         {
             logger.LogInformation("LEO sees Submitted (needs verify) + Verified (needs team assignment) in their office");
-            // LEO sees Submitted (needs verify) + Verified (needs team assignment) in their office
+            // LEO sees Submitted (needs verify) + Verified/Reopened (needs team assignment) in their office
             query = query.Where(r =>
                 r.AssignedOfficeId == user.LocalOfficeId.Value &&
-                (r.Status == ReportStatus.Submitted || r.Status == ReportStatus.Verified));
+                (r.Status == ReportStatus.Submitted
+                 || r.Status == ReportStatus.Verified
+                 || r.Status == ReportStatus.Reopened));
         }
 
         // ── Filters ──
@@ -80,6 +82,9 @@ public sealed class GetOfficerQueueQueryHandler(
                 (r.SlaVerifyDueAt.HasValue && r.SlaVerifyDueAt < now) ||
                 (r.SlaResolveDueAt.HasValue && r.SlaResolveDueAt < now));
         }
+
+        if (request.HasPendingReopenRequest == true)
+            query = query.Where(r => r.HasPendingReopenRequest);
 
         if (request.IsPossibleDuplicate.HasValue)
             query = query.Where(r => r.IsPossibleDuplicate == request.IsPossibleDuplicate.Value);

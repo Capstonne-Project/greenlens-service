@@ -24,7 +24,15 @@ public sealed record ReportDetailResponse(
     DateTime? ResolvedAt, DateTime? ClosedAt,
     DateTime? SlaVerifyDueAt, DateTime? SlaResolveDueAt,
     ReportSatisfactionInfo? Satisfaction,
-    bool HasCurrentUserRated);
+    bool HasCurrentUserRated,
+    bool HasPendingReopenRequest,
+    PendingReopenRequestInfo? PendingReopenRequest);
+
+public sealed record PendingReopenRequestInfo(
+    Guid RequestId,
+    string Reason,
+    DateTime RequestedAt,
+    IReadOnlyList<ReportMediaItem> EvidenceMedia);
 
 public sealed record ReportMediaItem(
     Guid Id, string MediaType, string Url, string MimeType, long SizeBytes);

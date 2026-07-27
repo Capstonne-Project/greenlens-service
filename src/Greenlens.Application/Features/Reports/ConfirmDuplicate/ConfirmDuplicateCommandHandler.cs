@@ -54,7 +54,7 @@ public sealed class ConfirmDuplicateCommandHandler(
         }
 
         // BR-REP-032: primary must be verified before any duplicate can merge into it.
-        if (primary.Status is not (ReportStatus.Verified or ReportStatus.InProgress))
+        if (primary.Status is not (ReportStatus.Verified or ReportStatus.InProgress or ReportStatus.Reopened))
         {
             logger.LogWarning(
                 "Primary report {PrimaryReportId} must be Verified or InProgress (current: {Status})",

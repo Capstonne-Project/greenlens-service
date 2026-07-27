@@ -2,6 +2,7 @@ using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
+using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -17,6 +18,7 @@ namespace Greenlens.Application.Features.Reports.GetReportById;
 public sealed class GetReportByIdQueryHandler(
     IReportRepository reports,
     IReportSatisfactionRepository satisfactions,
+    IApplicationDbContext db,
     ICurrentUser currentUser,
     ILogger<GetReportByIdQueryHandler> logger)
     : IRequestHandler<GetReportByIdQuery, Result<ReportDetailResponse>>
@@ -76,6 +78,28 @@ public sealed class GetReportByIdQueryHandler(
                 s => s.ReportId == request.Id && s.UserId == currentUser.UserId, ct)
                 .ConfigureAwait(false);
 
+        PendingReopenRequestInfo? pendingReopen = null;
+        if (r.HasPendingReopenRequest)
+        {
+            var pending = await db.Set<Domain.Entities.ReportReopenRequest>()
+                .AsNoTracking()
+                .Include(x => x.Media)
+                .Where(x => x.ReportId == r.Id && x.Status == ReopenRequestStatus.Pending)
+                .OrderByDescending(x => x.RequestedAt)
+                .FirstOrDefaultAsync(ct)
+                .ConfigureAwait(false);
+
+            if (pending is not null)
+            {
+                var evidence = pending.Media
+                    .Select(m => new ReportMediaItem(
+                        m.Id, m.Type.ToString(), m.Url, m.MimeType, m.SizeBytes))
+                    .ToList();
+                pendingReopen = new PendingReopenRequestInfo(
+                    pending.Id, pending.Reason, pending.RequestedAt, evidence);
+            }
+        }
+
         logger.LogInformation("Lấy chi tiết báo cáo thành công. Mã báo cáo: {ReportCode}", r.Code);
         return new ReportDetailResponse(
             r.Id, r.Code, r.ReporterId,
@@ -92,6 +116,8 @@ public sealed class GetReportByIdQueryHandler(
             r.ResolvedAt, r.ClosedAt,
             r.SlaVerifyDueAt, r.SlaResolveDueAt,
             reporterSatisfaction,
-            hasCurrentUserRated);
+            hasCurrentUserRated,
+            r.HasPendingReopenRequest,
+            pendingReopen);
     }
 }

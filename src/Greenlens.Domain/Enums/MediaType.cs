@@ -9,5 +9,8 @@ public enum MediaType
     After,
 
     /// <summary>Ảnh hiện trường do Inspection Team chụp (BR-INS-010).</summary>
-    Inspection
+    Inspection,
+
+    /// <summary>Evidence uploaded by citizen when requesting reopen (BR-REP-015).</summary>
+    ReopenEvidence
 }

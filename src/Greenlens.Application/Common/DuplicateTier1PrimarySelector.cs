@@ -39,7 +39,7 @@ public static class DuplicateTier1PrimarySelector
         var match = nearby
             .Where(c => IsEligibleCandidateStatus(c.Status))
             .Where(c => GeoMath.HaversineMeters(reportLatitude, reportLongitude, c.Latitude, c.Longitude) <= radiusMeters)
-            .OrderByDescending(c => c.Status is ReportStatus.Verified or ReportStatus.InProgress)
+            .OrderByDescending(c => c.Status is ReportStatus.Verified or ReportStatus.InProgress or ReportStatus.Reopened)
             .ThenBy(c => c.CreatedAt)
             .FirstOrDefault();
 

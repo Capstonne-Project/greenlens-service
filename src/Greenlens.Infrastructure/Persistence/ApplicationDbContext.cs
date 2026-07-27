@@ -22,6 +22,7 @@ internal sealed class ApplicationDbContext(
     public DbSet<ReportFlag> ReportFlags => Set<ReportFlag>();
     public DbSet<ReportSatisfaction> ReportSatisfactions => Set<ReportSatisfaction>();
     public DbSet<ReportDraft> ReportDrafts => Set<ReportDraft>();
+    public DbSet<ReportReopenRequest> ReportReopenRequests => Set<ReportReopenRequest>();
     public DbSet<ReportAssignment> ReportAssignments => Set<ReportAssignment>();
     public DbSet<WasteTag> WasteTags => Set<WasteTag>();
     public DbSet<ReportWasteTag> ReportWasteTags => Set<ReportWasteTag>();

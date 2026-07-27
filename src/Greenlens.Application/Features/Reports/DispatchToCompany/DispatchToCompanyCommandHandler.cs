@@ -33,9 +33,9 @@ public sealed class DispatchToCompanyCommandHandler(
             return Errors.Reports.ReportNotFound;
         }
 
-        if (report.Status != ReportStatus.Verified)
+        if (report.Status is not (ReportStatus.Verified or ReportStatus.Reopened))
         {
-            logger.LogWarning("Report {ReportId} is not verified", request.ReportId);
+            logger.LogWarning("Report {ReportId} is not ready for company dispatch", request.ReportId);
             return Errors.Reports.InvalidStatusTransition;
         }
 
@@ -73,12 +73,12 @@ public sealed class DispatchToCompanyCommandHandler(
             }
         }
 
-        // Dispatch — Verified → InProgress, AssignedCompanyId set
+        var fromStatus = report.Status;
         report.DispatchToCompany(request.CompanyId, currentUser.UserId);
 
         statusHistory.Add(ReportStatusHistory.Create(
             report.Id,
-            ReportStatus.Verified,
+            fromStatus,
             ReportStatus.InProgress,
             currentUser.UserId));
 

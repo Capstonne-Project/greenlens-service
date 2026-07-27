@@ -1,340 +1,269 @@
 # GreenLens — System Architecture Diagram
 
-> **Dự án:** SU26SE049 — Crowdsourced Application for Reporting Environmental Pollution
-> **Stack:** .NET 9 · ASP.NET Core · EF Core 9 · PostgreSQL + PostGIS · Redis · AWS S3 · Hangfire · Firebase
+> **Dự án:** SU26SE049 — Crowdsourced Application for Reporting Environmental Pollution  
+> **Stack:** .NET 9 · ASP.NET Core · EF Core 9 · PostgreSQL + PostGIS · Redis · Cloudflare R2 · Hangfire · Firebase
 
 ---
 
-## 1. High-Level Architecture
+## 1. System Architecture (3 khối chính)
 
 ```mermaid
 graph TB
-    subgraph Clients["🖥️ Clients"]
+    subgraph FrontEnd["📱 FRONT-END"]
         direction LR
-        MA["📱 Mobile App<br/>(React Native)"]
-        WA["🌐 Web Dashboard<br/>(React/Next.js)"]
+        MA["📱 Mobile App<br/>(React Native)<br/>Citizen · Cleaner · Inspector"]
+        WA["🌐 Web Dashboard<br/>(React / Next.js)<br/>LEO · DEO · Admin<br/>Company Manager"]
     end
 
-    subgraph Gateway["🔒 API Gateway / Reverse Proxy"]
-        NG["Nginx / AWS ALB"]
-    end
-
-    subgraph Backend["⚙️ GreenLens Backend (.NET 9)"]
+    subgraph BackEnd["⚙️ BACK-END"]
         direction TB
-        API["Greenlens.Api<br/>ASP.NET Core 9<br/>(Controllers + Middleware)"]
-        APP["Greenlens.Application<br/>CQRS (MediatR)<br/>Feature Slices"]
-        DOM["Greenlens.Domain<br/>Entities + Events<br/>State Machine"]
-        INF["Greenlens.Infrastructure<br/>EF Core + Adapters"]
+
+        subgraph APILayer["API Layer"]
+            NG["🔒 Reverse Proxy<br/>(Nginx / ALB)"]
+            API["ASP.NET Core 9<br/>Controllers · Middleware<br/>JWT Auth · Rate Limit"]
+        end
+
+        subgraph AppLayer["Application Layer"]
+            PIPE["MediatR Pipeline<br/>Validation · Transaction<br/>Logging · Audit"]
+            HANDLER["Feature Handlers<br/>(CQRS Command / Query)"]
+        end
+
+        subgraph DomainLayer["Domain Layer"]
+            DOM["Entities · Value Objects<br/>Domain Events<br/>State Machines · Business Rules"]
+        end
+
+        subgraph InfraLayer["Infrastructure Layer"]
+            EF["EF Core 9<br/>(ORM + PostGIS)"]
+            ADAPT["Service Adapters<br/>JWT · Bcrypt · Geo"]
+            HF["Hangfire Server<br/>Background Jobs"]
+        end
+
+        subgraph DataStores["Data Stores"]
+            direction LR
+            PG[("🐘 PostgreSQL 18<br/>+ PostGIS")]
+            RD[("⚡ Redis<br/>Cache · Rate Limit")]
+        end
+
+        NG --> API
+        API --> PIPE
+        PIPE --> HANDLER
+        HANDLER --> DOM
+        HANDLER --> EF
+        HANDLER --> ADAPT
+        EF --> PG
+        ADAPT --> RD
+        HF --> EF
     end
 
-    subgraph DataStores["🗄️ Data Stores"]
-        PG["🐘 PostgreSQL 18<br/>+ PostGIS"]
-        RD["⚡ Redis<br/>Cache + Rate Limit"]
-        S3["📦 AWS S3<br/>Media Storage"]
-    end
-
-    subgraph ExternalServices["🌐 External Services"]
-        AI["🤖 AI Service<br/>Image Classification"]
+    subgraph ThirdParty["🌐 BÊN THỨ 3 (Third-party Services)"]
+        direction LR
+        R2["☁️ Cloudflare R2<br/>Object Storage<br/>(Report Images)"]
+        AI["🤖 AI Service<br/>Image Classification<br/>Duplicate Detection<br/>(Python / DINOv2)"]
         FCM["🔔 Firebase FCM<br/>Push Notifications"]
-        SMTP["📧 SMTP<br/>Email Service"]
-        MAP["🗺️ Map Tile<br/>(Mapbox/Google)"]
+        SMTP["📧 SMTP Service<br/>Email (OTP, Alerts)"]
+        MAP["🗺️ Map Tiles<br/>(Mapbox / Google)"]
     end
 
-    subgraph BackgroundWorker["⏰ Background Worker"]
-        HF["Hangfire Server<br/>Recurring Jobs"]
-    end
+    MA -->|"REST API<br/>(HTTPS)"| NG
+    WA -->|"REST API<br/>(HTTPS)"| NG
 
-    MA --> NG
-    WA --> NG
-    NG --> API
-    API --> APP
-    APP --> DOM
-    APP --> INF
-    INF --> PG
-    INF --> RD
-    INF --> S3
-    INF --> AI
-    INF --> FCM
-    INF --> SMTP
-    HF --> INF
-    MA -.->|"Presigned URL"| S3
-    WA -.->|"Presigned URL"| S3
+    MA -.->|"Presigned URL<br/>Upload"| R2
+    WA -.->|"Presigned URL<br/>Upload"| R2
 
-    classDef clientStyle fill:#4A90D9,stroke:#2C5F8A,color:#fff
-    classDef gatewayStyle fill:#F5A623,stroke:#D48B0A,color:#fff
+    MA -.->|"Map Tiles"| MAP
+    WA -.->|"Map Tiles"| MAP
+
+    ADAPT -->|"HTTP Client"| AI
+    ADAPT -->|"FCM SDK"| FCM
+    ADAPT -->|"SMTP Client"| SMTP
+    EF -->|"S3 API"| R2
+
+    classDef feStyle fill:#4A90D9,stroke:#2C5F8A,color:#fff
+    classDef proxyStyle fill:#F5A623,stroke:#D48B0A,color:#fff
     classDef apiStyle fill:#7B68EE,stroke:#5B4BCF,color:#fff
     classDef appStyle fill:#9B59B6,stroke:#7D3C98,color:#fff
     classDef domStyle fill:#27AE60,stroke:#1E8449,color:#fff
-    classDef infStyle fill:#E67E22,stroke:#CA6F1E,color:#fff
+    classDef infraStyle fill:#E67E22,stroke:#CA6F1E,color:#fff
     classDef dataStyle fill:#2ECC71,stroke:#229954,color:#fff
-    classDef extStyle fill:#E74C3C,stroke:#C0392B,color:#fff
-    classDef bgStyle fill:#34495E,stroke:#2C3E50,color:#fff
+    classDef tpStyle fill:#E74C3C,stroke:#C0392B,color:#fff
 
-    class MA,WA clientStyle
-    class NG gatewayStyle
+    class MA,WA feStyle
+    class NG proxyStyle
     class API apiStyle
-    class APP appStyle
+    class PIPE,HANDLER appStyle
     class DOM domStyle
-    class INF infStyle
-    class PG,RD,S3 dataStyle
-    class AI,FCM,SMTP,MAP extStyle
-    class HF bgStyle
+    class EF,ADAPT,HF infraStyle
+    class PG,RD dataStyle
+    class R2,AI,FCM,SMTP,MAP tpStyle
 ```
 
 ---
 
-## 2. Clean Architecture Layers
+## 2. Chi tiết từng khối
+
+### 2.1 Front-end
+
+| Component | Technology | Actor sử dụng | Chức năng chính |
+|-----------|-----------|---------------|----------------|
+| **Mobile App** | React Native | Citizen, Cleaner, Inspector | Submit report (ảnh + GPS), check-in, update progress, view map, gamification |
+| **Web Dashboard** | React / Next.js | LEO, DEO, Admin, Company Manager | Verify/reject reports, assign teams, inspection, penalty, KPI dashboard, audit logs |
+
+**Giao tiếp với Back-end:** REST API qua HTTPS (JSON)  
+**Giao tiếp với Third-party:** Presigned URL upload trực tiếp lên R2, Map tiles từ Mapbox/Google
+
+---
+
+### 2.2 Back-end
+
+| Layer | Project | Trách nhiệm | Technology |
+|-------|---------|-------------|------------|
+| **Reverse Proxy** | Nginx / AWS ALB | Load balancing, SSL termination, static files | Nginx |
+| **API** | `Greenlens.Api` | Routing, JWT Auth, Rate Limit, Error Handling | ASP.NET Core 9, Kestrel |
+| **Application** | `Greenlens.Application` | CQRS Handlers, Validation, Pipeline Behaviors | MediatR, FluentValidation |
+| **Domain** | `Greenlens.Domain` | Entities, State Machines, Business Rules, Events | Pure C# (no framework) |
+| **Infrastructure** | `Greenlens.Infrastructure` | ORM, Repository, External Adapters, Background Jobs | EF Core 9, Hangfire |
+| **Database** | PostgreSQL 18 + PostGIS | Primary data store, spatial queries (ST_DWithin) | PostgreSQL, NetTopologySuite |
+| **Cache** | Redis | Map cache (10'), rate limit counters, session | StackExchange.Redis |
+
+---
+
+### 2.3 Bên thứ 3 (Third-party)
+
+| Service | Provider | Mục đích | Giao tiếp |
+|---------|----------|---------|-----------|
+| **Object Storage** | Cloudflare R2 (S3-compatible) | Lưu ảnh/video báo cáo (presigned URL upload) | S3 API |
+| **AI Service** | Self-hosted (Python FastAPI) | Phân loại ảnh ô nhiễm, duplicate detection (DINOv2) | HTTP REST |
+| **Push Notification** | Firebase FCM | Thông báo đẩy cho Mobile App | FCM SDK |
+| **Email Service** | SMTP (SendGrid / SES) | Gửi OTP, thông báo SLA, digest | SMTP Client |
+| **Map Tiles** | Mapbox / Google Maps | Bản đồ nền cho Mobile + Web | SDK / REST |
+
+---
+
+## 3. Request Flow (End-to-End)
 
 ```mermaid
-graph LR
-    subgraph API["🟣 Greenlens.Api"]
-        C["Controllers<br/>(15 controllers)"]
-        MW["Middlewares<br/>Exception · RateLimit · Logging"]
-        FI["Filters<br/>Validation · Auth"]
+sequenceDiagram
+    participant FE as 📱 Front-end<br/>(Mobile / Web)
+    participant PROXY as 🔒 Reverse Proxy
+    participant API as ⚙️ API Layer<br/>(ASP.NET Core)
+    participant PIPE as 📋 MediatR Pipeline
+    participant HANDLER as 🎯 Handler
+    participant DOMAIN as 🏛️ Domain
+    participant DB as 🐘 PostgreSQL
+    participant TP as 🌐 Third-party
+
+    FE->>PROXY: HTTPS Request (Bearer JWT)
+    PROXY->>API: Forward request
+
+    API->>API: Rate Limit check (Redis)
+    API->>API: JWT Authentication
+    API->>API: Route → Controller
+
+    API->>PIPE: ISender.Send(command)
+
+    PIPE->>PIPE: ① LoggingBehavior
+    PIPE->>PIPE: ② ValidationBehavior (FluentValidation)
+    PIPE->>PIPE: ③ TransactionBehavior (BEGIN)
+    PIPE->>PIPE: ④ AuditLogBehavior
+
+    PIPE->>HANDLER: Handle(command, ct)
+
+    HANDLER->>DOMAIN: Entity.Create() / Entity.Verify()
+    DOMAIN-->>HANDLER: Result + Domain Events
+
+    HANDLER->>DB: EF Core SaveChanges()
+    DB-->>HANDLER: OK
+
+    opt Side Effects (async)
+        HANDLER->>TP: AI classify / FCM push / Email
     end
 
-    subgraph Application["🟪 Greenlens.Application"]
-        FT["Feature Slices<br/>(11 modules)"]
-        BH["Behaviors<br/>Validation · Transaction · Logging"]
-        IF["Interfaces<br/>ICurrentUser · IFileStorage<br/>IApplicationDbContext"]
-    end
+    PIPE->>PIPE: ③ TransactionBehavior (COMMIT)
 
-    subgraph Domain["🟢 Greenlens.Domain"]
-        EN["Entities<br/>Report · User · Team<br/>StaffInvitation · Badge"]
-        VO["Value Objects<br/>GeoLocation · Email"]
-        EV["Domain Events<br/>ReportVerified<br/>PointsAwarded"]
-        SM["State Machine<br/>Report Lifecycle"]
-    end
-
-    subgraph Infrastructure["🟠 Greenlens.Infrastructure"]
-        PS["Persistence<br/>EF Core · PostgreSQL<br/>PostGIS · Repositories"]
-        ID["Identity<br/>JWT · Refresh Token"]
-        ST["Storage<br/>AWS S3 · Presigned URL"]
-        AI2["AI Adapter<br/>Image Classification"]
-        NF["Notifications<br/>FCM · Email"]
-        BJ["Background Jobs<br/>Hangfire · SLA · AutoClose"]
-    end
-
-    C --> FT
-    FT --> EN
-    FT --> IF
-    PS -.->|"implements"| IF
-    ID -.->|"implements"| IF
-    ST -.->|"implements"| IF
-    BJ --> FT
-
-    classDef api fill:#7B68EE,stroke:#5B4BCF,color:#fff
-    classDef app fill:#9B59B6,stroke:#7D3C98,color:#fff
-    classDef dom fill:#27AE60,stroke:#1E8449,color:#fff
-    classDef inf fill:#E67E22,stroke:#CA6F1E,color:#fff
-
-    class C,MW,FI api
-    class FT,BH,IF app
-    class EN,VO,EV,SM dom
-    class PS,ID,ST,AI2,NF,BJ inf
+    HANDLER-->>API: Result~T~
+    API-->>PROXY: ToActionResult() → HTTP Response
+    PROXY-->>FE: JSON Response (ProblemDetails if error)
 ```
 
 ---
 
-## 3. Report Lifecycle & Actor Interactions
-
-```mermaid
-flowchart TB
-    subgraph Citizens["👤 Citizen"]
-        SUB["Submit Report<br/>(ảnh + GPS)"]
-    end
-
-    subgraph System["⚙️ System"]
-        RG["Reverse Geocode<br/>(Ward lookup)"]
-        RT["Auto-Route<br/>(Ward → LocalOffice)"]
-        AI3["AI Classification<br/>(waste type, severity)"]
-    end
-
-    subgraph LEO["👮 LEO (Phường)"]
-        VF["Verify / Reject"]
-        ESC["Escalate to DEO<br/>(tuyến cấp TP)"]
-        AT["Assign Team"]
-        DC["Dispatch to Company"]
-    end
-
-    subgraph DEO["🏛️ DEO (Sở)"]
-        DQ["Department Queue"]
-        DD["Dispatch to<br/>CITENCO / Company"]
-    end
-
-    subgraph Cleanup["🧹 Cleanup Team"]
-        CI["Check-in (GPS)"]
-        UP["Update Progress"]
-        RS["Resolve (ảnh after)"]
-    end
-
-    subgraph Citizen2["👤 Citizen (Close)"]
-        CL["Confirm Close<br/>(hoặc auto 7d)"]
-    end
-
-    SUB --> RG
-    RG --> RT
-    RT -->|"Office found"| VF
-    RT -->|"No office<br/>(chưa onboard)"| DQ
-    SUB -.-> AI3
-    AI3 -.->|"suggest tags"| VF
-
-    VF -->|"Verified"| AT
-    VF -->|"Reject"| DQ
-    ESC --> DQ
-
-    AT --> CI
-    DC --> DD
-    DQ --> DD
-    DD --> CI
-
-    CI --> UP
-    UP --> RS
-    RS --> CL
-
-    classDef citizen fill:#3498DB,stroke:#2980B9,color:#fff
-    classDef system fill:#95A5A6,stroke:#7F8C8D,color:#fff
-    classDef leo fill:#E67E22,stroke:#D35400,color:#fff
-    classDef deo fill:#8E44AD,stroke:#7D3C98,color:#fff
-    classDef cleanup fill:#27AE60,stroke:#229954,color:#fff
-
-    class SUB,CL citizen
-    class RG,RT,AI3 system
-    class VF,ESC,AT,DC leo
-    class DQ,DD deo
-    class CI,UP,RS cleanup
-```
-
----
-
-## 4. Data Model (Core Entities)
-
-```mermaid
-erDiagram
-    USER ||--o{ REPORT : "submits"
-    USER ||--o{ USER_POINTS : "earns"
-    USER ||--o{ USER_BADGE : "receives"
-    USER ||--o{ NOTIFICATION : "receives"
-    USER ||--o{ PASSWORD_HISTORY : "has"
-    USER }o--o| LOCAL_OFFICE : "belongs to"
-
-    REPORT ||--o{ REPORT_MEDIA : "has"
-    REPORT ||--o{ REPORT_STATUS_HISTORY : "tracks"
-    REPORT ||--o{ REPORT_ASSIGNMENT : "assigned to"
-    REPORT ||--o{ COMMENT : "has"
-    REPORT ||--o{ INSPECTION_REPORT : "inspected by"
-    REPORT }o--o| LOCAL_OFFICE : "routed to"
-    REPORT }o--|| DEPARTMENT : "belongs to"
-    REPORT }o--o| WASTE_CATEGORY : "categorized as"
-    REPORT }o--o{ REPORT_WASTE_TAG : "tagged with"
-
-    DEPARTMENT ||--o{ LOCAL_OFFICE : "oversees"
-    DEPARTMENT }o--|| PROVINCE : "serves"
-
-    LOCAL_OFFICE ||--o{ TEAM : "has"
-    LOCAL_OFFICE }o--|| WARD : "covers"
-
-    TEAM ||--o{ TEAM_MEMBER : "contains"
-    TEAM_MEMBER }o--|| USER : "is"
-
-    STAFF_INVITATION }o--|| USER : "invited by"
-    STAFF_INVITATION }o--|| USER : "for user"
-    STAFF_INVITATION }o--o| LOCAL_OFFICE : "to office"
-
-    ENV_SERVICE_COMPANY ||--o{ COMPANY_SERVICE_AREA : "covers"
-    ENV_SERVICE_COMPANY ||--o{ COMPANY_TEAM : "has"
-    COMPANY_SERVICE_AREA }o--|| WARD : "serves"
-
-    PROVINCE ||--o{ WARD : "contains"
-
-    BADGE ||--o{ USER_BADGE : "awarded as"
-
-    USER {
-        guid Id PK
-        string Email UK
-        string FullName
-        string Role
-        bool IsBanned
-        guid LocalOfficeId FK
-        guid DepartmentId FK
-    }
-
-    REPORT {
-        guid Id PK
-        string Code UK
-        string Description
-        int Status
-        int Severity
-        float Latitude
-        float Longitude
-        guid ReporterId FK
-        guid AssignedOfficeId FK
-        guid AssignedDepartmentId FK
-        guid WasteCategoryId FK
-        bool SlaVerifyBreached
-        bool SlaResolveBreached
-    }
-
-    DEPARTMENT {
-        guid Id PK
-        string Name
-        string ProvinceCode FK
-        bool IsActive
-    }
-
-    LOCAL_OFFICE {
-        guid Id PK
-        string Name
-        string WardCode FK
-        guid DepartmentId FK
-        bool IsOnboarded
-    }
-
-    TEAM {
-        guid Id PK
-        string Name
-        int TeamType
-        guid LocalOfficeId FK
-    }
-
-    STAFF_INVITATION {
-        guid Id PK
-        guid InvitedUserId FK
-        guid InvitedByUserId FK
-        string TargetRole
-        int Status
-        datetime ExpiresAt
-    }
-```
-
----
-
-## 5. Background Jobs Architecture
+## 4. Data Flow giữa 3 khối
 
 ```mermaid
 flowchart LR
-    subgraph Hangfire["⏰ Hangfire Server"]
+    subgraph FE["📱 FRONT-END"]
+        M["Mobile App"]
+        W["Web Dashboard"]
+    end
+
+    subgraph BE["⚙️ BACK-END"]
+        API2["API Server"]
+        DB2[("PostgreSQL")]
+        REDIS2[("Redis")]
+    end
+
+    subgraph TP2["🌐 BÊN THỨ 3"]
+        R22["Cloudflare R2"]
+        AI2["AI Service"]
+        FCM2["Firebase FCM"]
+        SMTP2["SMTP"]
+    end
+
+    M -->|"① Submit report<br/>(JSON + metadata)"| API2
+    W -->|"② Verify / Assign<br/>(JSON)"| API2
+    API2 -->|"③ Save data"| DB2
+    API2 -->|"④ Cache map"| REDIS2
+
+    M -.->|"⑤ Upload ảnh<br/>(Presigned URL)"| R22
+    API2 -->|"⑥ Generate<br/>presigned URL"| R22
+
+    API2 -->|"⑦ Classify image"| AI2
+    AI2 -.->|"⑧ Result"| API2
+
+    API2 -->|"⑨ Push notification"| FCM2
+    FCM2 -.->|"⑩ Push"| M
+
+    API2 -->|"⑪ Send email"| SMTP2
+
+    style FE fill:#e8f4fd,stroke:#2980b9
+    style BE fill:#eafaf1,stroke:#27ae60
+    style TP2 fill:#fdedec,stroke:#e74c3c
+```
+
+---
+
+## 5. Background Jobs
+
+```mermaid
+flowchart LR
+    subgraph Hangfire["⏰ Hangfire Server (Back-end)"]
         AC["AutoCloseResolvedReportJob<br/>🕐 Hourly"]
         SV["SlaBreachVerificationJob<br/>🕐 Every 15min"]
         SR["SlaBreachResolutionJob<br/>🕐 Every 30min"]
+        DD["DuplicateDetectionJob<br/>🔄 On-demand (Tier 2)"]
         LS["LeaderboardSnapshotJob<br/>🕐 Daily"]
+        DC["DraftCleanupJob<br/>🕐 Daily"]
     end
 
-    subgraph DB["🐘 PostgreSQL"]
-        RT2["Reports Table"]
-        LB["Leaderboard Table"]
-    end
+    DB3[("🐘 PostgreSQL")]
+    AI3["🤖 AI Service<br/>(Third-party)"]
+    FCM3["🔔 FCM<br/>(Third-party)"]
 
-    AC -->|"Resolved ≥ 7d → Closed"| RT2
-    SV -->|"Submitted > 24h → Escalate"| RT2
-    SR -->|"InProgress > SLA → Flag"| RT2
-    LS -->|"Snapshot points"| LB
+    AC -->|"Resolved ≥ 7d → Closed"| DB3
+    SV -->|"Submitted > 24h → Escalate"| DB3
+    SR -->|"InProgress > SLA → Flag"| DB3
+    DD -->|"Compare images"| AI3
+    DD -->|"Update duplicate flags"| DB3
+    LS -->|"Snapshot points"| DB3
+    SV -->|"Notify LEO/DEO"| FCM3
 
     classDef job fill:#34495E,stroke:#2C3E50,color:#fff
     classDef db fill:#2ECC71,stroke:#229954,color:#fff
+    classDef tp fill:#E74C3C,stroke:#C0392B,color:#fff
 
-    class AC,SV,SR,LS job
-    class RT2,LB db
+    class AC,SV,SR,DD,LS,DC job
+    class DB3 db
+    class AI3,FCM3 tp
 ```
 
 ---
@@ -343,46 +272,62 @@ flowchart LR
 
 ```mermaid
 sequenceDiagram
-    participant C as Client
-    participant API as API Server
-    participant JWT as JWT Service
-    participant DB as PostgreSQL
-    participant Redis as Redis
+    participant FE as 📱 Front-end
+    participant BE as ⚙️ Back-end
+    participant DB as 🐘 PostgreSQL
+    participant RD as ⚡ Redis
 
-    C->>API: POST /v1/auth/login (email, password)
-    API->>DB: Find user by email
-    DB-->>API: User record
+    FE->>BE: POST /v1/auth/login (email, password)
+    BE->>DB: Find user by email
+    DB-->>BE: User record
 
     alt Account locked (BR-AUTH-011)
-        API-->>C: 423 Locked (30 min)
+        BE-->>FE: 423 Locked (30 min)
     else Password incorrect
-        API->>DB: Increment FailedLoginCount
-        API-->>C: 401 Unauthorized
+        BE->>DB: Increment FailedLoginCount
+        BE-->>FE: 401 Unauthorized
     else Banned (BR-AUTH-015)
-        API-->>C: 403 Banned
+        BE-->>FE: 403 Banned
     else Success
-        API->>JWT: Generate Access (24h) + Refresh (30d)
-        JWT-->>API: Tokens
-        API->>DB: Store hashed refresh token
-        API-->>C: 200 { accessToken, refreshToken }
+        BE->>BE: Generate JWT (24h) + Refresh (30d)
+        BE->>DB: Store hashed refresh token
+        BE-->>FE: 200 { accessToken, refreshToken }
     end
 
-    Note over C,API: Subsequent requests
-    C->>API: GET /v1/reports (Bearer token)
-    API->>Redis: Check rate limit (60rpm anon / 300rpm auth)
-    Redis-->>API: OK / 429
+    Note over FE,BE: Subsequent API calls
+    FE->>BE: GET /v1/reports (Bearer token)
+    BE->>RD: Check rate limit (60rpm anon / 300rpm auth)
+    RD-->>BE: OK / 429
 
     alt Token expired
-        C->>API: POST /v1/auth/refresh
-        API->>DB: Validate refresh token
-        API->>JWT: Rotate tokens
-        API-->>C: 200 { newAccessToken, newRefreshToken }
+        FE->>BE: POST /v1/auth/refresh
+        BE->>DB: Validate + rotate refresh token
+        BE-->>FE: 200 { newAccessToken, newRefreshToken }
     end
 ```
 
 ---
 
-## 7. Deployment Architecture (Target)
+## 7. Module Summary
+
+| Module | Controllers | Feature Slices | Key Entities |
+|--------|:-----------:|:--------------:|:-------------|
+| **Auth** | 1 | Login, Register, Refresh, ChangePassword, Lockout, Ban | User, PasswordHistory |
+| **Reports** | 1 | Submit, Verify, Reject, Assign, Resolve, Close, Escalate | Report, ReportMedia, ReportAssignment |
+| **Organization** | 3 | Department CRUD, Office CRUD, Invitation Flow | Department, LocalOffice, StaffInvitation |
+| **Teams** | 1 | Team CRUD, Member CRUD, Check-in, Progress | EnvironmentalTeam, TeamMember |
+| **Companies** | 1 | Company CRUD, Staff, Dispatch, Service Area | EnvServiceCompany, ContractPeriod |
+| **Inspection** | 1 | Create, Assign Team, Issue Penalty, Payment | InspectionReport, ViolatingEntity |
+| **Gamification** | 1 | Points, Badges, Leaderboard | UserPoints, Badge, UserBadge |
+| **Notifications** | 1 | List, Read, Preferences, FCM Token | Notification, NotificationPreference |
+| **Map** | 1 | Nearby, Heatmap, Hotspot | (PostGIS queries on Report) |
+| **Catalog** | 1 | Categories, Waste Tags | PollutionCategory, WasteTag |
+| **Admin** | 1 | User management, Audit, Config | User, AuditLog |
+| **Media** | 1 | Upload, Presigned URL, AI Analyze | ReportMedia |
+
+---
+
+## 8. Deployment Architecture (Target)
 
 ```mermaid
 graph TB
@@ -390,30 +335,31 @@ graph TB
         U["Users<br/>(Mobile + Web)"]
     end
 
-    subgraph AWS["☁️ AWS Cloud"]
-        ALB["Application<br/>Load Balancer"]
+    subgraph Cloud["☁️ Cloud Infrastructure"]
+        ALB["🔒 Load Balancer<br/>(ALB / Nginx)"]
 
-        subgraph ECS["ECS / EC2"]
+        subgraph Compute["Compute"]
             A1["API Instance 1"]
             A2["API Instance 2"]
             HF2["Hangfire Worker"]
         end
 
         subgraph Data["Data Layer"]
-            RDS["RDS PostgreSQL<br/>+ PostGIS"]
-            EC["ElastiCache<br/>Redis"]
-            S3B["S3 Bucket<br/>Media Files"]
+            RDS[("PostgreSQL<br/>+ PostGIS")]
+            EC[("Redis")]
         end
 
         subgraph Monitoring["📊 Observability"]
-            CW["CloudWatch<br/>Logs + Metrics"]
+            CW["Serilog → Seq/ELK"]
             OT["OpenTelemetry<br/>→ Jaeger"]
         end
     end
 
-    subgraph External["External"]
-        FCM2["Firebase FCM"]
-        AI4["AI Classification<br/>Service"]
+    subgraph ThirdParty2["🌐 Third-party"]
+        R2T["Cloudflare R2"]
+        AIT["AI Service"]
+        FCMT["Firebase FCM"]
+        SMTPT["SMTP"]
     end
 
     U --> ALB
@@ -423,37 +369,19 @@ graph TB
     A2 --> RDS
     A1 --> EC
     A2 --> EC
-    A1 --> S3B
     HF2 --> RDS
-    A1 --> FCM2
-    A1 --> AI4
+    A1 --> R2T
+    A1 --> AIT
+    A1 --> FCMT
+    A1 --> SMTPT
     A1 --> CW
     A1 --> OT
 
-    classDef aws fill:#FF9900,stroke:#CC7A00,color:#fff
+    classDef compute fill:#FF9900,stroke:#CC7A00,color:#fff
     classDef data fill:#3B48CC,stroke:#2C3A9E,color:#fff
-    classDef ext fill:#E74C3C,stroke:#C0392B,color:#fff
+    classDef tp fill:#E74C3C,stroke:#C0392B,color:#fff
 
-    class ALB,A1,A2,HF2 aws
-    class RDS,EC,S3B data
-    class FCM2,AI4 ext
+    class ALB,A1,A2,HF2 compute
+    class RDS,EC data
+    class R2T,AIT,FCMT,SMTPT tp
 ```
-
----
-
-## 8. Module Summary
-
-| Module            | Controllers |                        Feature Slices                        | Key Entities                             |
-| ----------------- | :---------: | :----------------------------------------------------------: | :--------------------------------------- |
-| **Auth**          |      1      |    Login, Register, Refresh, ChangePassword, Lockout, Ban    | User, PasswordHistory                    |
-| **Reports**       |      1      |   Submit, Verify, Reject, Assign, Resolve, Close, Escalate   | Report, ReportMedia, ReportAssignment    |
-| **Organization**  |      3      | Department CRUD, Office CRUD, Invitation Flow, Release Staff | Department, LocalOffice, StaffInvitation |
-| **Teams**         |      1      |          Team CRUD, Member CRUD, Check-in, Progress          | Team, TeamMember                         |
-| **Companies**     |      1      |         Company CRUD, Staff, Dispatch, Service Area          | EnvServiceCompany, CompanyTeam           |
-| **Inspection**    |      1      |               Create, Update, Get inspections                | InspectionReport                         |
-| **Gamification**  |      1      |                 Points, Badges, Leaderboard                  | UserPoints, Badge, UserBadge             |
-| **Notifications** |      1      |              List, Read, Preferences, FCM Token              | Notification, NotificationPreference     |
-| **Map**           |      1      |                   Nearby, Heatmap, Hotspot                   | (PostGIS queries on Report)              |
-| **Catalog**       |      1      |                    Categories, Waste Tags                    | WasteCategory, WasteTag                  |
-| **Admin**         |      1      |                User management, Audit, Config                | User, AuditLog                           |
-| **Media**         |      1      |                    Upload, Presigned URL                     | ReportMedia                              |

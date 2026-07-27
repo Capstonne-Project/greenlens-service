@@ -30,7 +30,12 @@ using Greenlens.Application.Features.Reports.GetWasteTags;
 using Greenlens.Application.Features.Reports.ReassignTeam;
 using Greenlens.Application.Features.Reports.RejectReport;
 using Greenlens.Application.Features.Reports.RateReport;
+using Greenlens.Application.Features.Reports.ApproveReopenRequest;
+using Greenlens.Application.Features.Reports.RejectReopenRequest;
+using Greenlens.Application.Features.Reports.GetReopenRequests;
+using Greenlens.Application.Features.Reports.RequestReopenReport;
 using Greenlens.Application.Features.Reports.ReopenReport;
+using Greenlens.Domain.Enums;
 using Greenlens.Application.Features.Reports.ResolveReport;
 using Greenlens.Application.Features.Reports.SaveDraft;
 using Greenlens.Application.Features.Reports.SubmitPollutionReport;
@@ -40,7 +45,6 @@ using Greenlens.Application.Features.Reports.UploadBeforeImages;
 using Greenlens.Application.Features.Reports.VerifyReport;
 using Greenlens.Application.Features.Inspection.CreateInspectionReport;
 using Greenlens.Application.Features.Inspection.GetInspectionsByReport;
-using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -389,6 +393,7 @@ public sealed class ReportsController(
         [FromQuery] DateTime? toDate = null,
         [FromQuery] bool? slaBreached = null,
         [FromQuery] bool? isPossibleDuplicate = null,
+        [FromQuery] bool? hasPendingReopenRequest = null,
         // Search
         [FromQuery] string? search = null,
         // Sort
@@ -397,7 +402,7 @@ public sealed class ReportsController(
         CancellationToken ct = default)
         => (await sender.Send(new GetOfficerQueueQuery(
             page, pageSize, status, severity, categoryId, wardCode,
-            fromDate, toDate, slaBreached, isPossibleDuplicate, search, sortBy, sortDir), ct)).ToHttp();
+            fromDate, toDate, slaBreached, isPossibleDuplicate, hasPendingReopenRequest, search, sortBy, sortDir), ct)).ToHttp();
 
     // ═══════════════════════════════════════════
     // ██  TEAM WORKFLOW
@@ -538,12 +543,73 @@ public sealed class ReportsController(
     public async Task<IActionResult> CloseAsync([FromRoute] Guid id, CancellationToken ct)
         => (await sender.Send(new CloseReportCommand(id), ct)).ToHttpNoContent("Đã đóng báo cáo.");
 
+    [HttpPost("{id:guid}/reopen-requests")]
+    [Authorize]
+    [Tags("📋 Reports — Citizen Flow")]
+    [SwaggerOperation(
+        Summary = "[Citizen] Gửi yêu cầu mở lại báo cáo",
+        Description = "Citizen gửi yêu cầu mở lại khi chưa hài lòng. Bắt buộc lý do ≥ 20 ký tự và ≥ 1 ảnh; video tùy chọn. " +
+            "Report giữ Resolved cho đến khi LEO duyệt. Không bắt buộc đánh giá trước (BR-REP-015, BR-REP-018).")]
+    [SwaggerResponse(200, "Đã gửi yêu cầu", typeof(ApiResponse<Guid>))]
+    [SwaggerResponse(422, "Hết lượt, quá 7 ngày, hoặc thiếu minh chứng", typeof(ApiResponse))]
+    public async Task<IActionResult> RequestReopenAsync(
+        [FromRoute] Guid id,
+        [FromBody] RequestReopenReportRequest request,
+        CancellationToken ct)
+        => (await sender.Send(new RequestReopenReportCommand(
+            id, request.Reason, request.ImageUrls ?? [], request.VideoUrl), ct))
+            .ToHttp();
+
+    [HttpGet("reopen-requests")]
+    [Authorize(Roles = "LEO,Admin")]
+    [Tags("📌 LEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO] Danh sách yêu cầu mở lại",
+        Description = "Queue các yêu cầu reopen của citizen trong phạm vi office LEO.")]
+    [SwaggerResponse(200, "Danh sách yêu cầu", typeof(ApiResponse<GetReopenRequestsResponse>))]
+    public async Task<IActionResult> GetReopenRequestsAsync(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] ReopenRequestStatus? status = ReopenRequestStatus.Pending,
+        CancellationToken ct = default)
+        => (await sender.Send(new GetReopenRequestsQuery(page, pageSize, status), ct)).ToHttp();
+
+    [HttpPost("{id:guid}/reopen-requests/{requestId:guid}/approve")]
+    [Authorize(Roles = "LEO,Admin")]
+    [Tags("📌 LEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO] Duyệt yêu cầu mở lại",
+        Description = "LEO xác nhận yêu cầu hợp lý. Chuyển Resolved → Reopened để phân công dọn lại.")]
+    [SwaggerResponse(200, "Đã duyệt", typeof(ApiResponse))]
+    public async Task<IActionResult> ApproveReopenRequestAsync(
+        [FromRoute] Guid id,
+        [FromRoute] Guid requestId,
+        CancellationToken ct)
+        => (await sender.Send(new ApproveReopenRequestCommand(id, requestId), ct))
+            .ToHttpNoContent("Đã duyệt yêu cầu mở lại.");
+
+    [HttpPost("{id:guid}/reopen-requests/{requestId:guid}/reject")]
+    [Authorize(Roles = "LEO,Admin")]
+    [Tags("📌 LEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO] Từ chối yêu cầu mở lại",
+        Description = "LEO từ chối yêu cầu không hợp lý. Report vẫn Resolved. Lý do ≥ 20 ký tự (BR-REP-022).")]
+    [SwaggerResponse(200, "Đã từ chối", typeof(ApiResponse))]
+    public async Task<IActionResult> RejectReopenRequestAsync(
+        [FromRoute] Guid id,
+        [FromRoute] Guid requestId,
+        [FromBody] RejectReopenRequestRequest request,
+        CancellationToken ct)
+        => (await sender.Send(new RejectReopenRequestCommand(id, requestId, request.Reason), ct))
+            .ToHttpNoContent("Đã từ chối yêu cầu mở lại.");
+
     [HttpPut("{id:guid}/reopen")]
     [Authorize]
     [Tags("📋 Reports — Citizen Flow")]
-    [SwaggerOperation(Summary = "[Citizen] Mở lại báo cáo", Description = "Citizen mở lại báo cáo nếu chưa hài lòng. Tối đa 2 lần reopen, trong vòng 7 ngày từ Resolved. Chuyển status Resolved → InProgress.")]
-    [SwaggerResponse(200, "Đã mở lại", typeof(ApiResponse))]
-    [SwaggerResponse(422, "Hết lượt reopen, quá 7 ngày, hoặc status không hợp lệ", typeof(ApiResponse))]
+    [SwaggerOperation(
+        Summary = "[Deprecated] Mở lại báo cáo trực tiếp",
+        Description = "Đã thay bằng POST /reopen-requests. Endpoint này trả lỗi hướng dẫn dùng API mới.")]
+    [SwaggerResponse(422, "Dùng POST reopen-requests", typeof(ApiResponse))]
     public async Task<IActionResult> ReopenAsync([FromRoute] Guid id, CancellationToken ct)
         => (await sender.Send(new ReopenReportCommand(id), ct)).ToHttpNoContent("Đã mở lại báo cáo.");
 
@@ -745,6 +811,8 @@ public sealed record DeclineAssignmentRequest(Guid TeamId, string Reason);
 public sealed record TagWasteRequest(List<Guid> WasteTagIds);
 public sealed record DispatchToCompanyRequest(Guid CompanyId, string? Note);
 public sealed record AssignCompanyTeamRequest(List<AssignTeamItemRequest> Teams);
+public sealed record RequestReopenReportRequest(string Reason, List<string>? ImageUrls, string? VideoUrl = null);
+public sealed record RejectReopenRequestRequest(string Reason);
 
 public sealed record CreateInspectionRequest(
     Guid? AssignedTeamId,
