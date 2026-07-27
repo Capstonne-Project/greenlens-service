@@ -1,6 +1,7 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Gamification.CheckBadges;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
@@ -25,6 +26,7 @@ public sealed class ConfirmDuplicateCommandHandler(
     IReportMediaRepository reportMedia,
     IReportStatusHistoryRepository statusHistory,
     IApplicationDbContext db,
+    ISender sender,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     ILogger<ConfirmDuplicateCommandHandler> logger) : IRequestHandler<ConfirmDuplicateCommand, Result>
@@ -100,6 +102,12 @@ public sealed class ConfirmDuplicateCommandHandler(
             $"LEO confirmed duplicate of {primary.Code}; merged {mediaToMerge.Count} media"));
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        if (primary.ReporterId.HasValue)
+        {
+            await sender.Send(new CheckBadgesCommand(primary.ReporterId.Value), ct)
+                .ConfigureAwait(false);
+        }
 
         logger.LogInformation(
             "Report {ReportId} confirmed duplicate of {PrimaryId} by {UserId}; merged {MediaCount} media",

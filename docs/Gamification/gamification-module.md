@@ -51,15 +51,24 @@ Khi level tăng, hệ thống raise `LevelUpEvent` (có thể dùng cho push not
 
 ## 4. Huy hiệu (BR-GAM-004)
 
-| Code               | Tên (VI)          | Điều kiện                    | Trạng thái        |
-| ------------------ | ----------------- | ---------------------------- | ----------------- |
-| `first_report`     | Người khởi đầu    | ≥ 1 report verified          | ✅ Auto-award     |
-| `eco_warrior`      | Chiến binh Xanh   | ≥ 10 reports verified        | ✅ Auto-award     |
-| `hotspot_hunter`   | Thợ săn điểm nóng | 3 reports trong vùng hotspot | ⚠️ Chờ BR-MAP-010 |
-| `streak_7d`        | 7 ngày liên tiếp  | Gửi report 7 ngày liền       | ⚠️ Chưa implement |
-| `verified_citizen` | Công dân xác thực | KYC hoàn tất                 | ❌ Chờ KYC module |
+| Code | Tên (VI) | Điều kiện | Trạng thái |
+|------|----------|-----------|------------|
+| `first_report` | Người Khởi Đầu | ≥ 1 report verified | ✅ Auto-award + `BadgeEarned` noti |
+| `eco_warrior` | Chiến Binh Xanh | ≥ 10 reports verified | ✅ Auto-award + noti |
+| `green_champion` | Nhà Vô Địch Xanh | ≥ 50 reports verified | ✅ Auto-award + noti |
+| `earth_guardian` | Người Bảo Vệ Trái Đất | ≥ 100 reports verified | ✅ Auto-award + noti |
+| `streak_7d` | Bền Bỉ 7 Ngày | Gửi report 7 ngày liên tiếp (VN calendar) | ✅ Auto-award + noti |
+| `streak_30d` | Kiên Trì 30 Ngày | Gửi report 30 ngày liên tiếp (VN calendar) | ✅ Auto-award + noti |
+| `duplicate_finder` | Người Phát Hiện Trùng | ≥ 5 báo cáo status `Duplicate` | ✅ Auto-award + noti |
+| `community_voice` | Tiếng Nói Cộng Đồng | Có báo cáo `ReporterCount ≥ 10` | ✅ Auto-award + noti |
+| `rising_star` / `eco_expert` / `green_legend` | Level badges | ≥ 100 / 1.500 / 5.000 điểm | ✅ Auto-award + noti |
+| `hotspot_hunter` | Thợ Săn Điểm Nóng | 3 reports trong hotspot | ⚠️ Chờ BR-MAP-010 |
 
-Badges được kiểm tra tự động sau mỗi lần cộng điểm (`CheckBadgesCommand`).
+Badges được kiểm tra tự động sau mỗi lần cộng điểm (`CheckBadgesCommand`) và sau khi LEO merge duplicate (check lại primary reporter cho `community_voice`).
+
+**Streak timezone:** convert `CreatedAt` (UTC timestamptz) sang ngày calendar `Asia/Ho_Chi_Minh` **chỉ trong Application** — không đổi PostgreSQL server timezone.
+
+**Level up:** `LevelUpEvent` → `LevelUpNotificationHandler` → template `level_up` (`{level}`).
 
 ---
 
