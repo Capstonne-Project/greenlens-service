@@ -1,3 +1,4 @@
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using Greenlens.Infrastructure.Persistence;
@@ -12,9 +13,11 @@ namespace Greenlens.Infrastructure.BackgroundJobs;
 /// BR-REP-009: Notify LEO when Verified reports are unassigned > 24h.
 /// Runs hourly. Idempotent — only flags/notifies once per report.
 /// </summary>
+/// <remarks>Implements: BR-REP-008, BR-REP-009, BR-NTF-002.</remarks>
 [AutomaticRetry(Attempts = 2)]
 internal sealed class OverdueReportNotificationJob(
     ApplicationDbContext db,
+    INotificationService notificationService,
     ILogger<OverdueReportNotificationJob> logger)
 {
     private const int BatchSize = 200;
@@ -31,9 +34,6 @@ internal sealed class OverdueReportNotificationJob(
             overdueCount, unassignedCount);
     }
 
-    /// <summary>
-    /// BR-REP-008: Reports at Submitted/Verified for > 72h → set IsOverdue + notify.
-    /// </summary>
     private async Task<int> ProcessOverdueReportsAsync()
     {
         var cutoff = DateTime.UtcNow.AddHours(-72);
@@ -51,23 +51,22 @@ internal sealed class OverdueReportNotificationJob(
             return 0;
 
         foreach (var report in reports)
-        {
             report.MarkOverdue();
 
-            // Notify the assigned LEO or DEO
-            var recipientId = await ResolveOfficerIdAsync(report).ConfigureAwait(false);
-            if (recipientId.HasValue)
-            {
-                db.Notifications.Add(Notification.Create(
-                    recipientId.Value,
-                    NotificationType.ReportOverdue,
-                    "Báo cáo tồn đọng quá 72 giờ",
-                    $"Báo cáo {report.Code} đã chờ xử lý hơn 72 giờ. Vui lòng kiểm tra.",
-                    referenceId: report.Id));
-            }
-        }
-
         await db.SaveChangesAsync().ConfigureAwait(false);
+
+        foreach (var report in reports)
+        {
+            var recipientId = await ResolveOfficerIdAsync(report).ConfigureAwait(false);
+            if (!recipientId.HasValue)
+                continue;
+
+            await notificationService.SendFromTemplateAsync(
+                recipientId.Value,
+                NotificationType.ReportOverdue,
+                JobNotificationPlaceholders.ForReport(report.Code),
+                report.Id).ConfigureAwait(false);
+        }
 
         logger.LogWarning(
             "OverdueReportNotificationJob: Flagged {Count} reports as overdue (BR-REP-008)",
@@ -76,9 +75,6 @@ internal sealed class OverdueReportNotificationJob(
         return reports.Count;
     }
 
-    /// <summary>
-    /// BR-REP-009: Verified reports with no team assignment > 24h → notify LEO.
-    /// </summary>
     private async Task<int> ProcessUnassignedReportsAsync()
     {
         var cutoff = DateTime.UtcNow.AddHours(-24);
@@ -96,9 +92,9 @@ internal sealed class OverdueReportNotificationJob(
         if (reports.Count == 0)
             return 0;
 
-        // Deduplicate: skip reports that already got this notification in the last 24h
         var reportIds = reports.Select(r => r.Id).ToList();
         var recentlyNotified = await db.Notifications
+            .AsNoTracking()
             .Where(n => reportIds.Contains(n.ReferenceId!.Value)
                         && n.Type == NotificationType.ReportUnassigned
                         && n.CreatedAt >= cutoff)
@@ -116,21 +112,19 @@ internal sealed class OverdueReportNotificationJob(
                 continue;
 
             var recipientId = await ResolveOfficerIdAsync(report).ConfigureAwait(false);
-            if (recipientId.HasValue)
-            {
-                db.Notifications.Add(Notification.Create(
-                    recipientId.Value,
-                    NotificationType.ReportUnassigned,
-                    "Báo cáo chưa phân công quá 24 giờ",
-                    $"Báo cáo {report.Code} đã xác minh nhưng chưa gán đội xử lý sau 24 giờ.",
-                    referenceId: report.Id));
-                notified++;
-            }
+            if (!recipientId.HasValue)
+                continue;
+
+            await notificationService.SendFromTemplateAsync(
+                recipientId.Value,
+                NotificationType.ReportUnassigned,
+                JobNotificationPlaceholders.ForReport(report.Code),
+                report.Id).ConfigureAwait(false);
+            notified++;
         }
 
         if (notified > 0)
         {
-            await db.SaveChangesAsync().ConfigureAwait(false);
             logger.LogWarning(
                 "OverdueReportNotificationJob: Notified {Count} unassigned reports (BR-REP-009)",
                 notified);
@@ -139,16 +133,12 @@ internal sealed class OverdueReportNotificationJob(
         return notified;
     }
 
-    /// <summary>
-    /// Resolve the LEO or DEO responsible for a report.
-    /// Prefers LEO (LocalOffice head) → falls back to DEO (Department head).
-    /// </summary>
     private async Task<Guid?> ResolveOfficerIdAsync(Report report)
     {
-        // Try LEO: find any staff member in the assigned LocalOffice
         if (report.AssignedOfficeId.HasValue)
         {
             var leoId = await db.Users
+                .AsNoTracking()
                 .Where(u => u.LocalOfficeId == report.AssignedOfficeId && !u.IsBanned)
                 .Select(u => u.Id)
                 .FirstOrDefaultAsync()
@@ -158,10 +148,10 @@ internal sealed class OverdueReportNotificationJob(
                 return leoId;
         }
 
-        // Fallback to DEO: find any staff in the assigned Department
         if (report.AssignedDepartmentId.HasValue)
         {
             var deoId = await db.Users
+                .AsNoTracking()
                 .Where(u => u.DepartmentId == report.AssignedDepartmentId && !u.IsBanned)
                 .Select(u => u.Id)
                 .FirstOrDefaultAsync()

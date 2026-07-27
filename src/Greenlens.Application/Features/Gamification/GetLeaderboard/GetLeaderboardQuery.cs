@@ -1,4 +1,5 @@
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Gamification;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -11,13 +12,17 @@ namespace Greenlens.Application.Features.Gamification.GetLeaderboard;
 /// </summary>
 /// <remarks>Implements: BR-GAM-005.</remarks>
 public sealed record GetLeaderboardQuery(
-    LeaderboardPeriod Period = LeaderboardPeriod.Monthly,
-    int Top = 10) : IRequest<Result<LeaderboardResponse>>;
+    LeaderboardPeriod Period = LeaderboardPeriod.AllTime,
+    int Top = 10,
+    int? Year = null,
+    int? Month = null) : IRequest<Result<LeaderboardResponse>>;
 
 public sealed record LeaderboardResponse(
     LeaderboardPeriod Period,
-    DateTime PeriodStart,
-    DateTime PeriodEnd,
+    int? Year,
+    int? Month,
+    DateTime? PeriodStart,
+    DateTime? PeriodEnd,
     IReadOnlyList<LeaderboardEntry> Entries);
 
 public sealed record LeaderboardEntry(
@@ -35,9 +40,44 @@ public sealed class GetLeaderboardQueryHandler(
     public async Task<Result<LeaderboardResponse>> Handle(
         GetLeaderboardQuery request, CancellationToken ct)
     {
-        var (periodStart, periodEnd) = GetPeriodRange(request.Period);
+        if (request.Period == LeaderboardPeriod.AllTime)
+        {
+            var allTimeEntries = await userPointsRepo.QueryAsNoTracking()
+                .Where(up => !up.IsLocked && up.TotalPoints > 0)
+                .OrderByDescending(up => up.TotalPoints)
+                .Take(request.Top)
+                .Select(up => new
+                {
+                    up.UserId,
+                    up.User!.FullName,
+                    up.User.AvatarUrl,
+                    up.TotalPoints
+                })
+                .ToListAsync(ct)
+                .ConfigureAwait(false);
 
-        // Query: sum points in period, only unlocked users, ranked
+            var allTimeRanked = allTimeEntries.Select((e, i) => new LeaderboardEntry(
+                Rank: i + 1,
+                e.UserId,
+                e.FullName,
+                e.AvatarUrl,
+                e.TotalPoints,
+                GamificationHelpers.CalculateLevel(e.TotalPoints))).ToList();
+
+            return new LeaderboardResponse(
+                LeaderboardPeriod.AllTime,
+                Year: null,
+                Month: null,
+                PeriodStart: null,
+                PeriodEnd: null,
+                allTimeRanked);
+        }
+
+        var (periodStart, periodEnd, year, month) = GamificationHelpers.GetPeriodRange(
+            request.Period,
+            request.Year,
+            request.Month);
+
         var entries = await userPointsRepo.QueryAsNoTracking()
             .Where(up => !up.IsLocked)
             .Select(up => new
@@ -62,33 +102,8 @@ public sealed class GetLeaderboardQueryHandler(
             e.FullName,
             e.AvatarUrl,
             e.PeriodPoints,
-            Level: e.TotalPoints switch
-            {
-                >= 5000 => 5,
-                >= 1500 => 4,
-                >= 500 => 3,
-                >= 100 => 2,
-                _ => 1
-            })).ToList();
+            GamificationHelpers.CalculateLevel(e.TotalPoints))).ToList();
 
-        return new LeaderboardResponse(request.Period, periodStart, periodEnd, ranked);
-    }
-
-    private static (DateTime Start, DateTime End) GetPeriodRange(LeaderboardPeriod period)
-    {
-        var now = DateTime.UtcNow;
-        return period switch
-        {
-            LeaderboardPeriod.Weekly => (
-                now.AddDays(-(int)now.DayOfWeek).Date,
-                now.AddDays(7 - (int)now.DayOfWeek).Date),
-            LeaderboardPeriod.Monthly => (
-                new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc),
-                new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc).AddMonths(1)),
-            LeaderboardPeriod.Yearly => (
-                new DateTime(now.Year, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-                new DateTime(now.Year + 1, 1, 1, 0, 0, 0, DateTimeKind.Utc)),
-            _ => throw new ArgumentOutOfRangeException(nameof(period))
-        };
+        return new LeaderboardResponse(request.Period, year, month, periodStart, periodEnd, ranked);
     }
 }

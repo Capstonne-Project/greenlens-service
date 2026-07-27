@@ -1,3 +1,4 @@
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using Greenlens.Infrastructure.Persistence;
@@ -13,9 +14,11 @@ namespace Greenlens.Infrastructure.BackgroundJobs;
 /// Runs hourly. Processes in batches of 100 to avoid long transactions.
 /// Creates ReportStatusHistory records and notifies report owner.
 /// </summary>
+/// <remarks>Implements: BR-REP-016, BR-REP-025, BR-NTF-002.</remarks>
 [AutomaticRetry(Attempts = 2)]
 internal sealed class AutoCloseResolvedReportJob(
     ApplicationDbContext db,
+    INotificationService notificationService,
     ILogger<AutoCloseResolvedReportJob> logger)
 {
     private const int BatchSize = 100;
@@ -43,30 +46,35 @@ internal sealed class AutoCloseResolvedReportJob(
             if (reports.Count == 0)
                 break;
 
+            var notifyRecipients = new List<(Guid UserId, Guid ReportId, string ReportCode)>();
+
             foreach (var report in reports)
             {
                 report.Close();
 
-                // Record status history for audit trail
                 db.ReportStatusHistory.Add(ReportStatusHistory.Create(
                     report.Id,
                     ReportStatus.Resolved,
                     ReportStatus.Closed,
-                    changedBy: null)); // System auto-close
+                    changedBy: null));
 
-                // BR-REP-016: Notify citizen that report was auto-closed
                 if (report.ReporterId.HasValue)
                 {
-                    db.Notifications.Add(Notification.Create(
-                        report.ReporterId.Value,
-                        NotificationType.ReportAutoClosed,
-                        "Báo cáo đã tự động đóng",
-                        $"Báo cáo {report.Code} đã được tự động đóng sau 7 ngày không có phản hồi.",
-                        referenceId: report.Id));
+                    notifyRecipients.Add((report.ReporterId.Value, report.Id, report.Code));
                 }
             }
 
             await db.SaveChangesAsync().ConfigureAwait(false);
+
+            foreach (var (userId, reportId, reportCode) in notifyRecipients)
+            {
+                await notificationService.SendFromTemplateAsync(
+                    userId,
+                    NotificationType.ReportAutoClosed,
+                    JobNotificationPlaceholders.ForReport(reportCode),
+                    reportId).ConfigureAwait(false);
+            }
+
             totalClosed += reports.Count;
 
             logger.LogInformation(

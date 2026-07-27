@@ -1,6 +1,7 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Notifications;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
@@ -84,11 +85,10 @@ public sealed class ApproveReopenRequestCommandHandler(
 
         if (report.ReporterId.HasValue)
         {
-            await notifications.SendRawAsync(
+            await notifications.SendFromTemplateAsync(
                 report.ReporterId.Value,
                 NotificationType.ReopenRequestDecided,
-                "Yêu cầu mở lại đã được chấp nhận",
-                $"LEO đã chấp nhận yêu cầu mở lại báo cáo {report.Code}. Báo cáo sẽ được phân công dọn dẹp lại.",
+                NotificationPlaceholders.ForReopenDecided(report.Code, approved: true),
                 report.Id,
                 ct).ConfigureAwait(false);
         }

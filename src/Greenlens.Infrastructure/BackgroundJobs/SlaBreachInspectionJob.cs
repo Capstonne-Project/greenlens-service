@@ -1,4 +1,4 @@
-using Greenlens.Domain.Entities;
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Domain.Enums;
 using Greenlens.Infrastructure.Persistence;
 using Hangfire;
@@ -12,9 +12,11 @@ namespace Greenlens.Infrastructure.BackgroundJobs;
 /// SLA deadline. Runs every 30 minutes.
 /// SLA durations: Critical=3d, High=5d, Medium=7d, Low=10d (from creation).
 /// </summary>
+/// <remarks>Implements: BR-INS-030, BR-NTF-002.</remarks>
 [AutomaticRetry(Attempts = 2)]
 internal sealed class SlaBreachInspectionJob(
     ApplicationDbContext db,
+    INotificationService notificationService,
     ILogger<SlaBreachInspectionJob> logger)
 {
     public async Task ExecuteAsync()
@@ -40,21 +42,20 @@ internal sealed class SlaBreachInspectionJob(
         }
 
         foreach (var inspection in breachedInspections)
-        {
             inspection.MarkSlaInspectionBreached();
 
+        await db.SaveChangesAsync().ConfigureAwait(false);
+
+        foreach (var inspection in breachedInspections)
+        {
             var reportCode = inspection.Report?.Code ?? "liên quan";
 
-            // Notify LEO who created this inspection
-            db.Notifications.Add(Notification.Create(
+            await notificationService.SendFromTemplateAsync(
                 inspection.CreatedByOfficerId,
-                NotificationType.SlaBreachWarning,
-                "Vượt SLA xử phạt",
-                $"Hồ sơ xử phạt liên quan báo cáo {reportCode} đã vượt SLA. Vui lòng kiểm tra.",
-                referenceId: inspection.ReportId));
+                NotificationType.SlaInspectionBreached,
+                JobNotificationPlaceholders.ForReport(reportCode),
+                inspection.ReportId).ConfigureAwait(false);
         }
-
-        await db.SaveChangesAsync().ConfigureAwait(false);
 
         logger.LogWarning(
             "SlaBreachInspectionJob: Flagged {Count} inspections with SLA breach",

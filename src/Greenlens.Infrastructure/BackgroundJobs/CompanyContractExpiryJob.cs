@@ -16,11 +16,13 @@ namespace Greenlens.Infrastructure.BackgroundJobs;
 /// Subsidiary companies (vô thời hạn) are skipped entirely.
 /// Runs at 2:00 AM UTC daily.
 /// </summary>
+/// <remarks>Implements: BR-CMP-007, BR-CMP-013, BR-NTF-002.</remarks>
 [AutomaticRetry(Attempts = 2)]
 internal sealed class CompanyContractExpiryJob(
     ApplicationDbContext db,
     IEnvironmentalServiceCompanyRepository companies,
     ICompanyCascadeService cascadeService,
+    INotificationService notificationService,
     ILogger<CompanyContractExpiryJob> logger)
 {
     public async Task ExecuteAsync()
@@ -29,7 +31,6 @@ internal sealed class CompanyContractExpiryJob(
 
         var today = DateTime.UtcNow.Date;
 
-        // ── Step 1: Auto-expire past-due Bidding companies ──
         var expiredCompanies = await companies
             .GetBiddingExpiredAsync(today, CancellationToken.None)
             .ConfigureAwait(false);
@@ -38,14 +39,13 @@ internal sealed class CompanyContractExpiryJob(
         {
             company.Expire();
 
-            // BR-CMP-013: cascade — decline tasks, revert reports, notify LEO
             await cascadeService.CascadeDeactivationAsync(
                 company.Id,
                 "Hợp đồng hết hạn (auto-expire)",
                 CancellationToken.None).ConfigureAwait(false);
 
-            // Notify CM
             var cmId = await db.CompanyStaff
+                .AsNoTracking()
                 .Where(cs => cs.CompanyId == company.Id)
                 .Join(db.Users, cs => cs.UserId, u => u.Id, (cs, u) => new { cs, u })
                 .Where(x => x.u.Role == UserRole.CompanyManager)
@@ -55,20 +55,19 @@ internal sealed class CompanyContractExpiryJob(
 
             if (cmId != Guid.Empty)
             {
-                db.Notifications.Add(Notification.Create(
+                await notificationService.SendFromTemplateAsync(
                     cmId,
-                    NotificationType.ContractExpiry,
-                    "Hợp đồng đã hết hạn",
-                    $"Hợp đồng công ty {company.Name} ({company.ContractNumber}) đã hết hạn. " +
-                    "Tài khoản công ty đã bị vô hiệu hóa.",
-                    referenceId: company.Id));
+                    NotificationType.ContractExpired,
+                    JobNotificationPlaceholders.ForContractExpired(
+                        company.Name,
+                        company.ContractNumber ?? "N/A"),
+                    company.Id).ConfigureAwait(false);
             }
 
             logger.LogWarning("CompanyContractExpiryJob: Expired company {CompanyId} ({Name})",
                 company.Id, company.Name);
         }
 
-        // ── Step 2: Send warnings at 30 / 7 / 1 day(s) before expiry ──
         int[] warningDays = [30, 7, 1];
         foreach (var days in warningDays)
         {
@@ -81,15 +80,12 @@ internal sealed class CompanyContractExpiryJob(
 
             foreach (var company in warningCompanies)
             {
-                // Idempotency: skip if already warned today
                 if (company.LastExpiryWarningAt.HasValue
                     && company.LastExpiryWarningAt.Value.Date == today)
                     continue;
 
                 await SendExpiryWarningAsync(company, days).ConfigureAwait(false);
 
-                // Track on entity loaded in separate query for warnings (read-only)
-                // Mark via direct update to avoid tracking issues
                 await db.Database.ExecuteSqlRawAsync(
                     "UPDATE environmental_service_companies SET last_expiry_warning_at = {0}, updated_at = {0} WHERE id = {1}",
                     DateTime.UtcNow, company.Id).ConfigureAwait(false);
@@ -105,16 +101,14 @@ internal sealed class CompanyContractExpiryJob(
 
     private async Task SendExpiryWarningAsync(EnvironmentalServiceCompany company, int daysLeft)
     {
-        var message = daysLeft switch
-        {
-            30 => $"Hợp đồng công ty {company.Name} sẽ hết hạn trong 30 ngày ({company.ContractEndDate:dd/MM/yyyy}).",
-            7 => $"⚠️ Hợp đồng công ty {company.Name} sẽ hết hạn trong 7 ngày ({company.ContractEndDate:dd/MM/yyyy}).",
-            1 => $"🚨 Hợp đồng công ty {company.Name} sẽ hết hạn NGÀY MAI ({company.ContractEndDate:dd/MM/yyyy})!",
-            _ => $"Hợp đồng công ty {company.Name} sẽ hết hạn trong {daysLeft} ngày."
-        };
+        var endDate = company.ContractEndDate?.ToString("dd/MM/yyyy") ?? "N/A";
+        var placeholders = JobNotificationPlaceholders.ForContractExpiryWarning(
+            company.Name,
+            daysLeft,
+            endDate);
 
-        // Notify DEO (department-level officer)
         var deoId = await db.Users
+            .AsNoTracking()
             .Where(u => u.DepartmentId == company.DepartmentId && u.Role == UserRole.DEO && !u.IsBanned)
             .Select(u => u.Id)
             .FirstOrDefaultAsync()
@@ -122,16 +116,15 @@ internal sealed class CompanyContractExpiryJob(
 
         if (deoId != Guid.Empty)
         {
-            db.Notifications.Add(Notification.Create(
+            await notificationService.SendFromTemplateAsync(
                 deoId,
-                NotificationType.ContractExpiry,
-                $"Hợp đồng sắp hết hạn ({daysLeft} ngày)",
-                message,
-                referenceId: company.Id));
+                NotificationType.ContractExpiryWarning,
+                placeholders,
+                company.Id).ConfigureAwait(false);
         }
 
-        // Notify CM
         var cmId = await db.CompanyStaff
+            .AsNoTracking()
             .Where(cs => cs.CompanyId == company.Id)
             .Join(db.Users, cs => cs.UserId, u => u.Id, (cs, u) => new { cs, u })
             .Where(x => x.u.Role == UserRole.CompanyManager)
@@ -141,12 +134,11 @@ internal sealed class CompanyContractExpiryJob(
 
         if (cmId != Guid.Empty)
         {
-            db.Notifications.Add(Notification.Create(
+            await notificationService.SendFromTemplateAsync(
                 cmId,
-                NotificationType.ContractExpiry,
-                $"Hợp đồng sắp hết hạn ({daysLeft} ngày)",
-                message,
-                referenceId: company.Id));
+                NotificationType.ContractExpiryWarning,
+                placeholders,
+                company.Id).ConfigureAwait(false);
         }
 
         logger.LogInformation(

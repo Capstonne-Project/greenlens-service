@@ -1,6 +1,7 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Notifications;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
@@ -24,6 +25,7 @@ public sealed class RequestReopenReportCommandHandler(
     IApplicationDbContext db,
     IFileStorageService fileStorage,
     INotificationService notifications,
+    IOfficerRecipientQuery officerRecipients,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     ILogger<RequestReopenReportCommandHandler> logger) : IRequestHandler<RequestReopenReportCommand, Result<Guid>>
@@ -151,22 +153,18 @@ public sealed class RequestReopenReportCommandHandler(
             return;
         }
 
-        var reviewerIds = await db.Set<User>()
-            .AsNoTracking()
-            .Where(u => u.Role == UserRole.LEO
-                        && u.LocalOfficeId == report.AssignedOfficeId
-                        && !u.IsBanned)
-            .Select(u => u.Id)
-            .ToListAsync(ct)
+        var reviewerIds = await officerRecipients
+            .GetLeoIdsByOfficeAsync(report.AssignedOfficeId.Value, ct)
             .ConfigureAwait(false);
+
+        var placeholders = NotificationPlaceholders.ForReopenReview(report.Code);
 
         foreach (var reviewerId in reviewerIds)
         {
-            await notifications.SendRawAsync(
+            await notifications.SendFromTemplateAsync(
                 reviewerId,
                 NotificationType.ReopenReviewNeeded,
-                "Yêu cầu mở lại báo cáo",
-                $"Citizen yêu cầu mở lại báo cáo {report.Code}. Vui lòng xem lý do và ảnh minh chứng.",
+                placeholders,
                 report.Id,
                 ct).ConfigureAwait(false);
         }
