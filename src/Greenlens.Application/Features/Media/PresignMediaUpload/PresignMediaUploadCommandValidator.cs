@@ -21,8 +21,10 @@ public sealed class PresignMediaUploadCommandValidator : AbstractValidator<Presi
 
         RuleFor(x => x.ReportId)
             .NotEmpty()
-            .When(x => x.Purpose is MediaUploadPurpose.Before or MediaUploadPurpose.Progress)
-            .WithMessage("ReportId is required for Before/Progress uploads.");
+            .When(x => x.Purpose is MediaUploadPurpose.Before
+                or MediaUploadPurpose.Progress
+                or MediaUploadPurpose.ReopenEvidence)
+            .WithMessage("ReportId is required for Before/Progress/ReopenEvidence uploads.");
 
         RuleFor(x => x.FileSizeBytes)
             .GreaterThan(0)

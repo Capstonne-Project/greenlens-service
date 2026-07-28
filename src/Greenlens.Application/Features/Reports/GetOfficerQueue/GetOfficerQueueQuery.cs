@@ -18,6 +18,7 @@ public sealed record GetOfficerQueueQuery(
     DateTime? ToDate = null,
     bool? SlaBreached = null,
     bool? IsPossibleDuplicate = null,
+    bool? HasPendingReopenRequest = null,
     // ── Search ──
     string? Search = null,
     // ── Sort ──

@@ -1,4 +1,4 @@
-using Greenlens.Domain.Entities;
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Domain.Enums;
 using Greenlens.Infrastructure.Persistence;
 using Hangfire;
@@ -12,9 +12,11 @@ namespace Greenlens.Infrastructure.BackgroundJobs;
 /// without LEO verification. SLA breach triggers escalation + notification.
 /// Runs every 15 minutes.
 /// </summary>
+/// <remarks>Implements: BR-OFF-002, BR-ORG-014, BR-NTF-002.</remarks>
 [AutomaticRetry(Attempts = 2)]
 internal sealed class SlaBreachVerificationJob(
     ApplicationDbContext db,
+    INotificationService notificationService,
     ILogger<SlaBreachVerificationJob> logger)
 {
     public async Task ExecuteAsync()
@@ -40,14 +42,19 @@ internal sealed class SlaBreachVerificationJob(
         foreach (var report in breachedReports)
         {
             report.MarkSlaVerifyBreached();
-
-            // BR-ORG-014: Escalate to Department queue — DEO takes over
             report.EscalateToDepartment();
+        }
 
-            // BR-OFF-002: Notify LEO (if assigned)
+        await db.SaveChangesAsync().ConfigureAwait(false);
+
+        foreach (var report in breachedReports)
+        {
+            var placeholders = JobNotificationPlaceholders.ForReport(report.Code);
+
             if (report.AssignedOfficeId.HasValue)
             {
                 var leoId = await db.Users
+                    .AsNoTracking()
                     .Where(u => u.LocalOfficeId == report.AssignedOfficeId && !u.IsBanned)
                     .Select(u => u.Id)
                     .FirstOrDefaultAsync()
@@ -55,19 +62,18 @@ internal sealed class SlaBreachVerificationJob(
 
                 if (leoId != Guid.Empty)
                 {
-                    db.Notifications.Add(Notification.Create(
+                    await notificationService.SendFromTemplateAsync(
                         leoId,
-                        NotificationType.SlaBreachWarning,
-                        "Vượt SLA xác minh",
-                        $"Báo cáo {report.Code} đã vượt SLA xác minh 24h và được chuyển lên cấp trên.",
-                        referenceId: report.Id));
+                        NotificationType.SlaVerificationBreachedLeo,
+                        placeholders,
+                        report.Id).ConfigureAwait(false);
                 }
             }
 
-            // BR-OFF-002: Notify DEO (escalation target)
             if (report.AssignedDepartmentId.HasValue)
             {
                 var deoId = await db.Users
+                    .AsNoTracking()
                     .Where(u => u.DepartmentId == report.AssignedDepartmentId && !u.IsBanned)
                     .Select(u => u.Id)
                     .FirstOrDefaultAsync()
@@ -75,17 +81,14 @@ internal sealed class SlaBreachVerificationJob(
 
                 if (deoId != Guid.Empty)
                 {
-                    db.Notifications.Add(Notification.Create(
+                    await notificationService.SendFromTemplateAsync(
                         deoId,
-                        NotificationType.SlaBreachWarning,
-                        "Tiếp nhận báo cáo escalated",
-                        $"Báo cáo {report.Code} vượt SLA xác minh — đã chuyển vào hàng đợi của bạn.",
-                        referenceId: report.Id));
+                        NotificationType.SlaVerificationEscalatedDeo,
+                        placeholders,
+                        report.Id).ConfigureAwait(false);
                 }
             }
         }
-
-        await db.SaveChangesAsync().ConfigureAwait(false);
 
         logger.LogWarning(
             "SlaBreachVerificationJob: Flagged {Count} reports with SLA verification breach",

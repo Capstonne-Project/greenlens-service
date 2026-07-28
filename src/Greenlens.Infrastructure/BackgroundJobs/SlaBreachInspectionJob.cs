@@ -1,4 +1,4 @@
-using Greenlens.Domain.Entities;
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Domain.Enums;
 using Greenlens.Infrastructure.Persistence;
 using Hangfire;
@@ -12,9 +12,11 @@ namespace Greenlens.Infrastructure.BackgroundJobs;
 /// SLA deadline. Runs every 30 minutes.
 /// SLA durations: Critical=3d, High=5d, Medium=7d, Low=10d (from creation).
 /// </summary>
+/// <remarks>Implements: BR-INS-030, BR-NTF-002.</remarks>
 [AutomaticRetry(Attempts = 2)]
 internal sealed class SlaBreachInspectionJob(
     ApplicationDbContext db,
+    INotificationService notificationService,
     ILogger<SlaBreachInspectionJob> logger)
 {
     public async Task ExecuteAsync()
@@ -24,6 +26,7 @@ internal sealed class SlaBreachInspectionJob(
         var now = DateTime.UtcNow;
 
         var breachedInspections = await db.InspectionReports
+            .Include(ir => ir.Report)
             .Where(ir => ir.Status == InspectionStatus.Draft
                       || ir.Status == InspectionStatus.InProgress)
             .Where(ir => ir.SlaInspectionDueAt != null
@@ -39,19 +42,20 @@ internal sealed class SlaBreachInspectionJob(
         }
 
         foreach (var inspection in breachedInspections)
-        {
             inspection.MarkSlaInspectionBreached();
 
-            // Notify LEO who created this inspection
-            db.Notifications.Add(Notification.Create(
-                inspection.CreatedByOfficerId,
-                NotificationType.SlaBreachWarning,
-                "Vượt SLA xử phạt",
-                $"Hồ sơ xử phạt {inspection.Id} đã vượt SLA. Vui lòng kiểm tra.",
-                referenceId: inspection.Id));
-        }
-
         await db.SaveChangesAsync().ConfigureAwait(false);
+
+        foreach (var inspection in breachedInspections)
+        {
+            var reportCode = inspection.Report?.Code ?? "liên quan";
+
+            await notificationService.SendFromTemplateAsync(
+                inspection.CreatedByOfficerId,
+                NotificationType.SlaInspectionBreached,
+                JobNotificationPlaceholders.ForReport(reportCode),
+                inspection.ReportId).ConfigureAwait(false);
+        }
 
         logger.LogWarning(
             "SlaBreachInspectionJob: Flagged {Count} inspections with SLA breach",

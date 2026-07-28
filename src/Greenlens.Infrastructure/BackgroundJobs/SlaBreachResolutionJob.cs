@@ -1,4 +1,4 @@
-using Greenlens.Domain.Entities;
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Domain.Enums;
 using Greenlens.Infrastructure.Persistence;
 using Hangfire;
@@ -12,9 +12,11 @@ namespace Greenlens.Infrastructure.BackgroundJobs;
 /// resolution SLA deadline. SLA durations: Critical=3d, High=5d, Medium=7d, Low=10d.
 /// Runs every 30 minutes.
 /// </summary>
+/// <remarks>Implements: BR-OFF-020, BR-NTF-002.</remarks>
 [AutomaticRetry(Attempts = 2)]
 internal sealed class SlaBreachResolutionJob(
     ApplicationDbContext db,
+    INotificationService notificationService,
     ILogger<SlaBreachResolutionJob> logger)
 {
     public async Task ExecuteAsync()
@@ -38,31 +40,33 @@ internal sealed class SlaBreachResolutionJob(
         }
 
         foreach (var report in breachedReports)
-        {
             report.MarkSlaResolveBreached();
 
-            // BR-OFF-020: Notify LEO
-            if (report.AssignedOfficeId.HasValue)
-            {
-                var leoId = await db.Users
-                    .Where(u => u.LocalOfficeId == report.AssignedOfficeId && !u.IsBanned)
-                    .Select(u => u.Id)
-                    .FirstOrDefaultAsync()
-                    .ConfigureAwait(false);
-
-                if (leoId != Guid.Empty)
-                {
-                    db.Notifications.Add(Notification.Create(
-                        leoId,
-                        NotificationType.SlaBreachWarning,
-                        "Vượt SLA xử lý",
-                        $"Báo cáo {report.Code} ({report.Severity}) đã vượt SLA xử lý. Vui lòng kiểm tra.",
-                        referenceId: report.Id));
-                }
-            }
-        }
-
         await db.SaveChangesAsync().ConfigureAwait(false);
+
+        foreach (var report in breachedReports)
+        {
+            if (!report.AssignedOfficeId.HasValue)
+                continue;
+
+            var leoId = await db.Users
+                .AsNoTracking()
+                .Where(u => u.LocalOfficeId == report.AssignedOfficeId && !u.IsBanned)
+                .Select(u => u.Id)
+                .FirstOrDefaultAsync()
+                .ConfigureAwait(false);
+
+            if (leoId == Guid.Empty)
+                continue;
+
+            await notificationService.SendFromTemplateAsync(
+                leoId,
+                NotificationType.SlaResolutionBreached,
+                JobNotificationPlaceholders.ForReportWithSeverity(
+                    report.Code,
+                    report.Severity.ToString()),
+                report.Id).ConfigureAwait(false);
+        }
 
         logger.LogWarning(
             "SlaBreachResolutionJob: Flagged {Count} reports with SLA resolution breach",

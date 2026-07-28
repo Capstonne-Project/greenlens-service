@@ -55,6 +55,9 @@ public static class PostgresUniqueViolationMapper
         if (Contains(message, "ix_report_satisfactions_report_id_user_id", "report_satisfactions"))
             return Errors.Reports.AlreadyRated;
 
+        if (Contains(message, "ix_report_reopen_requests_report_id", "report_reopen_requests"))
+            return Errors.Reports.PendingReopenRequestExists;
+
         return null;
     }
 

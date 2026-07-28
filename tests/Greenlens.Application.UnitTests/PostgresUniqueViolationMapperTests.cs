@@ -27,6 +27,17 @@ public sealed class PostgresUniqueViolationMapperTests
     }
 
     [Fact]
+    public void TryMap_PendingReopenRequestIndex_ReturnsPendingReopenRequestExists_BR_REP_015()
+    {
+        var ex = new Exception("duplicate key value violates unique constraint \"ix_report_reopen_requests_report_id\"");
+
+        var error = PostgresUniqueViolationMapper.TryMap(ex);
+
+        Assert.NotNull(error);
+        Assert.Equal("PENDING_REOPEN_REQUEST_EXISTS", error!.Code);
+    }
+
+    [Fact]
     public void TryMap_NonUniqueError_ReturnsNull()
     {
         var ex = new Exception("connection timeout");

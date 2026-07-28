@@ -15,6 +15,7 @@ using Greenlens.Infrastructure.Persistence.Repositories.Location;
 using Greenlens.Infrastructure.BackgroundJobs;
 using Greenlens.Infrastructure.DomainEvents;
 using Greenlens.Infrastructure.Moderation;
+using Greenlens.Application.Features.Notifications;
 using Greenlens.Infrastructure.Notifications;
 using Greenlens.Infrastructure.Services;
 using Hangfire;
@@ -120,6 +121,10 @@ public static class DependencyInjection
         // ── Notifications (BR-NTF-001..004) ───────────────
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<IPushNotificationSender, FcmPushNotificationSender>();
+        services.AddScoped<IOfficerRecipientQuery, OfficerRecipientQuery>();
+        services.AddScoped<ITeamMemberRecipientQuery, TeamMemberRecipientQuery>();
+        services.AddScoped<ICleanupTaskAssignedNotifier, CleanupTaskAssignedNotifier>();
+        services.AddScoped<ICompanyManagerRecipientQuery, CompanyManagerRecipientQuery>();
 
         // ── Firebase Phone Auth ──────────────────────────
         services.AddScoped<IFirebasePhoneAuthService, FirebasePhoneAuthService>();
@@ -135,6 +140,7 @@ public static class DependencyInjection
 
         // ── Geo / PostGIS (BR-CLN-002, BR-INS-004) ──
         services.AddScoped<IGeoDistanceService, Geo.PostGisDistanceService>();
+        services.AddScoped<INearbyCitizenQuery, Geo.NearbyCitizenQuery>();
 
         // ── AI Classification ─────────────────────────
         services.AddOptions<AiOptions>()

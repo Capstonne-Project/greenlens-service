@@ -13,6 +13,96 @@ namespace Greenlens.Application.Features.Notifications.EventHandlers;
 /// Decoupled — zero changes to existing Report handlers.
 /// </summary>
 /// <remarks>Implements: BR-NTF-002 (report status change triggers notification).</remarks>
+internal sealed class ReportSubmittedNotificationHandler(
+    INotificationService notificationService,
+    IReportRepository reports,
+    IApplicationDbContext db,
+    ILogger<ReportSubmittedNotificationHandler> logger)
+    : INotificationHandler<ReportSubmittedEvent>
+{
+    public async Task Handle(ReportSubmittedEvent notification, CancellationToken ct)
+    {
+        var report = await reports.QueryAsNoTracking()
+            .Where(r => r.Id == notification.ReportId)
+            .Select(r => new
+            {
+                r.Id,
+                r.Code,
+                r.AssignedOfficeId,
+                r.AssignedDepartmentId
+            })
+            .FirstOrDefaultAsync(ct)
+            .ConfigureAwait(false);
+
+        if (report is null)
+        {
+            logger.LogWarning("ReportSubmitted notification skipped: report {ReportId} not found",
+                notification.ReportId);
+            return;
+        }
+
+        var recipientIds = await ResolveVerifierIdsAsync(
+                report.AssignedOfficeId,
+                report.AssignedDepartmentId,
+                ct)
+            .ConfigureAwait(false);
+
+        if (recipientIds.Count == 0)
+        {
+            logger.LogWarning(
+                "ReportSubmitted notification skipped: no LEO/DEO for report {ReportCode}",
+                report.Code);
+            return;
+        }
+
+        foreach (var recipientId in recipientIds)
+        {
+            await notificationService.SendFromTemplateAsync(
+                recipientId,
+                NotificationType.ReportVerificationNeeded,
+                new Dictionary<string, string> { ["report_code"] = report.Code },
+                report.Id,
+                ct).ConfigureAwait(false);
+        }
+
+        logger.LogInformation(
+            "Notified {Count} officer(s) about new report {ReportCode} awaiting verification",
+            recipientIds.Count, report.Code);
+    }
+
+    private async Task<List<Guid>> ResolveVerifierIdsAsync(
+        Guid? assignedOfficeId,
+        Guid? assignedDepartmentId,
+        CancellationToken ct)
+    {
+        if (assignedOfficeId.HasValue)
+        {
+            return await db.Set<User>()
+                .AsNoTracking()
+                .Where(u => u.Role == UserRole.LEO
+                            && u.LocalOfficeId == assignedOfficeId
+                            && !u.IsBanned)
+                .Select(u => u.Id)
+                .ToListAsync(ct)
+                .ConfigureAwait(false);
+        }
+
+        if (assignedDepartmentId.HasValue)
+        {
+            return await db.Set<User>()
+                .AsNoTracking()
+                .Where(u => u.Role == UserRole.DEO
+                            && u.DepartmentId == assignedDepartmentId
+                            && !u.IsBanned)
+                .Select(u => u.Id)
+                .ToListAsync(ct)
+                .ConfigureAwait(false);
+        }
+
+        return [];
+    }
+}
+
 internal sealed class ReportVerifiedNotificationHandler(
     INotificationService notificationService,
     IReportRepository reports,
@@ -26,7 +116,7 @@ internal sealed class ReportVerifiedNotificationHandler(
         logger.LogDebug("Notification: Report {ReportId} verified → notify reporter {UserId}",
             notification.ReportId, notification.ReporterId);
 
-        var categoryName = await ResolveCategoryNameAsync(reports, notification.ReportId, ct)
+        var reportCode = await ResolveReportCodeAsync(reports, notification.ReportId, ct)
             .ConfigureAwait(false);
 
         await notificationService.SendFromTemplateAsync(
@@ -34,23 +124,23 @@ internal sealed class ReportVerifiedNotificationHandler(
             NotificationType.ReportStatusChanged,
             new Dictionary<string, string>
             {
-                ["report_id"] = categoryName,
+                ["report_code"] = reportCode,
                 ["status"] = "Verified"
             },
             notification.ReportId,
             ct).ConfigureAwait(false);
     }
 
-    internal static async Task<string> ResolveCategoryNameAsync(
+    internal static async Task<string> ResolveReportCodeAsync(
         IReportRepository reports, Guid reportId, CancellationToken ct)
     {
-        var name = await reports.QueryAsNoTracking()
+        var code = await reports.QueryAsNoTracking()
             .Where(r => r.Id == reportId)
-            .Select(r => r.Category.NameVi)
+            .Select(r => r.Code)
             .FirstOrDefaultAsync(ct)
             .ConfigureAwait(false);
 
-        return string.IsNullOrWhiteSpace(name) ? "Báo cáo ô nhiễm" : name;
+        return string.IsNullOrWhiteSpace(code) ? "báo cáo" : code;
     }
 }
 
@@ -65,8 +155,8 @@ internal sealed class ReportRejectedNotificationHandler(
         logger.LogDebug("Notification: Report {ReportId} rejected → notify reporter {UserId}",
             notification.ReportId, notification.ReporterId);
 
-        var categoryName = await ReportVerifiedNotificationHandler
-            .ResolveCategoryNameAsync(reports, notification.ReportId, ct)
+        var reportCode = await ReportVerifiedNotificationHandler
+            .ResolveReportCodeAsync(reports, notification.ReportId, ct)
             .ConfigureAwait(false);
 
         await notificationService.SendFromTemplateAsync(
@@ -74,7 +164,7 @@ internal sealed class ReportRejectedNotificationHandler(
             NotificationType.ReportStatusChanged,
             new Dictionary<string, string>
             {
-                ["report_id"] = categoryName,
+                ["report_code"] = reportCode,
                 ["status"] = "Rejected"
             },
             notification.ReportId,
@@ -93,8 +183,8 @@ internal sealed class ReportResolvedNotificationHandler(
         logger.LogDebug("Notification: Report {ReportId} resolved → notify reporter {UserId}",
             notification.ReportId, notification.ReporterId);
 
-        var categoryName = await ReportVerifiedNotificationHandler
-            .ResolveCategoryNameAsync(reports, notification.ReportId, ct)
+        var reportCode = await ReportVerifiedNotificationHandler
+            .ResolveReportCodeAsync(reports, notification.ReportId, ct)
             .ConfigureAwait(false);
 
         await notificationService.SendFromTemplateAsync(
@@ -102,7 +192,7 @@ internal sealed class ReportResolvedNotificationHandler(
             NotificationType.ReportStatusChanged,
             new Dictionary<string, string>
             {
-                ["report_id"] = categoryName,
+                ["report_code"] = reportCode,
                 ["status"] = "Resolved"
             },
             notification.ReportId,

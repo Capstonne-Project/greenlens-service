@@ -50,11 +50,13 @@ public sealed class GamificationController(ISender sender) : ControllerBase
     [SwaggerOperation(Summary = "Get leaderboard (BR-GAM-005)")]
     [SwaggerResponse(200, "Leaderboard", typeof(ApiResponse<LeaderboardResponse>))]
     public async Task<IActionResult> GetLeaderboard(
-        [FromQuery] LeaderboardPeriod period = LeaderboardPeriod.Monthly,
+        [FromQuery] LeaderboardPeriod period = LeaderboardPeriod.AllTime,
         [FromQuery] int top = 10,
+        [FromQuery] int? year = null,
+        [FromQuery] int? month = null,
         CancellationToken ct = default)
     {
-        return (await sender.Send(new GetLeaderboardQuery(period, top), ct)).ToHttp();
+        return (await sender.Send(new GetLeaderboardQuery(period, top, year, month), ct)).ToHttp();
     }
 
     /// <summary>Admin: Lock a user's gamification for fraud (BR-GAM-006).</summary>

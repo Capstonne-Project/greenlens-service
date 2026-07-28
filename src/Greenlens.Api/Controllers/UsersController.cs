@@ -25,7 +25,7 @@ public sealed class UsersController(ISender sender) : ControllerBase
     [SwaggerOperation(
         Summary = "Get My Profile",
         Description = "Get the authenticated user's own profile. Uses JWT token — no userId needed.")]
-    [SwaggerResponse(200, "User profile", typeof(ApiResponse<UserDetailDto>))]
+    [SwaggerResponse(200, "User profile", typeof(ApiResponse<UserProfileDto>))]
     [SwaggerResponse(401, "Unauthorized", typeof(ApiResponse))]
     [SwaggerResponse(404, "User not found", typeof(ApiResponse))]
     public async Task<IActionResult> GetProfileAsync(CancellationToken ct)

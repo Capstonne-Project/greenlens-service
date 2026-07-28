@@ -15,12 +15,15 @@ namespace Greenlens.Application.Features.Organization.RecruitStaff;
 /// Creates a StaffInvitation (7-day expiry) instead of instant role change.
 /// </summary>
 /// <remarks>
-/// Implements: BR-ORG-020 (invite via email), BR-ORG-021 (7-day expiry, single-use).
+/// Implements: BR-ORG-020 (invite via email), BR-ORG-021 (7-day expiry, single-use),
+/// BR-NTF-002 (notify Citizen when invitation is sent).
 /// </remarks>
 public sealed class RecruitStaffCommandHandler(
     IUserRepository users,
     IEnvironmentalTeamRepository teams,
     IStaffInvitationRepository invitations,
+    ILocalOfficeRepository localOffices,
+    INotificationService notifications,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     ILogger<RecruitStaffCommandHandler> logger) : IRequestHandler<RecruitStaffCommand, Result<RecruitStaffResponse>>
@@ -89,6 +92,7 @@ public sealed class RecruitStaffCommandHandler(
 
         // ── 7. Validate team if provided ──
         Guid? assignedTeamId = null;
+        string? assignedTeamName = null;
         if (request.TeamId.HasValue)
         {
             var team = await teams.GetByIdAsync(request.TeamId.Value, ct).ConfigureAwait(false);
@@ -120,6 +124,7 @@ public sealed class RecruitStaffCommandHandler(
             }
 
             assignedTeamId = team.Id;
+            assignedTeamName = team.Name;
         }
 
         // ── 8. Create invitation instead of instant recruit ──
@@ -133,6 +138,23 @@ public sealed class RecruitStaffCommandHandler(
         invitations.Add(invitation);
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        var officeName = await localOffices.QueryAsNoTracking()
+            .Where(o => o.Id == leoOfficeId)
+            .Select(o => o.Name)
+            .FirstOrDefaultAsync(ct)
+            .ConfigureAwait(false);
+
+        await notifications.SendFromTemplateAsync(
+            targetUser.Id,
+            NotificationType.StaffInvitationReceived,
+            StaffInvitationNotificationPlaceholders.ForReceived(
+                leo.FullName,
+                string.IsNullOrWhiteSpace(officeName) ? "phường/xã" : officeName,
+                request.TargetRole,
+                assignedTeamName),
+            invitation.Id,
+            ct).ConfigureAwait(false);
 
         logger.LogInformation(
             "LEO {LeoId} sent invitation {InvitationId} to user {UserId} ({Email}) as {Role}",

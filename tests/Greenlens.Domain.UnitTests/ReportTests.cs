@@ -133,6 +133,8 @@ public sealed class ReportTests
 
         Assert.Equal(ReportStatus.InProgress, report.Status);
         Assert.Equal(officerId, report.AssignedByOfficerId);
+        var inProgressEvt = Assert.Single(report.DomainEvents.OfType<ReportInProgressEvent>());
+        Assert.Equal(report.Id, inProgressEvt.ReportId);
     }
 
     [Fact]
@@ -159,6 +161,7 @@ public sealed class ReportTests
         Assert.Equal(companyId, report.AssignedCompanyId);
         Assert.Equal(leoId, report.AssignedByOfficerId);
         Assert.NotNull(report.DispatchedToCompanyAt);
+        Assert.Contains(report.DomainEvents, e => e is ReportInProgressEvent);
     }
 
     [Fact]
@@ -226,46 +229,81 @@ public sealed class ReportTests
         Assert.NotNull(report.ClosedAt);
     }
 
-    // ── Reopen ──
+    // ── Reopen (BR-REP-015 v1.2: citizen request + LEO approve) ──
 
     [Fact]
-    public void TryReopen_FromResolved_ShouldSucceed()
+    public void CanRequestReopen_FromResolved_ShouldReturnTrue_BR_REP_015()
     {
         var report = CreateTestReport();
         report.Verify(Guid.NewGuid());
         report.Assign(Guid.NewGuid());
         report.Resolve();
 
-        var result = report.TryReopen();
+        Assert.True(report.CanRequestReopen(DateTime.UtcNow));
+    }
+
+    [Fact]
+    public void ApproveReopen_FromResolved_ChangesToReopened_BR_REP_015()
+    {
+        var report = CreateTestReport();
+        report.Verify(Guid.NewGuid());
+        report.Assign(Guid.NewGuid());
+        report.Resolve();
+        report.MarkPendingReopenRequest();
+
+        var result = report.ApproveReopen(Guid.NewGuid());
 
         Assert.True(result);
-        Assert.Equal(ReportStatus.InProgress, report.Status);
+        Assert.Equal(ReportStatus.Reopened, report.Status);
         Assert.Equal(1, report.ReopenedCount);
+        Assert.False(report.HasPendingReopenRequest);
         Assert.Null(report.ResolvedAt);
     }
 
     [Fact]
-    public void TryReopen_ThirdTime_ShouldFail()
+    public void ApproveReopen_SecondTime_ShouldFail_BR_REP_015()
     {
         var report = CreateTestReport();
         report.Verify(Guid.NewGuid());
         report.Assign(Guid.NewGuid());
-
-        // Reopen 1
         report.Resolve();
-        report.TryReopen();
-
-        // Reopen 2
+        report.ApproveReopen(Guid.NewGuid());
+        report.Assign(Guid.NewGuid());
         report.Resolve();
-        report.TryReopen();
 
-        // Reopen 3 → should fail (max 2)
-        report.Resolve();
-        var result = report.TryReopen();
+        var result = report.ApproveReopen(Guid.NewGuid());
 
         Assert.False(result);
         Assert.Equal(ReportStatus.Resolved, report.Status);
-        Assert.Equal(2, report.ReopenedCount);
+        Assert.Equal(1, report.ReopenedCount);
+    }
+
+    [Fact]
+    public void CanRequestReopen_AfterOneApprove_ShouldReturnFalse_BR_REP_015()
+    {
+        var report = CreateTestReport();
+        report.Verify(Guid.NewGuid());
+        report.Assign(Guid.NewGuid());
+        report.Resolve();
+        report.ApproveReopen(Guid.NewGuid());
+        report.Assign(Guid.NewGuid());
+        report.Resolve();
+
+        Assert.False(report.CanRequestReopen(DateTime.UtcNow));
+    }
+
+    [Fact]
+    public void Assign_FromReopened_MovesToInProgress_BR_OFF_011()
+    {
+        var report = CreateTestReport();
+        report.Verify(Guid.NewGuid());
+        report.Assign(Guid.NewGuid());
+        report.Resolve();
+        report.ApproveReopen(Guid.NewGuid());
+
+        report.Assign(Guid.NewGuid());
+
+        Assert.Equal(ReportStatus.InProgress, report.Status);
     }
 
     // ── Duplicate ──

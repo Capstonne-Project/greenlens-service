@@ -22,6 +22,7 @@ internal static class NotificationTemplateSeeder
         if (templates.Count == 0)
         {
             logger.LogDebug("Notification templates up to date — no new types to seed.");
+            await SyncTemplateBodiesAsync(db, logger).ConfigureAwait(false);
             return;
         }
 
@@ -32,6 +33,40 @@ internal static class NotificationTemplateSeeder
         await db.SaveChangesAsync().ConfigureAwait(false);
 
         logger.LogInformation("Seeded {Count} notification template(s).", templates.Count);
+
+        await SyncTemplateBodiesAsync(db, logger).ConfigureAwait(false);
+    }
+
+    /// <summary>Updates canonical body/title for templates that existed before placeholder refresh.</summary>
+    private static async Task SyncTemplateBodiesAsync(ApplicationDbContext db, ILogger logger)
+    {
+        var updates = GetAllTemplates()
+            .Select(t => (t.TemplateKey, t.TitleVi, t.BodyVi, t.TitleEn, t.BodyEn))
+            .ToArray();
+
+        var synced = 0;
+        foreach (var (key, titleVi, bodyVi, titleEn, bodyEn) in updates)
+        {
+            var template = await db.Set<NotificationTemplate>()
+                .FirstOrDefaultAsync(t => t.TemplateKey == key)
+                .ConfigureAwait(false);
+
+            if (template is null)
+                continue;
+
+            if (template.TitleVi == titleVi && template.BodyVi == bodyVi)
+                continue;
+
+            template.Update(titleVi, bodyVi, titleEn, bodyEn);
+            template.Publish();
+            synced++;
+        }
+
+        if (synced == 0)
+            return;
+
+        await db.SaveChangesAsync().ConfigureAwait(false);
+        logger.LogInformation("Synced {Count} notification template body/title(s).", synced);
     }
 
     private static List<NotificationTemplate> GetAllTemplates() =>
@@ -39,17 +74,17 @@ internal static class NotificationTemplateSeeder
         Create(
             "report_status_changed",
             "Trạng thái báo cáo thay đổi",
-            "Báo cáo {report_id} của bạn đã chuyển sang trạng thái: {status}.",
+            "Báo cáo {report_code} của bạn đã chuyển sang trạng thái: {status}.",
             "Report status changed",
-            "Your {report_id} report has been changed to: {status}.",
+            "Your {report_code} report has been changed to: {status}.",
             NotificationType.ReportStatusChanged),
 
         Create(
             "new_comment",
             "Bình luận mới",
-            "Có một bình luận mới trên báo cáo {report_id} của bạn.",
+            "Có một bình luận mới trên báo cáo {report_code} của bạn.",
             "New comment",
-            "There is a new comment on your report {report_id}.",
+            "There is a new comment on your report {report_code}.",
             NotificationType.NewComment),
 
         Create(
@@ -71,25 +106,65 @@ internal static class NotificationTemplateSeeder
         Create(
             "sla_breach_warning",
             "Cảnh báo vi phạm SLA",
-            "Báo cáo {report_id} sắp vi phạm thời gian xử lý cam kết (SLA). Vui lòng kiểm tra ngay.",
+            "Báo cáo {report_code} sắp vi phạm thời gian xử lý cam kết (SLA). Vui lòng kiểm tra ngay.",
             "SLA Breach Warning",
-            "Report {report_id} is about to breach its Service Level Agreement (SLA). Please check immediately.",
+            "Report {report_code} is about to breach its Service Level Agreement (SLA). Please check immediately.",
             NotificationType.SlaBreachWarning),
+
+        Create(
+            "sla_verification_breached_leo",
+            "Vượt SLA xác minh",
+            "Báo cáo {report_code} đã vượt SLA xác minh 24h và được chuyển lên cấp trên.",
+            "Verification SLA breached",
+            "Report {report_code} exceeded the 24h verification SLA and was escalated.",
+            NotificationType.SlaVerificationBreachedLeo),
+
+        Create(
+            "sla_verification_escalated_deo",
+            "Tiếp nhận báo cáo escalated",
+            "Báo cáo {report_code} vượt SLA xác minh — đã chuyển vào hàng đợi của bạn.",
+            "Escalated report received",
+            "Report {report_code} exceeded verification SLA and is now in your queue.",
+            NotificationType.SlaVerificationEscalatedDeo),
+
+        Create(
+            "sla_resolution_breached",
+            "Vượt SLA xử lý",
+            "Báo cáo {report_code} ({severity}) đã vượt SLA xử lý. Vui lòng kiểm tra.",
+            "Resolution SLA breached",
+            "Report {report_code} ({severity}) exceeded the resolution SLA. Please review.",
+            NotificationType.SlaResolutionBreached),
+
+        Create(
+            "sla_inspection_breached",
+            "Vượt SLA xử phạt",
+            "Hồ sơ xử phạt liên quan báo cáo {report_code} đã vượt SLA. Vui lòng kiểm tra.",
+            "Inspection SLA breached",
+            "The penalty dossier for report {report_code} exceeded SLA. Please review.",
+            NotificationType.SlaInspectionBreached),
+
+        Create(
+            "cleanup_progress_stale",
+            "Cleanup tiến độ trễ >48h",
+            "Đội {team_name} chưa cập nhật tiến độ >48h cho báo cáo {report_code}.",
+            "Cleanup progress stale >48h",
+            "Team {team_name} has not updated progress for report {report_code} in over 48 hours.",
+            NotificationType.CleanupProgressStale),
 
         Create(
             "nearby_report",
             "Có báo cáo ô nhiễm gần bạn",
-            "Một báo cáo ô nhiễm mới vừa được ghi nhận cách bạn không xa.",
+            "Báo cáo {report_code} ({category_name}) vừa được ghi nhận trong bán kính 2km quanh khu vực bạn từng báo cáo.",
             "Nearby pollution report",
-            "A new pollution report has been recorded near your location.",
+            "Report {report_code} ({category_name}) was recorded within 2km of an area you previously reported.",
             NotificationType.NearbyReport),
 
         Create(
             "penalty_issued",
             "Thông báo xử phạt",
-            "Có một quyết định xử phạt liên quan đến báo cáo của bạn.",
-            "Penalty Issued",
-            "A penalty decision has been issued related to your report.",
+            "Quyết định {decision_number} đã ban hành cho báo cáo {report_code} với mức phạt {penalty_amount} VND.",
+            "Penalty issued",
+            "Decision {decision_number} was issued for report {report_code} with a penalty of {penalty_amount} VND.",
             NotificationType.PenaltyIssued),
 
         Create(
@@ -101,36 +176,116 @@ internal static class NotificationTemplateSeeder
             NotificationType.ContractExpiry),
 
         Create(
+            "contract_expired",
+            "Hợp đồng đã hết hạn",
+            "Hợp đồng công ty {company_name} ({contract_number}) đã hết hạn. Tài khoản công ty đã bị vô hiệu hóa.",
+            "Contract expired",
+            "Company {company_name} contract ({contract_number}) has expired. The company account was deactivated.",
+            NotificationType.ContractExpired),
+
+        Create(
+            "contract_expiry_warning",
+            "Hợp đồng sắp hết hạn ({days_left} ngày)",
+            "Hợp đồng công ty {company_name} sẽ hết hạn trong {days_left} ngày ({end_date}).",
+            "Contract expiring ({days_left} days)",
+            "Company {company_name} contract expires in {days_left} days ({end_date}).",
+            NotificationType.ContractExpiryWarning),
+
+        Create(
+            "company_report_dispatched",
+            "Báo cáo mới trong hàng đợi công ty",
+            "Báo cáo {report_code} đã được LEO điều phối đến công ty {company_name}. Vui lòng phân công team trong company queue.",
+            "New report in company queue",
+            "Report {report_code} was dispatched to company {company_name}. Please assign a team from the company queue.",
+            NotificationType.CompanyReportDispatched),
+
+        Create(
             "report_overdue",
             "Báo cáo quá hạn",
-            "Báo cáo {report_id} đã tồn tại quá 72h mà chưa được xử lý.",
+            "Báo cáo {report_code} đã tồn tại quá 72h mà chưa được xử lý.",
             "Report Overdue",
-            "Report {report_id} has been pending for over 72h without resolution.",
+            "Report {report_code} has been pending for over 72h without resolution.",
             NotificationType.ReportOverdue),
 
         Create(
             "report_unassigned",
             "Báo cáo chưa được phân công",
-            "Báo cáo {report_id} đã được xác minh nhưng chưa có người xử lý trong vòng 24h.",
+            "Báo cáo {report_code} đã được xác minh nhưng chưa có người xử lý trong vòng 24h.",
             "Report Unassigned",
-            "Report {report_id} has been verified but remains unassigned for 24h.",
+            "Report {report_code} has been verified but remains unassigned for 24h.",
             NotificationType.ReportUnassigned),
 
         Create(
             "report_auto_closed",
             "Báo cáo tự động đóng",
-            "Báo cáo {report_id} đã được hệ thống tự động đóng sau 7 ngày chờ xác nhận.",
+            "Báo cáo {report_code} đã được hệ thống tự động đóng sau 7 ngày chờ xác nhận.",
             "Report Auto-Closed",
-            "Report {report_id} has been automatically closed after 7 days pending confirmation.",
+            "Report {report_code} has been automatically closed after 7 days pending confirmation.",
             NotificationType.ReportAutoClosed),
 
         Create(
             "duplicate_review_needed",
             "Báo cáo cần xem xét trùng lặp",
-            "Báo cáo {report_code} đã nhận {flag_count} cờ ({flag_type}). Vui lòng xem xét trong queue nghi ngờ trùng.",
+            "Báo cáo {report_code} cần xem xét trùng lặp: {detection_summary}. Vui lòng kiểm tra queue nghi ngờ trùng.",
             "Duplicate review needed",
-            "Report {report_code} received {flag_count} flag(s) ({flag_type}). Please review the duplicate queue.",
+            "Report {report_code} needs duplicate review: {detection_summary}. Please check the duplicate queue.",
             NotificationType.DuplicateReviewNeeded),
+
+        Create(
+            "reopen_review_needed",
+            "Yêu cầu mở lại báo cáo",
+            "Citizen yêu cầu mở lại báo cáo {report_code}. Vui lòng xem lý do và ảnh minh chứng.",
+            "Reopen request received",
+            "A citizen requested to reopen report {report_code}. Please review the reason and evidence.",
+            NotificationType.ReopenReviewNeeded),
+
+        Create(
+            "reopen_request_decided",
+            "Quyết định yêu cầu mở lại",
+            "LEO đã {decision} yêu cầu mở lại báo cáo {report_code}. {reason}",
+            "Reopen request decided",
+            "LEO {decision} your reopen request for report {report_code}. {reason}",
+            NotificationType.ReopenRequestDecided),
+
+        Create(
+            "cleanup_task_assigned",
+            "Task dọn dẹp mới",
+            "Báo cáo {report_code} vừa được gán cho đội {team_name}. Vui lòng kiểm tra hàng đợi task.",
+            "New cleanup task assigned",
+            "Report {report_code} was assigned to team {team_name}. Please check your task queue.",
+            NotificationType.CleanupTaskAssigned),
+
+        Create(
+            "report_verification_needed",
+            "Báo cáo mới cần xác minh",
+            "Báo cáo {report_code} vừa được gửi và đang chờ bạn xác minh.",
+            "New report awaiting verification",
+            "Report {report_code} was just submitted and is waiting for your verification.",
+            NotificationType.ReportVerificationNeeded),
+
+        Create(
+            "staff_invitation_received",
+            "Lời mời tham gia đội môi trường",
+            "{inviter_name} đã mời bạn tham gia vai trò {target_role} tại {office_name}{team_clause}. Vui lòng xem và phản hồi trong 7 ngày.",
+            "Staff invitation received",
+            "{inviter_name} invited you to join as {target_role} at {office_name}{team_clause}. Please respond within 7 days.",
+            NotificationType.StaffInvitationReceived),
+
+        Create(
+            "staff_invitation_accepted",
+            "Thành viên đã chấp nhận lời mời",
+            "{member_name} đã chấp nhận lời mời tham gia vai trò {target_role} tại {office_name}{team_clause}.",
+            "Staff invitation accepted",
+            "{member_name} accepted your invitation to join as {target_role} at {office_name}{team_clause}.",
+            NotificationType.StaffInvitationAccepted),
+
+        Create(
+            "staff_invitation_declined",
+            "Thành viên đã từ chối lời mời",
+            "{member_name} đã từ chối lời mời tham gia vai trò {target_role} tại {office_name}.",
+            "Staff invitation declined",
+            "{member_name} declined your invitation to join as {target_role} at {office_name}.",
+            NotificationType.StaffInvitationDeclined),
 
         Create(
             "community_cleanup_opened",

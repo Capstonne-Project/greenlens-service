@@ -10,15 +10,17 @@ using Microsoft.Extensions.Logging;
 namespace Greenlens.Application.Features.Reports.GetReportById;
 
 /// <summary>
-/// Return full report detail including satisfaction feedback and merged-duplicate thumbs.
+/// Return full report detail including satisfaction, pending reopen request, and merged-duplicate thumbs.
 /// </summary>
 /// <remarks>
-/// Implements: BR-REP-018 (satisfaction in response), BR-REP-032 (mergedReports + SourceReportId thumbs).
+/// Implements: BR-REP-015 (pending reopen in response), BR-REP-018 (satisfaction in response),
+/// BR-REP-032 (mergedReports + SourceReportId thumbs).
 /// </remarks>
 public sealed class GetReportByIdQueryHandler(
     IReportRepository reports,
     IReportMediaRepository reportMedia,
     IReportSatisfactionRepository satisfactions,
+    IApplicationDbContext db,
     ICurrentUser currentUser,
     ILogger<GetReportByIdQueryHandler> logger)
     : IRequestHandler<GetReportByIdQuery, Result<ReportDetailResponse>>
@@ -78,6 +80,28 @@ public sealed class GetReportByIdQueryHandler(
                 s => s.ReportId == request.Id && s.UserId == currentUser.UserId, ct)
                 .ConfigureAwait(false);
 
+        PendingReopenRequestInfo? pendingReopen = null;
+        if (r.HasPendingReopenRequest)
+        {
+            var pending = await db.Set<Domain.Entities.ReportReopenRequest>()
+                .AsNoTracking()
+                .Include(x => x.Media)
+                .Where(x => x.ReportId == r.Id && x.Status == ReopenRequestStatus.Pending)
+                .OrderByDescending(x => x.RequestedAt)
+                .FirstOrDefaultAsync(ct)
+                .ConfigureAwait(false);
+
+            if (pending is not null)
+            {
+                var evidence = pending.Media
+                    .Select(m => new ReportMediaItem(
+                        m.Id, m.Type.ToString(), m.Url, m.MimeType, m.SizeBytes))
+                    .ToList();
+                pendingReopen = new PendingReopenRequestInfo(
+                    pending.Id, pending.Reason, pending.RequestedAt, evidence);
+            }
+        }
+
         // ── Merged duplicates (BR-REP-032) ──
         var children = await reports.QueryAsNoTracking()
             .Where(c => c.ParentReportId == r.Id)
@@ -133,6 +157,8 @@ public sealed class GetReportByIdQueryHandler(
             r.SlaVerifyDueAt, r.SlaResolveDueAt,
             reporterSatisfaction,
             hasCurrentUserRated,
+            r.HasPendingReopenRequest,
+            pendingReopen,
             mergedIntoPrimaryId,
             mergedIntoPrimaryCode,
             mergedReports);
