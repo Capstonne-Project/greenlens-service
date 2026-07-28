@@ -21,7 +21,7 @@ public sealed class AcceptInvitationCommandHandler(
     IStaffInvitationRepository invitations,
     IUserRepository users,
     ITeamMemberRepository teamMembers,
-    ILocalOfficeRepository localOffices,
+    IApplicationDbContext db,
     IEnvironmentalTeamRepository teams,
     INotificationService notifications,
     ICurrentUser currentUser,
@@ -102,11 +102,11 @@ public sealed class AcceptInvitationCommandHandler(
             "User {UserId} accepted invitation {InvitationId}, now {Role} in office {OfficeId}",
             user.Id, invitation.Id, invitation.TargetRole, invitation.LocalOfficeId);
 
-        var (officeName, teamName) = await StaffInvitationNotificationPlaceholders
+        var (wardName, teamName) = await StaffInvitationNotificationPlaceholders
             .ResolveContextAsync(
                 invitation.LocalOfficeId,
                 invitation.TeamId,
-                localOffices,
+                db,
                 teams,
                 ct)
             .ConfigureAwait(false);
@@ -116,7 +116,7 @@ public sealed class AcceptInvitationCommandHandler(
             NotificationType.StaffInvitationAccepted,
             StaffInvitationNotificationPlaceholders.ForResponded(
                 user.FullName,
-                officeName,
+                wardName,
                 invitation.TargetRole,
                 teamName),
             invitation.Id,

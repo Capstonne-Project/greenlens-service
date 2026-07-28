@@ -10,8 +10,11 @@ public sealed class CreateNotificationTemplateCommandValidator
     private static readonly HashSet<string> AllowedPlaceholders =
     [
         "{user_name}", "{report_id}", "{priority}", "{status}", "{time}",
-        "{penalty_amount}", "{ward_name}", "{company_name}", "{report_code}",
-        "{category_name}", "{severity}", "{officer_name}", "{team_name}"
+        "{penalty_amount}", "{ward_name}", "{province_name}", "{company_name}", "{report_code}",
+        "{category_name}", "{severity}", "{officer_name}", "{team_name}", "{badge_name}",
+        "{level}", "{decision_number}", "{detection_summary}", "{decision}", "{reason}",
+        "{days_left}", "{end_date}", "{contract_number}", "{inviter_name}", "{member_name}",
+        "{office_name}", "{target_role}", "{team_clause}"
     ];
 
     private static readonly Regex PlaceholderPattern = new(@"\{[a-z_]+\}", RegexOptions.Compiled);

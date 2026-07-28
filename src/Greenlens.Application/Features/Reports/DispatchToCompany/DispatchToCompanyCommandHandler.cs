@@ -21,6 +21,7 @@ public sealed class DispatchToCompanyCommandHandler(
     IReportStatusHistoryRepository statusHistory,
     INotificationService notifications,
     ICompanyManagerRecipientQuery companyManagers,
+    IApplicationDbContext db,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     ILogger<DispatchToCompanyCommandHandler> logger) : IRequestHandler<DispatchToCompanyCommand, Result>
@@ -113,6 +114,9 @@ public sealed class DispatchToCompanyCommandHandler(
         var placeholders = NotificationPlaceholders.ForCompanyReportDispatched(
             report.Code,
             company.Name);
+        placeholders = await NotificationLocalityQueries
+            .EnrichFromReportIdAsync(db, placeholders, report.Id, ct)
+            .ConfigureAwait(false);
 
         foreach (var managerId in managerIds)
         {

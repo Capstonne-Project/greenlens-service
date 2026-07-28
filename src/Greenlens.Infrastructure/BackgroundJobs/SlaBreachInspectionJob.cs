@@ -50,10 +50,15 @@ internal sealed class SlaBreachInspectionJob(
         {
             var reportCode = inspection.Report?.Code ?? "liên quan";
 
+            var placeholders = JobNotificationPlaceholders.ForReport(reportCode);
+            placeholders = await JobNotificationPlaceholders
+                .EnrichFromReportIdAsync(db, placeholders, inspection.ReportId)
+                .ConfigureAwait(false);
+
             await notificationService.SendFromTemplateAsync(
                 inspection.CreatedByOfficerId,
                 NotificationType.SlaInspectionBreached,
-                JobNotificationPlaceholders.ForReport(reportCode),
+                placeholders,
                 inspection.ReportId).ConfigureAwait(false);
         }
 

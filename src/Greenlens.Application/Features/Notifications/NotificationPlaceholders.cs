@@ -55,7 +55,7 @@ internal static class NotificationPlaceholders
         int flagCount) =>
         ForDuplicateReview(
             reportCode,
-            $"{flagCount} cờ {flagType} từ công dân");
+            $"{flagCount} cờ {NotificationVietnameseLabels.FormatFlagType(flagType)} từ công dân");
 
     internal static Dictionary<string, string> ForDuplicateReviewFromAi(
         string reportCode,
@@ -63,7 +63,7 @@ internal static class NotificationPlaceholders
         decimal confidence) =>
         ForDuplicateReview(
             reportCode,
-            $"AI xác nhận trùng với {primaryReportCode}, độ tin cậy {confidence:P0}");
+            $"hệ thống xác nhận trùng với {primaryReportCode}, độ tin cậy {confidence:P0}");
 
     internal static Dictionary<string, string> ForCleanupTaskAssigned(string reportCode, string teamName) =>
         new(StringComparer.Ordinal)
@@ -72,11 +72,14 @@ internal static class NotificationPlaceholders
             ["team_name"] = teamName
         };
 
+    internal static Dictionary<string, string> ForReportStatus(string reportCode, ReportStatus status) =>
+        ForReportStatus(reportCode, NotificationVietnameseLabels.FormatReportStatus(status));
+
     internal static Dictionary<string, string> ForReportStatus(string reportCode, string status) =>
         new(StringComparer.Ordinal)
         {
             ["report_code"] = reportCode,
-            ["status"] = status
+            ["status"] = NotificationVietnameseLabels.FormatReportStatus(status)
         };
 
     internal static Dictionary<string, string> ForCompanyReportDispatched(

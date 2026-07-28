@@ -50,6 +50,9 @@ internal sealed class SlaBreachVerificationJob(
         foreach (var report in breachedReports)
         {
             var placeholders = JobNotificationPlaceholders.ForReport(report.Code);
+            placeholders = await JobNotificationPlaceholders
+                .EnrichFromWardCodeAsync(db, placeholders, report.WardCode)
+                .ConfigureAwait(false);
 
             if (report.AssignedOfficeId.HasValue)
             {

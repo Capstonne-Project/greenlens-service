@@ -76,12 +76,17 @@ internal sealed class CleanupProgressSlaJob(
             {
                 var teamName = teamNames.GetValueOrDefault(assignment.TeamId) ?? "đội xử lý";
 
+                var placeholders = JobNotificationPlaceholders.ForCleanupStale(
+                    assignment.Report.Code,
+                    teamName);
+                placeholders = await JobNotificationPlaceholders
+                    .EnrichFromWardCodeAsync(db, placeholders, assignment.Report.WardCode)
+                    .ConfigureAwait(false);
+
                 await notificationService.SendFromTemplateAsync(
                     leoId.Value,
                     NotificationType.CleanupProgressStale,
-                    JobNotificationPlaceholders.ForCleanupStale(
-                        assignment.Report.Code,
-                        teamName),
+                    placeholders,
                     assignment.ReportId).ConfigureAwait(false);
                 escalated++;
             }

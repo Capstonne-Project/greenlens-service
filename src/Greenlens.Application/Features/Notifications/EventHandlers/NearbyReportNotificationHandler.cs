@@ -17,6 +17,7 @@ internal sealed class NearbyReportNotificationHandler(
     INotificationService notificationService,
     INearbyCitizenQuery nearbyCitizenQuery,
     IReportRepository reports,
+    IApplicationDbContext db,
     ILogger<NearbyReportNotificationHandler> logger)
     : INotificationHandler<ReportSubmittedEvent>
 {
@@ -36,6 +37,7 @@ internal sealed class NearbyReportNotificationHandler(
                 r.Latitude,
                 r.Longitude,
                 r.ReporterId,
+                r.WardCode,
                 CategoryName = r.Category.NameVi
             })
             .FirstOrDefaultAsync(ct)
@@ -72,6 +74,9 @@ internal sealed class NearbyReportNotificationHandler(
             : report.CategoryName;
 
         var placeholders = NotificationPlaceholders.ForNearbyReport(report.Code, categoryName);
+        placeholders = await NotificationLocalityQueries
+            .EnrichFromWardCodeAsync(db, placeholders, report.WardCode, ct)
+            .ConfigureAwait(false);
 
         foreach (var recipientId in recipientIds)
         {

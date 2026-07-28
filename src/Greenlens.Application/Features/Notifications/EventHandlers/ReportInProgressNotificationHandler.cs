@@ -44,7 +44,7 @@ internal sealed class ReportInProgressNotificationHandler(
         await notificationService.SendFromTemplateAsync(
             notification.ReporterId.Value,
             NotificationType.ReportStatusChanged,
-            NotificationPlaceholders.ForReportStatus(reportCode, "InProgress"),
+            NotificationPlaceholders.ForReportStatus(reportCode, ReportStatus.InProgress),
             notification.ReportId,
             ct).ConfigureAwait(false);
 

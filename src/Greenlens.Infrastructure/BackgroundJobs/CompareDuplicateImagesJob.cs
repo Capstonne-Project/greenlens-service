@@ -94,6 +94,9 @@ internal sealed class CompareDuplicateImagesJob(
             report.Code,
             primaryCode ?? "báo cáo hiện có",
             result.Confidence);
+        placeholders = await JobNotificationPlaceholders
+            .EnrichFromWardCodeAsync(db, placeholders, report.WardCode, ct)
+            .ConfigureAwait(false);
 
         foreach (var leoId in leoIds)
         {

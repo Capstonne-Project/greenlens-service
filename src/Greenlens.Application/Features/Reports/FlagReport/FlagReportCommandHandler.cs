@@ -99,6 +99,9 @@ public sealed class FlagReportCommandHandler(
         logger.LogInformation("Found {Count} reviewers for report {ReportId} of type {FlagType}", reviewerIds.Count, report.Id, type);
 
         var placeholders = NotificationPlaceholders.ForDuplicateReviewFromFlags(report.Code, type, count);
+        placeholders = await NotificationLocalityQueries
+            .EnrichFromReportIdAsync(db, placeholders, report.Id, ct)
+            .ConfigureAwait(false);
 
         foreach (var reviewerId in reviewerIds)
         {

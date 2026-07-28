@@ -1,3 +1,7 @@
+using Greenlens.Application.Common.Interfaces;
+using Greenlens.Application.Features.Notifications;
+using Greenlens.Domain.Enums;
+
 namespace Greenlens.Infrastructure.BackgroundJobs;
 
 /// <summary>Shared placeholder keys for notification templates in background jobs (BR-NTF-002).</summary>
@@ -11,10 +15,17 @@ internal static class JobNotificationPlaceholders
             ["report_id"] = reportCode
         };
 
+    public static Dictionary<string, string> ForReportWithSeverity(string reportCode, Severity severity)
+    {
+        var placeholders = ForReport(reportCode);
+        placeholders["severity"] = NotificationVietnameseLabels.FormatSeverity(severity);
+        return placeholders;
+    }
+
     public static Dictionary<string, string> ForReportWithSeverity(string reportCode, string severity)
     {
         var placeholders = ForReport(reportCode);
-        placeholders["severity"] = severity;
+        placeholders["severity"] = NotificationVietnameseLabels.FormatSeverity(severity);
         return placeholders;
     }
 
@@ -53,6 +64,24 @@ internal static class JobNotificationPlaceholders
         {
             ["report_code"] = reportCode,
             ["detection_summary"] =
-                $"AI xác nhận trùng với {primaryReportCode}, độ tin cậy {confidence:P0}"
+                $"hệ thống xác nhận trùng với {primaryReportCode}, độ tin cậy {confidence:P0}"
         };
+
+    public static async Task<Dictionary<string, string>> EnrichFromWardCodeAsync(
+        IApplicationDbContext db,
+        Dictionary<string, string> placeholders,
+        string? wardCode,
+        CancellationToken ct = default)
+        => await NotificationLocalityQueries
+            .EnrichFromWardCodeAsync(db, placeholders, wardCode, ct)
+            .ConfigureAwait(false);
+
+    public static async Task<Dictionary<string, string>> EnrichFromReportIdAsync(
+        IApplicationDbContext db,
+        Dictionary<string, string> placeholders,
+        Guid reportId,
+        CancellationToken ct = default)
+        => await NotificationLocalityQueries
+            .EnrichFromReportIdAsync(db, placeholders, reportId, ct)
+            .ConfigureAwait(false);
 }

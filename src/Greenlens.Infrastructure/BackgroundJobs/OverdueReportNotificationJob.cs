@@ -61,10 +61,15 @@ internal sealed class OverdueReportNotificationJob(
             if (!recipientId.HasValue)
                 continue;
 
+            var placeholders = JobNotificationPlaceholders.ForReport(report.Code);
+            placeholders = await JobNotificationPlaceholders
+                .EnrichFromWardCodeAsync(db, placeholders, report.WardCode)
+                .ConfigureAwait(false);
+
             await notificationService.SendFromTemplateAsync(
                 recipientId.Value,
                 NotificationType.ReportOverdue,
-                JobNotificationPlaceholders.ForReport(report.Code),
+                placeholders,
                 report.Id).ConfigureAwait(false);
         }
 
@@ -115,10 +120,15 @@ internal sealed class OverdueReportNotificationJob(
             if (!recipientId.HasValue)
                 continue;
 
+            var placeholders = JobNotificationPlaceholders.ForReport(report.Code);
+            placeholders = await JobNotificationPlaceholders
+                .EnrichFromWardCodeAsync(db, placeholders, report.WardCode)
+                .ConfigureAwait(false);
+
             await notificationService.SendFromTemplateAsync(
                 recipientId.Value,
                 NotificationType.ReportUnassigned,
-                JobNotificationPlaceholders.ForReport(report.Code),
+                placeholders,
                 report.Id).ConfigureAwait(false);
             notified++;
         }
