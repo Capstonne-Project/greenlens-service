@@ -33,21 +33,22 @@ public sealed class GetLedCommunityCleanupsQueryHandler(
         if (request.Status.HasValue)
             query = query.Where(e => e.Status == request.Status.Value);
 
-        var projected = query.Select(e => new Row(
-            e,
-            e.Report!.Code,
-            e.Report!.Latitude,
-            e.Report!.Longitude,
-            e.LeaderUser!.FullName,
-            e.Participants.Count(p =>
-                p.Status != CommunityCleanupParticipantStatus.Withdrawn
-                && p.Status != CommunityCleanupParticipantStatus.NoShow),
-            e.Report!.Media
-                .Where(m => m.Type == MediaType.Image)
-                .OrderBy(m => m.UploadedAt)
-                .Select(m => m.ThumbnailUrl ?? m.Url)
-                .FirstOrDefault()))
-            .OrderByDescending(r => r.Event.StartsAt);
+        var projected = query
+            .OrderByDescending(e => e.StartsAt)
+            .Select(e => new Row(
+                e,
+                e.Report!.Code,
+                e.Report!.Latitude,
+                e.Report!.Longitude,
+                e.LeaderUser!.FullName,
+                e.Participants.Count(p =>
+                    p.Status != CommunityCleanupParticipantStatus.Withdrawn
+                    && p.Status != CommunityCleanupParticipantStatus.NoShow),
+                e.Report!.Media
+                    .Where(m => m.Type == MediaType.Image)
+                    .OrderBy(m => m.UploadedAt)
+                    .Select(m => m.ThumbnailUrl ?? m.Url)
+                    .FirstOrDefault()));
 
         var totalCount = await projected.CountAsync(ct).ConfigureAwait(false);
         var pagination = PaginationMeta.Create(request.Page, request.PageSize, totalCount);
