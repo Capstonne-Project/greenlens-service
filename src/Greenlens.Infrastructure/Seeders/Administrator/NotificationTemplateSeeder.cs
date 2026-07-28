@@ -293,7 +293,15 @@ internal static class NotificationTemplateSeeder
             "Chương trình \"{title}\" vừa mở đăng ký. Tham gia ngay để cùng dọn dẹp!",
             "Community cleanup opened",
             "The \"{title}\" community cleanup program is now open for joining!",
-            NotificationType.CommunityCleanupOpened)
+            NotificationType.CommunityCleanupOpened),
+
+        Create(
+            "community_cleanup_leader_assigned",
+            "Bạn được chỉ định làm Leader",
+            "Bạn được chỉ định làm Leader cho chương trình dọn cộng đồng \"{title}\". Hãy vào mục Việc của tôi để bắt đầu.",
+            "You were appointed Leader",
+            "You were appointed Leader for the community cleanup program \"{title}\". Check My Tasks to get started.",
+            NotificationType.CommunityCleanupLeaderAssigned)
     ];
 
     private static NotificationTemplate Create(

@@ -56,6 +56,9 @@ public enum NotificationType
 
     /// <summary>Draft BR-CMU-*: LEO opened a Community Cleanup program citizens can join.</summary>
     CommunityCleanupOpened,
+
+    /// <summary>Draft BR-CMU-002: Cleaner was appointed Leader of a new Community Cleanup program.</summary>
+    CommunityCleanupLeaderAssigned,
     /// <summary>BR-REP-015: Citizen submitted a reopen request with evidence.</summary>
     ReopenReviewNeeded,
 

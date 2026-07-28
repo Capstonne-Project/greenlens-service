@@ -94,7 +94,7 @@ public sealed class CommunityCleanupEvent : SoftDeletableEntity
             CreatedAt = DateTime.UtcNow
         };
 
-        ev.AddDomainEvent(new CommunityCleanupOpenedEvent(ev.Id, reportId, title));
+        ev.AddDomainEvent(new CommunityCleanupOpenedEvent(ev.Id, reportId, title, leaderUserId));
 
         return ev;
     }
