@@ -14,6 +14,7 @@ namespace Greenlens.Application.Features.Organization.GetOfficeStaff;
 /// Returns paginated list of Cleaner/Inspector staff in the LEO's LocalOffice.
 /// Includes team membership info (left join) so LEO can see who is unassigned.
 /// </summary>
+/// <remarks>Implements: BR-ORG-003, BR-ORG-020.</remarks>
 public sealed class GetOfficeStaffQueryHandler(
     IUserRepository userRepo,
     ITeamMemberRepository teamMemberRepo,
@@ -27,7 +28,6 @@ public sealed class GetOfficeStaffQueryHandler(
     {
         logger.LogInformation("Getting office staff for user {UserId}", currentUser.UserId);
 
-        // ── 1. Get LEO's office ──
         var leo = await userRepo.GetByIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
         if (leo is null)
         {
@@ -42,18 +42,18 @@ public sealed class GetOfficeStaffQueryHandler(
         }
 
         var officeId = leo.LocalOfficeId.Value;
+        var teamMembers = teamMemberRepo.QueryAsNoTracking();
 
-        // ── 2. Query staff in the office (Cleaner + Inspector only) ──
         var staffQuery = userRepo.QueryAsNoTracking()
             .Where(u => u.LocalOfficeId == officeId)
             .Where(u => u.Role == UserRole.Cleaner || u.Role == UserRole.Inspector);
 
-        // ── 3. Filters ──
         if (request.RoleFilter.HasValue)
         {
             logger.LogInformation("Filtering staff by role: {Role}", request.RoleFilter.Value);
             staffQuery = staffQuery.Where(u => u.Role == request.RoleFilter.Value);
         }
+
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
             logger.LogInformation("Filtering staff by search: {Search}", request.Search);
@@ -63,56 +63,69 @@ public sealed class GetOfficeStaffQueryHandler(
                 u.Email.ToLower().Contains(keyword));
         }
 
-        // ── 4. Left join with TeamMember; resolve team name via subquery (avoids filtered-nav issues) ──
-        var joinedQuery = from u in staffQuery
-                          join tm in teamMemberRepo.QueryAsNoTracking()
-                              on u.Id equals tm.UserId into tmGroup
-                          from tm in tmGroup.DefaultIfEmpty()
-                          select new
-                          {
-                              User = u,
-                              TeamMember = tm,
-                              TeamName = tm == null
-                                  ? null
-                                  : teams.QueryAsNoTracking()
-                                      .Where(t => t.Id == tm.TeamId)
-                                      .Select(t => t.Name)
-                                      .FirstOrDefault()
-                          };
-
-        // ── 5. Filter by HasTeam ──
         if (request.HasTeam == true)
         {
             logger.LogInformation("Filtering staff by has team: true");
-            joinedQuery = joinedQuery.Where(x => x.TeamMember != null);
+            staffQuery = staffQuery.Where(u => teamMembers.Any(tm => tm.UserId == u.Id));
         }
         else if (request.HasTeam == false)
         {
             logger.LogInformation("Filtering staff by has team: false");
-            joinedQuery = joinedQuery.Where(x => x.TeamMember == null);
+            staffQuery = staffQuery.Where(u => !teamMembers.Any(tm => tm.UserId == u.Id));
         }
 
-        var totalCount = await joinedQuery.CountAsync(ct).ConfigureAwait(false);
+        var totalCount = await staffQuery.CountAsync(ct).ConfigureAwait(false);
         var pagination = PaginationMeta.Create(request.Page, request.PageSize, totalCount);
 
-        // ── 6. Project + paginate ──
-        var items = await joinedQuery
-            .OrderBy(x => x.User.FullName)
+        var users = await staffQuery
+            .OrderBy(u => u.FullName)
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
-            .Select(x => new OfficeStaffItem(
-                x.User.Id,
-                x.User.FullName,
-                x.User.Email,
-                x.User.PhoneNumber,
-                x.User.AvatarUrl,
-                x.User.Role,
-                x.TeamMember != null ? x.TeamMember.TeamId : null,
-                x.TeamName,
-                x.TeamMember != null && x.TeamMember.IsLeader,
-                x.User.CreatedAt))
             .ToListAsync(ct)
             .ConfigureAwait(false);
+
+        if (users.Count == 0)
+        {
+            return new GetOfficeStaffResponse([], pagination);
+        }
+
+        var userIds = users.Select(u => u.Id).ToList();
+        var memberships = await teamMembers
+            .Where(tm => userIds.Contains(tm.UserId))
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        var membershipByUser = memberships
+            .GroupBy(m => m.UserId)
+            .ToDictionary(g => g.Key, g => g.First());
+
+        var teamIds = membershipByUser.Values.Select(m => m.TeamId).Distinct().ToList();
+        var teamNameById = teamIds.Count == 0
+            ? new Dictionary<Guid, string>()
+            : await teams.QueryAsNoTracking()
+                .Where(t => teamIds.Contains(t.Id))
+                .ToDictionaryAsync(t => t.Id, t => t.Name, ct)
+                .ConfigureAwait(false);
+
+        var items = users.Select(u =>
+        {
+            membershipByUser.TryGetValue(u.Id, out var membership);
+            string? teamName = membership is not null && teamNameById.TryGetValue(membership.TeamId, out var name)
+                ? name
+                : null;
+
+            return new OfficeStaffItem(
+                u.Id,
+                u.FullName,
+                u.Email,
+                u.PhoneNumber,
+                u.AvatarUrl,
+                u.Role,
+                membership?.TeamId,
+                teamName,
+                membership?.IsLeader ?? false,
+                u.CreatedAt);
+        }).ToList();
 
         logger.LogInformation("LEO {LeoId} fetched {Count} staff for office {OfficeId}",
             currentUser.UserId, items.Count, officeId);

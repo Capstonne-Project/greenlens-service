@@ -14,6 +14,7 @@ namespace Greenlens.Application.Features.Organization.GetTeamById;
 /// <remarks>Implements: BR-ORG-003.</remarks>
 public sealed class GetTeamByIdQueryHandler(
     IEnvironmentalTeamRepository teams,
+    ITeamMemberRepository teamMembers,
     IUserRepository users,
     ICompanyStaffRepository companyStaff,
     ILocalOfficeRepository localOffices,
@@ -52,37 +53,52 @@ public sealed class GetTeamByIdQueryHandler(
             return accessError;
         }
 
-        var detail = await teams.QueryAsNoTracking()
+        var header = await teams.QueryAsNoTracking()
             .Where(t => t.Id == request.Id)
-            .Select(t => new TeamDetailResponse(
+            .Select(t => new
+            {
                 t.Id,
                 t.Name,
                 t.TeamType,
                 t.LocalOfficeId,
-                t.LocalOffice != null ? t.LocalOffice.Name : null,
+                OfficeName = t.LocalOffice != null ? t.LocalOffice.Name : null,
                 t.IsActive,
-                t.Members
-                    .Select(m => new MemberInTeam(
-                        m.UserId,
-                        m.User != null ? m.User.FullName : null,
-                        m.User != null ? m.User.Email : null,
-                        m.User != null ? m.User.PhoneNumber : null,
-                        m.User != null ? m.User.AvatarUrl : null,
-                        m.IsLeader,
-                        m.JoinedAt))
-                    .ToList(),
                 t.CreatedAt,
-                t.UpdatedAt))
+                t.UpdatedAt
+            })
             .FirstOrDefaultAsync(ct)
             .ConfigureAwait(false);
 
-        if (detail is null)
+        if (header is null)
         {
             logger.LogWarning("Team {Id} not found during projection", request.Id);
             return Errors.Organization.TeamNotFound;
         }
 
-        logger.LogInformation("Lấy thông tin chi tiết đội ngũ thành công. Tên đội: {TeamName}", detail.Name);
-        return detail;
+        var members = await teamMembers.QueryAsNoTracking()
+            .Where(m => m.TeamId == request.Id)
+            .Select(m => new MemberInTeam(
+                m.UserId,
+                m.User != null ? m.User.FullName : null,
+                m.User != null ? m.User.Email : null,
+                m.User != null ? m.User.PhoneNumber : null,
+                m.User != null ? m.User.AvatarUrl : null,
+                m.IsLeader,
+                m.JoinedAt))
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        logger.LogInformation("Lấy thông tin chi tiết đội ngũ thành công. Tên đội: {TeamName}", header.Name);
+
+        return new TeamDetailResponse(
+            header.Id,
+            header.Name,
+            header.TeamType,
+            header.LocalOfficeId,
+            header.OfficeName,
+            header.IsActive,
+            members,
+            header.CreatedAt,
+            header.UpdatedAt);
     }
 }
