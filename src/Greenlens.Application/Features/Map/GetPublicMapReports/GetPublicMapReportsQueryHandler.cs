@@ -22,6 +22,7 @@ namespace Greenlens.Application.Features.Map.GetPublicMapReports;
 public sealed class GetPublicMapReportsQueryHandler(
     IReportRepository reports,
     IPollutionCategoryRepository categories,
+    ICommunityCleanupEventRepository communityCleanupEvents,
     ILogger<GetPublicMapReportsQueryHandler> logger)
     : IRequestHandler<GetPublicMapReportsQuery, Result<PublicMapReportsResponse>>
 {
@@ -72,7 +73,7 @@ public sealed class GetPublicMapReportsQueryHandler(
         return await HandleDetailAsync(baseQuery, request, cancellationToken).ConfigureAwait(false);
     }
 
-    private static async Task<Result<PublicMapReportsResponse>> HandleDetailAsync(
+    private async Task<Result<PublicMapReportsResponse>> HandleDetailAsync(
         IQueryable<Report> baseQuery,
         GetPublicMapReportsQuery request,
         CancellationToken cancellationToken)
@@ -108,22 +109,37 @@ public sealed class GetPublicMapReportsQueryHandler(
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
+        var reportIds = raw.Select(x => x.Id).ToList();
+        var activeCommunityEventByReportId = await communityCleanupEvents.QueryAsNoTracking()
+            .Where(e => reportIds.Contains(e.ReportId)
+                && e.Status != CommunityCleanupStatus.Completed
+                && e.Status != CommunityCleanupStatus.Cancelled)
+            .Select(e => new { e.ReportId, e.Id })
+            .ToDictionaryAsync(e => e.ReportId, e => e.Id, cancellationToken)
+            .ConfigureAwait(false);
+
         var items = raw
-            .Select(x => new PublicMapReportPinDto(
-                x.Id,
-                x.Code,
-                PublicMapCoordinateRounding.RoundLatitude(x.Latitude),
-                PublicMapCoordinateRounding.RoundLongitude(x.Longitude),
-                x.Severity,
-                x.CategoryCode,
-                x.Title,
-                x.CategoryIconUrl,
-                x.Description,
-                x.Address,
-                x.ReporterCount,
-                x.ImageUrl,
-                x.Status,
-                x.CreatedAt))
+            .Select(x =>
+            {
+                var hasCommunityCleanup = activeCommunityEventByReportId.TryGetValue(x.Id, out var eventId);
+                return new PublicMapReportPinDto(
+                    x.Id,
+                    x.Code,
+                    PublicMapCoordinateRounding.RoundLatitude(x.Latitude),
+                    PublicMapCoordinateRounding.RoundLongitude(x.Longitude),
+                    x.Severity,
+                    x.CategoryCode,
+                    x.Title,
+                    x.CategoryIconUrl,
+                    x.Description,
+                    x.Address,
+                    x.ReporterCount,
+                    x.ImageUrl,
+                    x.Status,
+                    x.CreatedAt,
+                    hasCommunityCleanup,
+                    hasCommunityCleanup ? eventId : null);
+            })
             .ToList();
 
         var meta = new PublicMapReportsMetaDto(items.Count, limit, null, null);

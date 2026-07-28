@@ -3,6 +3,7 @@ using System;
 using Greenlens.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,16 +12,17 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Greenlens.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260727151838_AddCommunityCleanup")]
+    partial class AddCommunityCleanup
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
                 .HasAnnotation("ProductVersion", "9.0.18")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
-            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "postgis");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("Greenlens.Domain.Entities.AuditLog", b =>
@@ -2409,10 +2411,6 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasColumnType("character varying(30)")
                         .HasColumnName("duplicate_detection_source");
 
-                    b.Property<bool>("HasPendingReopenRequest")
-                        .HasColumnType("boolean")
-                        .HasColumnName("has_pending_reopen_request");
-
                     b.Property<DateTime?>("HiddenAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("hidden_at");
@@ -2861,10 +2859,6 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasColumnType("character varying(64)")
                         .HasColumnName("p_hash");
 
-                    b.Property<Guid?>("ReopenRequestId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("reopen_request_id");
-
                     b.Property<Guid>("ReportId")
                         .HasColumnType("uuid")
                         .HasColumnName("report_id");
@@ -2920,9 +2914,6 @@ namespace Greenlens.Infrastructure.Migrations
                     b.HasIndex("PHash")
                         .HasDatabaseName("ix_report_media_p_hash");
 
-                    b.HasIndex("ReopenRequestId")
-                        .HasDatabaseName("ix_report_media_reopen_request_id");
-
                     b.HasIndex("ReportId")
                         .HasDatabaseName("ix_report_media_report_id");
 
@@ -2933,70 +2924,6 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasDatabaseName("ix_report_media_uploaded_by");
 
                     b.ToTable("report_media", (string)null);
-                });
-
-            modelBuilder.Entity("Greenlens.Domain.Entities.ReportReopenRequest", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<string>("Reason")
-                        .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)")
-                        .HasColumnName("reason");
-
-                    b.Property<string>("RejectionReason")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)")
-                        .HasColumnName("rejection_reason");
-
-                    b.Property<Guid>("ReportId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("report_id");
-
-                    b.Property<DateTime>("RequestedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("requested_at");
-
-                    b.Property<Guid>("RequestedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("requested_by");
-
-                    b.Property<DateTime?>("ReviewedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("reviewed_at");
-
-                    b.Property<Guid?>("ReviewedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("reviewed_by");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("status");
-
-                    b.HasKey("Id")
-                        .HasName("pk_report_reopen_requests");
-
-                    b.HasIndex("ReportId")
-                        .IsUnique()
-                        .HasDatabaseName("ix_report_reopen_requests_report_id")
-                        .HasFilter("status = 'Pending'");
-
-                    b.HasIndex("RequestedAt")
-                        .HasDatabaseName("ix_report_reopen_requests_requested_at");
-
-                    b.HasIndex("RequestedBy")
-                        .HasDatabaseName("ix_report_reopen_requests_requested_by");
-
-                    b.HasIndex("ReportId", "Status")
-                        .HasDatabaseName("ix_report_reopen_requests_report_id_status");
-
-                    b.ToTable("report_reopen_requests", (string)null);
                 });
 
             modelBuilder.Entity("Greenlens.Domain.Entities.ReportSatisfaction", b =>
@@ -4377,12 +4304,6 @@ namespace Greenlens.Infrastructure.Migrations
 
             modelBuilder.Entity("Greenlens.Domain.Entities.ReportMedia", b =>
                 {
-                    b.HasOne("Greenlens.Domain.Entities.ReportReopenRequest", "ReopenRequest")
-                        .WithMany("Media")
-                        .HasForeignKey("ReopenRequestId")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .HasConstraintName("fk_report_media_report_reopen_requests_reopen_request_id");
-
                     b.HasOne("Greenlens.Domain.Entities.Report", "Report")
                         .WithMany("Media")
                         .HasForeignKey("ReportId")
@@ -4396,32 +4317,9 @@ namespace Greenlens.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_report_media_users_uploaded_by");
 
-                    b.Navigation("ReopenRequest");
-
                     b.Navigation("Report");
 
                     b.Navigation("Uploader");
-                });
-
-            modelBuilder.Entity("Greenlens.Domain.Entities.ReportReopenRequest", b =>
-                {
-                    b.HasOne("Greenlens.Domain.Entities.Report", "Report")
-                        .WithMany("ReopenRequests")
-                        .HasForeignKey("ReportId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_report_reopen_requests_reports_report_id");
-
-                    b.HasOne("Greenlens.Domain.Entities.User", "Requester")
-                        .WithMany()
-                        .HasForeignKey("RequestedBy")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_report_reopen_requests_users_requested_by");
-
-                    b.Navigation("Report");
-
-                    b.Navigation("Requester");
                 });
 
             modelBuilder.Entity("Greenlens.Domain.Entities.ReportSatisfaction", b =>
@@ -4683,16 +4581,9 @@ namespace Greenlens.Infrastructure.Migrations
 
                     b.Navigation("Media");
 
-                    b.Navigation("ReopenRequests");
-
                     b.Navigation("StatusHistory");
 
                     b.Navigation("WasteTags");
-                });
-
-            modelBuilder.Entity("Greenlens.Domain.Entities.ReportReopenRequest", b =>
-                {
-                    b.Navigation("Media");
                 });
 
             modelBuilder.Entity("Greenlens.Domain.Entities.UserPoints", b =>
