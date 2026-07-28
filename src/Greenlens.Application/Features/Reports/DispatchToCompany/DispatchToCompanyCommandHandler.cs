@@ -18,6 +18,7 @@ public sealed class DispatchToCompanyCommandHandler(
     IReportRepository reports,
     IEnvironmentalServiceCompanyRepository companies,
     IReportStatusHistoryRepository statusHistory,
+    ICommunityCleanupEventRepository communityCleanupEvents,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     ILogger<DispatchToCompanyCommandHandler> logger) : IRequestHandler<DispatchToCompanyCommand, Result>
@@ -37,6 +38,14 @@ public sealed class DispatchToCompanyCommandHandler(
         {
             logger.LogWarning("Report {ReportId} is not verified", request.ReportId);
             return Errors.Reports.InvalidStatusTransition;
+        }
+
+        // Draft BR-CMU-003: a Community Cleanup event takes over the report — block dispatch while active.
+        var activeCommunityEvent = await communityCleanupEvents.GetActiveByReportIdAsync(request.ReportId, ct).ConfigureAwait(false);
+        if (activeCommunityEvent is not null)
+        {
+            logger.LogWarning("Report {ReportId} has an active community cleanup event", request.ReportId);
+            return Errors.CommunityCleanup.CommunityAlreadyActive;
         }
 
         // Prevent double-dispatch

@@ -25,6 +25,7 @@ public sealed class AssignTeamCommandHandler(
     IReportStatusHistoryRepository statusHistory,
     IWasteTagRepository wasteTags,
     IReportWasteTagRepository reportWasteTags,
+    ICommunityCleanupEventRepository communityCleanupEvents,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     IOptions<WorkloadLimitsOptions> workloadOptions,
@@ -52,6 +53,14 @@ public sealed class AssignTeamCommandHandler(
             return report.Status == ReportStatus.InProgress
                 ? Errors.Reports.ReportAlreadyAssigned
                 : Errors.Reports.InvalidStatusTransition;
+        }
+
+        // Draft BR-CMU-003: a Community Cleanup event takes over the report — block direct team assignment while active.
+        var activeCommunityEvent = await communityCleanupEvents.GetActiveByReportIdAsync(request.ReportId, ct).ConfigureAwait(false);
+        if (activeCommunityEvent is not null)
+        {
+            logger.LogWarning("Report {ReportId} has an active community cleanup event", request.ReportId);
+            return Errors.CommunityCleanup.CommunityAlreadyActive;
         }
 
         // Validate each team
