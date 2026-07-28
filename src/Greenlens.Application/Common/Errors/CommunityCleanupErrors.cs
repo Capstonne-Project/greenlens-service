@@ -103,5 +103,10 @@ public static partial class Errors
             "PROGRESS_NOT_COMPLETE",
             "Tiến độ phải đạt 100% trước khi nộp xác thực.",
             ErrorType.BusinessRule);
+
+        public static Error TooEarlyToStart => new(
+            "COMMUNITY_TOO_EARLY_TO_START",
+            "Chưa đến giờ bắt đầu dọn dẹp của chương trình này.",
+            ErrorType.BusinessRule);
     }
 }

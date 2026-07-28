@@ -29,6 +29,9 @@ public sealed class CheckInCommunityCleanupCommandHandler(
         if (ev.Status is not (CommunityCleanupStatus.OpenForJoin or CommunityCleanupStatus.JoinClosed or CommunityCleanupStatus.InProgress))
             return Errors.CommunityCleanup.InvalidStatusTransition;
 
+        if (DateTime.UtcNow < ev.StartsAt)
+            return Errors.CommunityCleanup.TooEarlyToStart;
+
         var participant = await participants.GetByEventAndUserAsync(request.EventId, currentUser.UserId, ct).ConfigureAwait(false);
         if (participant is null)
             return Errors.CommunityCleanup.ParticipantNotFound;

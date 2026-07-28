@@ -22,6 +22,9 @@ public sealed class StartCommunityCleanupCommandHandler(
         if (ev.LeaderUserId != currentUser.UserId)
             return Errors.CommunityCleanup.NotEventLeader;
 
+        if (DateTime.UtcNow < ev.StartsAt)
+            return Errors.CommunityCleanup.TooEarlyToStart;
+
         try
         {
             ev.Start();
