@@ -22,7 +22,7 @@ public sealed class GamificationController(ISender sender) : ControllerBase
     /// <summary>View my gamification points, level, and recent transactions.</summary>
     [HttpGet("my-points")]
     [Authorize]
-    [SwaggerOperation(Summary = "Get my points & level (BR-GAM-001/003)")]
+    [SwaggerOperation(Summary = "Get my points & level")]
     [SwaggerResponse(200, "Points data", typeof(ApiResponse<MyPointsResponse>))]
     public async Task<IActionResult> GetMyPoints(
         [FromQuery] int page = 1,
@@ -36,7 +36,7 @@ public sealed class GamificationController(ISender sender) : ControllerBase
     /// <summary>View my earned badges.</summary>
     [HttpGet("my-badges")]
     [Authorize]
-    [SwaggerOperation(Summary = "Get my badges (BR-GAM-004)")]
+    [SwaggerOperation(Summary = "Get my badges")]
     [SwaggerResponse(200, "Badge list", typeof(ApiResponse<IReadOnlyList<BadgeItem>>))]
     public async Task<IActionResult> GetMyBadges(CancellationToken ct)
     {
@@ -47,7 +47,7 @@ public sealed class GamificationController(ISender sender) : ControllerBase
     /// <summary>Public leaderboard — top users by period.</summary>
     [HttpGet("leaderboard")]
     [AllowAnonymous]
-    [SwaggerOperation(Summary = "Get leaderboard (BR-GAM-005)")]
+    [SwaggerOperation(Summary = "Get leaderboard")]
     [SwaggerResponse(200, "Leaderboard", typeof(ApiResponse<LeaderboardResponse>))]
     public async Task<IActionResult> GetLeaderboard(
         [FromQuery] LeaderboardPeriod period = LeaderboardPeriod.AllTime,
@@ -62,7 +62,7 @@ public sealed class GamificationController(ISender sender) : ControllerBase
     /// <summary>Admin: Lock a user's gamification for fraud (BR-GAM-006).</summary>
     [HttpPost("{userId:guid}/lock")]
     [Authorize(Roles = "Admin")]
-    [SwaggerOperation(Summary = "Lock gamification — fraud penalty (BR-GAM-006)")]
+    [SwaggerOperation(Summary = "[Admin] Lock gamification — fraud penalty")]
     [SwaggerResponse(200, "Lock result", typeof(ApiResponse<LockGamificationResponse>))]
     public async Task<IActionResult> LockGamification(
         Guid userId,

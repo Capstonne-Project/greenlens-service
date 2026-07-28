@@ -20,6 +20,7 @@ public sealed record LockGamificationResponse(
     DateTime LockedUntil);
 
 public sealed class LockGamificationCommandHandler(
+    IUserRepository userRepo,
     IUserPointsRepository userPointsRepo,
     IUnitOfWork unitOfWork,
     ILogger<LockGamificationCommandHandler> logger)
@@ -29,6 +30,16 @@ public sealed class LockGamificationCommandHandler(
         LockGamificationCommand request, CancellationToken ct)
     {
         logger.LogInformation("Getting lock gamification");
+
+        // Validate target user exists before creating UserPoints (FK constraint)
+        var user = await userRepo.GetByIdAsync(request.TargetUserId, ct)
+            .ConfigureAwait(false);
+
+        if (user is null)
+        {
+            logger.LogWarning("User {UserId} not found", request.TargetUserId);
+            return Errors.Users.UserNotFound;
+        }
 
         var userPoints = await userPointsRepo
             .GetOrCreateByUserIdAsync(request.TargetUserId, ct)
