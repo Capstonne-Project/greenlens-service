@@ -218,7 +218,9 @@ public sealed class TeamsController(ISender sender) : ControllerBase
         Description = "Trả về thông tin team kèm danh sách thành viên (tên, email, role leader). " +
             "LEO xem team cộng đồng, CompanyManager xem team công ty mình.")]
     [SwaggerResponse(200, "Chi tiết team", typeof(ApiResponse<TeamDetailResponse>))]
+    [SwaggerResponse(403, "Không có quyền xem team này", typeof(ApiResponse))]
     [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Team không thuộc phạm vi quản lý", typeof(ApiResponse))]
     public async Task<IActionResult> GetByIdAsync([FromRoute] Guid id, CancellationToken ct)
         => (await sender.Send(new GetTeamByIdQuery(id), ct)).ToHttp();
 
@@ -258,7 +260,10 @@ public sealed class TeamsController(ISender sender) : ControllerBase
         Description = "Thêm user vào đội. Role Cleaner chỉ vào team Cleanup, role Inspector chỉ vào team Inspection. " +
             "LEO chỉ quản lý team trong office của mình.")]
     [SwaggerResponse(200, "Đã thêm", typeof(ApiResponse<AddTeamMemberResponse>))]
+    [SwaggerResponse(403, "User không thuộc phường hoặc không có quyền", typeof(ApiResponse))]
+    [SwaggerResponse(404, "Team hoặc user không tồn tại", typeof(ApiResponse))]
     [SwaggerResponse(409, "User đã trong team", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Role không khớp team hoặc team ngoài phạm vi", typeof(ApiResponse))]
     public async Task<IActionResult> AddMemberAsync(
         [FromRoute] Guid teamId, [FromBody] AddTeamMemberRequest request, CancellationToken ct)
         => (await sender.Send(new AddTeamMemberCommand(teamId, request.UserId, request.IsLeader), ct)).ToHttp("Đã thêm thành viên vào team.");

@@ -17,6 +17,7 @@ namespace Greenlens.Application.Features.Organization.GetOfficeStaff;
 public sealed class GetOfficeStaffQueryHandler(
     IUserRepository userRepo,
     ITeamMemberRepository teamMemberRepo,
+    IEnvironmentalTeamRepository teams,
     ICurrentUser currentUser,
     ILogger<GetOfficeStaffQueryHandler> logger) : IRequestHandler<GetOfficeStaffQuery, Result<GetOfficeStaffResponse>>
 {
@@ -62,12 +63,22 @@ public sealed class GetOfficeStaffQueryHandler(
                 u.Email.ToLower().Contains(keyword));
         }
 
-        // ── 4. Left join with TeamMember to get team info ──
+        // ── 4. Left join with TeamMember; resolve team name via subquery (avoids filtered-nav issues) ──
         var joinedQuery = from u in staffQuery
                           join tm in teamMemberRepo.QueryAsNoTracking()
                               on u.Id equals tm.UserId into tmGroup
                           from tm in tmGroup.DefaultIfEmpty()
-                          select new { User = u, TeamMember = tm };
+                          select new
+                          {
+                              User = u,
+                              TeamMember = tm,
+                              TeamName = tm == null
+                                  ? null
+                                  : teams.QueryAsNoTracking()
+                                      .Where(t => t.Id == tm.TeamId)
+                                      .Select(t => t.Name)
+                                      .FirstOrDefault()
+                          };
 
         // ── 5. Filter by HasTeam ──
         if (request.HasTeam == true)
@@ -97,7 +108,7 @@ public sealed class GetOfficeStaffQueryHandler(
                 x.User.AvatarUrl,
                 x.User.Role,
                 x.TeamMember != null ? x.TeamMember.TeamId : null,
-                x.TeamMember != null && x.TeamMember.Team != null ? x.TeamMember.Team.Name : null,
+                x.TeamName,
                 x.TeamMember != null && x.TeamMember.IsLeader,
                 x.User.CreatedAt))
             .ToListAsync(ct)
