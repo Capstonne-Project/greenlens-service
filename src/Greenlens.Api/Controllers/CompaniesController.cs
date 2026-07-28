@@ -49,13 +49,13 @@ public sealed class CompaniesController(ISender sender) : ControllerBase
             "ManagerEmail + ManagerFullName là tuỳ chọn — bỏ trống để tạo công ty trước, tạo CM sau qua POST /{id}/manager. " +
             "Nếu có CM: trạng thái ban đầu PendingActivation; CM đăng nhập bằng MK tạm → đổi MK → công ty tự động Active. " +
             "⚠️ TempPassword chỉ hiển thị 1 lần — DEO cần gửi cho CM.")]
-    [SwaggerResponse(201, "Đã tạo công ty", typeof(ApiResponse<CreateCompanyResponse>))]
+    [SwaggerResponse(200, "Đã tạo công ty", typeof(ApiResponse<CreateCompanyResponse>))]
     [SwaggerResponse(404, "Department hoặc WardCode không tồn tại", typeof(ApiResponse))]
     [SwaggerResponse(409, "Số hợp đồng hoặc email CM đã tồn tại", typeof(ApiResponse))]
     [SwaggerResponse(422, "Validation error", typeof(ApiResponse))]
     public async Task<IActionResult> CreateAsync(
         [FromBody] CreateCompanyCommand command, CancellationToken ct)
-        => (await sender.Send(command, ct)).ToHttpCreated();
+        => (await sender.Send(command, ct)).ToHttp("Đã tạo công ty thành công.");
 
     [HttpPost("{id:guid}/manager")]
     [Authorize(Roles = "DEO,Admin")]
@@ -66,14 +66,14 @@ public sealed class CompaniesController(ISender sender) : ControllerBase
             "Dùng khi công ty được tạo trước mà chưa có CM, hoặc muốn thêm CM. " +
             "CM đăng nhập bằng MK tạm → đổi MK → công ty tự động Active. " +
             "⚠️ TempPassword chỉ hiển thị 1 lần — DEO cần gửi cho CM.")]
-    [SwaggerResponse(201, "Đã tạo tài khoản CM", typeof(ApiResponse<CreateCompanyManagerResponse>))]
+    [SwaggerResponse(200, "Đã tạo tài khoản CM", typeof(ApiResponse<CreateCompanyManagerResponse>))]
     [SwaggerResponse(404, "Công ty không tồn tại", typeof(ApiResponse))]
     [SwaggerResponse(409, "Email CM đã tồn tại", typeof(ApiResponse))]
     [SwaggerResponse(422, "Validation error", typeof(ApiResponse))]
     public async Task<IActionResult> CreateManagerAsync(
         [FromRoute] Guid id, [FromBody] CreateCompanyManagerRequest request, CancellationToken ct)
         => (await sender.Send(new CreateCompanyManagerCommand(id, request.ManagerEmail, request.ManagerFullName), ct))
-            .ToHttpCreated();
+            .ToHttp("Đã tạo tài khoản CompanyManager thành công.");
 
     [HttpPost("{id:guid}/manager/{userId:guid}/reset-password")]
     [Authorize(Roles = "DEO,Admin")]
@@ -235,13 +235,13 @@ public sealed class CompaniesController(ISender sender) : ControllerBase
             "Staff đăng nhập lần đầu → bắt buộc đổi MK. " +
             "Có thể gán luôn vào team (nếu truyền teamId). " +
             "⚠️ TempPassword chỉ hiển thị 1 lần.")]
-    [SwaggerResponse(201, "Đã tạo nhân viên", typeof(ApiResponse<CreateCompanyStaffResponse>))]
+    [SwaggerResponse(200, "Đã tạo nhân viên", typeof(ApiResponse<CreateCompanyStaffResponse>))]
     [SwaggerResponse(403, "Không phải CompanyManager", typeof(ApiResponse))]
     [SwaggerResponse(409, "Email đã tồn tại", typeof(ApiResponse))]
     [SwaggerResponse(422, "Validation error", typeof(ApiResponse))]
     public async Task<IActionResult> CreateStaffAsync(
         [FromBody] CreateCompanyStaffCommand command, CancellationToken ct)
-        => (await sender.Send(command, ct)).ToHttpCreated();
+        => (await sender.Send(command, ct)).ToHttp("Đã tạo nhân viên thành công.");
 
     [HttpGet("my/staff")]
     [Authorize(Roles = "CompanyManager")]

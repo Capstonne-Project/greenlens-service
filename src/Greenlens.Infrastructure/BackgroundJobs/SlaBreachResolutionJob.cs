@@ -62,9 +62,14 @@ internal sealed class SlaBreachResolutionJob(
             await notificationService.SendFromTemplateAsync(
                 leoId,
                 NotificationType.SlaResolutionBreached,
-                JobNotificationPlaceholders.ForReportWithSeverity(
-                    report.Code,
-                    report.Severity.ToString()),
+                await JobNotificationPlaceholders
+                    .EnrichFromWardCodeAsync(
+                        db,
+                        JobNotificationPlaceholders.ForReportWithSeverity(
+                            report.Code,
+                            report.Severity),
+                        report.WardCode)
+                    .ConfigureAwait(false),
                 report.Id).ConfigureAwait(false);
         }
 

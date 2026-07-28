@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Greenlens.Application.UnitTests" />
+    <InternalsVisibleTo Include="Greenlens.Infrastructure" />
   </ItemGroup>
 
 </Project>

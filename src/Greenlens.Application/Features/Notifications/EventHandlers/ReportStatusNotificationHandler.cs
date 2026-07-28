@@ -1,5 +1,6 @@
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Notifications;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -28,6 +29,7 @@ internal sealed class ReportSubmittedNotificationHandler(
             {
                 r.Id,
                 r.Code,
+                r.WardCode,
                 r.AssignedOfficeId,
                 r.AssignedDepartmentId
             })
@@ -55,12 +57,20 @@ internal sealed class ReportSubmittedNotificationHandler(
             return;
         }
 
+        var placeholders = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["report_code"] = report.Code
+        };
+        placeholders = await NotificationLocalityQueries
+            .EnrichFromWardCodeAsync(db, placeholders, report.WardCode, ct)
+            .ConfigureAwait(false);
+
         foreach (var recipientId in recipientIds)
         {
             await notificationService.SendFromTemplateAsync(
                 recipientId,
                 NotificationType.ReportVerificationNeeded,
-                new Dictionary<string, string> { ["report_code"] = report.Code },
+                placeholders,
                 report.Id,
                 ct).ConfigureAwait(false);
         }
@@ -122,11 +132,7 @@ internal sealed class ReportVerifiedNotificationHandler(
         await notificationService.SendFromTemplateAsync(
             notification.ReporterId,
             NotificationType.ReportStatusChanged,
-            new Dictionary<string, string>
-            {
-                ["report_code"] = reportCode,
-                ["status"] = "Verified"
-            },
+            NotificationPlaceholders.ForReportStatus(reportCode, ReportStatus.Verified),
             notification.ReportId,
             ct).ConfigureAwait(false);
     }
@@ -162,11 +168,7 @@ internal sealed class ReportRejectedNotificationHandler(
         await notificationService.SendFromTemplateAsync(
             notification.ReporterId,
             NotificationType.ReportStatusChanged,
-            new Dictionary<string, string>
-            {
-                ["report_code"] = reportCode,
-                ["status"] = "Rejected"
-            },
+            NotificationPlaceholders.ForReportStatus(reportCode, ReportStatus.Rejected),
             notification.ReportId,
             ct).ConfigureAwait(false);
     }
@@ -190,11 +192,7 @@ internal sealed class ReportResolvedNotificationHandler(
         await notificationService.SendFromTemplateAsync(
             notification.ReporterId,
             NotificationType.ReportStatusChanged,
-            new Dictionary<string, string>
-            {
-                ["report_code"] = reportCode,
-                ["status"] = "Resolved"
-            },
+            NotificationPlaceholders.ForReportStatus(reportCode, ReportStatus.Resolved),
             notification.ReportId,
             ct).ConfigureAwait(false);
     }

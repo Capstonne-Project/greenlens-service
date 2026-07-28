@@ -45,11 +45,11 @@ public sealed class DepartmentsController(ISender sender) : ControllerBase
     [Authorize(Roles = "Admin")]
     [Tags("⚙️ Admin Dashboard")]
     [SwaggerOperation(Summary = "[Admin] Tạo department", Description = "Tạo Sở TNMT cấp Tỉnh/TP. Mỗi tỉnh chỉ có 1 department.")]
-    [SwaggerResponse(201, "Đã tạo", typeof(ApiResponse<CreateDepartmentResponse>))]
+    [SwaggerResponse(200, "Đã tạo", typeof(ApiResponse<CreateDepartmentResponse>))]
     [SwaggerResponse(409, "Tỉnh đã có department", typeof(ApiResponse))]
     public async Task<IActionResult> CreateAsync(
         [FromBody] CreateDepartmentCommand command, CancellationToken ct)
-        => (await sender.Send(command, ct)).ToHttpCreated();
+        => (await sender.Send(command, ct)).ToHttp("Đã tạo department thành công.");
 
     [HttpPut("{id:guid}")]
     [Authorize(Roles = "Admin")]

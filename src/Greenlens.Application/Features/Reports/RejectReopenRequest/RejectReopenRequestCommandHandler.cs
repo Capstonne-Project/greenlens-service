@@ -62,10 +62,18 @@ public sealed class RejectReopenRequestCommandHandler(
 
         if (report.ReporterId.HasValue)
         {
+            var placeholders = NotificationPlaceholders.ForReopenDecided(
+                report.Code,
+                approved: false,
+                request.Reason);
+            placeholders = await NotificationLocalityQueries
+                .EnrichFromReportIdAsync(db, placeholders, report.Id, ct)
+                .ConfigureAwait(false);
+
             await notifications.SendFromTemplateAsync(
                 report.ReporterId.Value,
                 NotificationType.ReopenRequestDecided,
-                NotificationPlaceholders.ForReopenDecided(report.Code, approved: false, request.Reason),
+                placeholders,
                 report.Id,
                 ct).ConfigureAwait(false);
         }

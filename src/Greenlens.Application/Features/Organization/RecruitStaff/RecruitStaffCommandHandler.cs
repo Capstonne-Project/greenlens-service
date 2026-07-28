@@ -1,6 +1,8 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Notifications;
+using Greenlens.Application.Features.Organization;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
@@ -22,7 +24,7 @@ public sealed class RecruitStaffCommandHandler(
     IUserRepository users,
     IEnvironmentalTeamRepository teams,
     IStaffInvitationRepository invitations,
-    ILocalOfficeRepository localOffices,
+    IApplicationDbContext db,
     INotificationService notifications,
     ICurrentUser currentUser,
     IUnitOfWork uow,
@@ -139,18 +141,17 @@ public sealed class RecruitStaffCommandHandler(
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 
-        var officeName = await localOffices.QueryAsNoTracking()
-            .Where(o => o.Id == leoOfficeId)
-            .Select(o => o.Name)
-            .FirstOrDefaultAsync(ct)
+        var (wardName, _) = await StaffInvitationNotificationPlaceholders
+            .ResolveContextAsync(leoOfficeId, assignedTeamId, db, teams, ct)
             .ConfigureAwait(false);
 
         await notifications.SendFromTemplateAsync(
             targetUser.Id,
             NotificationType.StaffInvitationReceived,
             StaffInvitationNotificationPlaceholders.ForReceived(
-                leo.FullName,
-                string.IsNullOrWhiteSpace(officeName) ? "phường/xã" : officeName,
+                NotificationVietnameseLabels.LeoOfficer(
+                    wardName == "khu vực liên quan" ? null : wardName),
+                wardName,
                 request.TargetRole,
                 assignedTeamName),
             invitation.Id,

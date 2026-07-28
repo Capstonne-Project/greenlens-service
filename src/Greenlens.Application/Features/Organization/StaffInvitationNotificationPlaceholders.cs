@@ -1,4 +1,6 @@
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Notifications;
 using Greenlens.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 
@@ -17,43 +19,31 @@ internal static class StaffInvitationNotificationPlaceholders
         string.IsNullOrWhiteSpace(teamName) ? string.Empty : $" (đội {teamName})";
 
     internal static Dictionary<string, string> ForReceived(
-        string inviterName,
-        string officeName,
+        string inviterLabel,
+        string wardName,
         UserRole targetRole,
         string? teamName) =>
-        new()
-        {
-            ["inviter_name"] = inviterName,
-            ["office_name"] = officeName,
-            ["target_role"] = FormatTargetRoleVi(targetRole),
-            ["team_clause"] = FormatTeamClause(teamName)
-        };
+        Build(inviterLabel, wardName, targetRole, teamName, memberName: null);
 
     internal static Dictionary<string, string> ForResponded(
         string memberName,
-        string officeName,
+        string wardName,
         UserRole targetRole,
         string? teamName) =>
-        new()
-        {
-            ["member_name"] = memberName,
-            ["office_name"] = officeName,
-            ["target_role"] = FormatTargetRoleVi(targetRole),
-            ["team_clause"] = FormatTeamClause(teamName)
-        };
+        Build(inviterLabel: null, wardName, targetRole, teamName, memberName);
 
-    internal static async Task<(string OfficeName, string? TeamName)> ResolveContextAsync(
+    internal static async Task<(string WardName, string? TeamName)> ResolveContextAsync(
         Guid officeId,
         Guid? teamId,
-        ILocalOfficeRepository offices,
+        IApplicationDbContext db,
         IEnvironmentalTeamRepository teams,
         CancellationToken ct)
     {
-        var officeName = await offices.QueryAsNoTracking()
-            .Where(o => o.Id == officeId)
-            .Select(o => o.Name)
-            .FirstOrDefaultAsync(ct)
+        var locality = await NotificationLocalityQueries
+            .FromOfficeIdAsync(db, officeId, ct)
             .ConfigureAwait(false);
+
+        var wardName = NotificationVietnameseLabels.DisplayWardName(locality.WardName);
 
         string? teamName = null;
         if (teamId.HasValue)
@@ -65,6 +55,30 @@ internal static class StaffInvitationNotificationPlaceholders
                 .ConfigureAwait(false);
         }
 
-        return (string.IsNullOrWhiteSpace(officeName) ? "phường/xã" : officeName, teamName);
+        return (wardName, teamName);
+    }
+
+    private static Dictionary<string, string> Build(
+        string? inviterLabel,
+        string wardName,
+        UserRole targetRole,
+        string? teamName,
+        string? memberName)
+    {
+        var placeholders = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["ward_name"] = wardName,
+            ["office_name"] = wardName,
+            ["target_role"] = FormatTargetRoleVi(targetRole),
+            ["team_clause"] = FormatTeamClause(teamName)
+        };
+
+        if (inviterLabel is not null)
+            placeholders["inviter_name"] = inviterLabel;
+
+        if (memberName is not null)
+            placeholders["member_name"] = memberName;
+
+        return placeholders;
     }
 }

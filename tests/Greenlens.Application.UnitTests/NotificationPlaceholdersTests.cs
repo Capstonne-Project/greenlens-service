@@ -57,7 +57,7 @@ public sealed class NotificationPlaceholdersTests
 
         placeholders["report_code"].Should().Be("RPT-400");
         placeholders["detection_summary"].Should().Contain("3 cờ");
-        placeholders["detection_summary"].Should().Contain("Duplicate");
+        placeholders["detection_summary"].Should().Contain("trùng lặp");
     }
 
     [Fact]
@@ -84,10 +84,10 @@ public sealed class NotificationPlaceholdersTests
     [Fact]
     public void ForReportStatus_MapsInProgress_BR_NTF_002()
     {
-        var placeholders = NotificationPlaceholders.ForReportStatus("RPT-600", "InProgress");
+        var placeholders = NotificationPlaceholders.ForReportStatus("RPT-600", ReportStatus.InProgress);
 
         placeholders["report_code"].Should().Be("RPT-600");
-        placeholders["status"].Should().Be("InProgress");
+        placeholders["status"].Should().Be("Đang xử lý");
     }
 
     [Fact]

@@ -1,5 +1,6 @@
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Notifications;
 using Greenlens.Domain.Enums;
 using Microsoft.Extensions.Logging;
 
@@ -16,6 +17,7 @@ public sealed class CleanupTaskAssignedNotifier(
     INotificationService notificationService,
     IEnvironmentalTeamRepository teams,
     ITeamMemberRecipientQuery teamRecipients,
+    IApplicationDbContext db,
     ILogger<CleanupTaskAssignedNotifier> logger) : ICleanupTaskAssignedNotifier
 {
     public async Task NotifyTeamAsync(
@@ -46,6 +48,9 @@ public sealed class CleanupTaskAssignedNotifier(
         var placeholders = NotificationPlaceholders.ForCleanupTaskAssigned(
             reportCode,
             team.Name);
+        placeholders = await NotificationLocalityQueries
+            .EnrichFromReportIdAsync(db, placeholders, reportId, ct)
+            .ConfigureAwait(false);
 
         foreach (var memberId in memberIds)
         {

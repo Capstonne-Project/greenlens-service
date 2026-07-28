@@ -23,7 +23,7 @@ namespace Greenlens.Api.Controllers;
 public sealed class CompanyDashboardController(ISender sender) : ControllerBase
 {
     [HttpGet("overview")]
-    [SwaggerOperation(Summary = "Company dashboard overview KPIs")]
+    [SwaggerOperation(Summary = "[CompanyManager] Company dashboard overview KPIs")]
     public async Task<IActionResult> GetOverviewAsync(
         [FromQuery] DateTime? from = null,
         [FromQuery] DateTime? to = null,
@@ -31,7 +31,7 @@ public sealed class CompanyDashboardController(ISender sender) : ControllerBase
         => (await sender.Send(new GetCompanyOverviewQuery(from, to), ct)).ToHttp();
 
     [HttpGet("workload-trend")]
-    [SwaggerOperation(Summary = "Daily dispatched vs completed task trend")]
+    [SwaggerOperation(Summary = "[CompanyManager] Daily dispatched vs completed task trend")]
     public async Task<IActionResult> GetWorkloadTrendAsync(
         [FromQuery] DateTime? from = null,
         [FromQuery] DateTime? to = null,
@@ -39,7 +39,7 @@ public sealed class CompanyDashboardController(ISender sender) : ControllerBase
         => (await sender.Send(new GetCompanyWorkloadTrendQuery(from, to), ct)).ToHttp();
 
     [HttpGet("task-status")]
-    [SwaggerOperation(Summary = "Assignment status distribution")]
+    [SwaggerOperation(Summary = "[CompanyManager] Assignment status distribution")]
     public async Task<IActionResult> GetTaskStatusAsync(
         [FromQuery] DateTime? from = null,
         [FromQuery] DateTime? to = null,
@@ -47,7 +47,7 @@ public sealed class CompanyDashboardController(ISender sender) : ControllerBase
         => (await sender.Send(new GetCompanyTaskStatusQuery(from, to), ct)).ToHttp();
 
     [HttpGet("team-performance")]
-    [SwaggerOperation(Summary = "Per-team performance KPIs")]
+    [SwaggerOperation(Summary = "[CompanyManager] Per-team performance KPIs")]
     public async Task<IActionResult> GetTeamPerformanceAsync(
         [FromQuery] DateTime? from = null,
         [FromQuery] DateTime? to = null,
@@ -55,7 +55,7 @@ public sealed class CompanyDashboardController(ISender sender) : ControllerBase
         => (await sender.Send(new GetCompanyTeamPerformanceQuery(from, to), ct)).ToHttp();
 
     [HttpGet("staff-performance")]
-    [SwaggerOperation(Summary = "Per-staff performance KPIs")]
+    [SwaggerOperation(Summary = "[CompanyManager] Per-staff performance KPIs")]
     public async Task<IActionResult> GetStaffPerformanceAsync(
         [FromQuery] DateTime? from = null,
         [FromQuery] DateTime? to = null,
@@ -63,7 +63,7 @@ public sealed class CompanyDashboardController(ISender sender) : ControllerBase
         => (await sender.Send(new GetCompanyStaffPerformanceQuery(from, to), ct)).ToHttp();
 
     [HttpGet("queue-aging")]
-    [SwaggerOperation(Summary = "Company task queue age distribution")]
+    [SwaggerOperation(Summary = "[CompanyManager] Company task queue age distribution")]
     public async Task<IActionResult> GetQueueAgingAsync(
         [FromQuery] DateTime? from = null,
         [FromQuery] DateTime? to = null,
@@ -71,7 +71,7 @@ public sealed class CompanyDashboardController(ISender sender) : ControllerBase
         => (await sender.Send(new GetCompanyQueueAgingQuery(from, to), ct)).ToHttp();
 
     [HttpGet("recent-activities")]
-    [SwaggerOperation(Summary = "Recent company task lifecycle events")]
+    [SwaggerOperation(Summary = "[CompanyManager] Recent company task lifecycle events")]
     public async Task<IActionResult> GetRecentActivitiesAsync(
         [FromQuery] DateTime? from = null,
         [FromQuery] DateTime? to = null,
@@ -79,7 +79,7 @@ public sealed class CompanyDashboardController(ISender sender) : ControllerBase
         => (await sender.Send(new GetCompanyRecentActivitiesQuery(from, to), ct)).ToHttp();
 
     [HttpGet("upcoming-deadlines")]
-    [SwaggerOperation(Summary = "Tasks approaching their SLA deadline")]
+    [SwaggerOperation(Summary = "[CompanyManager] Tasks approaching their SLA deadline")]
     public async Task<IActionResult> GetUpcomingDeadlinesAsync(
         [FromQuery] DateTime? from = null,
         [FromQuery] DateTime? to = null,

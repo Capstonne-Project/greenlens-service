@@ -243,11 +243,11 @@ public sealed class TeamsController(ISender sender) : ControllerBase
         Description = "Tạo đội Cleaner (dọn dẹp) hoặc Inspection (thanh tra). " +
             "LocalOfficeId tự resolve từ token — chỉ cần truyền name + teamType. " +
             "Để tạo team **công ty** → dùng `POST /v1/teams/company-teams` (CompanyManager).")]
-    [SwaggerResponse(201, "Đã tạo", typeof(ApiResponse<CreateTeamResponse>))]
+    [SwaggerResponse(200, "Đã tạo", typeof(ApiResponse<CreateTeamResponse>))]
     [SwaggerResponse(404, "LEO chưa được gán office", typeof(ApiResponse))]
     public async Task<IActionResult> CreateAsync(
         [FromBody] CreateTeamCommand command, CancellationToken ct)
-        => (await sender.Send(command, ct)).ToHttpCreated();
+        => (await sender.Send(command, ct)).ToHttp("Đã tạo team thành công.");
 
     [HttpPut("{id:guid}")]
     [Authorize(Roles = "Admin,LEO")]
@@ -270,11 +270,11 @@ public sealed class TeamsController(ISender sender) : ControllerBase
         Summary = "[Admin/LEO] Thêm thành viên vào team cộng đồng",
         Description = "Thêm user vào đội. Role Cleaner chỉ vào team Cleanup, role Inspector chỉ vào team Inspection. " +
             "LEO chỉ quản lý team trong office của mình.")]
-    [SwaggerResponse(201, "Đã thêm", typeof(ApiResponse<AddTeamMemberResponse>))]
+    [SwaggerResponse(200, "Đã thêm", typeof(ApiResponse<AddTeamMemberResponse>))]
     [SwaggerResponse(409, "User đã trong team", typeof(ApiResponse))]
     public async Task<IActionResult> AddMemberAsync(
         [FromRoute] Guid teamId, [FromBody] AddTeamMemberRequest request, CancellationToken ct)
-        => (await sender.Send(new AddTeamMemberCommand(teamId, request.UserId, request.IsLeader), ct)).ToHttpCreated();
+        => (await sender.Send(new AddTeamMemberCommand(teamId, request.UserId, request.IsLeader), ct)).ToHttp("Đã thêm thành viên vào team.");
 
     [HttpDelete("{teamId:guid}/members/{userId:guid}")]
     [Authorize(Roles = "Admin,LEO")]
@@ -305,7 +305,7 @@ public sealed class TeamsController(ISender sender) : ControllerBase
         [FromRoute] Guid teamId, [FromRoute] Guid userId,
         [FromBody] TransferMemberRequest request, CancellationToken ct)
         => (await sender.Send(
-            new TransferTeamMemberCommand(teamId, userId, request.NewTeamId, request.IsLeader), ct)).ToHttp();
+            new TransferTeamMemberCommand(teamId, userId, request.NewTeamId, request.IsLeader), ct)).ToHttp("Đã chuyển thành viên sang team mới.");
 
     // ═══════════════════════════════════════════
     // ██  COMPANY TEAM CRUD (CompanyManager)
@@ -337,11 +337,11 @@ public sealed class TeamsController(ISender sender) : ControllerBase
             "CompanyId tự động gắn từ token (không truyền trong body). " +
             "Team công ty **không gắn cố định LocalOffice** — đi theo task được dispatch. " +
             "**InspectionTeam KHÔNG được phép** — đội xử phạt luôn thuộc phường/xã (LEO quản lý).")]
-    [SwaggerResponse(201, "Đã tạo", typeof(ApiResponse<CreateCompanyTeamResponse>))]
+    [SwaggerResponse(200, "Đã tạo", typeof(ApiResponse<CreateCompanyTeamResponse>))]
     [SwaggerResponse(403, "Không phải CompanyManager", typeof(ApiResponse))]
     public async Task<IActionResult> CreateCompanyTeamAsync(
         [FromBody] CreateCompanyTeamCommand command, CancellationToken ct)
-        => (await sender.Send(command, ct)).ToHttpCreated();
+        => (await sender.Send(command, ct)).ToHttp("Đã tạo team công ty thành công.");
 
     [HttpPut("company-teams/{id:guid}")]
     [Authorize(Roles = "CompanyManager,Admin")]
@@ -396,13 +396,13 @@ public sealed class TeamsController(ISender sender) : ControllerBase
         Description = "CM thêm CompanyStaff (thuộc cùng công ty) vào team. " +
             "User phải có role CompanyStaff và thuộc cùng công ty của CM. " +
             "Có thể gán làm leader.")]
-    [SwaggerResponse(201, "Đã thêm", typeof(ApiResponse<AddCompanyTeamMemberResponse>))]
+    [SwaggerResponse(200, "Đã thêm", typeof(ApiResponse<AddCompanyTeamMemberResponse>))]
     [SwaggerResponse(404, "Team hoặc user không tồn tại", typeof(ApiResponse))]
     [SwaggerResponse(409, "User đã trong team", typeof(ApiResponse))]
     [SwaggerResponse(422, "User không thuộc công ty hoặc sai role", typeof(ApiResponse))]
     public async Task<IActionResult> AddCompanyTeamMemberAsync(
         [FromRoute] Guid teamId, [FromBody] AddCompanyTeamMemberRequest request, CancellationToken ct)
-        => (await sender.Send(new AddCompanyTeamMemberCommand(teamId, request.UserId, request.IsLeader), ct)).ToHttpCreated();
+        => (await sender.Send(new AddCompanyTeamMemberCommand(teamId, request.UserId, request.IsLeader), ct)).ToHttp("Đã thêm nhân viên vào team.");
 
     [HttpDelete("company-teams/{teamId:guid}/members/{userId:guid}")]
     [Authorize(Roles = "CompanyManager,Admin")]

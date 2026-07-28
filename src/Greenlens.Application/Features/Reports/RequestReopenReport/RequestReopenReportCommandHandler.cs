@@ -158,6 +158,9 @@ public sealed class RequestReopenReportCommandHandler(
             .ConfigureAwait(false);
 
         var placeholders = NotificationPlaceholders.ForReopenReview(report.Code);
+        placeholders = await NotificationLocalityQueries
+            .EnrichFromReportIdAsync(db, placeholders, report.Id, ct)
+            .ConfigureAwait(false);
 
         foreach (var reviewerId in reviewerIds)
         {

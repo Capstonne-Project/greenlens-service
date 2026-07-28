@@ -15,7 +15,7 @@ namespace Greenlens.Application.Features.Organization.DeclineInvitation;
 public sealed class DeclineInvitationCommandHandler(
     IStaffInvitationRepository invitations,
     IUserRepository users,
-    ILocalOfficeRepository localOffices,
+    IApplicationDbContext db,
     IEnvironmentalTeamRepository teams,
     INotificationService notifications,
     ICurrentUser currentUser,
@@ -54,11 +54,11 @@ public sealed class DeclineInvitationCommandHandler(
         var user = await users.GetByIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
         if (user is not null)
         {
-            var (officeName, teamName) = await StaffInvitationNotificationPlaceholders
+            var (wardName, teamName) = await StaffInvitationNotificationPlaceholders
                 .ResolveContextAsync(
                     invitation.LocalOfficeId,
                     invitation.TeamId,
-                    localOffices,
+                    db,
                     teams,
                     ct)
                 .ConfigureAwait(false);
@@ -68,7 +68,7 @@ public sealed class DeclineInvitationCommandHandler(
                 NotificationType.StaffInvitationDeclined,
                 StaffInvitationNotificationPlaceholders.ForResponded(
                     user.FullName,
-                    officeName,
+                    wardName,
                     invitation.TargetRole,
                     teamName),
                 invitation.Id,

@@ -51,6 +51,7 @@ public sealed class CleanupTaskAssignedNotifierTests
             _notifications,
             _teams,
             _teamRecipients,
+            Substitute.For<IApplicationDbContext>(),
             NullLogger<CleanupTaskAssignedNotifier>.Instance);
     }
 
