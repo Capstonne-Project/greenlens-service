@@ -39,6 +39,7 @@ internal static class CommunityCleanupMapper
             report.Longitude,
             report.Address,
             report.Category.NameVi,
+            report.Severity,
             thumbnailUrl,
             myParticipation,
             isLeader,

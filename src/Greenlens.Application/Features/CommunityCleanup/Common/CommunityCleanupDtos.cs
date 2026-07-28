@@ -44,6 +44,7 @@ public sealed record CommunityCleanupEventDetailResponse(
     decimal ReportLongitude,
     string? ReportAddress,
     string CategoryName,
+    Severity Severity,
     string? ThumbnailUrl,
     CommunityCleanupMyParticipationDto? MyParticipation,
     bool IsLeader,
