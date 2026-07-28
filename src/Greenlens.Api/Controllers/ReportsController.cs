@@ -144,12 +144,12 @@ public sealed class ReportsController(
         Description = "Tạo báo cáo mới. " +
             "Hệ thống tự động gán SLA 24h và route báo cáo theo wardCode đến LocalOffice hoặc Department queue. " +
             "Có thể đính kèm wasteTagIds (optional) để citizen tự gắn loại rác — DEO có thể bổ sung/sửa sau.")]
-    [SwaggerResponse(201, "Đã tạo", typeof(ApiResponse<SubmitPollutionReportResponse>))]
+    [SwaggerResponse(200, "Đã tạo", typeof(ApiResponse<SubmitPollutionReportResponse>))]
     [SwaggerResponse(400, "Thiếu thông tin xác thực hoặc ward/province không hợp lệ", typeof(ApiResponse))]
     [SwaggerResponse(404, "Danh mục không tồn tại", typeof(ApiResponse))]
     public async Task<IActionResult> SubmitAsync(
         [FromBody] SubmitPollutionReportCommand command, CancellationToken ct)
-        => (await sender.Send(command, ct)).ToHttpCreated();
+        => (await sender.Send(command, ct)).ToHttp("Đã gửi báo cáo thành công.");
 
     [HttpGet]
     [Authorize]
@@ -655,7 +655,7 @@ public sealed class ReportsController(
         Summary = "[LEO] Lập hồ sơ xử phạt cho báo cáo",
         Description = "LEO lập InspectionReport (Draft) liên kết với Report đã Verified (BR-INS-001, BR-OFF-005). " +
             "Có thể gán Inspection Team ngay hoặc gán sau.")]
-    [SwaggerResponse(201, "Đã tạo hồ sơ xử phạt", typeof(ApiResponse<Guid>))]
+    [SwaggerResponse(200, "Đã tạo hồ sơ xử phạt", typeof(ApiResponse<Guid>))]
     [SwaggerResponse(404, "Không tìm thấy báo cáo", typeof(ApiResponse))]
     [SwaggerResponse(409, "Đã có hồ sơ xử phạt đang hoạt động", typeof(ApiResponse))]
     [SwaggerResponse(422, "Báo cáo chưa Verified hoặc team không hợp lệ", typeof(ApiResponse))]
@@ -670,7 +670,7 @@ public sealed class ReportsController(
             request.ViolatorName,
             request.ViolatorAddress,
             request.ViolatorIdentity), ct))
-            .ToHttpCreated();
+            .ToHttp("Đã lập hồ sơ xử phạt thành công.");
 
     [HttpGet("{id:guid}/inspections")]
     [Authorize(Roles = "LEO,Inspector,Admin")]

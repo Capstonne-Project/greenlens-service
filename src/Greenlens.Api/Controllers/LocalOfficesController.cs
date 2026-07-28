@@ -49,11 +49,11 @@ public sealed class LocalOfficesController(ISender sender) : ControllerBase
     [Authorize(Roles = "Admin")]
     [Tags("⚙️ Admin Dashboard")]
     [SwaggerOperation(Summary = "[Admin] Tạo office", Description = "Onboard văn phòng MT cấp xã/phường. Sau khi tạo, báo cáo trong ward đó sẽ tự động route đến office này.")]
-    [SwaggerResponse(201, "Đã tạo", typeof(ApiResponse<CreateLocalOfficeResponse>))]
+    [SwaggerResponse(200, "Đã tạo", typeof(ApiResponse<CreateLocalOfficeResponse>))]
     [SwaggerResponse(409, "Ward đã có office", typeof(ApiResponse))]
     public async Task<IActionResult> CreateAsync(
         [FromBody] CreateLocalOfficeCommand command, CancellationToken ct)
-        => (await sender.Send(command, ct)).ToHttpCreated();
+        => (await sender.Send(command, ct)).ToHttp("Đã tạo văn phòng thành công.");
 
     [HttpPut("{id:guid}")]
     [Authorize(Roles = "Admin")]
@@ -131,7 +131,7 @@ public sealed class LocalOfficesController(ISender sender) : ControllerBase
             "Citizen phải Accept trước khi role đổi. " +
             "Nếu truyền teamId → sẽ thêm vào team khi Citizen accept. " +
             "Chỉ Citizen mới được mời. User đã thuộc phường khác → reject.")]
-    [SwaggerResponse(201, "Đã gửi lời mời", typeof(ApiResponse<RecruitStaffResponse>))]
+    [SwaggerResponse(200, "Đã gửi lời mời", typeof(ApiResponse<RecruitStaffResponse>))]
     [SwaggerResponse(404, "Không tìm thấy email trong hệ thống", typeof(ApiResponse))]
     [SwaggerResponse(409, "User đã thuộc phường/team khác hoặc đã có invitation pending", typeof(ApiResponse))]
     [SwaggerResponse(422, "Role không hợp lệ hoặc chưa gán office", typeof(ApiResponse))]
@@ -139,7 +139,7 @@ public sealed class LocalOfficesController(ISender sender) : ControllerBase
         [FromBody] RecruitStaffRequest request, CancellationToken ct)
         => (await sender.Send(
             new RecruitStaffCommand(request.Email, request.TargetRole, request.TeamId, request.IsLeader), ct))
-            .ToHttpCreated();
+            .ToHttp("Đã gửi lời mời thành công.");
 
     [HttpDelete("my/staff/{userId:guid}")]
     [Authorize(Roles = "LEO,Admin")]
