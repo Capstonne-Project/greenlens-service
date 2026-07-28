@@ -35,6 +35,10 @@ internal sealed class ApplicationDbContext(
     public DbSet<EnvironmentalTeam> EnvironmentalTeams => Set<EnvironmentalTeam>();
     public DbSet<TeamMember> TeamMembers => Set<TeamMember>();
 
+    // ── Community Cleanup module ──
+    public DbSet<CommunityCleanupEvent> CommunityCleanupEvents => Set<CommunityCleanupEvent>();
+    public DbSet<CommunityCleanupParticipant> CommunityCleanupParticipants => Set<CommunityCleanupParticipant>();
+
     // ── Inspection & Company module (v1.3) ──
     public DbSet<InspectionReport> InspectionReports => Set<InspectionReport>();
     public DbSet<ViolatingEntity> ViolatingEntities => Set<ViolatingEntity>();
