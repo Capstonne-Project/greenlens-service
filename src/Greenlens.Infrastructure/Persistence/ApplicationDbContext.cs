@@ -74,6 +74,11 @@ internal sealed class ApplicationDbContext(
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        // BR-CLN-002/BR-INS-004: ST_Distance/ST_MakePoint geo-queries (check-in distance,
+        // duplicate detection) require this on every environment — track it via migration
+        // instead of a manual `CREATE EXTENSION` per dev machine.
+        modelBuilder.HasPostgresExtension("postgis");
+
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
         base.OnModelCreating(modelBuilder);
     }
