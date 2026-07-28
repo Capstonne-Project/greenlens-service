@@ -21,5 +21,8 @@ public enum NotificationType
     /// <summary>BR-REP-016: Report auto-closed after 7 days.</summary>
     ReportAutoClosed,
     /// <summary>BR-REP-032/033: A report needs LEO review for possible duplicate (3+ citizen flags or AI-confirmed match).</summary>
-    DuplicateReviewNeeded
+    DuplicateReviewNeeded,
+
+    /// <summary>Draft BR-CMU-*: LEO opened a Community Cleanup program citizens can join.</summary>
+    CommunityCleanupOpened
 }
