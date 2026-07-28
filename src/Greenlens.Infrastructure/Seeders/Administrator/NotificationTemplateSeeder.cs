@@ -130,7 +130,15 @@ internal static class NotificationTemplateSeeder
             "Báo cáo {report_code} đã nhận {flag_count} cờ ({flag_type}). Vui lòng xem xét trong queue nghi ngờ trùng.",
             "Duplicate review needed",
             "Report {report_code} received {flag_count} flag(s) ({flag_type}). Please review the duplicate queue.",
-            NotificationType.DuplicateReviewNeeded)
+            NotificationType.DuplicateReviewNeeded),
+
+        Create(
+            "community_cleanup_opened",
+            "Chương trình dọn cộng đồng vừa mở",
+            "Chương trình \"{title}\" vừa mở đăng ký. Tham gia ngay để cùng dọn dẹp!",
+            "Community cleanup opened",
+            "The \"{title}\" community cleanup program is now open for joining!",
+            NotificationType.CommunityCleanupOpened)
     ];
 
     private static NotificationTemplate Create(
