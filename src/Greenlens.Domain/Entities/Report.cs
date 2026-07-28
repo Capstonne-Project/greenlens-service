@@ -292,6 +292,20 @@ public sealed class Report : SoftDeletableEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
+    /// <summary>
+    /// LEO opens a Community Cleanup program. Verified → InProgress.
+    /// Replaces Assign()/DispatchToCompany() for this report while the event is active.
+    /// </summary>
+    /// <remarks>Draft rule BR-CMU-001 (docs/community-cleanup-feature-spec.md).</remarks>
+    public void StartCommunityCleanup(Guid leoId)
+    {
+        EnsureStatus(ReportStatus.Verified);
+
+        Status = ReportStatus.InProgress;
+        AssignedByOfficerId = leoId;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
     /// <summary>Set StartedAt when first team accepts the assignment.</summary>
     public void MarkStarted()
     {

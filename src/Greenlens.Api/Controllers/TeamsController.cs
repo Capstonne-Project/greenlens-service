@@ -22,6 +22,7 @@ using Greenlens.Application.Features.Reports.EscalateCleanup;
 using Greenlens.Application.Features.Reports.GetMyAssignments;
 using Greenlens.Application.Features.Reports.GetMyProgressHistory;
 using Greenlens.Application.Features.Reports.GetMyTaskDetail;
+using Greenlens.Application.Features.Reports.GetMyTaskProgressStats;
 using Greenlens.Application.Features.Reports.UpdateCleanupProgress;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -74,6 +75,18 @@ public sealed class TeamsController(ISender sender) : ControllerBase
         [FromQuery] AssignmentStatus? assignmentStatus = null,
         CancellationToken ct = default)
         => (await sender.Send(new GetMyAssignmentsQuery(page, pageSize, assignmentStatus), ct)).ToHttp();
+
+    [HttpGet("my-tasks/progress-stats")]
+    [Authorize(Roles = "Cleaner,CompanyStaff,Inspector,Admin")]
+    [Tags("🧹 Cleaner Dashboard")]
+    [SwaggerOperation(
+        Summary = "[Cleaner/CompanyStaff/Inspector] Thống kê tiến độ nhiệm vụ",
+        Description = "Trả về số liệu tổng hợp cho dashboard \"Tiến độ\": phân bố theo trạng thái, " +
+            "phân bố theo mức độ ô nhiễm, số lượng quá hạn SLA, và xu hướng hoàn thành 30 ngày gần nhất. " +
+            "Cùng phạm vi team với `GET /teams/my-tasks` (không lọc theo status).")]
+    [SwaggerResponse(200, "Thống kê tiến độ", typeof(ApiResponse<MyTaskProgressStatsResponse>))]
+    public async Task<IActionResult> GetMyTaskProgressStatsAsync(CancellationToken ct)
+        => (await sender.Send(new GetMyTaskProgressStatsQuery(), ct)).ToHttp();
 
     [HttpGet("my-tasks/{reportId:guid}")]
     [Authorize(Roles = "Cleaner,CompanyStaff,Inspector,Admin")]

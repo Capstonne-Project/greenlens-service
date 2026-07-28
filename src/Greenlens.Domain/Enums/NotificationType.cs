@@ -54,6 +54,11 @@ public enum NotificationType
     /// <summary>BR-REP-032/033: A report needs LEO review for possible duplicate (3+ citizen flags or AI-confirmed match).</summary>
     DuplicateReviewNeeded,
 
+    /// <summary>Draft BR-CMU-*: LEO opened a Community Cleanup program citizens can join.</summary>
+    CommunityCleanupOpened,
+
+    /// <summary>Draft BR-CMU-002: Cleaner was appointed Leader of a new Community Cleanup program.</summary>
+    CommunityCleanupLeaderAssigned,
     /// <summary>BR-REP-015: Citizen submitted a reopen request with evidence.</summary>
     ReopenReviewNeeded,
 

@@ -285,7 +285,23 @@ internal static class NotificationTemplateSeeder
             "{member_name} đã từ chối lời mời tham gia vai trò {target_role} tại phường/xã {ward_name}.",
             "Staff invitation declined",
             "{member_name} declined your invitation to join as {target_role} at {office_name}.",
-            NotificationType.StaffInvitationDeclined)
+            NotificationType.StaffInvitationDeclined),
+
+        Create(
+            "community_cleanup_opened",
+            "Chương trình dọn cộng đồng vừa mở",
+            "Chương trình \"{title}\" vừa mở đăng ký. Tham gia ngay để cùng dọn dẹp!",
+            "Community cleanup opened",
+            "The \"{title}\" community cleanup program is now open for joining!",
+            NotificationType.CommunityCleanupOpened),
+
+        Create(
+            "community_cleanup_leader_assigned",
+            "Bạn được chỉ định làm Leader",
+            "Bạn được chỉ định làm Leader cho chương trình dọn cộng đồng \"{title}\". Hãy vào mục Việc của tôi để bắt đầu.",
+            "You were appointed Leader",
+            "You were appointed Leader for the community cleanup program \"{title}\". Check My Tasks to get started.",
+            NotificationType.CommunityCleanupLeaderAssigned)
     ];
 
     private static NotificationTemplate Create(
