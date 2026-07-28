@@ -7,14 +7,14 @@ namespace Greenlens.Api.Extensions;
 public static class ResultExtensions
 {
     /// <summary>Returns 200 OK with standard ApiResponse envelope.</summary>
-    public static IActionResult ToHttp<T>(this Result<T> result)
+    public static IActionResult ToHttp<T>(this Result<T> result, string message = "OK")
     {
         if (result.IsSuccess)
         {
             return new OkObjectResult(new ApiResponse<T>
             {
                 Code = "SUCCESS",
-                Message = "OK",
+                Message = message,
                 Status = 200,
                 Data = result.Value
             });

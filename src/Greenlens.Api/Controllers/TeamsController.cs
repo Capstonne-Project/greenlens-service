@@ -257,11 +257,11 @@ public sealed class TeamsController(ISender sender) : ControllerBase
         Summary = "[Admin/LEO] Thêm thành viên vào team cộng đồng",
         Description = "Thêm user vào đội. Role Cleaner chỉ vào team Cleanup, role Inspector chỉ vào team Inspection. " +
             "LEO chỉ quản lý team trong office của mình.")]
-    [SwaggerResponse(201, "Đã thêm", typeof(ApiResponse<AddTeamMemberResponse>))]
+    [SwaggerResponse(200, "Đã thêm", typeof(ApiResponse<AddTeamMemberResponse>))]
     [SwaggerResponse(409, "User đã trong team", typeof(ApiResponse))]
     public async Task<IActionResult> AddMemberAsync(
         [FromRoute] Guid teamId, [FromBody] AddTeamMemberRequest request, CancellationToken ct)
-        => (await sender.Send(new AddTeamMemberCommand(teamId, request.UserId, request.IsLeader), ct)).ToHttpCreated();
+        => (await sender.Send(new AddTeamMemberCommand(teamId, request.UserId, request.IsLeader), ct)).ToHttp("Đã thêm thành viên vào team.");
 
     [HttpDelete("{teamId:guid}/members/{userId:guid}")]
     [Authorize(Roles = "Admin,LEO")]
