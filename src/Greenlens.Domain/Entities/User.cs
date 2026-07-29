@@ -50,6 +50,10 @@ public sealed class User : SoftDeletableEntity
     public int CommentViolationCount { get; private set; }
     public DateTime? CommentBannedUntil { get; private set; }
 
+    // ── Gamification showcase (BR-GAM-004) ──
+    /// <summary>Huy hiệu người dùng chọn để hiển thị nổi bật trên hồ sơ. Null = không hiển thị.</summary>
+    public Guid? FeaturedBadgeId { get; private set; }
+
     // ── Organization assignment (v1.1) ──
     public Guid? DepartmentId { get; private set; }
     public Guid? LocalOfficeId { get; private set; }
@@ -263,6 +267,16 @@ public sealed class User : SoftDeletableEntity
         CommentViolationCount++;
         if (CommentViolationCount >= 3)
             CommentBannedUntil = DateTime.UtcNow.AddDays(7);
+    }
+
+    /// <summary>
+    /// BR-GAM-004: Chọn huy hiệu hiển thị nổi bật trên hồ sơ. Truyền null để bỏ hiển thị.
+    /// Caller phải xác minh user thực sự sở hữu huy hiệu này.
+    /// </summary>
+    public void SetFeaturedBadge(Guid? badgeId)
+    {
+        FeaturedBadgeId = badgeId;
+        UpdatedAt = DateTime.UtcNow;
     }
 
     /// <summary>BR-CMT-003: Whether the user is temporarily banned from commenting.</summary>
