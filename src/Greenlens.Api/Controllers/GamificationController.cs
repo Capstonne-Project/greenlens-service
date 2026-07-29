@@ -1,9 +1,11 @@
 using Greenlens.Api.Extensions;
 using Greenlens.Application.Common.Models;
+using Greenlens.Application.Features.Gamification.GetBadgeCatalog;
 using Greenlens.Application.Features.Gamification.GetLeaderboard;
 using Greenlens.Application.Features.Gamification.GetMyBadges;
 using Greenlens.Application.Features.Gamification.GetMyPoints;
 using Greenlens.Application.Features.Gamification.LockGamification;
+using Greenlens.Application.Features.Gamification.SetFeaturedBadge;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -44,6 +46,30 @@ public sealed class GamificationController(ISender sender) : ControllerBase
         return (await sender.Send(new GetMyBadgesQuery(userId), ct)).ToHttp();
     }
 
+    /// <summary>Full badge catalog — earned + locked, to motivate progress.</summary>
+    [HttpGet("badges")]
+    [Authorize]
+    [SwaggerOperation(Summary = "Get full badge catalog (earned + locked)")]
+    [SwaggerResponse(200, "Badge catalog", typeof(ApiResponse<IReadOnlyList<BadgeCatalogItem>>))]
+    public async Task<IActionResult> GetBadgeCatalog(CancellationToken ct)
+    {
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        return (await sender.Send(new GetBadgeCatalogQuery(userId), ct)).ToHttp();
+    }
+
+    /// <summary>Chọn (hoặc bỏ) huy hiệu hiển thị nổi bật trên hồ sơ. Truyền badgeId = null để bỏ.</summary>
+    [HttpPut("featured-badge")]
+    [Authorize]
+    [SwaggerOperation(Summary = "Set featured badge shown on profile")]
+    [SwaggerResponse(200, "Featured badge updated", typeof(ApiResponse<SetFeaturedBadgeResponse>))]
+    public async Task<IActionResult> SetFeaturedBadge(
+        [FromBody] SetFeaturedBadgeRequest request,
+        CancellationToken ct)
+    {
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        return (await sender.Send(new SetFeaturedBadgeCommand(userId, request.BadgeId), ct)).ToHttp();
+    }
+
     /// <summary>Public leaderboard — top users by period.</summary>
     [HttpGet("leaderboard")]
     [AllowAnonymous]
@@ -75,3 +101,5 @@ public sealed class GamificationController(ISender sender) : ControllerBase
 }
 
 public sealed record LockGamificationRequest(string Reason, int LockDays = 30);
+
+public sealed record SetFeaturedBadgeRequest(Guid? BadgeId);
