@@ -5,6 +5,7 @@ using Greenlens.Application.Features.CommunityCleanup.CheckInCommunityCleanup;
 using Greenlens.Application.Features.CommunityCleanup.CloseJoinCommunityCleanup;
 using Greenlens.Application.Features.CommunityCleanup.Common;
 using Greenlens.Application.Features.CommunityCleanup.CreateCommunityCleanup;
+using Greenlens.Application.Features.CommunityCleanup.GetActiveCommunityCleanupByReportId;
 using Greenlens.Application.Features.CommunityCleanup.GetCommunityCleanupById;
 using Greenlens.Application.Features.CommunityCleanup.GetCommunityParticipants;
 using Greenlens.Application.Features.CommunityCleanup.GetLedCommunityCleanups;
@@ -118,6 +119,13 @@ public sealed class CommunityCleanupsController(ISender sender) : ControllerBase
     [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
     public async Task<IActionResult> GetByIdAsync([FromRoute] Guid eventId, CancellationToken ct)
         => (await sender.Send(new GetCommunityCleanupByIdQuery(eventId), ct)).ToHttp();
+
+    [HttpGet("~/v1/reports/{reportId:guid}/community-cleanup")]
+    [Authorize]
+    [SwaggerOperation(Summary = "[Auth] Chương trình cộng đồng đang active của report", Description = "BR-CMU-003: tối đa 1 event active (không Completed/Cancelled) mỗi report. Trả data=null nếu report chưa có chương trình nào — không phải lỗi.")]
+    [SwaggerResponse(200, "OK — data null nếu chưa có chương trình", typeof(ApiResponse<CommunityCleanupEventDetailResponse>))]
+    public async Task<IActionResult> GetActiveByReportIdAsync([FromRoute] Guid reportId, CancellationToken ct)
+        => (await sender.Send(new GetActiveCommunityCleanupByReportIdQuery(reportId), ct)).ToHttp();
 
     [HttpPost("{eventId:guid}/join")]
     [Authorize(Roles = "Citizen")]
