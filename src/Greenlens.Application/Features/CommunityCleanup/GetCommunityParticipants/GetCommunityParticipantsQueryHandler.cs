@@ -32,10 +32,10 @@ public sealed class GetCommunityParticipantsQueryHandler(
 
         var query = participants.QueryAsNoTracking()
             .Where(p => p.EventId == request.EventId)
+            .OrderBy(p => p.JoinedAt)
             .Select(p => new CommunityCleanupParticipantDto(
                 p.UserId, p.User!.FullName, p.User!.AvatarUrl,
-                p.Role, p.Status, p.JoinedAt, p.CheckedInAt))
-            .OrderBy(p => p.JoinedAt);
+                p.Role, p.Status, p.JoinedAt, p.CheckedInAt));
 
         var totalCount = await query.CountAsync(ct).ConfigureAwait(false);
         var pagination = PaginationMeta.Create(request.Page, request.PageSize, totalCount);

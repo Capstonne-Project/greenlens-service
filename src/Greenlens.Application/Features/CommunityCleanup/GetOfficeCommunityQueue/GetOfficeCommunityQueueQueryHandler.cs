@@ -41,21 +41,22 @@ public sealed class GetOfficeCommunityQueueQueryHandler(
 
         query = query.Where(e => e.Status == (request.Status ?? CommunityCleanupStatus.PendingVerification));
 
-        var projected = query.Select(e => new Row(
-            e,
-            e.Report!.Code,
-            e.Report!.Latitude,
-            e.Report!.Longitude,
-            e.LeaderUser!.FullName,
-            e.Participants.Count(p =>
-                p.Status != CommunityCleanupParticipantStatus.Withdrawn
-                && p.Status != CommunityCleanupParticipantStatus.NoShow),
-            e.Report!.Media
-                .Where(m => m.Type == MediaType.Image)
-                .OrderBy(m => m.UploadedAt)
-                .Select(m => m.ThumbnailUrl ?? m.Url)
-                .FirstOrDefault()))
-            .OrderBy(r => r.Event.SubmittedAt ?? r.Event.CreatedAt);
+        var projected = query
+            .OrderBy(e => e.SubmittedAt ?? e.CreatedAt)
+            .Select(e => new Row(
+                e,
+                e.Report!.Code,
+                e.Report!.Latitude,
+                e.Report!.Longitude,
+                e.LeaderUser!.FullName,
+                e.Participants.Count(p =>
+                    p.Status != CommunityCleanupParticipantStatus.Withdrawn
+                    && p.Status != CommunityCleanupParticipantStatus.NoShow),
+                e.Report!.Media
+                    .Where(m => m.Type == MediaType.Image)
+                    .OrderBy(m => m.UploadedAt)
+                    .Select(m => m.ThumbnailUrl ?? m.Url)
+                    .FirstOrDefault()));
 
         var totalCount = await projected.CountAsync(ct).ConfigureAwait(false);
         var pagination = PaginationMeta.Create(request.Page, request.PageSize, totalCount);

@@ -45,4 +45,9 @@ public sealed record UserProfileDto(
     DateTime CreatedAt,
     DateTime? UpdatedAt,
     IReadOnlyList<string> Achievements,
-    int? Rank);
+    int? Rank,
+    FeaturedBadgeDto? FeaturedBadge);
+
+/// <summary>Huy hiệu người dùng chọn hiển thị nổi bật trên hồ sơ (BR-GAM-004).</summary>
+public sealed record FeaturedBadgeDto(
+    Guid BadgeId, string NameVi, string NameEn, string? IconUrl);
