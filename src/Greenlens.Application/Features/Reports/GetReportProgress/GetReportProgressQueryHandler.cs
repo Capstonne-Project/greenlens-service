@@ -37,6 +37,8 @@ public sealed class GetReportProgressQueryHandler(
             .Include(x => x.Category)
             .Include(x => x.Media)
             .Include(x => x.Assignments)
+                .ThenInclude(a => a.AssignedByUser)
+            .Include(x => x.Assignments)
                 .ThenInclude(a => a.Team)
                     .ThenInclude(t => t!.Members)
                         .ThenInclude(m => m.User)
@@ -74,6 +76,8 @@ public sealed class GetReportProgressQueryHandler(
                     a.Team?.Name ?? string.Empty,
                     a.Team?.TeamType.ToString() ?? string.Empty,
                     leader?.User?.FullName,
+                    a.AssignedById,
+                    a.AssignedByUser?.FullName ?? "Unknown",
                     a.Status.ToString(),
                     a.AssignedAt,
                     a.StartedAt,

@@ -46,6 +46,8 @@ public sealed record AssignmentProgressDto(
     string TeamName,
     string TeamType,
     string? TeamLeaderName,
+    Guid AssignedById,
+    string AssignedByName,
     string Status,
     DateTime AssignedAt,
     DateTime? AcceptedAt,
