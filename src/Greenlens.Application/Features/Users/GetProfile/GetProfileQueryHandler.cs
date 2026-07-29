@@ -17,6 +17,7 @@ public sealed class GetProfileQueryHandler(
     IUserRepository users,
     IUserBadgeRepository userBadges,
     IUserPointsRepository userPoints,
+    IBadgeRepository badges,
     ICurrentUser currentUser,
     ILogger<GetProfileQueryHandler> logger)
     : IRequestHandler<GetProfileQuery, Result<UserProfileDto>>
@@ -40,7 +41,8 @@ public sealed class GetProfileQueryHandler(
                 u.IsEmailVerified,
                 u.GoogleId,
                 u.CreatedAt,
-                u.UpdatedAt
+                u.UpdatedAt,
+                u.FeaturedBadgeId
             })
             .FirstOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
@@ -61,6 +63,15 @@ public sealed class GetProfileQueryHandler(
         var rank = await ResolveAllTimeRankAsync(currentUser.UserId, cancellationToken)
             .ConfigureAwait(false);
 
+        FeaturedBadgeDto? featuredBadge = null;
+        if (user.FeaturedBadgeId is not null)
+        {
+            var badge = await badges.GetByIdAsync(user.FeaturedBadgeId.Value, cancellationToken)
+                .ConfigureAwait(false);
+            if (badge is not null)
+                featuredBadge = new FeaturedBadgeDto(badge.Id, badge.NameVi, badge.NameEn, badge.IconUrl);
+        }
+
         logger.LogInformation("Lấy thông tin chi tiết người dùng thành công. ID: {UserId}", currentUser.UserId);
 
         return new UserProfileDto(
@@ -75,7 +86,8 @@ public sealed class GetProfileQueryHandler(
             user.CreatedAt,
             user.UpdatedAt,
             achievements,
-            rank);
+            rank,
+            featuredBadge);
     }
 
     private async Task<int?> ResolveAllTimeRankAsync(Guid userId, CancellationToken ct)
