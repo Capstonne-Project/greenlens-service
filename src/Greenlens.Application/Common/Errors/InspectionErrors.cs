@@ -127,6 +127,36 @@ public static partial class Errors
             "Biên bản cần ít nhất 2 ảnh hiện trường trước khi ra quyết định xử phạt (BR-INS-010).",
             ErrorType.BusinessRule);
 
+        public static Error ChecklistViolationStatusRequired => new(
+            "CHECKLIST_VIOLATION_STATUS_REQUIRED",
+            "Phải mô tả tình trạng vi phạm trên checklist (BR-INS-033).",
+            ErrorType.Validation);
+
+        public static Error FieldReportRequired => new(
+            "INSPECTION_FIELD_REPORT_REQUIRED",
+            "Phải nộp biên bản điều tra hiện trường trước khi kết luận (BR-INS-033).",
+            ErrorType.BusinessRule);
+
+        public static Error FieldReportAlreadySubmitted => new(
+            "INSPECTION_FIELD_REPORT_ALREADY_SUBMITTED",
+            "Biên bản điều tra hiện trường đã được nộp.",
+            ErrorType.BusinessRule);
+
+        public static Error ArrivalNoteRequiredWhenFar => new(
+            "INSPECTION_ARRIVAL_NOTE_REQUIRED",
+            "Vị trí cách hiện trường hơn 200m — cần ghi chú giải trình (BR-INS-033).",
+            ErrorType.Validation);
+
+        public static Error EndpointDeprecated => new(
+            "ENDPOINT_DEPRECATED",
+            "API này đã ngừng hỗ trợ. Vui lòng dùng luồng checklist mới (accept + confirm-arrival).",
+            ErrorType.BusinessRule);
+
+        public static Error PaymentReceiptRequired => new(
+            "PAYMENT_RECEIPT_REQUIRED",
+            "Vui lòng upload ảnh biên lai nộp phạt (BR-INS-020).",
+            ErrorType.Validation);
+
         public static Error PaymentNotFound => new(
             "PAYMENT_NOT_FOUND",
             "Không tìm thấy khoản thanh toán.",

@@ -8,17 +8,19 @@ using Microsoft.Extensions.Logging;
 namespace Greenlens.Infrastructure.BackgroundJobs;
 
 /// <summary>
-/// BR-INS-030: Flag InspectionReports that have exceeded their severity-based
-/// SLA deadline. Runs every 30 minutes.
-/// SLA durations: Critical=3d, High=5d, Medium=7d, Low=10d (from creation).
+/// BR-INS-030: Flag InspectionReports that exceeded SLA; auto-close when no inspector conclusion.
+/// Runs every 30 minutes.
 /// </summary>
-/// <remarks>Implements: BR-INS-030, BR-NTF-002.</remarks>
+/// <remarks>Implements: BR-INS-030, BR-INS-013, BR-NTF-002.</remarks>
 [AutomaticRetry(Attempts = 2)]
 internal sealed class SlaBreachInspectionJob(
     ApplicationDbContext db,
     INotificationService notificationService,
     ILogger<SlaBreachInspectionJob> logger)
 {
+    private const string AutoCloseReason =
+        "Hết hạn SLA điều tra theo BR-INS-030. Hệ thống tự động đóng hồ sơ vì Inspection Team chưa ban hành kết luận xử phạt hoặc biên bản không vi phạm trong thời hạn quy định.";
+
     public async Task ExecuteAsync()
     {
         logger.LogInformation("SlaBreachInspectionJob: Starting...");
@@ -42,7 +44,20 @@ internal sealed class SlaBreachInspectionJob(
         }
 
         foreach (var inspection in breachedInspections)
+        {
             inspection.MarkSlaInspectionBreached();
+
+            if (inspection.Status is InspectionStatus.Draft or InspectionStatus.InProgress)
+            {
+                var closeResult = inspection.ForceCloseNoViolation(AutoCloseReason);
+                if (closeResult.IsFailure)
+                {
+                    logger.LogWarning(
+                        "SlaBreachInspectionJob: Could not auto-close inspection {Id}: {Error}",
+                        inspection.Id, closeResult.Error?.Code);
+                }
+            }
+        }
 
         await db.SaveChangesAsync().ConfigureAwait(false);
 
@@ -63,7 +78,7 @@ internal sealed class SlaBreachInspectionJob(
         }
 
         logger.LogWarning(
-            "SlaBreachInspectionJob: Flagged {Count} inspections with SLA breach",
+            "SlaBreachInspectionJob: Processed {Count} SLA breaches (flagged + auto-closed when applicable)",
             breachedInspections.Count);
     }
 }

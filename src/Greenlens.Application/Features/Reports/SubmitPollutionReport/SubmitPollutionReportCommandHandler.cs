@@ -371,6 +371,9 @@ public sealed class SubmitPollutionReportCommandHandler(
         // background job (see ReportPossibleDuplicateFlaggedEvent) to keep submit under p95<2s (BR-SYS-001).
         await FlagPossibleDuplicateAsync(report, cancellationToken).ConfigureAwait(false);
 
+        // ── BR-REP-034: suspected violation recurrence near a recently Closed report ──
+        await FlagSuspectedViolationRecurrenceAsync(report, cancellationToken).ConfigureAwait(false);
+
         report.RaiseSubmittedForVerification();
 
         try
@@ -410,6 +413,7 @@ public sealed class SubmitPollutionReportCommandHandler(
             report.Status, report.CreatedAt, report.SlaVerifyDueAt,
             report.AiPending, imageInfos,
             report.IsPossibleDuplicate, report.PossibleDuplicateOfReportId,
+            report.IsSuspectedViolationRecurrence, report.SuspectedRecurrenceOfReportId,
             report.IsSuspicious, exifWarning);
     }
 
@@ -445,6 +449,38 @@ public sealed class SubmitPollutionReportCommandHandler(
 
         if (primaryId is not null)
             report.MarkPossibleDuplicate(primaryId.Value, DuplicateTier1PrimarySelector.Tier1Source);
+    }
+
+    /// <summary>
+    /// BR-REP-034: flag when a recently Closed report (≤30 days) exists at the same spot and category.
+    /// Independent from duplicate detection — Closed reports are excluded from duplicate Tier 1.
+    /// </summary>
+    private async Task FlagSuspectedViolationRecurrenceAsync(Report report, CancellationToken ct)
+    {
+        const double radiusMeters = ViolationRecurrencePrimarySelector.DefaultRadiusMeters;
+        var latDelta = (decimal)(radiusMeters / 111_320.0);
+        var cosLat = Math.Max(Math.Cos((double)report.Latitude * Math.PI / 180.0), 1e-6);
+        var lngDelta = (decimal)(radiusMeters / (111_320.0 * cosLat));
+        var cutoff = DateTime.UtcNow - ViolationRecurrencePrimarySelector.LookbackWindow;
+
+        var candidates = await reports.QueryAsNoTracking()
+            .Where(r => r.CategoryId == report.CategoryId)
+            .Where(r => r.Id != report.Id)
+            .Where(r => r.Status == ReportStatus.Closed)
+            .Where(r => r.ClosedAt >= cutoff)
+            .Where(r => r.Latitude >= report.Latitude - latDelta && r.Latitude <= report.Latitude + latDelta)
+            .Where(r => r.Longitude >= report.Longitude - lngDelta && r.Longitude <= report.Longitude + lngDelta)
+            .Select(r => new ViolationRecurrenceNearbyReport(
+                r.Id, r.Latitude, r.Longitude, r.ClosedAt!.Value))
+            .Take(20)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        var priorId = ViolationRecurrencePrimarySelector.SelectPrimary(
+            report.Latitude, report.Longitude, candidates, radiusMeters);
+
+        if (priorId is not null)
+            report.MarkSuspectedViolationRecurrence(priorId.Value);
     }
 
     private async Task<string> GenerateUniqueCodeAsync(CancellationToken ct)

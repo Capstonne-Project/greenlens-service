@@ -64,6 +64,12 @@ internal sealed class ReportConfiguration : IEntityTypeConfiguration<Report>
             .HasForeignKey(r => r.PossibleDuplicateOfReportId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        // BR-REP-034: self-reference to recently Closed report that may indicate violator recurrence.
+        builder.HasOne<Report>()
+            .WithMany()
+            .HasForeignKey(r => r.SuspectedRecurrenceOfReportId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         builder.HasOne(r => r.VerifiedByUser)
             .WithMany()
             .HasForeignKey(r => r.VerifiedBy)
@@ -102,6 +108,9 @@ internal sealed class ReportConfiguration : IEntityTypeConfiguration<Report>
         builder.HasIndex(r => r.ParentReportId);
         builder.HasIndex(r => r.IsPossibleDuplicate);
         builder.HasIndex(r => r.PossibleDuplicateOfReportId);
+        builder.HasIndex(r => r.IsSuspectedViolationRecurrence);
+        builder.HasIndex(r => r.SuspectedRecurrenceOfReportId);
+        builder.HasIndex(r => new { r.Status, r.ClosedAt, r.CategoryId });
 
         // Soft delete query filter
         builder.HasQueryFilter(r => r.DeletedAt == null);

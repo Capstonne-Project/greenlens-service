@@ -17,6 +17,7 @@ namespace Greenlens.Application.Features.Inspection.RecordPayment;
 public sealed class RecordPaymentCommandHandler(
     IInspectionReportRepository inspections,
     ITeamMemberRepository teamMembers,
+    IFileStorageService fileStorage,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     IAuditLogger auditLogger,
@@ -42,6 +43,25 @@ public sealed class RecordPaymentCommandHandler(
             return authError;
         }
 
+        var evidenceUrl = request.EvidenceUrl;
+        if (request.ReceiptBytes is { Length: > 0 })
+        {
+            using var stream = new MemoryStream(request.ReceiptBytes);
+            var uploaded = await fileStorage.UploadAsync(
+                stream,
+                request.ReceiptFileName ?? "receipt.jpg",
+                request.ReceiptContentType ?? "image/jpeg",
+                $"inspections/{inspection.Id}/payments",
+                ct).ConfigureAwait(false);
+            evidenceUrl = uploaded.Url;
+        }
+
+        if (string.IsNullOrWhiteSpace(evidenceUrl))
+        {
+            logger.LogWarning("Payment receipt missing for inspection {InspectionId}", request.InspectionId);
+            return Errors.Inspections.PaymentReceiptRequired;
+        }
+
         var oldSnapshot = JsonSerializer.Serialize(new
         {
             status = inspection.Status.ToString(),
@@ -54,7 +74,7 @@ public sealed class RecordPaymentCommandHandler(
             request.PaidAmount,
             request.PaidAt,
             currentUser.UserId,
-            request.EvidenceUrl,
+            evidenceUrl,
             request.Note);
 
         var result = inspection.RecordPayment(payment);

@@ -11,15 +11,14 @@ using Microsoft.Extensions.Logging;
 namespace Greenlens.Application.Features.Inspection.UploadInspectionEvidence;
 
 /// <summary>
-/// Upload inspection evidence photos to cloud storage and persist as ReportMedia (MediaType.Inspection).
+/// Upload inspection checklist evidence to cloud storage and persist as InspectionEvidence.
 /// </summary>
 /// <remarks>
-/// Implements: BR-INS-010 — biên bản hiện trường cần ≥ 2 ảnh.
-/// Images belong to the parent Report's media collection but typed as Inspection.
+/// Implements: BR-INS-033 (checklist), BR-INS-010 (≥ 2 scene photos).
 /// </remarks>
 public sealed class UploadInspectionEvidenceCommandHandler(
     IInspectionReportRepository inspections,
-    IReportMediaRepository reportMedia,
+    IInspectionEvidenceRepository evidences,
     ITeamMemberRepository teamMembers,
     IFileStorageService fileStorage,
     ICurrentUser currentUser,
@@ -27,79 +26,83 @@ public sealed class UploadInspectionEvidenceCommandHandler(
     ILogger<UploadInspectionEvidenceCommandHandler> logger)
     : IRequestHandler<UploadInspectionEvidenceCommand, Result<UploadInspectionEvidenceResponse>>
 {
+    private const long MaxImageBytes = 20 * 1024 * 1024;
+    private const long MaxVideoBytes = 30 * 1024 * 1024;
+    private const long MaxAudioBytes = 10 * 1024 * 1024;
+
     public async Task<Result<UploadInspectionEvidenceResponse>> Handle(
         UploadInspectionEvidenceCommand request, CancellationToken ct)
     {
-        logger.LogInformation("Getting upload inspection evidence");
-
-        if (request.Images.Count == 0)
-        {
-            logger.LogWarning("No images provided for inspection {InspectionId}", request.InspectionId);
+        if (request.Files.Count == 0)
             return Errors.Inspections.EvidenceImagesRequired;
-        }
 
-        var inspection = await inspections.GetByIdAsync(request.InspectionId, ct)
-            .ConfigureAwait(false);
+        if (request.Category == InspectionEvidenceCategory.ViolationStatus)
+            return Errors.Inspections.ChecklistViolationStatusRequired;
+
+        var inspection = await inspections.GetByIdAsync(request.InspectionId, ct).ConfigureAwait(false);
         if (inspection is null)
-        {
-            logger.LogWarning("Inspection not found for inspection {InspectionId}", request.InspectionId);
             return Errors.Inspections.InspectionNotFound;
-        }
 
-        // Only allow upload while Draft or InProgress
-        if (inspection.Status is not (InspectionStatus.Draft or InspectionStatus.InProgress))
-        {
-            logger.LogWarning("Inspection {InspectionId} is not in draft or in progress status", request.InspectionId);
+        if (inspection.FieldInvestigationSubmittedAt.HasValue)
+            return Errors.Inspections.FieldReportAlreadySubmitted;
+
+        if (inspection.Status != InspectionStatus.InProgress)
             return Errors.Inspections.InvalidStatusTransition;
-        }
 
-        // Verify caller is part of the assigned inspection team
         var authError = await InspectionTeamAuthorization.ValidateTeamMemberAsync(
             inspection, teamMembers, currentUser, ct).ConfigureAwait(false);
         if (authError is not null)
-        {
-            logger.LogWarning("Team member validation failed for inspection {InspectionId}", request.InspectionId);
             return authError;
-        }
 
-        // Upload images to cloud storage and persist as ReportMedia
         var uploadedUrls = new List<string>();
-        var folder = $"reports/{inspection.ReportId}/inspection/{inspection.Id}";
+        var folder = $"reports/{inspection.ReportId}/inspection/{inspection.Id}/{request.Category.ToString().ToLowerInvariant()}";
 
-        foreach (var image in request.Images)
+        foreach (var file in request.Files)
         {
-            using var stream = new MemoryStream(image.Bytes);
+            var maxSize = request.Category switch
+            {
+                InspectionEvidenceCategory.Video => MaxVideoBytes,
+                InspectionEvidenceCategory.Audio => MaxAudioBytes,
+                _ => MaxImageBytes
+            };
+
+            if (file.Bytes.LongLength > maxSize)
+            {
+                return Result<UploadInspectionEvidenceResponse>.Failure(new Error(
+                    "FILE_TOO_LARGE",
+                    $"File '{file.FileName}' exceeds size limit for {request.Category}.",
+                    ErrorType.Validation));
+            }
+
+            using var stream = new MemoryStream(file.Bytes);
             var uploaded = await fileStorage.UploadAsync(
-                stream, image.FileName, image.ContentType, folder, ct)
-                .ConfigureAwait(false);
+                stream, file.FileName, file.ContentType, folder, ct).ConfigureAwait(false);
 
-            var media = ReportMedia.Create(
-                inspection.ReportId,
-                MediaType.Inspection,
+            var evidence = InspectionEvidence.CreateMedia(
+                inspection.Id,
+                request.Category,
                 uploaded.Url,
-                image.ContentType,
-                image.Bytes.LongLength,
-                currentUser.UserId);
+                file.ContentType,
+                file.Bytes.LongLength,
+                currentUser.UserId,
+                file.DurationSeconds,
+                request.Description);
 
-            logger.LogInformation("Uploaded image {ImageName} for inspection {InspectionId}", image.FileName, inspection.Id);
-
-            reportMedia.Add(media);
-
+            evidences.Add(evidence);
             uploadedUrls.Add(uploaded.Url);
         }
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 
-        // Count total evidence for this inspection (existing + newly uploaded)
-        var totalCount = await reportMedia.QueryAsNoTracking()
+        var totalCount = await evidences.QueryAsNoTracking()
             .CountAsync(
-                m => m.ReportId == inspection.ReportId && m.Type == MediaType.Inspection,
+                e => e.InspectionReportId == inspection.Id && e.Category == request.Category,
                 ct)
             .ConfigureAwait(false);
 
         logger.LogInformation(
-            "Uploaded {Count} inspection evidence photos for InspectionReport {InspectionId} (total: {Total})",
-            uploadedUrls.Count, inspection.Id, totalCount);
+            "Uploaded {Count} {Category} evidence for inspection {InspectionId} (total: {Total})",
+            uploadedUrls.Count, request.Category, inspection.Id, totalCount);
 
         return new UploadInspectionEvidenceResponse(uploadedUrls, totalCount);
     }

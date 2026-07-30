@@ -89,6 +89,9 @@ public sealed class GetOfficerQueueQueryHandler(
         if (request.IsPossibleDuplicate.HasValue)
             query = query.Where(r => r.IsPossibleDuplicate == request.IsPossibleDuplicate.Value);
 
+        if (request.IsSuspectedViolationRecurrence.HasValue)
+            query = query.Where(r => r.IsSuspectedViolationRecurrence == request.IsSuspectedViolationRecurrence.Value);
+
         // ── Search (keyword on Code, Address, Category name) ──
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
@@ -142,7 +145,15 @@ public sealed class GetOfficerQueueQueryHandler(
                 r.DuplicateDetectionSource,
                 r.AiSimilarityScore,
                 reports.QueryAsNoTracking()
-                    .Count(d => d.IsPossibleDuplicate && d.PossibleDuplicateOfReportId == r.Id)))
+                    .Count(d => d.IsPossibleDuplicate && d.PossibleDuplicateOfReportId == r.Id),
+                r.IsSuspectedViolationRecurrence,
+                r.SuspectedRecurrenceOfReportId,
+                r.SuspectedRecurrenceOfReportId.HasValue
+                    ? reports.QueryAsNoTracking()
+                        .Where(p => p.Id == r.SuspectedRecurrenceOfReportId!.Value)
+                        .Select(p => p.Code)
+                        .FirstOrDefault()
+                    : null))
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
