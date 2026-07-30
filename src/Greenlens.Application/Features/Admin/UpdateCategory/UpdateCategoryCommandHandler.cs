@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
@@ -7,9 +8,11 @@ using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Admin.UpdateCategory;
 
+/// <remarks>Implements: BR-ADM-003, BR-ADM-010.</remarks>
 public sealed class UpdateCategoryCommandHandler(
     IPollutionCategoryRepository categories,
     IUnitOfWork uow,
+    IAuditLogger auditLogger,
     ILogger<UpdateCategoryCommandHandler> logger) : IRequestHandler<UpdateCategoryCommand, Result>
 {
     public async Task<Result> Handle(UpdateCategoryCommand request, CancellationToken ct)
@@ -27,9 +30,28 @@ public sealed class UpdateCategoryCommandHandler(
             return Errors.Reports.CategoryAlreadyDeleted;
         }
 
-        // Update category details
+        var oldSnapshot = JsonSerializer.Serialize(new
+        {
+            category.NameVi,
+            category.NameEn,
+            category.IconUrl
+        });
+
         category.Update(request.NameVi, request.NameEn, request.IconUrl);
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        await auditLogger.LogAsync(
+            "UpdateCategory",
+            "PollutionCategory",
+            category.Id.ToString(),
+            oldValues: oldSnapshot,
+            newValues: JsonSerializer.Serialize(new
+            {
+                category.NameVi,
+                category.NameEn,
+                category.IconUrl
+            }),
+            ct).ConfigureAwait(false);
 
         logger.LogInformation("Category {CategoryId} updated", request.Id);
 

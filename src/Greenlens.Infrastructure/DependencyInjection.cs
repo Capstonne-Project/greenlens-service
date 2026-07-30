@@ -391,7 +391,7 @@ public static class DependencyInjection
             job => job.ExecuteAsync(),
             "*/30 * * * *"); // every 30 minutes
 
-        // BR-DAT-002: Data retention — delete expired media files (>2y) and audit logs (>12m)
+        // BR-DAT-002: Data retention — delete expired media files (>2y), audit_logs (>12m), report status history (>12m)
         RecurringJob.AddOrUpdate<DataRetentionJob>(
             "data-retention",
             job => job.ExecuteAsync(),

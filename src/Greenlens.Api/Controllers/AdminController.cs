@@ -1,6 +1,8 @@
 using Greenlens.Api.Extensions;
 using Greenlens.Application.Common.Models;
 using Greenlens.Application.Features.Admin.ArchiveCategory;
+using Greenlens.Application.Features.Admin.AuditLogs.ExportAuditLogs;
+using Greenlens.Application.Features.Admin.AuditLogs.GetAuditLogStats;
 using Greenlens.Application.Features.Admin.AuditLogs.GetAuditLogById;
 using Greenlens.Application.Features.Admin.AuditLogs.GetAuditLogs;
 using Greenlens.Application.Features.Admin.CreateCategory;
@@ -15,6 +17,7 @@ using Greenlens.Application.Features.Admin.PenaltyFrameworks.CreatePenaltyFramew
 using Greenlens.Application.Features.Admin.PenaltyFrameworks.DeactivatePenaltyFramework;
 using Greenlens.Application.Features.Admin.PenaltyFrameworks.GetPenaltyFrameworks;
 using Greenlens.Application.Features.Admin.PenaltyFrameworks.UpdatePenaltyFramework;
+using Greenlens.Application.Features.Admin.ToggleBanUser;
 using Greenlens.Application.Features.Admin.ToggleWasteTag;
 using Greenlens.Application.Features.Admin.UpdateCategory;
 using Greenlens.Application.Features.Admin.UpdateWasteTag;
@@ -118,6 +121,14 @@ public sealed class AdminController(ISender sender) : ControllerBase
     public async Task<IActionResult> UpdateUserRoleAsync(
         [FromRoute] Guid id, [FromBody] UpdateUserRoleRequest request, CancellationToken ct)
         => (await sender.Send(new UpdateUserRoleCommand(id, request.NewRole), ct)).ToHttpNoContent("Đã đổi role thành công.");
+
+    [HttpPut("users/{id:guid}/ban")]
+    [SwaggerOperation(Summary = "[Admin] Cấm/bỏ cấm user", Description = "Toggle trạng thái ban tài khoản. Không thể tự cấm chính mình. Ghi audit log.")]
+    [SwaggerResponse(200, "Đã cập nhật trạng thái ban", typeof(ApiResponse<ToggleBanUserResponse>))]
+    [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Không thể cấm chính mình", typeof(ApiResponse))]
+    public async Task<IActionResult> ToggleBanUserAsync([FromRoute] Guid id, CancellationToken ct)
+        => (await sender.Send(new ToggleBanUserCommand(id), ct)).ToHttp();
 
     // ═══════════════════════════════════════════
     // ██  REPORTS
@@ -334,16 +345,49 @@ public sealed class AdminController(ISender sender) : ControllerBase
     // ═══════════════════════════════════════════
 
     [HttpGet("audit-logs")]
-    [SwaggerOperation(Summary = "[Admin] Danh sách audit log", Description = "Danh sách hành động nhạy cảm được ghi log. Lọc theo userId, entityType, action, ngày.")]
+    [SwaggerOperation(Summary = "[Admin] Danh sách audit log", Description = "Danh sách hành động nhạy cảm được ghi log. Lọc theo userId, actorRole, entityType, action, ngày.")]
     [SwaggerResponse(200, "Danh sách audit log", typeof(ApiResponse<GetAuditLogsResponse>))]
     public async Task<IActionResult> GetAuditLogsAsync(
         [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
-        [FromQuery] Guid? userId = null, [FromQuery] string? entityType = null,
+        [FromQuery] Guid? userId = null, [FromQuery] UserRole? actorRole = null,
+        [FromQuery] string? entityType = null,
+        [FromQuery] string? entityId = null,
         [FromQuery] string? action = null,
         [FromQuery] DateTime? fromDate = null, [FromQuery] DateTime? toDate = null,
         CancellationToken ct = default)
         => (await sender.Send(
-            new GetAuditLogsQuery(page, pageSize, userId, entityType, action, fromDate, toDate), ct)).ToHttp();
+            new GetAuditLogsQuery(page, pageSize, userId, actorRole, entityType, entityId, action, fromDate, toDate), ct)).ToHttp();
+
+    [HttpGet("audit-logs/export")]
+    [SwaggerOperation(Summary = "[Admin] Export audit log CSV", Description = "Export audit log trong khoảng ngày (bắt buộc fromDate/toDate, tối đa 90 ngày). Không export PII nhạy cảm.")]
+    [SwaggerResponse(200, "File CSV")]
+    public async Task<IActionResult> ExportAuditLogsAsync(
+        [FromQuery] DateTime fromDate,
+        [FromQuery] DateTime toDate,
+        [FromQuery] Guid? userId = null,
+        [FromQuery] UserRole? actorRole = null,
+        [FromQuery] string? entityType = null,
+        [FromQuery] string? action = null,
+        CancellationToken ct = default)
+    {
+        var result = await sender.Send(
+            new ExportAuditLogsQuery(fromDate, toDate, userId, actorRole, entityType, action), ct);
+
+        if (!result.IsSuccess)
+            return result.ToHttp();
+
+        var data = result.Value!;
+        return File(data.Content, data.ContentType, data.FileName);
+    }
+
+    [HttpGet("audit-logs/stats")]
+    [SwaggerOperation(Summary = "[Admin] Thống kê audit log", Description = "Tổng số, top 10 action, phân bổ theo ngày trong khoảng (tối đa 90 ngày).")]
+    [SwaggerResponse(200, "Thống kê audit log", typeof(ApiResponse<GetAuditLogStatsResponse>))]
+    public async Task<IActionResult> GetAuditLogStatsAsync(
+        [FromQuery] DateTime fromDate,
+        [FromQuery] DateTime toDate,
+        CancellationToken ct = default)
+        => (await sender.Send(new GetAuditLogStatsQuery(fromDate, toDate), ct)).ToHttp();
 
     [HttpGet("audit-logs/{id:guid}")]
     [SwaggerOperation(Summary = "[Admin] Chi tiết audit log", Description = "Xem 1 bản ghi audit kèm OldValues/NewValues JSON.")]

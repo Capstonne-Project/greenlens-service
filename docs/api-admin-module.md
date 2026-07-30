@@ -19,10 +19,12 @@
 | 3 | `/penalty-frameworks/{id}` | PUT | Cập nhật khung tiền phạt |
 | 4 | `/penalty-frameworks/{id}/toggle` | PATCH | Bật/tắt khung tiền phạt |
 | 5 | `/audit-logs` | GET | Danh sách audit log |
-| 6 | `/audit-logs/{id}` | GET | Chi tiết audit log |
-| 7 | `/reports/{id}/hide` | POST | Ẩn báo cáo vi phạm |
-| 8 | `/reports/{id}/unhide` | POST | Hiện lại báo cáo |
-| 9 | `/spam-suspects` | GET | Spam dashboard |
+| 6 | `/audit-logs/export` | GET | Export audit log CSV |
+| 7 | `/audit-logs/stats` | GET | Thống kê audit log |
+| 8 | `/audit-logs/{id}` | GET | Chi tiết audit log |
+| 9 | `/reports/{id}/hide` | POST | Ẩn báo cáo vi phạm |
+| 10 | `/reports/{id}/unhide` | POST | Hiện lại báo cáo |
+| 11 | `/spam-suspects` | GET | Spam dashboard |
 | 10 | `/gamification-configs` | GET | Cấu hình điểm gamification |
 | 11 | `/gamification-configs/{id}` | PUT | Cập nhật điểm |
 | 12 | `/notification-templates` | GET | Danh sách template thông báo |
@@ -206,36 +208,65 @@ Bật hoặc tắt khung phạt. Khung bị tắt sẽ không được sử dụ
 
 > **Business Rule:** BR-ADM-010 — Ghi nhận mọi hành động nhạy cảm (đổi role, ban user, force update status, suspend/terminate company…). Immutable — không chỉnh sửa hoặc xóa được.
 >
-> Tự động ghi log khi Command implement `IAuditable` được xử lý thành công, thông qua `AuditLogBehavior` pipeline.
+> Tự động ghi log khi Command implement `IAuditable` được xử lý thành công (qua `AuditLogBehavior`), hoặc ghi thủ công trong handler (Create*, BlockedWords, Officer/Inspection workflow, Admin Update Phase 3).
 
-### Commands tự động được audit
+### Commands được audit (phase hiện tại)
 
-| Command | Entity Type |
-|---|---|
-| `UpdateUserRoleCommand` | User |
-| `ForceUpdateReportStatusCommand` | Report |
-| `ToggleBanUserCommand` | User |
-| `SuspendCompanyCommand` | Company |
-| `TerminateCompanyCommand` | Company |
-| `HideReportCommand` | Report |
-| `UnhideReportCommand` | Report |
-| `UpdateGamificationConfigCommand` | GamificationConfig |
+| Command / Action | Entity Type | Cơ chế |
+|---|---|---|
+| `CreateAccount` | User | Manual `IAuditLogger` |
+| `UpdateUser` | User | Manual (old/new snapshot) |
+| `DeleteUser` | User | `IAuditable` |
+| `UpdateUserRole` | User | `IAuditable` |
+| `ToggleBanUser` | User | `IAuditable` |
+| `ForceUpdateReportStatus` | Report | `IAuditable` |
+| `HideReport` / `UnhideReport` | Report | `IAuditable` |
+| `VerifyReport` / `RejectReport` | Report | Manual (status transition) |
+| `AssignTeam` / `ReassignTeam` / `EscalateReport` | Report | Manual |
+| `DispatchToCompany` / `AssignCompanyTeam` | Report | Manual |
+| `ConfirmDuplicate` / `DismissDuplicate` | Report | Manual |
+| `ApproveReopenRequest` / `RejectReopenRequest` | Report | Manual |
+| `DeleteReport` | Report | Manual |
+| `CreateInspectionReport` … `DeclineInspection` | InspectionReport | Manual |
+| `RecordPayment` | InspectionReport | Manual |
+| `DeletePenaltyPayment` | PenaltyPayment | Manual |
+| `DeleteViolatingEntity` | ViolatingEntity | Manual |
+| `CreateCategory` … `ArchiveCategory` | PollutionCategory | Manual / `IAuditable` |
+| `UpdateCategory` / `UpdateWasteTag` | PollutionCategory / WasteTag | Manual (old/new) |
+| `CreateWasteTag` … `DeleteWasteTag` | WasteTag | Manual / `IAuditable` |
+| `CreatePenaltyFramework` … `DeactivatePenaltyFramework` | PenaltyFramework | Manual / `IAuditable` |
+| `UpdatePenaltyFramework` | PenaltyFramework | Manual (old/new) |
+| `CreateNotificationTemplate` … `DeleteNotificationTemplate` | NotificationTemplate | Manual / `IAuditable` |
+| `UpdateNotificationTemplate` | NotificationTemplate | Manual (old/new) |
+| `UpdateGamificationConfig` | GamificationConfig | `IAuditable` |
+| `BlockedWord.Create/Update/Delete` | BlockedWord | Manual (có oldValues) |
+| `CreateCompany`, `RenewContract`, `ReactivateCompany`, … | Company | Manual / `IAuditable` |
+| `UpdateCompanyServiceAreas` | Company | Manual (old/new) |
+| `SuspendCompany` / `TerminateCompany` | Company | Manual (old/new) |
+| `ResetCompanyManagerPassword` | User | `IAuditable` |
+| `IssuePenalty` | InspectionReport | `IAuditable` |
+
+### Admin user ban
+
+`PUT /v1/admin/users/{id}/ban` — toggle `IsBanned`, ghi audit `ToggleBanUser`.
 
 ---
 
 ### 2.1. `GET /v1/admin/audit-logs`
 
-Danh sách audit log phân trang, lọc theo user, entity type, action, khoảng thời gian.
+Danh sách audit log phân trang, lọc theo user, entity type, entity id, action, khoảng thời gian.
 
 **Query Parameters:**
 
 | Param | Type | Default | Mô tả |
 |---|---|---|---|
 | `page` | int | 1 | Trang hiện tại |
-| `pageSize` | int | 20 | Số bản ghi/trang |
+| `pageSize` | int | 20 | Số bản ghi/trang (max **100**) |
 | `userId` | Guid? | — | Lọc theo ID người thực hiện |
+| `actorRole` | UserRole? | — | Lọc theo role người thực hiện (`Admin`, `LEO`, `DEO`, …) |
 | `entityType` | string? | — | Lọc theo loại entity (`User`, `Report`, `Company`…) |
-| `action` | string? | — | Lọc theo tên command (`UpdateUserRoleCommand`…) |
+| `entityId` | string? | — | Lọc theo ID entity đích (exact match) |
+| `action` | string? | — | Lọc theo tên action (`UpdateUserRole`…) |
 | `fromDate` | DateTime? | — | Từ ngày |
 | `toDate` | DateTime? | — | Đến ngày |
 
@@ -250,7 +281,8 @@ Danh sách audit log phân trang, lọc theo user, entity type, action, khoảng
         "id": "...",
         "userId": "admin-user-guid",
         "userEmail": "admin@greenlens.vn",
-        "action": "UpdateUserRoleCommand",
+        "actorRole": "Admin",
+        "action": "UpdateUserRole",
         "entityType": "User",
         "entityId": "target-user-guid",
         "ipAddress": "103.1.2.3",
@@ -292,7 +324,8 @@ Chi tiết 1 bản ghi audit, bao gồm `OldValues` và `NewValues` dạng JSON.
     "id": "...",
     "userId": "admin-user-guid",
     "userEmail": "admin@greenlens.vn",
-    "action": "ToggleBanUserCommand",
+    "actorRole": "Admin",
+    "action": "ToggleBanUser",
     "entityType": "User",
     "entityId": "banned-user-guid",
     "oldValues": "{\"IsBanned\": false}",
@@ -305,6 +338,39 @@ Chi tiết 1 bản ghi audit, bao gồm `OldValues` và `NewValues` dạng JSON.
 ```
 
 **Error `404 Not Found`** — AuditLog không tồn tại.
+
+---
+
+### 2.3. `GET /v1/admin/audit-logs/export`
+
+Export CSV audit log trong khoảng thời gian. **Bắt buộc** `fromDate` và `toDate` (UTC). Tối đa **90 ngày**.
+
+**Query Parameters:** `fromDate`, `toDate` (required); `userId`, `actorRole`, `entityType`, `action` (optional filters).
+
+**Response `200 OK`:** File CSV (`text/csv`). Cột: `Id`, `UserId`, `Action`, `EntityType`, `EntityId`, `IpAddress`, `CreatedAtUtc` — không export email/GPS/oldValues.
+
+**Error `400 Bad Request`:** Thiếu date hoặc range > 90 ngày.
+
+---
+
+### 2.4. `GET /v1/admin/audit-logs/stats`
+
+Thống kê audit log cho dashboard.
+
+**Query Parameters:** `fromDate`, `toDate` (required, max 90 ngày).
+
+**Response `200 OK`:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "totalCount": 420,
+    "byAction": [{ "action": "VerifyReport", "count": 85 }],
+    "byDay": [{ "date": "2026-07-28", "count": 45 }]
+  }
+}
+```
 
 ---
 

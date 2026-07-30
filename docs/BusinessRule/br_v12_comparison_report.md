@@ -364,7 +364,7 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 
 | BR         | Status | Ghi chú / Evidence                                                                                                                         |
 | ---------- | :----: | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| BR-ADM-001 |   ✅   | Admin quản lý user: `AdminController.CreateAccount/UpdateUser/DeleteUser` (soft-delete). Ghi audit log qua `AuditLogBehavior`.             |
+| BR-ADM-001 |   ✅   | Admin quản lý user: CRUD + ban. Audit: `CreateAccount` (manual), `UpdateUser/DeleteUser/UpdateUserRole/ToggleBanUser` (IAuditable/manual). |
 | BR-ADM-002 |   ✅   | 8 roles hệ thống gán cho user qua `UserRole` enum. Admin đổi role qua `UpdateUserRoleCommand` (ghi audit log).                             |
 | BR-ADM-003 |   ✅   | CRUD Category: `CreateCategory/UpdateCategory/ArchiveCategory`. Loại đang sử dụng chỉ cho phép 'Archive' (ẩn khi chọn mới).                |
 | BR-ADM-004 |   ✅   | Template thông báo i18n: `NotificationTemplate` entity + CRUD + publish flow. Placeholder whitelist regex validation + test-send API.      |
@@ -373,7 +373,7 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 | BR-ADM-007 |   ✅   | Spam dashboard: `GetSpamSuspectsQuery` lọc danh sách tài khoản nghi spam theo heuristic (submit/giờ, reject/tuần, AI flag) trên DB.        |
 | BR-ADM-008 |   ✅   | Khung tiền phạt: `PenaltyFramework` entity + CRUD. Unique index cho `(CategoryId, ViolationLevel)` active. MinAmount <= MaxAmount.         |
 | BR-ADM-009 |   ✅   | Phân quyền dữ liệu theo phạm vi: DEO lọc theo tỉnh, LEO lọc theo xã/phường, Company lọc theo CM/Staff (ví dụ: `GetCompaniesQuery`).        |
-| BR-ADM-010 |   ✅   | Hệ thống Audit log: `AuditLogBehavior` tự động ghi log các `IAuditable` commands nhạy cảm. `AuditLogRetentionJob` dọn dẹp log > 12 tháng.  |
+| BR-ADM-010 |   ✅   | Audit log: Admin/Company/Penalty + **Officer/Inspection workflow** (manual snapshot). API GET list/detail/export/stats + filter `entityId`. `DataRetentionJob` xóa `audit_logs` >12 tháng. |
 | BR-ADM-011 |   ✅   | Sao lưu dữ liệu tự động định kỳ hàng ngày (Infra / DevOps concern).                                                                        |
 | BR-ADM-012 |   ✅   | Giám sát công ty: Admin xem toàn bộ (mọi tỉnh); DEO chỉ xem & quản lý công ty có ServiceArea thuộc tỉnh mình (`GetCompaniesQueryHandler`). |
 
@@ -382,7 +382,7 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 | BR         | Status | Ghi chú                                                                                                                                 |
 | ---------- | :----: | --------------------------------------------------------------------------------------------------------------------------------------- |
 | BR-DAT-001 |   ✅   | `BcryptPasswordHasher` 12 rounds ✅. TLS — infra (reverse proxy). Secrets qua env vars, không hardcode                                  |
-| BR-DAT-002 |   ✅   | `DataRetentionJob` (weekly Sunday 04:00 UTC): xóa S3 files ảnh >2 năm (giữ DB record), hard-delete audit log >12 tháng                  |
+| BR-DAT-002 |   ✅   | `DataRetentionJob` (weekly): xóa S3 media >2y; hard-delete `audit_logs` + `report_status_history` >12 tháng                  |
 | BR-DAT-003 |   ✅   | `ExportMyDataQuery` → `GET /v1/users/me/data-export`: export profile + reports + notifications + gamification. Hỗ trợ JSON + CSV        |
 | BR-DAT-004 |   ✅   | Infra concern — pg_dump daily, 30 bản, S3 lifecycle. Không cần code backend                                                             |
 | BR-DAT-005 |   ✅   | `User.HasDataConsent` + `ConsentAcceptedAt`. `POST /v1/users/me/consent` khi mở app lần đầu. SubmitReport handler chặn nếu chưa consent |

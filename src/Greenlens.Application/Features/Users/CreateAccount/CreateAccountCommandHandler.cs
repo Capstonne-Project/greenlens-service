@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
@@ -14,12 +15,13 @@ namespace Greenlens.Application.Features.Users.CreateAccount;
 /// Admin creates a new user account with email pre-verified.
 /// </summary>
 /// <remarks>
-/// Implements: BR-ADM (admin provisions Officer / CleanupTeam / Citizen accounts).
+/// Implements: BR-ADM (admin provisions Officer / CleanupTeam / Citizen accounts), BR-ADM-010 (audit log).
 /// </remarks>
 public sealed class CreateAccountCommandHandler(
     IUserRepository users,
     IUnitOfWork uow,
     IPasswordHasher passwordHasher,
+    IAuditLogger auditLogger,
     ILogger<CreateAccountCommandHandler> logger)
     : IRequestHandler<CreateAccountCommand, Result<CreateAccountResponse>>
 {
@@ -64,6 +66,20 @@ public sealed class CreateAccountCommandHandler(
         }
 
         logger.LogInformation("Admin created account {UserId} with role {Role}", user.Id, user.Role);
+
+        await auditLogger.LogAsync(
+            "CreateAccount",
+            "User",
+            user.Id.ToString(),
+            oldValues: null,
+            newValues: JsonSerializer.Serialize(new
+            {
+                user.Email,
+                user.FullName,
+                user.Role,
+                user.IsEmailVerified
+            }),
+            cancellationToken).ConfigureAwait(false);
 
         return new CreateAccountResponse(
             user.Id,
