@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
@@ -12,11 +13,12 @@ namespace Greenlens.Application.Features.Users.UpdateUser;
 /// Admin updates a user's details (name, phone, role, verification status).
 /// </summary>
 /// <remarks>
-/// Implements: BR-ADM (admin user management).
+/// Implements: BR-ADM (admin user management), BR-ADM-010 (audit snapshot).
 /// </remarks>
 public sealed class UpdateUserCommandHandler(
     IUserRepository users,
     IUnitOfWork uow,
+    IAuditLogger auditLogger,
     ILogger<UpdateUserCommandHandler> logger)
     : IRequestHandler<UpdateUserCommand, Result<UpdateUserResponse>>
 {
@@ -51,6 +53,14 @@ public sealed class UpdateUserCommandHandler(
             }
         }
 
+        var oldSnapshot = JsonSerializer.Serialize(new
+        {
+            role = user.Role.ToString(),
+            fullName = user.FullName,
+            isEmailVerified = user.IsEmailVerified,
+            isBanned = user.IsBanned
+        });
+
         user.AdminUpdate(
             request.FullName,
             request.PhoneNumber is null ? null : PhoneNumberNormalizer.Normalize(request.PhoneNumber),
@@ -72,6 +82,20 @@ public sealed class UpdateUserCommandHandler(
             logger.LogWarning("Database error occurred while updating user {UserId}", request.UserId);
             throw;
         }
+
+        await auditLogger.LogAsync(
+            "UpdateUser",
+            "User",
+            user.Id.ToString(),
+            oldValues: oldSnapshot,
+            newValues: JsonSerializer.Serialize(new
+            {
+                role = user.Role.ToString(),
+                fullName = user.FullName,
+                isEmailVerified = user.IsEmailVerified,
+                isBanned = user.IsBanned
+            }),
+            cancellationToken).ConfigureAwait(false);
 
         logger.LogInformation("Admin updated user {UserId}", request.UserId);
 

@@ -1,3 +1,4 @@
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Features.Users.UpdateUser;
 using Greenlens.Domain.Entities;
@@ -11,11 +12,13 @@ public sealed class UpdateUserCommandHandlerTests
 {
     private readonly IUserRepository _users = Substitute.For<IUserRepository>();
     private readonly IUnitOfWork _uow = Substitute.For<IUnitOfWork>();
+    private readonly IAuditLogger _auditLogger = Substitute.For<IAuditLogger>();
     private readonly UpdateUserCommandHandler _sut;
 
     public UpdateUserCommandHandlerTests()
     {
-        _sut = new UpdateUserCommandHandler(_users, _uow, NullLogger<UpdateUserCommandHandler>.Instance);
+        _sut = new UpdateUserCommandHandler(
+            _users, _uow, _auditLogger, NullLogger<UpdateUserCommandHandler>.Instance);
     }
 
     [Fact]

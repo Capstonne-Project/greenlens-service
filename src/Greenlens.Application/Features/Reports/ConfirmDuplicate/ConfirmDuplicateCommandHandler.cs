@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
@@ -19,7 +20,8 @@ namespace Greenlens.Application.Features.Reports.ConfirmDuplicate;
 /// <remarks>
 /// Implements: BR-REP-031 (LEO makes the final duplicate decision),
 /// BR-REP-032 (primary must be Verified/InProgress; duplicate may be Submitted;
-/// link to primary, merge images + comments, +50% points, +1 reporter count).
+/// link to primary, merge images + comments, +50% points, +1 reporter count),
+/// BR-ADM-010 (audit log).
 /// </remarks>
 public sealed class ConfirmDuplicateCommandHandler(
     IReportRepository reports,
@@ -29,6 +31,7 @@ public sealed class ConfirmDuplicateCommandHandler(
     ISender sender,
     ICurrentUser currentUser,
     IUnitOfWork uow,
+    IAuditLogger auditLogger,
     ILogger<ConfirmDuplicateCommandHandler> logger) : IRequestHandler<ConfirmDuplicateCommand, Result>
 {
     public async Task<Result> Handle(ConfirmDuplicateCommand request, CancellationToken ct)
@@ -102,6 +105,19 @@ public sealed class ConfirmDuplicateCommandHandler(
             $"LEO confirmed duplicate of {primary.Code}; merged {mediaToMerge.Count} media"));
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        await auditLogger.LogAsync(
+            "ConfirmDuplicate",
+            "Report",
+            report.Id.ToString(),
+            oldValues: JsonSerializer.Serialize(new { status = fromStatus.ToString() }),
+            newValues: JsonSerializer.Serialize(new
+            {
+                status = report.Status.ToString(),
+                primaryReportId = request.PrimaryReportId,
+                mergedMediaCount = mediaToMerge.Count
+            }),
+            ct).ConfigureAwait(false);
 
         if (primary.ReporterId.HasValue)
         {

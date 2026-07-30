@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
@@ -14,7 +15,7 @@ namespace Greenlens.Application.Features.Organization.CreateCompany;
 /// Optionally creates a CM account and/or assigns ward service areas at the same time.
 /// Company starts as PendingActivation. If CM is created, they must change password on first login → company auto-activates.
 /// </summary>
-/// <remarks>Implements: BR-CMP-001, BR-CMP-002.</remarks>
+/// <remarks>Implements: BR-CMP-001, BR-CMP-002, BR-ADM-010.</remarks>
 public sealed class CreateCompanyCommandHandler(
     IEnvironmentalServiceCompanyRepository companies,
     IDepartmentRepository departments,
@@ -25,6 +26,7 @@ public sealed class CreateCompanyCommandHandler(
     IUnitOfWork uow,
     IPasswordHasher passwordHasher,
     ICurrentUser currentUser,
+    IAuditLogger auditLogger,
     ILogger<CreateCompanyCommandHandler> logger)
     : IRequestHandler<CreateCompanyCommand, Result<CreateCompanyResponse>>
 {
@@ -158,6 +160,22 @@ public sealed class CreateCompanyCommandHandler(
             "Company {CompanyId} '{Name}' created under department {DeptId}. CM: {HasCM}. Wards: {WardCount}",
             company.Id, company.Name, company.DepartmentId,
             managerUser is not null, request.WardCodes?.Count ?? 0);
+
+        await auditLogger.LogAsync(
+            "CreateCompany",
+            "Company",
+            company.Id.ToString(),
+            oldValues: null,
+            newValues: JsonSerializer.Serialize(new
+            {
+                company.Name,
+                company.DepartmentId,
+                company.ContractNumber,
+                ContractType = company.ContractType.ToString(),
+                Status = company.Status.ToString(),
+                ManagerUserId = managerUser?.Id
+            }),
+            ct).ConfigureAwait(false);
 
         return new CreateCompanyResponse(
             company.Id,

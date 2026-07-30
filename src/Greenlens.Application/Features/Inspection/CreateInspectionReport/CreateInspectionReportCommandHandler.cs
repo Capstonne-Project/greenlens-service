@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
@@ -13,6 +14,7 @@ namespace Greenlens.Application.Features.Inspection.CreateInspectionReport;
 /// BR-INS-001: LEO creates InspectionReport (Draft) for a verified Report.
 /// BR-OFF-005: Triage decision at verification — LEO identifies violator.
 /// When a team is assigned, Report transitions Verified → InProgress.
+/// BR-ADM-010 (audit log).
 /// </summary>
 public sealed class CreateInspectionReportCommandHandler(
     IReportRepository reports,
@@ -21,6 +23,7 @@ public sealed class CreateInspectionReportCommandHandler(
     IReportStatusHistoryRepository statusHistory,
     ICurrentUser currentUser,
     IUnitOfWork uow,
+    IAuditLogger auditLogger,
     ILogger<CreateInspectionReportCommandHandler> logger)
     : IRequestHandler<CreateInspectionReportCommand, Result<Guid>>
 {
@@ -97,6 +100,19 @@ public sealed class CreateInspectionReportCommandHandler(
         }
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        await auditLogger.LogAsync(
+            "CreateInspectionReport",
+            "InspectionReport",
+            inspection.Id.ToString(),
+            oldValues: null,
+            newValues: JsonSerializer.Serialize(new
+            {
+                reportId = request.ReportId,
+                assignedTeamId = request.AssignedTeamId,
+                status = inspection.Status.ToString()
+            }),
+            ct).ConfigureAwait(false);
 
         logger.LogInformation(
             "InspectionReport {InspectionId} created for Report {ReportId} by LEO {UserId}",

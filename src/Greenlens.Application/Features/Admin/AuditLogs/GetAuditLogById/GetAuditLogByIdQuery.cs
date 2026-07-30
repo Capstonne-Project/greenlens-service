@@ -1,4 +1,5 @@
 using Greenlens.Domain.Common;
+using Greenlens.Domain.Enums;
 using MediatR;
 
 namespace Greenlens.Application.Features.Admin.AuditLogs.GetAuditLogById;
@@ -13,6 +14,7 @@ public sealed record AuditLogDetailResponse(
     Guid Id,
     Guid UserId,
     string? UserEmail,
+    UserRole? ActorRole,
     string Action,
     string EntityType,
     string? EntityId,

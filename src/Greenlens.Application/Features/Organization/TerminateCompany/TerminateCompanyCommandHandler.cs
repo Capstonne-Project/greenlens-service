@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
@@ -17,6 +18,7 @@ public sealed class TerminateCompanyCommandHandler(
     IEnvironmentalServiceCompanyRepository companies,
     ICompanyCascadeService cascadeService,
     IUnitOfWork uow,
+    IAuditLogger auditLogger,
     ILogger<TerminateCompanyCommandHandler> logger) : IRequestHandler<TerminateCompanyCommand, Result>
 {
     public async Task<Result> Handle(TerminateCompanyCommand request, CancellationToken ct)
@@ -37,6 +39,8 @@ public sealed class TerminateCompanyCommandHandler(
             return Errors.Organization.CompanyCannotTerminate;
         }
 
+        var oldSnapshot = JsonSerializer.Serialize(new { status = company.Status.ToString() });
+
         // BR-CMP-004: → Terminated
         company.Terminate();
 
@@ -47,6 +51,18 @@ public sealed class TerminateCompanyCommandHandler(
             ct).ConfigureAwait(false);
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        await auditLogger.LogAsync(
+            "TerminateCompany",
+            "Company",
+            company.Id.ToString(),
+            oldValues: oldSnapshot,
+            newValues: JsonSerializer.Serialize(new
+            {
+                status = company.Status.ToString(),
+                reasonLength = request.Reason.Length
+            }),
+            ct).ConfigureAwait(false);
 
         logger.LogWarning("Company {CompanyId} ({CompanyName}) terminated. Reason: {Reason}",
             company.Id, company.Name, request.Reason);

@@ -1,3 +1,4 @@
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -9,10 +10,15 @@ namespace Greenlens.Application.Features.Inspection.IssuePenalty;
 /// BR-INS-011: Classify violation level.
 /// BR-INS-022: Auto-check repeat offender.
 /// </summary>
+/// <remarks>Implements: BR-ADM-010.</remarks>
 public sealed record IssuePenaltyCommand(
     Guid InspectionId,
     ViolationLevel ViolationLevel,
     decimal PenaltyAmount,
     string DecisionNumber,
     int PaymentDueDays = 10,
-    string? AdditionalMeasures = null) : IRequest<Result>;
+    string? AdditionalMeasures = null) : IRequest<Result>, IAuditable
+{
+    string IAuditable.AuditEntityType => "InspectionReport";
+    string? IAuditable.AuditEntityId => InspectionId.ToString();
+}

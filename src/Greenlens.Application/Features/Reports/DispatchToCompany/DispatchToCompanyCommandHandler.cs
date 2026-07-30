@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
@@ -14,7 +15,7 @@ namespace Greenlens.Application.Features.Reports.DispatchToCompany;
 /// LEO dispatches a verified report to a company. Verified → InProgress.
 /// CompanyManager sees it in company-queue and assigns company team(s).
 /// </summary>
-/// <remarks>Implements: BR-CMP-005, BR-OFF-011, BR-NTF-002.</remarks>
+/// <remarks>Implements: BR-CMP-005, BR-OFF-011, BR-NTF-002, BR-ADM-010.</remarks>
 public sealed class DispatchToCompanyCommandHandler(
     IReportRepository reports,
     IEnvironmentalServiceCompanyRepository companies,
@@ -25,6 +26,7 @@ public sealed class DispatchToCompanyCommandHandler(
     ICommunityCleanupEventRepository communityCleanupEvents,
     ICurrentUser currentUser,
     IUnitOfWork uow,
+    IAuditLogger auditLogger,
     ILogger<DispatchToCompanyCommandHandler> logger) : IRequestHandler<DispatchToCompanyCommand, Result>
 {
     public async Task<Result> Handle(DispatchToCompanyCommand request, CancellationToken ct)
@@ -93,6 +95,18 @@ public sealed class DispatchToCompanyCommandHandler(
             currentUser.UserId));
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        await auditLogger.LogAsync(
+            "DispatchToCompany",
+            "Report",
+            report.Id.ToString(),
+            oldValues: JsonSerializer.Serialize(new { status = fromStatus.ToString() }),
+            newValues: JsonSerializer.Serialize(new
+            {
+                status = report.Status.ToString(),
+                companyId = request.CompanyId
+            }),
+            ct).ConfigureAwait(false);
 
         await NotifyCompanyManagersAsync(report, company, ct).ConfigureAwait(false);
 

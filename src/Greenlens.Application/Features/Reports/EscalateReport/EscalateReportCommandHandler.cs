@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
@@ -24,6 +25,7 @@ public sealed class EscalateReportCommandHandler(
     ICurrentUser currentUser,
     IUserRepository users,
     IUnitOfWork uow,
+    IAuditLogger auditLogger,
     ILogger<EscalateReportCommandHandler> logger)
     : IRequestHandler<EscalateReportCommand, Result>
 {
@@ -66,10 +68,28 @@ public sealed class EscalateReportCommandHandler(
             return Errors.Reports.OutsideJurisdiction;
         }
 
+        var oldSnapshot = JsonSerializer.Serialize(new
+        {
+            status = report.Status.ToString(),
+            assignedOfficeId = report.AssignedOfficeId
+        });
+
         // Escalate: clear office assignment → falls into Department queue
         report.EscalateToDepartment();
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        await auditLogger.LogAsync(
+            "EscalateReport",
+            "Report",
+            report.Id.ToString(),
+            oldValues: oldSnapshot,
+            newValues: JsonSerializer.Serialize(new
+            {
+                assignedOfficeId = report.AssignedOfficeId,
+                reasonLength = request.Reason.Length
+            }),
+            ct).ConfigureAwait(false);
 
         logger.LogInformation(
             "LEO {LeoId} escalated report {ReportId} to Department queue. Reason: {Reason}",

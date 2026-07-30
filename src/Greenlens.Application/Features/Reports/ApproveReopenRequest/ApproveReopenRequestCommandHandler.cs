@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
@@ -13,7 +14,7 @@ namespace Greenlens.Application.Features.Reports.ApproveReopenRequest;
 
 /// <summary>LEO approves citizen reopen request. Resolved → Reopened (BR-REP-015).</summary>
 /// <remarks>
-/// Implements: BR-REP-015, BR-REP-020, BR-REP-021, BR-ORG-012, BR-NTF-002.
+/// Implements: BR-REP-015, BR-REP-020, BR-REP-021, BR-ORG-012, BR-NTF-002, BR-ADM-010.
 /// </remarks>
 public sealed class ApproveReopenRequestCommandHandler(
     IReportRepository reports,
@@ -23,6 +24,7 @@ public sealed class ApproveReopenRequestCommandHandler(
     INotificationService notifications,
     ICurrentUser currentUser,
     IUnitOfWork uow,
+    IAuditLogger auditLogger,
     ILogger<ApproveReopenRequestCommandHandler> logger) : IRequestHandler<ApproveReopenRequestCommand, Result>
 {
     public async Task<Result> Handle(ApproveReopenRequestCommand request, CancellationToken ct)
@@ -82,6 +84,18 @@ public sealed class ApproveReopenRequestCommandHandler(
             currentUser.UserId));
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        await auditLogger.LogAsync(
+            "ApproveReopenRequest",
+            "Report",
+            report.Id.ToString(),
+            oldValues: JsonSerializer.Serialize(new { status = ReportStatus.Resolved.ToString() }),
+            newValues: JsonSerializer.Serialize(new
+            {
+                status = report.Status.ToString(),
+                requestId = request.RequestId
+            }),
+            ct).ConfigureAwait(false);
 
         if (report.ReporterId.HasValue)
         {

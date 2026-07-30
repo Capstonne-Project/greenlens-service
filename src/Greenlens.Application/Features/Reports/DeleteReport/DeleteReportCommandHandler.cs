@@ -1,7 +1,9 @@
+using System.Text.Json;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
+using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -12,12 +14,13 @@ namespace Greenlens.Application.Features.Reports.DeleteReport;
 /// </summary>
 /// <remarks>
 /// Implements: BR-REP-017 — only Submitted reports with no AI classification
-/// and no officer verification can be deleted.
+/// and no officer verification can be deleted. BR-ADM-010 (audit log).
 /// </remarks>
 public sealed class DeleteReportCommandHandler(
     IReportRepository reports,
     ICurrentUser currentUser,
     IUnitOfWork uow,
+    IAuditLogger auditLogger,
     ILogger<DeleteReportCommandHandler> logger) : IRequestHandler<DeleteReportCommand, Result>
 {
     public async Task<Result> Handle(DeleteReportCommand request, CancellationToken ct)
@@ -50,8 +53,22 @@ public sealed class DeleteReportCommandHandler(
             return Errors.Reports.CannotDeleteReport;
         }
 
+        var oldSnapshot = JsonSerializer.Serialize(new
+        {
+            status = report.Status.ToString(),
+            isDeleted = report.IsDeleted
+        });
+
         report.SoftDelete(currentUser.UserId.ToString());
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        await auditLogger.LogAsync(
+            "DeleteReport",
+            "Report",
+            report.Id.ToString(),
+            oldValues: oldSnapshot,
+            newValues: JsonSerializer.Serialize(new { isDeleted = true }),
+            ct).ConfigureAwait(false);
 
         logger.LogInformation("Report {ReportId} soft-deleted by citizen {UserId}",
             report.Id, currentUser.UserId);

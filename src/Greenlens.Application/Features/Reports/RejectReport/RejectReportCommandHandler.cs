@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
@@ -13,7 +14,8 @@ namespace Greenlens.Application.Features.Reports.RejectReport;
 /// LEO rejects a report — report is re-queued to Department Common Queue.
 /// </summary>
 /// <remarks>
-/// Implements: BR-ORG-015 (re-assign khi LEO reject, reason ≥ 20 chars).
+/// Implements: BR-ORG-015 (re-assign khi LEO reject, reason ≥ 20 chars),
+/// BR-ADM-010 (audit log).
 /// Report stays Submitted, AssignedOfficeId cleared → DEO picks up from common queue.
 /// </remarks>
 public sealed class RejectReportCommandHandler(
@@ -21,6 +23,7 @@ public sealed class RejectReportCommandHandler(
     IReportStatusHistoryRepository statusHistory,
     ICurrentUser currentUser,
     IUnitOfWork uow,
+    IAuditLogger auditLogger,
     ILogger<RejectReportCommandHandler> logger) : IRequestHandler<RejectReportCommand, Result>
 {
     public async Task<Result> Handle(RejectReportCommand request, CancellationToken ct)
@@ -54,6 +57,12 @@ public sealed class RejectReportCommandHandler(
             return Errors.Reports.ConflictOfInterest;
         }
 
+        var oldSnapshot = JsonSerializer.Serialize(new
+        {
+            status = report.Status.ToString(),
+            assignedOfficeId = report.AssignedOfficeId
+        });
+
         // BR-ORG-015: Reject re-queues to Department — status stays Submitted,
         // AssignedOfficeId cleared so DEO sees it in common queue
         report.Reject(request.Reason);
@@ -67,6 +76,19 @@ public sealed class RejectReportCommandHandler(
 
         statusHistory.Add(history);
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        await auditLogger.LogAsync(
+            "RejectReport",
+            "Report",
+            report.Id.ToString(),
+            oldValues: oldSnapshot,
+            newValues: JsonSerializer.Serialize(new
+            {
+                status = report.Status.ToString(),
+                assignedOfficeId = report.AssignedOfficeId,
+                reasonLength = request.Reason.Length
+            }),
+            ct).ConfigureAwait(false);
 
         logger.LogInformation(
             "Report {ReportId} rejected by LEO {UserId}, re-queued to Department",

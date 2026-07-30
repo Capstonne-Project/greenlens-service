@@ -1,4 +1,6 @@
+using System.Text.Json;
 using Greenlens.Application.Common;
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
@@ -9,11 +11,12 @@ namespace Greenlens.Application.Features.Admin.PenaltyFrameworks.CreatePenaltyFr
 /// <summary>
 /// Creates a new PenaltyFramework entry.
 /// </summary>
-/// <remarks>Implements: BR-ADM-008.</remarks>
+/// <remarks>Implements: BR-ADM-008, BR-ADM-010.</remarks>
 public sealed class CreatePenaltyFrameworkCommandHandler(
     IPollutionCategoryRepository pollutionCategories,
     IPenaltyFrameworkRepository penaltyFrameworks,
     IUnitOfWork uow,
+    IAuditLogger auditLogger,
     ILogger<CreatePenaltyFrameworkCommandHandler> logger)
     : IRequestHandler<CreatePenaltyFrameworkCommand, Result<CreatePenaltyFrameworkResponse>>
 {
@@ -60,6 +63,22 @@ public sealed class CreatePenaltyFrameworkCommandHandler(
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 
         logger.LogInformation("Penalty framework created successfully: {Id}", entity.Id);
+
+        await auditLogger.LogAsync(
+            "CreatePenaltyFramework",
+            "PenaltyFramework",
+            entity.Id.ToString(),
+            oldValues: null,
+            newValues: JsonSerializer.Serialize(new
+            {
+                entity.CategoryId,
+                ViolationLevel = entity.ViolationLevel.ToString(),
+                entity.MinAmount,
+                entity.MaxAmount,
+                entity.EffectiveFrom,
+                entity.EffectiveTo
+            }),
+            ct).ConfigureAwait(false);
 
         return new CreatePenaltyFrameworkResponse(
             entity.Id,

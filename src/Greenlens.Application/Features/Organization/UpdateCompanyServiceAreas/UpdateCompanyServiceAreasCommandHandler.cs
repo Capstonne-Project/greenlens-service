@@ -1,4 +1,6 @@
+using System.Text.Json;
 using Greenlens.Application.Common;
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
@@ -17,6 +19,7 @@ public sealed class UpdateCompanyServiceAreasCommandHandler(
     ICompanyServiceAreaRepository serviceAreas,
     IWardRepository wards,
     IUnitOfWork uow,
+    IAuditLogger auditLogger,
     ILogger<UpdateCompanyServiceAreasCommandHandler> logger)
     : IRequestHandler<UpdateCompanyServiceAreasCommand, Result>
 {
@@ -59,6 +62,8 @@ public sealed class UpdateCompanyServiceAreasCommandHandler(
         var toAdd = desiredWardCodes.Except(currentWardCodes).ToList();
         var toRemove = currentAreas.Where(sa => !desiredWardCodes.Contains(sa.WardCode)).ToList();
 
+        var oldSnapshot = JsonSerializer.Serialize(new { wardCodes = currentWardCodes.Order().ToList() });
+
         // ── 5. Apply changes ──
         if (toRemove.Count > 0)
         {
@@ -73,6 +78,14 @@ public sealed class UpdateCompanyServiceAreasCommandHandler(
         }
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        await auditLogger.LogAsync(
+            "UpdateCompanyServiceAreas",
+            "Company",
+            request.CompanyId.ToString(),
+            oldValues: oldSnapshot,
+            newValues: JsonSerializer.Serialize(new { wardCodes = desiredWardCodes.Order().ToList() }),
+            ct).ConfigureAwait(false);
 
         logger.LogInformation(
             "Company {CompanyId} service areas updated: +{Added} -{Removed} (total desired: {Total})",

@@ -16,6 +16,11 @@ public static partial class Errors
             "Không thể xóa chính tài khoản của bạn.",
             ErrorType.BusinessRule);
 
+        public static Error CannotBanSelf => new(
+            "CANNOT_BAN_SELF",
+            "Không thể cấm chính tài khoản của bạn.",
+            ErrorType.BusinessRule);
+
         public static Error UserAlreadyDeleted => new(
             "USER_ALREADY_DELETED",
             "Người dùng đã bị xóa trước đó.",

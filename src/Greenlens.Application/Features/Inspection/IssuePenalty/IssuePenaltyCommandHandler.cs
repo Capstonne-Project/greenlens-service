@@ -14,6 +14,7 @@ namespace Greenlens.Application.Features.Inspection.IssuePenalty;
 /// BR-INS-022: Auto-detect repeat offender (≥ 2 times in 12 months) via ViolatingEntityId (FK).
 /// Falls back to string-match ViolatorIdentity if ViolatingEntityId is not linked.
 /// </summary>
+/// <remarks>Implements: BR-INS-011, BR-INS-012, BR-INS-022, BR-ADM-010.</remarks>
 public sealed class IssuePenaltyCommandHandler(
     IInspectionReportRepository inspections,
     IViolatingEntityRepository violatingEntities,
