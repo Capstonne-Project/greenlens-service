@@ -232,6 +232,14 @@ internal static class NotificationTemplateSeeder
             NotificationType.DuplicateReviewNeeded),
 
         Create(
+            "violation_recurrence_review_needed",
+            "Nghi ngờ vi phạm tái phát",
+            "Báo cáo {report_code} tại {ward_name} gần điểm đã xử lý ({prior_report_code}). Vui lòng so sánh và quyết định có mở hồ sơ thanh tra hay không.",
+            "Suspected violation recurrence",
+            "Report {report_code} is near a recently closed case ({prior_report_code}). Please compare and decide whether to open an inspection dossier.",
+            NotificationType.ViolationRecurrenceReviewNeeded),
+
+        Create(
             "reopen_review_needed",
             "Yêu cầu mở lại báo cáo",
             "Công dân yêu cầu mở lại báo cáo {report_code} tại {ward_name}. Vui lòng xem lý do và ảnh minh chứng.",

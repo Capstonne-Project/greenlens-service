@@ -12,4 +12,7 @@ public sealed record RecordPaymentCommand(
     decimal PaidAmount,
     DateTime PaidAt,
     string? EvidenceUrl = null,
-    string? Note = null) : IRequest<Result>;
+    string? Note = null,
+    byte[]? ReceiptBytes = null,
+    string? ReceiptFileName = null,
+    string? ReceiptContentType = null) : IRequest<Result>;

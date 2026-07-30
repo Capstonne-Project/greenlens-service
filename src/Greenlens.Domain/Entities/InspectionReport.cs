@@ -68,19 +68,30 @@ public sealed class InspectionReport : SoftDeletableEntity
     /// <summary>Flagged by SlaBreachInspectionJob when deadline exceeded.</summary>
     public bool SlaInspectionBreached { get; private set; }
 
-    // ── Check-in (BR-INS-004) ──
+    // ── Check-in (legacy BR-INS-004 — deprecated, use ConfirmArrival) ──
     public DateTime? CheckedInAt { get; private set; }
     public decimal? CheckedInLatitude { get; private set; }
     public decimal? CheckedInLongitude { get; private set; }
     public string? CheckedInNote { get; private set; }
 
-    // ── Progress tracking (BR-INS-031) ──
+    // ── Progress tracking (legacy BR-INS-031 — deprecated) ──
     public int ProgressPercent { get; private set; }
     public string? ProgressNote { get; private set; }
     public DateTime? ProgressUpdatedAt { get; private set; }
 
+    // ── Checklist workflow (BR-INS-033) ──
+    public DateTime? AcceptedAt { get; private set; }
+    public Guid? AcceptedByUserId { get; private set; }
+    public DateTime? ArrivalConfirmedAt { get; private set; }
+    public decimal? ArrivalLatitude { get; private set; }
+    public decimal? ArrivalLongitude { get; private set; }
+    public string? ArrivalNote { get; private set; }
+    public DateTime? FieldInvestigationSubmittedAt { get; private set; }
+    public Guid? FieldInvestigationSubmittedByUserId { get; private set; }
+
     // ── Navigation ──
     public Report? Report { get; private set; }
+    public ICollection<InspectionEvidence> Evidences { get; private set; } = [];
     public User? CreatedByOfficer { get; private set; }
     public User? IssuedByInspector { get; private set; }
     public EnvironmentalTeam? AssignedTeam { get; private set; }
@@ -139,8 +150,75 @@ public sealed class InspectionReport : SoftDeletableEntity
     }
 
     /// <summary>
-    /// BR-INS-004: Team checks in at the site. Draft → InProgress.
-    /// Distance check (≤ 200m) is done in the handler via IGeoDistanceService.
+    /// BR-INS-033: Team accepts assigned task. Draft → InProgress.
+    /// </summary>
+    public Result AcceptTask(Guid userId)
+    {
+        if (Status != InspectionStatus.Draft)
+            return Result.Failure(new Error(
+                "INSPECTION_INVALID_STATE",
+                $"Cannot accept task from status {Status}. Must be Draft.",
+                ErrorType.BusinessRule));
+
+        if (AssignedTeamId is null)
+            return Result.Failure(new Error(
+                "INSPECTION_NO_TEAM",
+                "Cannot accept task without an assigned team.",
+                ErrorType.BusinessRule));
+
+        Status = InspectionStatus.InProgress;
+        AcceptedAt = DateTime.UtcNow;
+        AcceptedByUserId = userId;
+        UpdatedAt = DateTime.UtcNow;
+        return Result.Success();
+    }
+
+    /// <summary>
+    /// BR-INS-033: Optional soft GPS arrival confirmation while InProgress.
+    /// Distance validation (note required when &gt; 200m) is done in the handler.
+    /// </summary>
+    public Result ConfirmArrival(decimal latitude, decimal longitude, string? note = null)
+    {
+        if (Status != InspectionStatus.InProgress)
+            return Result.Failure(new Error(
+                "INSPECTION_INVALID_STATE",
+                $"Cannot confirm arrival from status {Status}. Must be InProgress.",
+                ErrorType.BusinessRule));
+
+        ArrivalConfirmedAt = DateTime.UtcNow;
+        ArrivalLatitude = latitude;
+        ArrivalLongitude = longitude;
+        ArrivalNote = note;
+        UpdatedAt = DateTime.UtcNow;
+        return Result.Success();
+    }
+
+    /// <summary>
+    /// BR-INS-033: Team Leader submits completed field investigation checklist.
+    /// </summary>
+    public Result SubmitFieldInvestigation(Guid leaderId)
+    {
+        if (Status != InspectionStatus.InProgress)
+            return Result.Failure(new Error(
+                "INSPECTION_INVALID_STATE",
+                $"Cannot submit field report from status {Status}. Must be InProgress.",
+                ErrorType.BusinessRule));
+
+        if (FieldInvestigationSubmittedAt.HasValue)
+            return Result.Failure(new Error(
+                "INSPECTION_FIELD_REPORT_ALREADY_SUBMITTED",
+                "Field investigation report was already submitted.",
+                ErrorType.BusinessRule));
+
+        FieldInvestigationSubmittedAt = DateTime.UtcNow;
+        FieldInvestigationSubmittedByUserId = leaderId;
+        UpdatedAt = DateTime.UtcNow;
+        return Result.Success();
+    }
+
+    /// <summary>
+    /// BR-INS-004 (legacy): Team checks in at the site. Draft → InProgress.
+    /// Deprecated — use AcceptTask + ConfirmArrival.
     /// </summary>
     public Result CheckIn(decimal latitude, decimal longitude, string? note = null)
     {
@@ -200,10 +278,16 @@ public sealed class InspectionReport : SoftDeletableEntity
         string? additionalMeasures = null,
         bool isRepeatOffender = false)
     {
-        if (Status is not (InspectionStatus.Draft or InspectionStatus.InProgress))
+        if (Status != InspectionStatus.InProgress)
             return Result.Failure(new Error(
                 "INSPECTION_INVALID_STATE",
-                $"Cannot issue penalty from status {Status}. Must be Draft or InProgress.",
+                $"Cannot issue penalty from status {Status}. Must be InProgress.",
+                ErrorType.BusinessRule));
+
+        if (!FieldInvestigationSubmittedAt.HasValue)
+            return Result.Failure(new Error(
+                "INSPECTION_FIELD_REPORT_REQUIRED",
+                "Field investigation report must be submitted before issuing penalty (BR-INS-033).",
                 ErrorType.BusinessRule));
 
         if (amount <= 0)
@@ -328,17 +412,52 @@ public sealed class InspectionReport : SoftDeletableEntity
         return Result.Success();
     }
 
-    /// <summary>
-    /// BR-INS-013: Close without violation found. Draft → ClosedNoViolation.
-    /// Reason must be ≥ 50 characters.
-    /// </summary>
+    /// <summary>BR-INS-013: Close without violation found. InProgress → ClosedNoViolation.</summary>
     public Result CloseNoViolation(string reason)
     {
-        if (Status is not (InspectionStatus.Draft or InspectionStatus.InProgress))
+        if (Status != InspectionStatus.InProgress)
             return Result.Failure(new Error(
                 "INSPECTION_INVALID_STATE",
-                $"Cannot close from status {Status}. Must be Draft or InProgress.",
+                $"Cannot close from status {Status}. Must be InProgress.",
                 ErrorType.BusinessRule));
+
+        if (!FieldInvestigationSubmittedAt.HasValue)
+            return Result.Failure(new Error(
+                "INSPECTION_FIELD_REPORT_REQUIRED",
+                "Field investigation report must be submitted before closing (BR-INS-033).",
+                ErrorType.BusinessRule));
+
+        if (string.IsNullOrWhiteSpace(reason) || reason.Length < 50)
+            return Result.Failure(new Error(
+                "REASON_TOO_SHORT",
+                "Close reason must be at least 50 characters (BR-INS-013).",
+                ErrorType.Validation));
+
+        Status = InspectionStatus.ClosedNoViolation;
+        ClosedAt = DateTime.UtcNow;
+        ClosedReason = reason;
+        UpdatedAt = DateTime.UtcNow;
+        return Result.Success();
+    }
+
+    /// <summary>
+    /// BR-INS-030: System auto-close when SLA expires without inspector conclusion.
+    /// Does not require field investigation submission.
+    /// </summary>
+    public Result ForceCloseNoViolation(string reason)
+    {
+        if (Status is InspectionStatus.Closed
+            or InspectionStatus.ClosedNoViolation
+            or InspectionStatus.PenaltyIssued
+            or InspectionStatus.PartiallyPaid
+            or InspectionStatus.Overdue
+            or InspectionStatus.Paid)
+        {
+            return Result.Failure(new Error(
+                "INSPECTION_INVALID_STATE",
+                $"Cannot force-close from status {Status}.",
+                ErrorType.BusinessRule));
+        }
 
         if (string.IsNullOrWhiteSpace(reason) || reason.Length < 50)
             return Result.Failure(new Error(

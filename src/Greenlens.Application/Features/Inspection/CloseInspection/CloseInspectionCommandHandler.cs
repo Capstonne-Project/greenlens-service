@@ -53,7 +53,7 @@ public sealed class CloseInspectionCommandHandler(
             newValues: JsonSerializer.Serialize(new
             {
                 status = inspection.Status.ToString(),
-                reasonLength = request.Reason.Length
+                reasonLength = request.Reason?.Length ?? 0
             }),
             ct).ConfigureAwait(false);
 

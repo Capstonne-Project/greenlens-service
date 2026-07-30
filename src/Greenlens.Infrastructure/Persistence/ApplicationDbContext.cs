@@ -42,6 +42,7 @@ internal sealed class ApplicationDbContext(
 
     // ── Inspection & Company module (v1.3) ──
     public DbSet<InspectionReport> InspectionReports => Set<InspectionReport>();
+    public DbSet<InspectionEvidence> InspectionEvidences => Set<InspectionEvidence>();
     public DbSet<ViolatingEntity> ViolatingEntities => Set<ViolatingEntity>();
     public DbSet<PenaltyPayment> PenaltyPayments => Set<PenaltyPayment>();
     public DbSet<EnvironmentalServiceCompany> EnvironmentalServiceCompanies => Set<EnvironmentalServiceCompany>();

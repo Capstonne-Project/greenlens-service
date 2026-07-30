@@ -565,4 +565,30 @@ public sealed class ReportTests
         Assert.Null(report.ReporterId);
         Assert.True(report.HideReporterName);
     }
+
+    [Fact]
+    public void MarkSuspectedViolationRecurrence_SetsFlagAndEvent_BR_REP_034()
+    {
+        var report = CreateTestReport();
+        var priorId = Guid.NewGuid();
+
+        report.MarkSuspectedViolationRecurrence(priorId);
+
+        Assert.True(report.IsSuspectedViolationRecurrence);
+        Assert.Equal(priorId, report.SuspectedRecurrenceOfReportId);
+        var evt = Assert.Single(report.DomainEvents.OfType<ReportViolationRecurrenceSuspectedEvent>());
+        Assert.Equal(priorId, evt.PriorClosedReportId);
+    }
+
+    [Fact]
+    public void DismissViolationRecurrence_ClearsFlag_BR_REP_034()
+    {
+        var report = CreateTestReport();
+        report.MarkSuspectedViolationRecurrence(Guid.NewGuid());
+
+        report.DismissViolationRecurrence();
+
+        Assert.False(report.IsSuspectedViolationRecurrence);
+        Assert.Null(report.SuspectedRecurrenceOfReportId);
+    }
 }

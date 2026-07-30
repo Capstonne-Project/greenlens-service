@@ -80,6 +80,12 @@ public sealed class Report : SoftDeletableEntity
     /// <summary>Image similarity score 0.0–1.0 from the AI compare service (Tier 2 only).</summary>
     public decimal? AiSimilarityScore { get; private set; }
 
+    // ── Violation recurrence suspicion (BR-REP-034) ──
+    /// <summary>Near a recently Closed report (same category, ≤50m, within 30 days) — LEO may open Inspection.</summary>
+    public bool IsSuspectedViolationRecurrence { get; private set; }
+    /// <summary>The most recently Closed report this one may recur from.</summary>
+    public Guid? SuspectedRecurrenceOfReportId { get; private set; }
+
     // ── AI Analysis ──
     public bool IsSuspicious { get; private set; }
     public string? SuspiciousReasons { get; private set; }
@@ -452,6 +458,26 @@ public sealed class Report : SoftDeletableEntity
 
         DuplicateDetectionSource = DuplicateDetectionSources.Tier2Ai;
         AiSimilarityScore = confidence;
+    }
+
+    // ── Violation recurrence (BR-REP-034) ──
+
+    /// <summary>
+    /// Flags a new report near a recently Closed report (same category, ≤50m, Closed within 30 days).
+    /// Raises an event so LEO is notified to compare and decide on InspectionReport.
+    /// </summary>
+    public void MarkSuspectedViolationRecurrence(Guid priorClosedReportId)
+    {
+        IsSuspectedViolationRecurrence = true;
+        SuspectedRecurrenceOfReportId = priorClosedReportId;
+        AddDomainEvent(new ReportViolationRecurrenceSuspectedEvent(Id, priorClosedReportId));
+    }
+
+    /// <summary>LEO dismisses the recurrence suspicion (ordinary repeat pollution, not a violator case).</summary>
+    public void DismissViolationRecurrence()
+    {
+        IsSuspectedViolationRecurrence = false;
+        SuspectedRecurrenceOfReportId = null;
     }
 
     // ────────────────────────────────────────────────────
