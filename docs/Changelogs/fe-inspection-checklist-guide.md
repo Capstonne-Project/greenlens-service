@@ -1,7 +1,8 @@
 # FE Guide — Inspection Checklist Workflow (BR-INS-033)
 
 > **Audience:** Inspector Mobile App  
-> **Thay thế:** `POST /check-in`, `PUT /progress` → **410 Gone**
+> **Thay thế:** `POST /check-in`, `PUT /progress` → **410 Gone**  
+> **Ghi chú:** Guide này không thay đổi trong batch DEO/recurrence monitoring. API inspection list/detail giữ nguyên query params hiện có.
 
 ## Luồng mới
 

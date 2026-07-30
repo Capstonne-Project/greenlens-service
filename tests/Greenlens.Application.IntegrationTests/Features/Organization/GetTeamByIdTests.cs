@@ -15,18 +15,18 @@ public sealed class GetTeamByIdTests(PostgresContainerFixture fixture) : Integra
     {
         var teamId = await WithDbAsync(async db =>
         {
-            var office = await IntegrationDataSeeder.SeedLocalOfficeAsync(db).ConfigureAwait(false);
-            var cleaner = await IntegrationDataSeeder.SeedUserAsync(db, UserRole.Cleaner).ConfigureAwait(false);
+            var office = await IntegrationDataSeeder.SeedLocalOfficeAsync(db);
+            var cleaner = await IntegrationDataSeeder.SeedUserAsync(db, UserRole.Cleaner);
             cleaner.AssignToLocalOffice(office.Id);
 
             var team = EnvironmentalTeam.Create("Tiểu đội Test", office.Id, TeamType.Cleanup);
             db.Set<EnvironmentalTeam>().Add(team);
             db.Set<TeamMember>().Add(TeamMember.Create(team.Id, cleaner.Id, isLeader: true));
-            await db.SaveChangesAsync().ConfigureAwait(false);
+            await db.SaveChangesAsync();
             return team.Id;
-        }).ConfigureAwait(false);
+        });
 
-        var result = await Mediator.Send(new GetTeamByIdQuery(teamId)).ConfigureAwait(false);
+        var result = await Mediator.Send(new GetTeamByIdQuery(teamId));
 
         result.IsSuccess.Should().BeTrue();
         result.Value!.Name.Should().Be("Tiểu đội Test");
@@ -37,7 +37,7 @@ public sealed class GetTeamByIdTests(PostgresContainerFixture fixture) : Integra
     [Fact]
     public async Task Handle_MissingTeam_ReturnsNotFound()
     {
-        var result = await Mediator.Send(new GetTeamByIdQuery(Guid.NewGuid())).ConfigureAwait(false);
+        var result = await Mediator.Send(new GetTeamByIdQuery(Guid.NewGuid()));
 
         result.IsFailure.Should().BeTrue();
         result.Error!.Code.Should().Be("TEAM_NOT_FOUND");

@@ -19,13 +19,12 @@ public sealed class CatalogSoftDeleteTests(PostgresContainerFixture fixture)
     {
         var categoryId = await WithDbAsync(async db =>
         {
-            var category = await IntegrationDataSeeder.SeedCategoryAsync(db, $"CAT-{Guid.NewGuid():N}"[..8])
-                .ConfigureAwait(false);
-            await IntegrationDataSeeder.SeedReportAsync(db, category).ConfigureAwait(false);
+            var category = await IntegrationDataSeeder.SeedCategoryAsync(db, $"CAT-{Guid.NewGuid():N}"[..8]);
+            await IntegrationDataSeeder.SeedReportAsync(db, category);
             return category.Id;
-        }).ConfigureAwait(false);
+        });
 
-        var result = await Mediator.Send(new DeleteCategoryCommand(categoryId)).ConfigureAwait(false);
+        var result = await Mediator.Send(new DeleteCategoryCommand(categoryId));
 
         result.IsFailure.Should().BeTrue();
         result.Error!.Code.Should().Be("CATEGORY_IN_USE");
@@ -40,12 +39,11 @@ public sealed class CatalogSoftDeleteTests(PostgresContainerFixture fixture)
             var category = await IntegrationDataSeeder.SeedCategoryAsync(
                     db,
                     $"CAT-{Guid.NewGuid():N}"[..8],
-                    softDeleted: true)
-                .ConfigureAwait(false);
+                    softDeleted: true);
             return category.Id;
-        }).ConfigureAwait(false);
+        });
 
-        var result = await Mediator.Send(new DeleteCategoryCommand(categoryId)).ConfigureAwait(false);
+        var result = await Mediator.Send(new DeleteCategoryCommand(categoryId));
 
         result.IsFailure.Should().BeTrue();
         result.Error!.Code.Should().Be("CATEGORY_ALREADY_DELETED");
@@ -57,18 +55,15 @@ public sealed class CatalogSoftDeleteTests(PostgresContainerFixture fixture)
     {
         var tagId = await WithDbAsync(async db =>
         {
-            var tag = await IntegrationDataSeeder.SeedWasteTagAsync(db, $"TAG-{Guid.NewGuid():N}"[..8])
-                .ConfigureAwait(false);
-            var category = await IntegrationDataSeeder.SeedCategoryAsync(db, $"CAT-{Guid.NewGuid():N}"[..8])
-                .ConfigureAwait(false);
-            var (reporter, report) = await IntegrationDataSeeder.SeedReportAsync(db, category)
-                .ConfigureAwait(false);
+            var tag = await IntegrationDataSeeder.SeedWasteTagAsync(db, $"TAG-{Guid.NewGuid():N}"[..8]);
+            var category = await IntegrationDataSeeder.SeedCategoryAsync(db, $"CAT-{Guid.NewGuid():N}"[..8]);
+            var (reporter, report) = await IntegrationDataSeeder.SeedReportAsync(db, category);
             db.Set<ReportWasteTag>().Add(ReportWasteTag.Create(report.Id, tag.Id, reporter.Id));
-            await db.SaveChangesAsync().ConfigureAwait(false);
+            await db.SaveChangesAsync();
             return tag.Id;
-        }).ConfigureAwait(false);
+        });
 
-        var result = await Mediator.Send(new DeleteWasteTagCommand(tagId)).ConfigureAwait(false);
+        var result = await Mediator.Send(new DeleteWasteTagCommand(tagId));
 
         result.IsFailure.Should().BeTrue();
         result.Error!.Code.Should().Be("WASTE_TAG_IN_USE");
@@ -83,12 +78,11 @@ public sealed class CatalogSoftDeleteTests(PostgresContainerFixture fixture)
             var tag = await IntegrationDataSeeder.SeedWasteTagAsync(
                     db,
                     $"TAG-{Guid.NewGuid():N}"[..8],
-                    softDeleted: true)
-                .ConfigureAwait(false);
+                    softDeleted: true);
             return tag.Id;
-        }).ConfigureAwait(false);
+        });
 
-        var result = await Mediator.Send(new DeleteWasteTagCommand(tagId)).ConfigureAwait(false);
+        var result = await Mediator.Send(new DeleteWasteTagCommand(tagId));
 
         result.IsFailure.Should().BeTrue();
         result.Error!.Code.Should().Be("WASTE_TAG_ALREADY_DELETED");
@@ -101,12 +95,10 @@ public sealed class CatalogSoftDeleteTests(PostgresContainerFixture fixture)
         const string code = "DUPE-CAT";
         await WithDbAsync(async db =>
         {
-            await IntegrationDataSeeder.SeedCategoryAsync(db, code, softDeleted: true)
-                .ConfigureAwait(false);
-        }).ConfigureAwait(false);
+            await IntegrationDataSeeder.SeedCategoryAsync(db, code, softDeleted: true);
+        });
 
-        var result = await Mediator.Send(new CreateCategoryCommand(code, "Mới", "New", null))
-            .ConfigureAwait(false);
+        var result = await Mediator.Send(new CreateCategoryCommand(code, "Mới", "New", null));
 
         result.IsFailure.Should().BeTrue();
         result.Error!.Code.Should().Be("CATEGORY_CODE_EXISTS");

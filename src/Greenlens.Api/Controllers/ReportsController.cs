@@ -807,18 +807,25 @@ public sealed class ReportsController(
     [Tags("📊 Officer Dashboard")]
     [SwaggerOperation(
         Summary = "[LEO/DEO/Admin] Export báo cáo",
-        Description = "LEO export xã/phường; DEO export toàn tỉnh; Admin export all. PII chỉ Admin thấy.")]
+        Description = "LEO export xã/phường; DEO export toàn tỉnh; Admin export all. PII chỉ Admin thấy. " +
+            "Hỗ trợ lọc status/severity/categoryId/wardCode/from/to/isPossibleDuplicate/isSuspectedViolationRecurrence. " +
+            "File gồm cột duplicate + violation recurrence.")]
     [SwaggerResponse(200, "File download")]
     public async Task<IActionResult> ExportAsync(
         [FromQuery] ReportStatus? status,
         [FromQuery] Severity? severity,
+        [FromQuery] Guid? categoryId,
+        [FromQuery] string? wardCode,
         [FromQuery] DateTime? from,
         [FromQuery] DateTime? to,
+        [FromQuery] bool? isPossibleDuplicate,
+        [FromQuery] bool? isSuspectedViolationRecurrence,
         [FromQuery] ExportFormat format,
         CancellationToken ct)
     {
         var result = await sender.Send(
-            new ExportReportsQuery(status, severity, from, to, format), ct);
+            new ExportReportsQuery(status, severity, categoryId, wardCode, from, to,
+                isPossibleDuplicate, isSuspectedViolationRecurrence, format), ct);
 
         if (!result.IsSuccess)
             return result.ToHttp();

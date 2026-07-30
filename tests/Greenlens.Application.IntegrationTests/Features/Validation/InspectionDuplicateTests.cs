@@ -18,10 +18,10 @@ public sealed class InspectionDuplicateTests(PostgresContainerFixture fixture)
         const string identity = "001234567890";
         await WithDbAsync(async db =>
         {
-            var entity = await IntegrationDataSeeder.SeedViolatingEntityAsync(db).ConfigureAwait(false);
+            var entity = await IntegrationDataSeeder.SeedViolatingEntityAsync(db);
             entity.Update(name: "Existing", identityNumber: identity);
-            await db.SaveChangesAsync().ConfigureAwait(false);
-        }).ConfigureAwait(false);
+            await db.SaveChangesAsync();
+        });
 
         var result = await Mediator.Send(new CreateViolatingEntityCommand(
             "New Violator",
@@ -29,7 +29,7 @@ public sealed class InspectionDuplicateTests(PostgresContainerFixture fixture)
             null,
             null,
             identity,
-            null)).ConfigureAwait(false);
+            null));
 
         result.IsFailure.Should().BeTrue();
         result.Error!.Code.Should().Be("VIOLATING_ENTITY_DUPLICATE_IDENTITY");

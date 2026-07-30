@@ -22,14 +22,14 @@ public sealed class AuthDuplicateTests(PostgresContainerFixture fixture)
         {
             var user = User.CreateByAdmin(email, "hash", "Existing User", UserRole.Citizen);
             db.Set<User>().Add(user);
-            await db.SaveChangesAsync().ConfigureAwait(false);
-        }).ConfigureAwait(false);
+            await db.SaveChangesAsync();
+        });
 
         var result = await Mediator.Send(new RegisterCommand(
             email,
             "Password123!",
             "Duplicate User",
-            true)).ConfigureAwait(false);
+            true));
 
         result.IsFailure.Should().BeTrue();
         result.Error!.Code.Should().Be("EMAIL_TAKEN");
@@ -44,14 +44,14 @@ public sealed class AuthDuplicateTests(PostgresContainerFixture fixture)
             var user = User.CreateByAdmin(email, "hash", "Deleted User", UserRole.Citizen);
             user.SoftDelete("seed");
             db.Set<User>().Add(user);
-            await db.SaveChangesAsync().ConfigureAwait(false);
-        }).ConfigureAwait(false);
+            await db.SaveChangesAsync();
+        });
 
         var result = await Mediator.Send(new RegisterCommand(
             email,
             "Password123!",
             "New User",
-            true)).ConfigureAwait(false);
+            true));
 
         result.IsFailure.Should().BeTrue();
         result.Error!.Code.Should().Be("EMAIL_DELETED_RESTORE_AVAILABLE");
@@ -68,16 +68,16 @@ public sealed class AuthDuplicateTests(PostgresContainerFixture fixture)
 
             var target = User.CreateByAdmin($"target-{Guid.NewGuid():N}@test.local", "hash", "Target", UserRole.Admin);
             db.Set<User>().Add(target);
-            await db.SaveChangesAsync().ConfigureAwait(false);
+            await db.SaveChangesAsync();
             return (target.Id, other.PhoneNumber!);
-        }).ConfigureAwait(false);
+        });
 
         var result = await Mediator.Send(new UpdateUserCommand(
             targetUserId,
             null,
             otherPhone,
             null,
-            null)).ConfigureAwait(false);
+            null));
 
         result.IsFailure.Should().BeTrue();
         result.Error!.Code.Should().Be("PHONE_ALREADY_USED");

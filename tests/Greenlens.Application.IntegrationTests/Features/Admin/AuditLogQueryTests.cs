@@ -17,7 +17,7 @@ public sealed class AuditLogQueryTests(PostgresContainerFixture fixture) : Integ
     [Fact]
     public async Task GetAuditLogById_NotFound_Returns404_BR_ADM_010()
     {
-        var result = await Mediator.Send(new GetAuditLogByIdQuery(Guid.NewGuid())).ConfigureAwait(false);
+        var result = await Mediator.Send(new GetAuditLogByIdQuery(Guid.NewGuid()));
 
         result.IsFailure.Should().BeTrue();
         result.Error!.Code.Should().Be(Errors.Admin.AuditLogNotFound.Code);
@@ -31,7 +31,7 @@ public sealed class AuditLogQueryTests(PostgresContainerFixture fixture) : Integ
 
         await WithDbAsync(async db =>
         {
-            var actor = await IntegrationDataSeeder.SeedUserAsync(db).ConfigureAwait(false);
+            var actor = await IntegrationDataSeeder.SeedUserAsync(db);
 
             db.Set<AuditLog>().Add(AuditLog.Create(
                 actor.Id,
@@ -53,12 +53,11 @@ public sealed class AuditLogQueryTests(PostgresContainerFixture fixture) : Integ
                 ipAddress: "127.0.0.1",
                 userAgent: "test-agent"));
 
-            await db.SaveChangesAsync().ConfigureAwait(false);
-        }).ConfigureAwait(false);
+            await db.SaveChangesAsync();
+        });
 
         var result = await Mediator
-            .Send(new GetAuditLogsQuery(EntityId: targetEntityId))
-            .ConfigureAwait(false);
+            .Send(new GetAuditLogsQuery(EntityId: targetEntityId));
 
         result.IsSuccess.Should().BeTrue();
         result.Value!.Items.Should().HaveCount(1);
@@ -72,7 +71,7 @@ public sealed class AuditLogQueryTests(PostgresContainerFixture fixture) : Integ
 
         await WithDbAsync(async db =>
         {
-            var actor = await IntegrationDataSeeder.SeedUserAsync(db).ConfigureAwait(false);
+            var actor = await IntegrationDataSeeder.SeedUserAsync(db);
 
             db.Set<AuditLog>().Add(AuditLog.Create(
                 actor.Id,
@@ -94,12 +93,11 @@ public sealed class AuditLogQueryTests(PostgresContainerFixture fixture) : Integ
                 ipAddress: "127.0.0.1",
                 userAgent: "test-agent"));
 
-            await db.SaveChangesAsync().ConfigureAwait(false);
-        }).ConfigureAwait(false);
+            await db.SaveChangesAsync();
+        });
 
         var result = await Mediator
-            .Send(new GetAuditLogsQuery(EntityType: "Report"))
-            .ConfigureAwait(false);
+            .Send(new GetAuditLogsQuery(EntityType: "Report"));
 
         result.IsSuccess.Should().BeTrue();
         result.Value!.Items.Should().ContainSingle(i => i.Action == "VerifyReport");
@@ -110,7 +108,7 @@ public sealed class AuditLogQueryTests(PostgresContainerFixture fixture) : Integ
     {
         await WithDbAsync(async db =>
         {
-            var actor = await IntegrationDataSeeder.SeedUserAsync(db, UserRole.LEO).ConfigureAwait(false);
+            var actor = await IntegrationDataSeeder.SeedUserAsync(db, UserRole.LEO);
 
             db.Set<AuditLog>().Add(AuditLog.Create(
                 actor.Id,
@@ -122,12 +120,11 @@ public sealed class AuditLogQueryTests(PostgresContainerFixture fixture) : Integ
                 ipAddress: "127.0.0.1",
                 userAgent: "test-agent"));
 
-            await db.SaveChangesAsync().ConfigureAwait(false);
-        }).ConfigureAwait(false);
+            await db.SaveChangesAsync();
+        });
 
         var result = await Mediator
-            .Send(new GetAuditLogsQuery(EntityType: "Report"))
-            .ConfigureAwait(false);
+            .Send(new GetAuditLogsQuery(EntityType: "Report"));
 
         result.IsSuccess.Should().BeTrue();
         result.Value!.Items.Should().ContainSingle(i => i.ActorRole == UserRole.LEO);
@@ -138,8 +135,8 @@ public sealed class AuditLogQueryTests(PostgresContainerFixture fixture) : Integ
     {
         await WithDbAsync(async db =>
         {
-            var leo = await IntegrationDataSeeder.SeedUserAsync(db, UserRole.LEO).ConfigureAwait(false);
-            var admin = await IntegrationDataSeeder.SeedUserAsync(db, UserRole.Admin).ConfigureAwait(false);
+            var leo = await IntegrationDataSeeder.SeedUserAsync(db, UserRole.LEO);
+            var admin = await IntegrationDataSeeder.SeedUserAsync(db, UserRole.Admin);
 
             db.Set<AuditLog>().Add(AuditLog.Create(
                 leo.Id,
@@ -161,12 +158,11 @@ public sealed class AuditLogQueryTests(PostgresContainerFixture fixture) : Integ
                 ipAddress: "127.0.0.1",
                 userAgent: "test-agent"));
 
-            await db.SaveChangesAsync().ConfigureAwait(false);
-        }).ConfigureAwait(false);
+            await db.SaveChangesAsync();
+        });
 
         var result = await Mediator
-            .Send(new GetAuditLogsQuery(ActorRole: UserRole.LEO))
-            .ConfigureAwait(false);
+            .Send(new GetAuditLogsQuery(ActorRole: UserRole.LEO));
 
         result.IsSuccess.Should().BeTrue();
         result.Value!.Items.Should().OnlyContain(i => i.ActorRole == UserRole.LEO);
@@ -181,7 +177,7 @@ public sealed class AuditLogQueryTests(PostgresContainerFixture fixture) : Integ
 
         await WithDbAsync(async db =>
         {
-            var actor = await IntegrationDataSeeder.SeedUserAsync(db).ConfigureAwait(false);
+            var actor = await IntegrationDataSeeder.SeedUserAsync(db);
 
             db.Set<AuditLog>().Add(AuditLog.Create(
                 actor.Id,
@@ -193,12 +189,11 @@ public sealed class AuditLogQueryTests(PostgresContainerFixture fixture) : Integ
                 ipAddress: "127.0.0.1",
                 userAgent: "test-agent"));
 
-            await db.SaveChangesAsync().ConfigureAwait(false);
-        }).ConfigureAwait(false);
+            await db.SaveChangesAsync();
+        });
 
         var result = await Mediator
-            .Send(new ExportAuditLogsQuery(from, to))
-            .ConfigureAwait(false);
+            .Send(new ExportAuditLogsQuery(from, to));
 
         result.IsSuccess.Should().BeTrue();
         result.Value!.ContentType.Should().Be("text/csv");

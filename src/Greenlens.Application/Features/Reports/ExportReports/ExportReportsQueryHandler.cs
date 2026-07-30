@@ -15,6 +15,10 @@ namespace Greenlens.Application.Features.Reports.ExportReports;
 /// Scope: LEO → own ward; DEO → own province; Admin → all.
 /// PII excluded for non-Admin.
 /// </summary>
+/// <remarks>
+/// Implements: BR-OFF-022 (export), BR-REP-030 (duplicate columns/filter),
+/// BR-REP-034 (violation recurrence columns/filter).
+/// </remarks>
 public sealed class ExportReportsQueryHandler(
     IReportRepository reports,
     IUserRepository users,
@@ -37,28 +41,31 @@ public sealed class ExportReportsQueryHandler(
             return Result<ExportReportsResponse>.Failure(Errors.Users.UserNotFound);
         }
 
-        // Build base query with scope filter
         var query = reports.QueryAsNoTracking();
 
-        // Scope filter based on role
         var role = currentUser.Role;
         if (role == "LEO" && user.LocalOfficeId.HasValue)
             query = query.Where(r => r.AssignedOfficeId == user.LocalOfficeId);
         else if (role == "DEO" && user.DepartmentId.HasValue)
             query = query.Where(r => r.AssignedDepartmentId == user.DepartmentId);
-        // Admin: no filter
 
-        // Optional filters
         if (request.Status.HasValue)
             query = query.Where(r => r.Status == request.Status.Value);
         if (request.Severity.HasValue)
             query = query.Where(r => r.Severity == request.Severity.Value);
+        if (request.CategoryId.HasValue)
+            query = query.Where(r => r.CategoryId == request.CategoryId.Value);
+        if (!string.IsNullOrWhiteSpace(request.WardCode))
+            query = query.Where(r => r.WardCode == request.WardCode);
         if (request.From.HasValue)
             query = query.Where(r => r.CreatedAt >= DateTime.SpecifyKind(request.From.Value, DateTimeKind.Utc));
         if (request.To.HasValue)
             query = query.Where(r => r.CreatedAt <= DateTime.SpecifyKind(request.To.Value, DateTimeKind.Utc));
+        if (request.IsPossibleDuplicate.HasValue)
+            query = query.Where(r => r.IsPossibleDuplicate == request.IsPossibleDuplicate.Value);
+        if (request.IsSuspectedViolationRecurrence.HasValue)
+            query = query.Where(r => r.IsSuspectedViolationRecurrence == request.IsSuspectedViolationRecurrence.Value);
 
-        // Project to export DTO
         var isAdmin = role == "Admin";
         var rows = await query
             .OrderByDescending(r => r.CreatedAt)
@@ -74,7 +81,20 @@ public sealed class ExportReportsQueryHandler(
                 r.SlaVerifyBreached,
                 r.SlaResolveBreached,
                 r.PriorityScore,
-                // PII only for Admin
+                r.IsPossibleDuplicate,
+                r.PossibleDuplicateOfReportId.HasValue
+                    ? reports.QueryAsNoTracking()
+                        .Where(p => p.Id == r.PossibleDuplicateOfReportId!.Value)
+                        .Select(p => p.Code)
+                        .FirstOrDefault()
+                    : null,
+                r.IsSuspectedViolationRecurrence,
+                r.SuspectedRecurrenceOfReportId.HasValue
+                    ? reports.QueryAsNoTracking()
+                        .Where(p => p.Id == r.SuspectedRecurrenceOfReportId!.Value)
+                        .Select(p => p.Code)
+                        .FirstOrDefault()
+                    : null,
                 isAdmin ? r.Reporter!.FullName : null,
                 isAdmin ? r.Reporter!.PhoneNumber : null))
             .ToListAsync(cancellationToken)
@@ -102,18 +122,17 @@ public sealed class ExportReportsQueryHandler(
     {
         var sb = new StringBuilder();
 
-        // Header
-        sb.Append("Code,Status,Severity,Latitude,Longitude,Address,Description,CreatedAt,SlaVerifyBreached,SlaResolveBreached,PriorityScore");
+        sb.Append("Code,Status,Severity,Latitude,Longitude,Address,Description,CreatedAt,SlaVerifyBreached,SlaResolveBreached,PriorityScore,IsPossibleDuplicate,PossibleDuplicateOfReportCode,IsSuspectedViolationRecurrence,SuspectedRecurrenceOfReportCode");
         if (includePii)
             sb.Append(",ReporterName,ReporterPhone");
         sb.AppendLine();
 
-        // Rows
         foreach (var r in rows)
         {
             sb.Append($"{Escape(r.Code)},{r.Status},{r.Severity},{r.Latitude},{r.Longitude}");
             sb.Append($",{Escape(r.Address)},{Escape(r.Description)}");
             sb.Append($",{r.CreatedAt:yyyy-MM-dd HH:mm},{r.SlaVerifyBreached},{r.SlaResolveBreached},{r.PriorityScore}");
+            sb.Append($",{r.IsPossibleDuplicate},{Escape(r.PossibleDuplicateOfReportCode)},{r.IsSuspectedViolationRecurrence},{Escape(r.SuspectedRecurrenceOfReportCode)}");
             if (includePii)
                 sb.Append($",{Escape(r.ReporterName)},{Escape(r.ReporterPhone)}");
             sb.AppendLine();
@@ -127,12 +146,13 @@ public sealed class ExportReportsQueryHandler(
         using var workbook = new ClosedXML.Excel.XLWorkbook();
         var ws = workbook.Worksheets.Add("Reports");
 
-        // ── Header ──
         var headers = new List<string>
         {
             "Code", "Status", "Severity", "Latitude", "Longitude",
             "Address", "Description", "CreatedAt",
-            "SlaVerifyBreached", "SlaResolveBreached", "PriorityScore"
+            "SlaVerifyBreached", "SlaResolveBreached", "PriorityScore",
+            "IsPossibleDuplicate", "PossibleDuplicateOfReportCode",
+            "IsSuspectedViolationRecurrence", "SuspectedRecurrenceOfReportCode"
         };
         if (includePii)
         {
@@ -143,13 +163,11 @@ public sealed class ExportReportsQueryHandler(
         for (var i = 0; i < headers.Count; i++)
             ws.Cell(1, i + 1).Value = headers[i];
 
-        // Style header row
         var headerRange = ws.Range(1, 1, 1, headers.Count);
         headerRange.Style.Font.Bold = true;
         headerRange.Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.FromHtml("#4472C4");
         headerRange.Style.Font.FontColor = ClosedXML.Excel.XLColor.White;
 
-        // ── Data rows ──
         for (var r = 0; r < rows.Count; r++)
         {
             var row = rows[r];
@@ -167,11 +185,15 @@ public sealed class ExportReportsQueryHandler(
             ws.Cell(rowNum, 9).Value = row.SlaVerifyBreached ? "Yes" : "No";
             ws.Cell(rowNum, 10).Value = row.SlaResolveBreached ? "Yes" : "No";
             ws.Cell(rowNum, 11).Value = (double)row.PriorityScore;
+            ws.Cell(rowNum, 12).Value = row.IsPossibleDuplicate ? "Yes" : "No";
+            ws.Cell(rowNum, 13).Value = row.PossibleDuplicateOfReportCode ?? "";
+            ws.Cell(rowNum, 14).Value = row.IsSuspectedViolationRecurrence ? "Yes" : "No";
+            ws.Cell(rowNum, 15).Value = row.SuspectedRecurrenceOfReportCode ?? "";
 
             if (includePii)
             {
-                ws.Cell(rowNum, 12).Value = row.ReporterName ?? "";
-                ws.Cell(rowNum, 13).Value = row.ReporterPhone ?? "";
+                ws.Cell(rowNum, 16).Value = row.ReporterName ?? "";
+                ws.Cell(rowNum, 17).Value = row.ReporterPhone ?? "";
             }
         }
 
@@ -202,6 +224,10 @@ public sealed class ExportReportsQueryHandler(
         bool SlaVerifyBreached,
         bool SlaResolveBreached,
         decimal PriorityScore,
+        bool IsPossibleDuplicate,
+        string? PossibleDuplicateOfReportCode,
+        bool IsSuspectedViolationRecurrence,
+        string? SuspectedRecurrenceOfReportCode,
         string? ReporterName,
         string? ReporterPhone);
 }
