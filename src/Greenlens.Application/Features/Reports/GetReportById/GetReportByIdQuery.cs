@@ -38,7 +38,11 @@ public sealed record ReportDetailResponse(
     /// Reports merged into this primary. imageUrl is projected from primary media
     /// where SourceReportId = child id (BR-REP-032).
     /// </summary>
-    IReadOnlyList<MergedReportItem>? MergedReports = null);
+    IReadOnlyList<MergedReportItem>? MergedReports = null,
+    /// <summary>BR-REP-034: suspected violator recurrence near a recently Closed report.</summary>
+    bool IsSuspectedViolationRecurrence = false,
+    Guid? SuspectedRecurrenceOfReportId = null,
+    PriorClosedReportSummary? PriorClosedReport = null);
 
 public sealed record PendingReopenRequestInfo(
     Guid RequestId,
@@ -69,3 +73,11 @@ public sealed record ReportWasteTagItem(
 /// <summary>Satisfaction feedback left by the reporter (BR-REP-018).</summary>
 public sealed record ReportSatisfactionInfo(
     bool IsSatisfied, int? Rating, string? Comment, DateTime RatedAt);
+
+/// <summary>Summary of the prior Closed report linked by BR-REP-034 recurrence flag.</summary>
+public sealed record PriorClosedReportSummary(
+    Guid Id,
+    string Code,
+    DateTime? ClosedAt,
+    string CategoryCode,
+    bool HadPriorInspection);

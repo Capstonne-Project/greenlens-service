@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
@@ -17,7 +18,8 @@ namespace Greenlens.Application.Features.Reports.VerifyReport;
 /// </summary>
 /// <remarks>
 /// Implements: BR-OFF-004 (self-report conflict), BR-ORG-012 (ward scope check),
-/// BR-ORG-013 (verify step — dispatch to cleanup/inspection happens in separate commands).
+/// BR-ORG-013 (verify step — dispatch to cleanup/inspection happens in separate commands),
+/// BR-ADM-010 (audit log).
 /// </remarks>
 public sealed class VerifyReportCommandHandler(
     IReportRepository reports,
@@ -28,6 +30,7 @@ public sealed class VerifyReportCommandHandler(
     ILocalOfficeRepository localOffices,
     ICurrentUser currentUser,
     IUnitOfWork uow,
+    IAuditLogger auditLogger,
     ILogger<VerifyReportCommandHandler> logger) : IRequestHandler<VerifyReportCommand, Result>
 {
     public async Task<Result> Handle(VerifyReportCommand request, CancellationToken ct)
@@ -116,6 +119,13 @@ public sealed class VerifyReportCommandHandler(
             reportWasteTags.AddRange(newTags);
         }
 
+        var oldSnapshot = JsonSerializer.Serialize(new
+        {
+            status = report.Status.ToString(),
+            severity = report.Severity.ToString(),
+            categoryId = report.CategoryId
+        });
+
         report.Verify(currentUser.UserId, request.OverrideSeverity, request.OverrideCategoryId);
 
         var history = ReportStatusHistory.Create(
@@ -126,6 +136,19 @@ public sealed class VerifyReportCommandHandler(
 
         statusHistory.Add(history);
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        await auditLogger.LogAsync(
+            "VerifyReport",
+            "Report",
+            report.Id.ToString(),
+            oldValues: oldSnapshot,
+            newValues: JsonSerializer.Serialize(new
+            {
+                status = report.Status.ToString(),
+                severity = report.Severity.ToString(),
+                categoryId = report.CategoryId
+            }),
+            ct).ConfigureAwait(false);
 
         logger.LogInformation("Report {ReportId} verified by LEO {UserId}", report.Id, currentUser.UserId);
 

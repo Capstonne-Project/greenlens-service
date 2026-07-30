@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Greenlens.Api.Extensions;
 using Greenlens.Api.Middlewares;
 using Greenlens.Infrastructure;
 using Greenlens.Infrastructure.Seeders.Administrator;
@@ -16,6 +17,9 @@ builder.Host.UseSerilog((context, config) =>
 
 // ── Infrastructure (DB, Auth, MediatR, etc.) ─────────
 builder.Services.AddInfrastructure(builder.Configuration);
+
+// ── P0 performance: rate limit (BR-SYS-004) + Brotli compression ──
+builder.Services.AddGreenlensPerformance(builder.Configuration);
 
 // ── Health checks (Docker healthcheck + Tunnel smoke test) ──
 builder.Services.AddHealthChecks();
@@ -156,9 +160,11 @@ app.UseSwaggerUI(c =>
     c.RoutePrefix = "swagger";
 });
 
+app.UseResponseCompression();
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 app.MapControllers();
 app.MapHub<NotificationHub>("/hubs/notifications");
 app.MapHealthChecks("/health");

@@ -21,6 +21,7 @@ public sealed class GetReportByIdQueryHandler(
     IReportRepository reports,
     IReportMediaRepository reportMedia,
     IReportSatisfactionRepository satisfactions,
+    IInspectionReportRepository inspections,
     IApplicationDbContext db,
     ICurrentUser currentUser,
     ILogger<GetReportByIdQueryHandler> logger)
@@ -147,6 +148,26 @@ public sealed class GetReportByIdQueryHandler(
         var showReporter = !r.HideReporterName && r.Reporter is not null && !r.Reporter.IsBanned;
         var reporterName = showReporter ? r.Reporter!.FullName : null;
         var reporterAvatarUrl = showReporter ? r.Reporter!.AvatarUrl : null;
+        PriorClosedReportSummary? priorClosed = null;
+        if (r.IsSuspectedViolationRecurrence && r.SuspectedRecurrenceOfReportId.HasValue)
+        {
+            var priorId = r.SuspectedRecurrenceOfReportId.Value;
+            var prior = await reports.QueryAsNoTracking()
+                .Include(x => x.Category)
+                .FirstOrDefaultAsync(x => x.Id == priorId, ct)
+                .ConfigureAwait(false);
+
+            if (prior is not null)
+            {
+                var priorInspections = await inspections.GetByReportIdAsync(priorId, ct).ConfigureAwait(false);
+                priorClosed = new PriorClosedReportSummary(
+                    prior.Id,
+                    prior.Code,
+                    prior.ClosedAt,
+                    prior.Category.Code,
+                    priorInspections.Count > 0);
+            }
+        }
 
         logger.LogInformation("Lấy chi tiết báo cáo thành công. Mã báo cáo: {ReportCode}", r.Code);
         return new ReportDetailResponse(
@@ -170,6 +191,9 @@ public sealed class GetReportByIdQueryHandler(
             pendingReopen,
             mergedIntoPrimaryId,
             mergedIntoPrimaryCode,
-            mergedReports);
+            mergedReports,
+            r.IsSuspectedViolationRecurrence,
+            r.SuspectedRecurrenceOfReportId,
+            priorClosed);
     }
 }

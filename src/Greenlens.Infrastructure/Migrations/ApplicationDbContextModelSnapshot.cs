@@ -1305,6 +1305,82 @@ namespace Greenlens.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Greenlens.Domain.Entities.InspectionEvidence", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("category");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("description");
+
+                    b.Property<int?>("DurationSeconds")
+                        .HasColumnType("integer")
+                        .HasColumnName("duration_seconds");
+
+                    b.Property<Guid>("InspectionReportId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("inspection_report_id");
+
+                    b.Property<string>("MediaUrl")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("media_url");
+
+                    b.Property<string>("MimeType")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("mime_type");
+
+                    b.Property<long?>("SizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("size_bytes");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("updated_by");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("uploaded_at");
+
+                    b.Property<Guid>("UploadedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("uploaded_by_user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_inspection_evidences");
+
+                    b.HasIndex("InspectionReportId")
+                        .HasDatabaseName("ix_inspection_evidences_inspection_report_id");
+
+                    b.HasIndex("InspectionReportId", "Category")
+                        .HasDatabaseName("ix_inspection_evidences_inspection_report_id_category");
+
+                    b.ToTable("inspection_evidences", (string)null);
+                });
+
             modelBuilder.Entity("Greenlens.Domain.Entities.InspectionReport", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1312,10 +1388,35 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<DateTime?>("AcceptedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("accepted_at");
+
+                    b.Property<Guid?>("AcceptedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("accepted_by_user_id");
+
                     b.Property<string>("AdditionalPenaltyMeasures")
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)")
                         .HasColumnName("additional_penalty_measures");
+
+                    b.Property<DateTime?>("ArrivalConfirmedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("arrival_confirmed_at");
+
+                    b.Property<decimal?>("ArrivalLatitude")
+                        .HasColumnType("numeric")
+                        .HasColumnName("arrival_latitude");
+
+                    b.Property<decimal?>("ArrivalLongitude")
+                        .HasColumnType("numeric")
+                        .HasColumnName("arrival_longitude");
+
+                    b.Property<string>("ArrivalNote")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("arrival_note");
 
                     b.Property<Guid?>("AssignedTeamId")
                         .HasColumnType("uuid")
@@ -1334,7 +1435,8 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasColumnName("checked_in_longitude");
 
                     b.Property<string>("CheckedInNote")
-                        .HasColumnType("text")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
                         .HasColumnName("checked_in_note");
 
                     b.Property<DateTime?>("ClosedAt")
@@ -1365,6 +1467,14 @@ namespace Greenlens.Infrastructure.Migrations
                     b.Property<string>("DeletedBy")
                         .HasColumnType("text")
                         .HasColumnName("deleted_by");
+
+                    b.Property<DateTime?>("FieldInvestigationSubmittedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("field_investigation_submitted_at");
+
+                    b.Property<Guid?>("FieldInvestigationSubmittedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("field_investigation_submitted_by_user_id");
 
                     b.Property<bool>("IsRepeatOffender")
                         .HasColumnType("boolean")
@@ -2441,6 +2551,10 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_possible_duplicate");
 
+                    b.Property<bool>("IsSuspectedViolationRecurrence")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_suspected_violation_recurrence");
+
                     b.Property<bool>("IsSuspicious")
                         .HasColumnType("boolean")
                         .HasColumnName("is_suspicious");
@@ -2532,6 +2646,10 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("status");
 
+                    b.Property<Guid?>("SuspectedRecurrenceOfReportId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("suspected_recurrence_of_report_id");
+
                     b.Property<string>("SuspiciousReasons")
                         .HasColumnType("jsonb")
                         .HasColumnName("suspicious_reasons");
@@ -2585,6 +2703,9 @@ namespace Greenlens.Infrastructure.Migrations
                     b.HasIndex("IsPossibleDuplicate")
                         .HasDatabaseName("ix_reports_is_possible_duplicate");
 
+                    b.HasIndex("IsSuspectedViolationRecurrence")
+                        .HasDatabaseName("ix_reports_is_suspected_violation_recurrence");
+
                     b.HasIndex("ParentReportId")
                         .HasDatabaseName("ix_reports_parent_report_id");
 
@@ -2603,11 +2724,17 @@ namespace Greenlens.Infrastructure.Migrations
                     b.HasIndex("Status")
                         .HasDatabaseName("ix_reports_status");
 
+                    b.HasIndex("SuspectedRecurrenceOfReportId")
+                        .HasDatabaseName("ix_reports_suspected_recurrence_of_report_id");
+
                     b.HasIndex("VerifiedBy")
                         .HasDatabaseName("ix_reports_verified_by");
 
                     b.HasIndex("WardCode")
                         .HasDatabaseName("ix_reports_ward_code");
+
+                    b.HasIndex("Status", "ClosedAt", "CategoryId")
+                        .HasDatabaseName("ix_reports_status_closed_at_category_id");
 
                     b.ToTable("reports", (string)null);
                 });
@@ -4056,6 +4183,18 @@ namespace Greenlens.Infrastructure.Migrations
                     b.Navigation("LocalOffice");
                 });
 
+            modelBuilder.Entity("Greenlens.Domain.Entities.InspectionEvidence", b =>
+                {
+                    b.HasOne("Greenlens.Domain.Entities.InspectionReport", "InspectionReport")
+                        .WithMany("Evidences")
+                        .HasForeignKey("InspectionReportId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_inspection_evidences_inspection_reports_inspection_report_id");
+
+                    b.Navigation("InspectionReport");
+                });
+
             modelBuilder.Entity("Greenlens.Domain.Entities.InspectionReport", b =>
                 {
                     b.HasOne("Greenlens.Domain.Entities.EnvironmentalTeam", "AssignedTeam")
@@ -4297,6 +4436,12 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasForeignKey("ReporterId")
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_reports_users_reporter_id");
+
+                    b.HasOne("Greenlens.Domain.Entities.Report", null)
+                        .WithMany()
+                        .HasForeignKey("SuspectedRecurrenceOfReportId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_reports_reports_suspected_recurrence_of_report_id");
 
                     b.HasOne("Greenlens.Domain.Entities.User", "VerifiedByUser")
                         .WithMany()
@@ -4654,6 +4799,8 @@ namespace Greenlens.Infrastructure.Migrations
 
             modelBuilder.Entity("Greenlens.Domain.Entities.InspectionReport", b =>
                 {
+                    b.Navigation("Evidences");
+
                     b.Navigation("Payments");
                 });
 

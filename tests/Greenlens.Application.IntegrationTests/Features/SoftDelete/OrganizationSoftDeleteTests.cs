@@ -18,12 +18,11 @@ public sealed class OrganizationSoftDeleteTests(PostgresContainerFixture fixture
     {
         var companyId = await WithDbAsync(async db =>
         {
-            var company = await IntegrationDataSeeder.SeedCompanyAsync(db, CompanyStatus.Active)
-                .ConfigureAwait(false);
+            var company = await IntegrationDataSeeder.SeedCompanyAsync(db, CompanyStatus.Active);
             return company.Id;
-        }).ConfigureAwait(false);
+        });
 
-        var result = await Mediator.Send(new DeleteEnvironmentalCompanyCommand(companyId)).ConfigureAwait(false);
+        var result = await Mediator.Send(new DeleteEnvironmentalCompanyCommand(companyId));
 
         result.IsFailure.Should().BeTrue();
         result.Error!.Code.Should().Be("COMPANY_MUST_TERMINATE_FIRST");
@@ -38,12 +37,11 @@ public sealed class OrganizationSoftDeleteTests(PostgresContainerFixture fixture
             var company = await IntegrationDataSeeder.SeedCompanyAsync(
                     db,
                     CompanyStatus.Terminated,
-                    softDeleted: true)
-                .ConfigureAwait(false);
+                    softDeleted: true);
             return company.Id;
-        }).ConfigureAwait(false);
+        });
 
-        var result = await Mediator.Send(new DeleteEnvironmentalCompanyCommand(companyId)).ConfigureAwait(false);
+        var result = await Mediator.Send(new DeleteEnvironmentalCompanyCommand(companyId));
 
         result.IsFailure.Should().BeTrue();
         result.Error!.Code.Should().Be("COMPANY_ALREADY_DELETED");
@@ -55,18 +53,14 @@ public sealed class OrganizationSoftDeleteTests(PostgresContainerFixture fixture
     {
         var teamId = await WithDbAsync(async db =>
         {
-            var company = await IntegrationDataSeeder.SeedCompanyAsync(db, CompanyStatus.Active)
-                .ConfigureAwait(false);
-            var team = await IntegrationDataSeeder.SeedCompanyTeamAsync(db, company)
-                .ConfigureAwait(false);
-            var category = await IntegrationDataSeeder.SeedCategoryAsync(db, $"CAT-{Guid.NewGuid():N}"[..8])
-                .ConfigureAwait(false);
-            await IntegrationDataSeeder.SeedInProgressAssignmentAsync(db, team, category)
-                .ConfigureAwait(false);
+            var company = await IntegrationDataSeeder.SeedCompanyAsync(db, CompanyStatus.Active);
+            var team = await IntegrationDataSeeder.SeedCompanyTeamAsync(db, company);
+            var category = await IntegrationDataSeeder.SeedCategoryAsync(db, $"CAT-{Guid.NewGuid():N}"[..8]);
+            await IntegrationDataSeeder.SeedInProgressAssignmentAsync(db, team, category);
             return team.Id;
-        }).ConfigureAwait(false);
+        });
 
-        var result = await Mediator.Send(new SoftDeleteCompanyTeamCommand(teamId)).ConfigureAwait(false);
+        var result = await Mediator.Send(new SoftDeleteCompanyTeamCommand(teamId));
 
         result.IsFailure.Should().BeTrue();
         result.Error!.Code.Should().Be("TEAM_HAS_ACTIVE_ASSIGNMENTS");
@@ -78,14 +72,12 @@ public sealed class OrganizationSoftDeleteTests(PostgresContainerFixture fixture
     {
         var teamId = await WithDbAsync(async db =>
         {
-            var company = await IntegrationDataSeeder.SeedCompanyAsync(db, CompanyStatus.Active)
-                .ConfigureAwait(false);
-            var team = await IntegrationDataSeeder.SeedCompanyTeamAsync(db, company, softDeleted: true)
-                .ConfigureAwait(false);
+            var company = await IntegrationDataSeeder.SeedCompanyAsync(db, CompanyStatus.Active);
+            var team = await IntegrationDataSeeder.SeedCompanyTeamAsync(db, company, softDeleted: true);
             return team.Id;
-        }).ConfigureAwait(false);
+        });
 
-        var result = await Mediator.Send(new SoftDeleteCompanyTeamCommand(teamId)).ConfigureAwait(false);
+        var result = await Mediator.Send(new SoftDeleteCompanyTeamCommand(teamId));
 
         result.IsFailure.Should().BeTrue();
         result.Error!.Code.Should().Be("TEAM_ALREADY_DELETED");

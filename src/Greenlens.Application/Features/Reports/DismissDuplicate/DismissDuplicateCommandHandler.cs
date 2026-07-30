@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
@@ -10,11 +11,12 @@ namespace Greenlens.Application.Features.Reports.DismissDuplicate;
 /// <summary>
 /// LEO clears a possible-duplicate flag after reviewing (the report is not a duplicate).
 /// </summary>
-/// <remarks>Implements: BR-REP-031 (LEO makes the final duplicate decision).</remarks>
+/// <remarks>Implements: BR-REP-031 (LEO makes the final duplicate decision), BR-ADM-010.</remarks>
 public sealed class DismissDuplicateCommandHandler(
     IReportRepository reports,
     ICurrentUser currentUser,
     IUnitOfWork uow,
+    IAuditLogger auditLogger,
     ILogger<DismissDuplicateCommandHandler> logger) : IRequestHandler<DismissDuplicateCommand, Result>
 {
     public async Task<Result> Handle(DismissDuplicateCommand request, CancellationToken ct)
@@ -36,6 +38,14 @@ public sealed class DismissDuplicateCommandHandler(
 
         report.DismissDuplicate();
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        await auditLogger.LogAsync(
+            "DismissDuplicate",
+            "Report",
+            report.Id.ToString(),
+            oldValues: JsonSerializer.Serialize(new { isPossibleDuplicate = true }),
+            newValues: JsonSerializer.Serialize(new { isPossibleDuplicate = false }),
+            ct).ConfigureAwait(false);
 
         logger.LogInformation(
             "Report {ReportId} possible-duplicate flag dismissed by {UserId}",

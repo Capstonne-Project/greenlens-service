@@ -37,5 +37,7 @@ public sealed record SubmitPollutionReportResponse(
     IReadOnlyList<SubmitPollutionReportImageInfo> Images,
     bool IsPossibleDuplicate,
     Guid? PossibleDuplicateOfReportId,
+    bool IsSuspectedViolationRecurrence,
+    Guid? SuspectedRecurrenceOfReportId,
     bool IsSuspicious,
     string? ExifWarning);

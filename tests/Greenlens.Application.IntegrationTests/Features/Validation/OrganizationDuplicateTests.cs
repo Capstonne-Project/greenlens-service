@@ -19,15 +19,15 @@ public sealed class OrganizationDuplicateTests(PostgresContainerFixture fixture)
         const string existingContract = "HD-DUP-001";
         var companyToRenew = await WithDbAsync(async db =>
         {
-            await IntegrationDataSeeder.SeedBiddingCompanyAsync(db, existingContract).ConfigureAwait(false);
-            return await IntegrationDataSeeder.SeedBiddingCompanyAsync(db, "HD-OTHER-002").ConfigureAwait(false);
-        }).ConfigureAwait(false);
+            await IntegrationDataSeeder.SeedBiddingCompanyAsync(db, existingContract);
+            return await IntegrationDataSeeder.SeedBiddingCompanyAsync(db, "HD-OTHER-002");
+        });
 
         var result = await Mediator.Send(new RenewContractCommand(
             companyToRenew.Id,
             DateTime.UtcNow.Date,
             DateTime.UtcNow.Date.AddYears(1),
-            existingContract)).ConfigureAwait(false);
+            existingContract));
 
         result.IsFailure.Should().BeTrue();
         result.Error!.Code.Should().Be("CONTRACT_NUMBER_ALREADY_USED");
@@ -39,12 +39,12 @@ public sealed class OrganizationDuplicateTests(PostgresContainerFixture fixture)
     {
         var (invitationId, invitedUserId) = await WithDbAsync(async db =>
         {
-            var leo = await IntegrationDataSeeder.SeedUserAsync(db, UserRole.LEO).ConfigureAwait(false);
-            var citizen = await IntegrationDataSeeder.SeedUserAsync(db, UserRole.Citizen).ConfigureAwait(false);
-            var office = await IntegrationDataSeeder.SeedLocalOfficeAsync(db).ConfigureAwait(false);
+            var leo = await IntegrationDataSeeder.SeedUserAsync(db, UserRole.LEO);
+            var citizen = await IntegrationDataSeeder.SeedUserAsync(db, UserRole.Citizen);
+            var office = await IntegrationDataSeeder.SeedLocalOfficeAsync(db);
             var team = EnvironmentalTeam.Create("Cleanup Team", office.Id, TeamType.Cleanup);
             db.Set<EnvironmentalTeam>().Add(team);
-            await db.SaveChangesAsync().ConfigureAwait(false);
+            await db.SaveChangesAsync();
 
             db.Set<TeamMember>().Add(TeamMember.Create(team.Id, citizen.Id));
             var invitation = StaffInvitation.Create(
@@ -54,14 +54,14 @@ public sealed class OrganizationDuplicateTests(PostgresContainerFixture fixture)
                 UserRole.Cleaner,
                 team.Id);
             db.Set<StaffInvitation>().Add(invitation);
-            await db.SaveChangesAsync().ConfigureAwait(false);
+            await db.SaveChangesAsync();
             return (invitation.Id, citizen.Id);
-        }).ConfigureAwait(false);
+        });
 
         CurrentUser.UserId = invitedUserId;
         CurrentUser.Role = UserRole.Citizen.ToString();
 
-        var result = await Mediator.Send(new AcceptInvitationCommand(invitationId)).ConfigureAwait(false);
+        var result = await Mediator.Send(new AcceptInvitationCommand(invitationId));
 
         result.IsFailure.Should().BeTrue();
         result.Error!.Code.Should().Be("MEMBER_ALREADY_IN_TEAM");

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
@@ -17,7 +18,7 @@ namespace Greenlens.Application.Features.Reports.AssignTeam;
 /// Dispatch is by NEED (v1.3) — LEO chooses team type freely, not constrained by category.
 /// Report transitions Verified → InProgress. Each assignment tracks independently.
 /// Optionally tags waste types during assignment.
-/// BR-OFF-011, BR-OFF-013.
+/// BR-OFF-011, BR-OFF-013, BR-ADM-010.
 /// </summary>
 public sealed class AssignTeamCommandHandler(
     IReportRepository reports,
@@ -31,6 +32,7 @@ public sealed class AssignTeamCommandHandler(
     IUnitOfWork uow,
     ICleanupTaskAssignedNotifier taskNotifier,
     IOptions<WorkloadLimitsOptions> workloadOptions,
+    IAuditLogger auditLogger,
     ILogger<AssignTeamCommandHandler> logger) : IRequestHandler<AssignTeamCommand, Result>
 {
     public async Task<Result> Handle(AssignTeamCommand request, CancellationToken ct)
@@ -155,6 +157,18 @@ public sealed class AssignTeamCommandHandler(
 
         statusHistory.Add(history);
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        await auditLogger.LogAsync(
+            "AssignTeam",
+            "Report",
+            report.Id.ToString(),
+            oldValues: JsonSerializer.Serialize(new { status = fromStatus.ToString() }),
+            newValues: JsonSerializer.Serialize(new
+            {
+                status = report.Status.ToString(),
+                teamIds = request.Teams.Select(t => t.TeamId).ToList()
+            }),
+            ct).ConfigureAwait(false);
 
         foreach (var item in request.Teams)
         {

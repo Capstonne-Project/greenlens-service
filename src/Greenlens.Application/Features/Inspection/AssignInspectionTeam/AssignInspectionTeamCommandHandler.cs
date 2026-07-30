@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
@@ -13,7 +14,7 @@ namespace Greenlens.Application.Features.Inspection.AssignInspectionTeam;
 /// LEO assigns an Inspector Team to an existing InspectionReport.
 /// If the parent Report is still Verified, transitions it to InProgress.
 /// </summary>
-/// <remarks>Implements: BR-INS-001, BR-OFF-005.</remarks>
+/// <remarks>Implements: BR-INS-001, BR-OFF-005, BR-ADM-010.</remarks>
 public sealed class AssignInspectionTeamCommandHandler(
     IInspectionReportRepository inspections,
     IReportRepository reports,
@@ -21,6 +22,7 @@ public sealed class AssignInspectionTeamCommandHandler(
     IReportStatusHistoryRepository statusHistory,
     ICurrentUser currentUser,
     IUnitOfWork uow,
+    IAuditLogger auditLogger,
     ILogger<AssignInspectionTeamCommandHandler> logger)
     : IRequestHandler<AssignInspectionTeamCommand, Result>
 {
@@ -50,6 +52,8 @@ public sealed class AssignInspectionTeamCommandHandler(
             return Errors.Inspections.TeamNotInspectionType;
         }
 
+        var oldTeamId = inspection.AssignedTeamId;
+
         // 3. Assign team via domain method (validates status = Draft or InProgress)
         var assignResult = inspection.AssignTeam(request.TeamId);
         if (!assignResult.IsSuccess)
@@ -75,6 +79,14 @@ public sealed class AssignInspectionTeamCommandHandler(
 
         // 5. Persist
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        await auditLogger.LogAsync(
+            "AssignInspectionTeam",
+            "InspectionReport",
+            inspection.Id.ToString(),
+            oldValues: JsonSerializer.Serialize(new { assignedTeamId = oldTeamId }),
+            newValues: JsonSerializer.Serialize(new { assignedTeamId = request.TeamId }),
+            ct).ConfigureAwait(false);
 
         logger.LogInformation(
             "InspectionReport {InspectionId} assigned to Inspector Team {TeamId} by LEO {UserId}",

@@ -1,4 +1,5 @@
 using Greenlens.Application.Common;
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
@@ -8,15 +9,20 @@ using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Inspection.GetInspectionReportById;
 
+/// <summary>Full inspection detail including checklist workflow state (BR-INS-033).</summary>
+/// <remarks>Implements: BR-INS-010, BR-INS-033.</remarks>
 public sealed class GetInspectionReportByIdQueryHandler(
     IInspectionReportRepository inspections,
+    IInspectionEvidenceRepository evidences,
+    ITeamMemberRepository teamMembers,
+    ICurrentUser currentUser,
     ILogger<GetInspectionReportByIdQueryHandler> logger)
     : IRequestHandler<GetInspectionReportByIdQuery, Result<InspectionReportDetailResponse>>
 {
     public async Task<Result<InspectionReportDetailResponse>> Handle(
         GetInspectionReportByIdQuery request, CancellationToken ct)
     {
-        logger.LogInformation("Getting inspection report by id");
+        logger.LogInformation("Getting inspection report by id {InspectionId}", request.InspectionId);
 
         var ir = await inspections.QueryAsNoTracking()
             .Include(x => x.Report)
@@ -33,6 +39,29 @@ public sealed class GetInspectionReportByIdQueryHandler(
             logger.LogWarning("Inspection not found for inspection {InspectionId}", request.InspectionId);
             return Errors.Inspections.InspectionNotFound;
         }
+
+        if (currentUser.Role == "Inspector")
+        {
+            var scopeError = await InspectionTeamAuthorization.ValidateTeamMemberAsync(
+                ir, teamMembers, currentUser, ct).ConfigureAwait(false);
+            if (scopeError is not null)
+                return scopeError;
+        }
+
+        var checklistItems = await evidences.QueryAsNoTracking()
+            .Where(e => e.InspectionReportId == ir.Id)
+            .OrderBy(e => e.UploadedAt)
+            .Select(e => new InspectionEvidenceItemDto(
+                e.Id,
+                e.Category,
+                e.MediaUrl,
+                e.MimeType,
+                e.SizeBytes,
+                e.Description,
+                e.DurationSeconds,
+                e.UploadedAt))
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
 
         var veDto = ir.ViolatingEntity is not null
             ? new ViolatingEntityEmbeddedDto(
@@ -58,7 +87,8 @@ public sealed class GetInspectionReportByIdQueryHandler(
                 p.CreatedAt))
             .ToList();
 
-        logger.LogInformation("Inspection report: {InspectionReport}", ir);
+        var fieldSubmitted = ir.FieldInvestigationSubmittedAt.HasValue;
+        var inProgress = ir.Status == InspectionStatus.InProgress;
 
         return new InspectionReportDetailResponse(
             ir.Id,
@@ -82,6 +112,15 @@ public sealed class GetInspectionReportByIdQueryHandler(
             ir.ViolatingEntityId,
             veDto,
             payments,
+            ir.AcceptedAt,
+            ir.AcceptedByUserId,
+            ir.ArrivalConfirmedAt,
+            ir.ArrivalLatitude,
+            ir.ArrivalLongitude,
+            ir.ArrivalNote,
+            ir.FieldInvestigationSubmittedAt,
+            ir.FieldInvestigationSubmittedByUserId,
+            checklistItems,
             ir.CreatedByOfficerId,
             ir.CreatedByOfficer?.FullName,
             ir.IssuedByInspectorId,
@@ -90,13 +129,16 @@ public sealed class GetInspectionReportByIdQueryHandler(
             ir.ClosedAt,
             ir.ClosedReason,
             ir.CreatedAt,
-            CanEditDetails: ir.Status == InspectionStatus.Draft,
-            CanIssuePenalty: ir.Status == InspectionStatus.Draft,
-            CanCloseNoViolation: ir.Status == InspectionStatus.Draft,
+            CanAcceptTask: ir.Status == InspectionStatus.Draft && ir.AssignedTeamId.HasValue,
+            CanConfirmArrival: inProgress && !fieldSubmitted,
+            CanEditChecklist: inProgress && !fieldSubmitted,
+            CanSubmitFieldReport: inProgress && !fieldSubmitted,
+            CanEditDetails: inProgress && !fieldSubmitted,
+            CanIssuePenalty: inProgress && fieldSubmitted,
+            CanCloseNoViolation: inProgress && fieldSubmitted,
             CanRecordPayment: ir.Status is InspectionStatus.PenaltyIssued
                 or InspectionStatus.PartiallyPaid
                 or InspectionStatus.Overdue,
             CanClose: ir.Status == InspectionStatus.Paid);
     }
 }
-

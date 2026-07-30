@@ -24,6 +24,12 @@ public sealed record ReportInProgressEvent(Guid ReportId, Guid? ReporterId) : ID
 public sealed record ReportPossibleDuplicateFlaggedEvent(Guid ReportId, Guid CandidateReportId) : IDomainEvent;
 
 /// <summary>
+/// Raised when a new report is flagged as suspected violation recurrence near a recently Closed report.
+/// BR-REP-034.
+/// </summary>
+public sealed record ReportViolationRecurrenceSuspectedEvent(Guid ReportId, Guid PriorClosedReportId) : IDomainEvent;
+
+/// <summary>
 /// Raised when a report is merged into a primary as a confirmed duplicate.
 /// Drives gamification award + reporter notification. BR-REP-032.
 /// </summary>

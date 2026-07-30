@@ -21,7 +21,7 @@ public sealed class PostgresContainerFixture : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        await _container.StartAsync().ConfigureAwait(false);
+        await _container.StartAsync();
 
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseNpgsql(ConnectionString, o => o.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName))
@@ -30,25 +30,25 @@ public sealed class PostgresContainerFixture : IAsyncLifetime
 
         await using (var ctx = new ApplicationDbContext(options))
         {
-            await ctx.Database.MigrateAsync().ConfigureAwait(false);
+            await ctx.Database.MigrateAsync();
         }
 
         await using var conn = new NpgsqlConnection(ConnectionString);
-        await conn.OpenAsync().ConfigureAwait(false);
+        await conn.OpenAsync();
 
         _respawner = await Respawner.CreateAsync(conn, new RespawnerOptions
         {
             DbAdapter = DbAdapter.Postgres,
             SchemasToInclude = ["public"],
             TablesToIgnore = ["__EFMigrationsHistory"],
-        }).ConfigureAwait(false);
+        });
     }
 
     public async Task ResetAsync()
     {
         await using var conn = new NpgsqlConnection(ConnectionString);
-        await conn.OpenAsync().ConfigureAwait(false);
-        await _respawner!.ResetAsync(conn).ConfigureAwait(false);
+        await conn.OpenAsync();
+        await _respawner!.ResetAsync(conn);
     }
 
     public Task DisposeAsync() => _container.DisposeAsync().AsTask();

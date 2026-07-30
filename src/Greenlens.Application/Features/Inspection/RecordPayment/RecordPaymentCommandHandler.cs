@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
@@ -11,12 +12,15 @@ namespace Greenlens.Application.Features.Inspection.RecordPayment;
 /// <summary>
 /// BR-INS-020: Record in-person penalty payment at ward/commune office.
 /// Creates a PenaltyPayment record with evidence and updates InspectionReport status.
+/// BR-ADM-010 (audit log).
 /// </summary>
 public sealed class RecordPaymentCommandHandler(
     IInspectionReportRepository inspections,
     ITeamMemberRepository teamMembers,
+    IFileStorageService fileStorage,
     ICurrentUser currentUser,
     IUnitOfWork uow,
+    IAuditLogger auditLogger,
     ILogger<RecordPaymentCommandHandler> logger)
     : IRequestHandler<RecordPaymentCommand, Result>
 {
@@ -39,13 +43,38 @@ public sealed class RecordPaymentCommandHandler(
             return authError;
         }
 
+        var evidenceUrl = request.EvidenceUrl;
+        if (request.ReceiptBytes is { Length: > 0 })
+        {
+            using var stream = new MemoryStream(request.ReceiptBytes);
+            var uploaded = await fileStorage.UploadAsync(
+                stream,
+                request.ReceiptFileName ?? "receipt.jpg",
+                request.ReceiptContentType ?? "image/jpeg",
+                $"inspections/{inspection.Id}/payments",
+                ct).ConfigureAwait(false);
+            evidenceUrl = uploaded.Url;
+        }
+
+        if (string.IsNullOrWhiteSpace(evidenceUrl))
+        {
+            logger.LogWarning("Payment receipt missing for inspection {InspectionId}", request.InspectionId);
+            return Errors.Inspections.PaymentReceiptRequired;
+        }
+
+        var oldSnapshot = JsonSerializer.Serialize(new
+        {
+            status = inspection.Status.ToString(),
+            paidAmount = inspection.PaidAmount
+        });
+
         // Create PenaltyPayment record (in-person at ward office)
         var payment = PenaltyPayment.Create(
             inspection.Id,
             request.PaidAmount,
             request.PaidAt,
             currentUser.UserId,
-            request.EvidenceUrl,
+            evidenceUrl,
             request.Note);
 
         var result = inspection.RecordPayment(payment);
@@ -56,6 +85,19 @@ public sealed class RecordPaymentCommandHandler(
         }
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        await auditLogger.LogAsync(
+            "RecordPayment",
+            "InspectionReport",
+            inspection.Id.ToString(),
+            oldValues: oldSnapshot,
+            newValues: JsonSerializer.Serialize(new
+            {
+                status = inspection.Status.ToString(),
+                paidAmount = inspection.PaidAmount,
+                paymentAmount = request.PaidAmount
+            }),
+            ct).ConfigureAwait(false);
 
         logger.LogInformation(
             "Payment {Amount} VND recorded on InspectionReport {Id} (paid at {PaidAt}). New status: {Status}, total paid: {TotalPaid}/{Total}",

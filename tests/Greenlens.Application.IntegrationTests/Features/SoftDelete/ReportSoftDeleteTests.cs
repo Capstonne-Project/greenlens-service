@@ -15,17 +15,15 @@ public sealed class ReportSoftDeleteTests(PostgresContainerFixture fixture)
     {
         var (reportId, reporterId) = await WithDbAsync(async db =>
         {
-            var category = await IntegrationDataSeeder.SeedCategoryAsync(db, $"CAT-{Guid.NewGuid():N}"[..8])
-                .ConfigureAwait(false);
-            var (reporter, report) = await IntegrationDataSeeder.SeedReportAsync(db, category, softDeleted: true)
-                .ConfigureAwait(false);
+            var category = await IntegrationDataSeeder.SeedCategoryAsync(db, $"CAT-{Guid.NewGuid():N}"[..8]);
+            var (reporter, report) = await IntegrationDataSeeder.SeedReportAsync(db, category, softDeleted: true);
             return (report.Id, reporter.Id);
-        }).ConfigureAwait(false);
+        });
 
         CurrentUser.UserId = reporterId;
         CurrentUser.Role = "Citizen";
 
-        var result = await Mediator.Send(new DeleteReportCommand(reportId)).ConfigureAwait(false);
+        var result = await Mediator.Send(new DeleteReportCommand(reportId));
 
         result.IsFailure.Should().BeTrue();
         result.Error!.Code.Should().Be("REPORT_ALREADY_DELETED");

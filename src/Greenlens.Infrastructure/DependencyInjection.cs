@@ -17,6 +17,7 @@ using Greenlens.Infrastructure.DomainEvents;
 using Greenlens.Infrastructure.Moderation;
 using Greenlens.Application.Features.Notifications;
 using Greenlens.Infrastructure.Notifications;
+using Greenlens.Infrastructure.Options;
 using Greenlens.Infrastructure.Services;
 using Hangfire;
 using Hangfire.PostgreSql;
@@ -80,6 +81,7 @@ public static class DependencyInjection
 
         // ── Inspection module (v3.0) ──
         services.AddScoped<IInspectionReportRepository, InspectionReportRepository>();
+        services.AddScoped<IInspectionEvidenceRepository, InspectionEvidenceRepository>();
         services.AddScoped<IViolatingEntityRepository, ViolatingEntityRepository>();
 
         // ── Gamification module (v1.2) ──
@@ -165,8 +167,23 @@ public static class DependencyInjection
         services.AddSingleton<IImageExifAnalyzer, Imaging.MetadataExtractorImageExifAnalyzer>();
         services.AddScoped<IImageBytesFetcher, Imaging.HttpImageBytesFetcher>();
 
-        // ── Report submit rate limit (BR-REP-010) ──
+        // ── Redis + report submit rate limit (BR-REP-010, P0-3) ──
+        services.AddOptions<RedisInfrastructureOptions>()
+            .Bind(configuration.GetSection(RedisInfrastructureOptions.SectionName))
+            .ValidateOnStart();
+
+        var redisOptions = configuration
+            .GetSection(RedisInfrastructureOptions.SectionName)
+            .Get<RedisInfrastructureOptions>() ?? new RedisInfrastructureOptions();
+
         var redisConnection = configuration.GetConnectionString("Redis");
+        if (redisOptions.Required && string.IsNullOrWhiteSpace(redisConnection))
+        {
+            throw new InvalidOperationException(
+                "ConnectionStrings:Redis is required when Redis:Required is true (staging/production). " +
+                "Set the connection string via environment variable or secrets manager.");
+        }
+
         if (!string.IsNullOrWhiteSpace(redisConnection))
         {
             services.AddSingleton<IConnectionMultiplexer>(_ =>
@@ -391,7 +408,7 @@ public static class DependencyInjection
             job => job.ExecuteAsync(),
             "*/30 * * * *"); // every 30 minutes
 
-        // BR-DAT-002: Data retention — delete expired media files (>2y) and audit logs (>12m)
+        // BR-DAT-002: Data retention — delete expired media files (>2y), audit_logs (>12m), report status history (>12m)
         RecurringJob.AddOrUpdate<DataRetentionJob>(
             "data-retention",
             job => job.ExecuteAsync(),

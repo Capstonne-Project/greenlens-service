@@ -14,8 +14,10 @@ namespace Greenlens.Application.Features.Inspection.IssuePenalty;
 /// BR-INS-022: Auto-detect repeat offender (≥ 2 times in 12 months) via ViolatingEntityId (FK).
 /// Falls back to string-match ViolatorIdentity if ViolatingEntityId is not linked.
 /// </summary>
+/// <remarks>Implements: BR-INS-011, BR-INS-012, BR-INS-022, BR-ADM-010.</remarks>
 public sealed class IssuePenaltyCommandHandler(
     IInspectionReportRepository inspections,
+    IInspectionEvidenceRepository inspectionEvidences,
     IViolatingEntityRepository violatingEntities,
     IReportMediaRepository reportMedia,
     ITeamMemberRepository teamMembers,
@@ -43,14 +45,28 @@ public sealed class IssuePenaltyCommandHandler(
             return authError;
         }
 
-        // BR-INS-010: Enforce ≥ 2 evidence images before issuing penalty
-        var evidenceCount = await reportMedia.QueryAsNoTracking()
-            .CountAsync(m => m.ReportId == inspection.ReportId && m.Type == MediaType.Inspection, ct)
+        // BR-INS-033: Enforce checklist (≥ 2 scene photos) before issuing penalty
+        var evidenceItems = await inspectionEvidences.GetByInspectionReportIdAsync(inspection.Id, ct)
             .ConfigureAwait(false);
-        if (evidenceCount < 2)
+
+        var checklistError = InspectionChecklistValidator.Validate(evidenceItems);
+        if (checklistError is not null)
         {
-            logger.LogWarning("Insufficient evidence images for inspection {InspectionId}", request.InspectionId);
-            return Errors.Inspections.InsufficientEvidenceImages;
+            logger.LogWarning("Checklist incomplete for inspection {InspectionId}", request.InspectionId);
+            return checklistError;
+        }
+
+        // Legacy fallback: count ReportMedia inspection photos if no new evidences yet
+        if (evidenceItems.Count == 0)
+        {
+            var legacyCount = await reportMedia.QueryAsNoTracking()
+                .CountAsync(m => m.ReportId == inspection.ReportId && m.Type == MediaType.Inspection, ct)
+                .ConfigureAwait(false);
+            if (legacyCount < 2)
+            {
+                logger.LogWarning("Insufficient evidence images for inspection {InspectionId}", request.InspectionId);
+                return Errors.Inspections.InsufficientEvidenceImages;
+            }
         }
 
         // BR-INS-022: Check repeat offender

@@ -14,7 +14,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        await _fixture.ResetAsync().ConfigureAwait(false);
+        await _fixture.ResetAsync();
 
         CurrentUser.UserId = Guid.NewGuid();
         CurrentUser.Email = "admin@test.local";
@@ -37,13 +37,13 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     {
         await using var scope = Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
-        return await action(db).ConfigureAwait(false);
+        return await action(db);
     }
 
     protected Task WithDbAsync(Func<IApplicationDbContext, Task> action) =>
         WithDbAsync(async db =>
         {
-            await action(db).ConfigureAwait(false);
+            await action(db);
             return true;
         });
 }

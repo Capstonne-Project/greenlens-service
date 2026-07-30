@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
@@ -17,7 +18,7 @@ namespace Greenlens.Application.Features.Reports.AssignCompanyTeam;
 /// Validates: report InProgress + dispatched to caller's company, teams belong to that company, workload ok.
 /// Report status remains InProgress (set at LEO dispatch).
 /// </summary>
-/// <remarks>Implements: BR-CMP-005, BR-OFF-011.</remarks>
+/// <remarks>Implements: BR-CMP-005, BR-OFF-011, BR-ADM-010.</remarks>
 public sealed class AssignCompanyTeamCommandHandler(
     IReportRepository reports,
     IEnvironmentalTeamRepository teams,
@@ -27,6 +28,7 @@ public sealed class AssignCompanyTeamCommandHandler(
     IUnitOfWork uow,
     ICleanupTaskAssignedNotifier taskNotifier,
     IOptions<WorkloadLimitsOptions> workloadOptions,
+    IAuditLogger auditLogger,
     ILogger<AssignCompanyTeamCommandHandler> logger) : IRequestHandler<AssignCompanyTeamCommand, Result>
 {
     public async Task<Result> Handle(AssignCompanyTeamCommand request, CancellationToken ct)
@@ -112,6 +114,18 @@ public sealed class AssignCompanyTeamCommandHandler(
         report.AssignByCompanyManager(currentUser.UserId);
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        await auditLogger.LogAsync(
+            "AssignCompanyTeam",
+            "Report",
+            report.Id.ToString(),
+            oldValues: JsonSerializer.Serialize(new { status = report.Status.ToString() }),
+            newValues: JsonSerializer.Serialize(new
+            {
+                teamIds = request.Teams.Select(t => t.TeamId).ToList(),
+                companyId = callerCompanyId
+            }),
+            ct).ConfigureAwait(false);
 
         foreach (var item in request.Teams)
         {

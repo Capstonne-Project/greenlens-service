@@ -10,21 +10,21 @@ internal static class IntegrationDataSeeder
 {
     public static async Task EnsureLocationCatalogAsync(IApplicationDbContext db)
     {
-        if (await db.Set<Province>().AnyAsync(p => p.Code == "79").ConfigureAwait(false))
+        if (await db.Set<Province>().AnyAsync(p => p.Code == "79"))
             return;
 
         db.Set<AdministrativeRegion>().Add(AdministrativeRegion.Seed(1, "Test Region"));
         db.Set<AdministrativeUnit>().Add(AdministrativeUnit.Seed(2, "Tỉnh", "Tỉnh"));
         db.Set<Province>().Add(Province.Seed("79", "TP HCM", 1, 2));
-        await db.SaveChangesAsync().ConfigureAwait(false);
+        await db.SaveChangesAsync();
     }
 
     public static async Task<Department> SeedDepartmentAsync(IApplicationDbContext db)
     {
-        await EnsureLocationCatalogAsync(db).ConfigureAwait(false);
+        await EnsureLocationCatalogAsync(db);
         var dept = Department.Create("Integration Dept", "79");
         db.Set<Department>().Add(dept);
-        await db.SaveChangesAsync().ConfigureAwait(false);
+        await db.SaveChangesAsync();
         return dept;
     }
 
@@ -36,7 +36,7 @@ internal static class IntegrationDataSeeder
             "Integration User",
             role);
         db.Set<User>().Add(user);
-        await db.SaveChangesAsync().ConfigureAwait(false);
+        await db.SaveChangesAsync();
         return user;
     }
 
@@ -49,7 +49,7 @@ internal static class IntegrationDataSeeder
         if (softDeleted)
             category.SoftDelete("seed");
         db.Set<PollutionCategory>().Add(category);
-        await db.SaveChangesAsync().ConfigureAwait(false);
+        await db.SaveChangesAsync();
         return category;
     }
 
@@ -62,7 +62,7 @@ internal static class IntegrationDataSeeder
         if (softDeleted)
             tag.SoftDelete("seed");
         db.Set<WasteTag>().Add(tag);
-        await db.SaveChangesAsync().ConfigureAwait(false);
+        await db.SaveChangesAsync();
         return tag;
     }
 
@@ -71,7 +71,7 @@ internal static class IntegrationDataSeeder
         PollutionCategory category,
         bool softDeleted = false)
     {
-        var reporter = await SeedUserAsync(db, UserRole.Citizen).ConfigureAwait(false);
+        var reporter = await SeedUserAsync(db, UserRole.Citizen);
         var report = Report.Create(
             $"RPT-{Guid.NewGuid():N}"[..20],
             reporter.Id,
@@ -88,7 +88,7 @@ internal static class IntegrationDataSeeder
             report.SoftDelete("seed");
 
         db.Set<Report>().Add(report);
-        await db.SaveChangesAsync().ConfigureAwait(false);
+        await db.SaveChangesAsync();
         return (reporter, report);
     }
 
@@ -97,7 +97,7 @@ internal static class IntegrationDataSeeder
         CompanyStatus status = CompanyStatus.Active,
         bool softDeleted = false)
     {
-        var dept = await SeedDepartmentAsync(db).ConfigureAwait(false);
+        var dept = await SeedDepartmentAsync(db);
         var company = EnvironmentalServiceCompany.Create(
             "Integration Co",
             dept.Id,
@@ -118,7 +118,7 @@ internal static class IntegrationDataSeeder
             company.Archive("seed", hasStaff: false);
 
         db.Set<EnvironmentalServiceCompany>().Add(company);
-        await db.SaveChangesAsync().ConfigureAwait(false);
+        await db.SaveChangesAsync();
         return company;
     }
 
@@ -132,7 +132,7 @@ internal static class IntegrationDataSeeder
             team.Archive("seed", hasActiveAssignments: false);
 
         db.Set<EnvironmentalTeam>().Add(team);
-        await db.SaveChangesAsync().ConfigureAwait(false);
+        await db.SaveChangesAsync();
         return team;
     }
 
@@ -141,12 +141,12 @@ internal static class IntegrationDataSeeder
         EnvironmentalTeam team,
         PollutionCategory category)
     {
-        var officer = await SeedUserAsync(db, UserRole.LEO).ConfigureAwait(false);
-        var (_, report) = await SeedReportAsync(db, category).ConfigureAwait(false);
+        var officer = await SeedUserAsync(db, UserRole.LEO);
+        var (_, report) = await SeedReportAsync(db, category);
         var assignment = ReportAssignment.Create(report.Id, team.Id, officer.Id);
         assignment.Accept();
         db.Set<ReportAssignment>().Add(assignment);
-        await db.SaveChangesAsync().ConfigureAwait(false);
+        await db.SaveChangesAsync();
     }
 
     public static async Task<ViolatingEntity> SeedViolatingEntityAsync(
@@ -162,27 +162,27 @@ internal static class IntegrationDataSeeder
             entity.SoftDelete("seed");
 
         db.Set<ViolatingEntity>().Add(entity);
-        await db.SaveChangesAsync().ConfigureAwait(false);
+        await db.SaveChangesAsync();
         return entity;
     }
 
     public static async Task<Ward> SeedWardAsync(IApplicationDbContext db, string? code = null)
     {
-        await EnsureLocationCatalogAsync(db).ConfigureAwait(false);
+        await EnsureLocationCatalogAsync(db);
         code ??= $"W{Guid.NewGuid():N}"[..5];
         var ward = Ward.Seed(code, "Integration Ward", "79", 2);
         db.Set<Ward>().Add(ward);
-        await db.SaveChangesAsync().ConfigureAwait(false);
+        await db.SaveChangesAsync();
         return ward;
     }
 
     public static async Task<LocalOffice> SeedLocalOfficeAsync(IApplicationDbContext db)
     {
-        var dept = await SeedDepartmentAsync(db).ConfigureAwait(false);
-        var ward = await SeedWardAsync(db).ConfigureAwait(false);
+        var dept = await SeedDepartmentAsync(db);
+        var ward = await SeedWardAsync(db);
         var office = LocalOffice.Create("Integration Office", dept.Id, ward.Code);
         db.Set<LocalOffice>().Add(office);
-        await db.SaveChangesAsync().ConfigureAwait(false);
+        await db.SaveChangesAsync();
         return office;
     }
 
@@ -191,7 +191,7 @@ internal static class IntegrationDataSeeder
         string contractNumber,
         CompanyStatus status = CompanyStatus.Active)
     {
-        var dept = await SeedDepartmentAsync(db).ConfigureAwait(false);
+        var dept = await SeedDepartmentAsync(db);
         var company = EnvironmentalServiceCompany.Create(
             "Bidding Co",
             dept.Id,
@@ -204,7 +204,7 @@ internal static class IntegrationDataSeeder
             company.Activate();
 
         db.Set<EnvironmentalServiceCompany>().Add(company);
-        await db.SaveChangesAsync().ConfigureAwait(false);
+        await db.SaveChangesAsync();
         return company;
     }
 
@@ -213,14 +213,14 @@ internal static class IntegrationDataSeeder
         ViolatingEntity entity,
         PollutionCategory category)
     {
-        var officer = await SeedUserAsync(db, UserRole.LEO).ConfigureAwait(false);
-        var (_, report) = await SeedReportAsync(db, category).ConfigureAwait(false);
+        var officer = await SeedUserAsync(db, UserRole.LEO);
+        var (_, report) = await SeedReportAsync(db, category);
         var inspection = InspectionReport.Create(report.Id, officer.Id, Severity.Medium);
         var linkResult = inspection.LinkViolatingEntity(entity.Id);
         if (!linkResult.IsSuccess)
             throw new InvalidOperationException(linkResult.Error!.Message);
 
         db.Set<InspectionReport>().Add(inspection);
-        await db.SaveChangesAsync().ConfigureAwait(false);
+        await db.SaveChangesAsync();
     }
 }

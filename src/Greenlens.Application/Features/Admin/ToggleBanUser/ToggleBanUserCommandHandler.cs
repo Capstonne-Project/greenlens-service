@@ -27,7 +27,7 @@ public sealed class ToggleBanUserCommandHandler(
         if (request.UserId == currentUser.UserId)
         {
             logger.LogWarning("Cannot ban yourself: {UserId}", request.UserId);
-            return Errors.Users.CannotDeleteSelf; // can't ban yourself
+            return Errors.Users.CannotBanSelf;
         }
 
         logger.LogInformation("Getting user: {UserId}", request.UserId);

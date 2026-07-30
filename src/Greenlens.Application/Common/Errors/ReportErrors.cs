@@ -266,6 +266,12 @@ public static partial class Errors
             "Báo cáo không ở trạng thái nghi ngờ trùng lặp.",
             ErrorType.BusinessRule);
 
+        /// <summary>BR-REP-034: Report is not flagged as suspected violation recurrence.</summary>
+        public static Error NotSuspectedViolationRecurrence => new(
+            "NOT_SUSPECTED_VIOLATION_RECURRENCE",
+            "Báo cáo không ở trạng thái nghi ngờ vi phạm tái phát.",
+            ErrorType.BusinessRule);
+
         /// <summary>BR-REP-032: A report cannot be marked as a duplicate of itself.</summary>
         public static Error CannotMergeIntoSelf => new(
             "CANNOT_MERGE_INTO_SELF",

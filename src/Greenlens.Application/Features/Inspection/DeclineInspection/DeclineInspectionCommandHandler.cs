@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
@@ -11,12 +12,14 @@ namespace Greenlens.Application.Features.Inspection.DeclineInspection;
 /// <summary>
 /// BR-INS-003: Inspection Team declines within 24h.
 /// Clears AssignedTeamId, keeps Draft status so LEO can re-assign.
+/// BR-ADM-010 (audit log).
 /// </summary>
 public sealed class DeclineInspectionCommandHandler(
     IInspectionReportRepository inspections,
     ITeamMemberRepository teamMembers,
     ICurrentUser currentUser,
     IUnitOfWork uow,
+    IAuditLogger auditLogger,
     ILogger<DeclineInspectionCommandHandler> logger)
     : IRequestHandler<DeclineInspectionCommand, Result>
 {
@@ -62,6 +65,18 @@ public sealed class DeclineInspectionCommandHandler(
         inspection.ClearTeam();
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        await auditLogger.LogAsync(
+            "DeclineInspection",
+            "InspectionReport",
+            inspection.Id.ToString(),
+            oldValues: JsonSerializer.Serialize(new { assignedTeamId = declinedTeamId }),
+            newValues: JsonSerializer.Serialize(new
+            {
+                assignedTeamId = (Guid?)null,
+                reasonLength = request.Reason.Length
+            }),
+            ct).ConfigureAwait(false);
 
         logger.LogInformation(
             "Inspection {InspectionId} declined by team {TeamId}: {Reason}",

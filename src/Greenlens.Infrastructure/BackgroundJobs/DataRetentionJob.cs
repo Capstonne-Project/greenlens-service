@@ -8,7 +8,8 @@ namespace Greenlens.Infrastructure.BackgroundJobs;
 /// <summary>
 /// Enforces data retention policy:
 ///   - ReportMedia files (photos/videos): delete S3 files older than 2 years, keep DB record.
-///   - ReportStatusHistory (audit trail): hard-delete records older than 12 months.
+///   - AuditLog (BR-ADM-010): hard-delete entries older than 12 months.
+///   - ReportStatusHistory: hard-delete records older than 12 months.
 /// Runs weekly via Hangfire.
 /// </summary>
 /// <remarks>Implements: BR-DAT-002 (retention: photos 2y, audit log 12m).</remarks>
@@ -19,13 +20,16 @@ internal sealed class DataRetentionJob(
 {
     private const int MediaRetentionYears = 2;
     private const int AuditLogRetentionMonths = 12;
-    private const int BatchSize = 100;
+    private const int MediaBatchSize = 100;
+    private const int AuditLogBatchSize = 1000;
+    private const int HistoryBatchSize = 1000;
     private const string DeletedPlaceholder = "[deleted-by-retention-policy]";
 
     public async Task ExecuteAsync()
     {
         await CleanupExpiredMediaAsync().ConfigureAwait(false);
         await CleanupExpiredAuditLogsAsync().ConfigureAwait(false);
+        await CleanupExpiredReportStatusHistoryAsync().ConfigureAwait(false);
     }
 
     /// <summary>
@@ -39,7 +43,7 @@ internal sealed class DataRetentionJob(
         var expiredMedia = await dbContext.ReportMedia
             .Where(m => m.UploadedAt <= threshold && m.Url != DeletedPlaceholder)
             .OrderBy(m => m.UploadedAt)
-            .Take(BatchSize)
+            .Take(MediaBatchSize)
             .ToListAsync()
             .ConfigureAwait(false);
 
@@ -93,21 +97,46 @@ internal sealed class DataRetentionJob(
     }
 
     /// <summary>
-    /// Phase 2: Hard-delete ReportStatusHistory records older than 12 months.
+    /// Phase 2: Hard-delete AuditLog entries older than 12 months (BR-ADM-010).
     /// </summary>
     private async Task CleanupExpiredAuditLogsAsync()
     {
         var threshold = DateTime.UtcNow.AddMonths(-AuditLogRetentionMonths);
+        var totalDeleted = 0;
 
-        // Use ExecuteDeleteAsync for efficient bulk delete
+        while (true)
+        {
+            var deletedCount = await dbContext.AuditLogs
+                .Where(a => a.CreatedAt <= threshold)
+                .Take(AuditLogBatchSize)
+                .ExecuteDeleteAsync()
+                .ConfigureAwait(false);
+
+            totalDeleted += deletedCount;
+            if (deletedCount < AuditLogBatchSize)
+                break;
+        }
+
+        logger.LogInformation(
+            "DataRetentionJob: deleted {Count} expired audit_logs entries (threshold={Threshold:yyyy-MM-dd})",
+            totalDeleted, threshold);
+    }
+
+    /// <summary>
+    /// Phase 3: Hard-delete ReportStatusHistory records older than 12 months.
+    /// </summary>
+    private async Task CleanupExpiredReportStatusHistoryAsync()
+    {
+        var threshold = DateTime.UtcNow.AddMonths(-AuditLogRetentionMonths);
+
         var deletedCount = await dbContext.ReportStatusHistory
             .Where(h => h.CreatedAt <= threshold)
-            .Take(BatchSize)
+            .Take(HistoryBatchSize)
             .ExecuteDeleteAsync()
             .ConfigureAwait(false);
 
         logger.LogInformation(
-            "DataRetentionJob: deleted {Count} expired audit log entries (threshold={Threshold:yyyy-MM-dd})",
+            "DataRetentionJob: deleted {Count} expired report status history entries (threshold={Threshold:yyyy-MM-dd})",
             deletedCount, threshold);
     }
 

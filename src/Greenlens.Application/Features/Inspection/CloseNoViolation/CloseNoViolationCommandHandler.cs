@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
@@ -7,12 +8,13 @@ using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Inspection.CloseNoViolation;
 
-/// <summary>BR-INS-013: Close inspection — no violation found.</summary>
+/// <summary>BR-INS-013: Close inspection — no violation found. BR-ADM-010.</summary>
 public sealed class CloseNoViolationCommandHandler(
     IInspectionReportRepository inspections,
     ITeamMemberRepository teamMembers,
     ICurrentUser currentUser,
     IUnitOfWork uow,
+    IAuditLogger auditLogger,
     ILogger<CloseNoViolationCommandHandler> logger)
     : IRequestHandler<CloseNoViolationCommand, Result>
 {
@@ -33,6 +35,8 @@ public sealed class CloseNoViolationCommandHandler(
             return authError;
         }
 
+        var oldSnapshot = JsonSerializer.Serialize(new { status = inspection.Status.ToString() });
+
         var result = inspection.CloseNoViolation(request.Reason);
         if (result.IsFailure)
         {
@@ -41,6 +45,19 @@ public sealed class CloseNoViolationCommandHandler(
         }
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        await auditLogger.LogAsync(
+            "CloseNoViolation",
+            "InspectionReport",
+            inspection.Id.ToString(),
+            oldValues: oldSnapshot,
+            newValues: JsonSerializer.Serialize(new
+            {
+                status = inspection.Status.ToString(),
+                reasonLength = request.Reason.Length
+            }),
+            ct).ConfigureAwait(false);
+
         logger.LogInformation("InspectionReport {Id} closed — no violation found", request.InspectionId);
         return Result.Success();
     }

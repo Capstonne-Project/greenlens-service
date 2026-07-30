@@ -14,6 +14,7 @@ using Greenlens.Application.Features.Reports.ConfirmDuplicate;
 using Greenlens.Application.Features.Reports.DeleteDraft;
 using Greenlens.Application.Features.Reports.DeleteReport;
 using Greenlens.Application.Features.Reports.DismissDuplicate;
+using Greenlens.Application.Features.Reports.DismissViolationRecurrence;
 using Greenlens.Application.Features.Reports.ExportReports;
 using Greenlens.Application.Features.Reports.FlagReport;
 using Greenlens.Application.Features.Reports.GetDuplicateCandidates;
@@ -23,6 +24,7 @@ using Greenlens.Application.Features.Reports.GetOfficerKpi;
 using Greenlens.Application.Features.Reports.GetOfficerQueue;
 using Greenlens.Application.Features.Reports.GetReportProgress;
 using Greenlens.Application.Features.Reports.GetReportProgressBoard;
+using Greenlens.Application.Features.Reports.GetViolationRecurrenceComparison;
 using Greenlens.Application.Features.Reports.GetReportById;
 using Greenlens.Application.Features.Reports.GetReportHistory;
 using Greenlens.Application.Features.Reports.GetReports;
@@ -380,7 +382,7 @@ public sealed class ReportsController(
     [SwaggerOperation(
         Summary = "[LEO/DEO] Xem hàng đợi báo cáo",
         Description = "Trả về danh sách báo cáo trong phạm vi quản lý. " +
-            "Hỗ trợ search (code, address, category), filter (status, severity, category, ward, date range, SLA breached, isPossibleDuplicate), " +
+            "Hỗ trợ search (code, address, category), filter (status, severity, category, ward, date range, SLA breached, isPossibleDuplicate, isSuspectedViolationRecurrence), " +
             "và sort (priorityScore, createdAt, severity, slaVerifyDueAt, slaResolveDueAt — asc/desc). " +
             "Default sort: priorityScore desc.")]
     [SwaggerResponse(200, "Hàng đợi", typeof(ApiResponse<GetOfficerQueueResponse>))]
@@ -396,6 +398,7 @@ public sealed class ReportsController(
         [FromQuery] DateTime? toDate = null,
         [FromQuery] bool? slaBreached = null,
         [FromQuery] bool? isPossibleDuplicate = null,
+        [FromQuery] bool? isSuspectedViolationRecurrence = null,
         [FromQuery] bool? hasPendingReopenRequest = null,
         // Search
         [FromQuery] string? search = null,
@@ -405,7 +408,7 @@ public sealed class ReportsController(
         CancellationToken ct = default)
         => (await sender.Send(new GetOfficerQueueQuery(
             page, pageSize, status, severity, categoryId, wardCode,
-            fromDate, toDate, slaBreached, isPossibleDuplicate, hasPendingReopenRequest, search, sortBy, sortDir), ct)).ToHttp();
+            fromDate, toDate, slaBreached, isPossibleDuplicate, isSuspectedViolationRecurrence, hasPendingReopenRequest, search, sortBy, sortDir), ct)).ToHttp();
 
     // ═══════════════════════════════════════════
     // ██  TEAM WORKFLOW
@@ -516,6 +519,33 @@ public sealed class ReportsController(
     public async Task<IActionResult> DismissDuplicateAsync(
         [FromRoute] Guid id, CancellationToken ct)
         => (await sender.Send(new DismissDuplicateCommand(id), ct)).ToHttpNoContent("Đã bác bỏ cờ nghi ngờ trùng lặp.");
+
+    [HttpGet("{id:guid}/violation-recurrence-comparison")]
+    [Authorize(Roles = "LEO,DEO,Admin")]
+    [Tags("📌 LEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO/DEO] So sánh báo cáo với case Closed trước đó",
+        Description = "BR-REP-034: Side-by-side current report vs prior Closed report when recurrence flag is set.")]
+    [SwaggerResponse(200, "So sánh", typeof(ApiResponse<ViolationRecurrenceComparisonResponse>))]
+    [SwaggerResponse(404, "Không tìm thấy báo cáo", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Báo cáo không có cờ nghi ngờ vi phạm tái phát", typeof(ApiResponse))]
+    public async Task<IActionResult> GetViolationRecurrenceComparisonAsync(
+        [FromRoute] Guid id, CancellationToken ct)
+        => (await sender.Send(new GetViolationRecurrenceComparisonQuery(id), ct)).ToHttp();
+
+    [HttpPost("{id:guid}/dismiss-violation-recurrence")]
+    [Authorize(Roles = "LEO,DEO,Admin")]
+    [Tags("📌 LEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO/DEO] Bác bỏ cờ nghi ngờ vi phạm tái phát",
+        Description = "BR-REP-034: LEO xác định đây chỉ là rác tái phát thông thường, không cần mở hồ sơ thanh tra.")]
+    [SwaggerResponse(200, "Đã bác bỏ", typeof(ApiResponse))]
+    [SwaggerResponse(404, "Không tìm thấy báo cáo", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Báo cáo không có cờ nghi ngờ vi phạm tái phát", typeof(ApiResponse))]
+    public async Task<IActionResult> DismissViolationRecurrenceAsync(
+        [FromRoute] Guid id, CancellationToken ct)
+        => (await sender.Send(new DismissViolationRecurrenceCommand(id), ct))
+            .ToHttpNoContent("Đã bác bỏ cờ nghi ngờ vi phạm tái phát.");
 
     [HttpPost("{id:guid}/flag")]
     [Authorize]
@@ -780,18 +810,25 @@ public sealed class ReportsController(
     [Tags("📊 Officer Dashboard")]
     [SwaggerOperation(
         Summary = "[LEO/DEO/Admin] Export báo cáo",
-        Description = "LEO export xã/phường; DEO export toàn tỉnh; Admin export all. PII chỉ Admin thấy.")]
+        Description = "LEO export xã/phường; DEO export toàn tỉnh; Admin export all. PII chỉ Admin thấy. " +
+            "Hỗ trợ lọc status/severity/categoryId/wardCode/from/to/isPossibleDuplicate/isSuspectedViolationRecurrence. " +
+            "File gồm cột duplicate + violation recurrence.")]
     [SwaggerResponse(200, "File download")]
     public async Task<IActionResult> ExportAsync(
         [FromQuery] ReportStatus? status,
         [FromQuery] Severity? severity,
+        [FromQuery] Guid? categoryId,
+        [FromQuery] string? wardCode,
         [FromQuery] DateTime? from,
         [FromQuery] DateTime? to,
+        [FromQuery] bool? isPossibleDuplicate,
+        [FromQuery] bool? isSuspectedViolationRecurrence,
         [FromQuery] ExportFormat format,
         CancellationToken ct)
     {
         var result = await sender.Send(
-            new ExportReportsQuery(status, severity, from, to, format), ct);
+            new ExportReportsQuery(status, severity, categoryId, wardCode, from, to,
+                isPossibleDuplicate, isSuspectedViolationRecurrence, format), ct);
 
         if (!result.IsSuccess)
             return result.ToHttp();

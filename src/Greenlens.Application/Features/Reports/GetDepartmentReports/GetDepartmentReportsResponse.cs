@@ -38,4 +38,12 @@ public sealed record DepartmentReportItem(
     DateTime? ClosedAt,
     DateTime? SlaVerifyDueAt,
     DateTime? SlaResolveDueAt,
-    string? FirstImageUrl);
+    string? FirstImageUrl,
+    // ── Duplicate (BR-REP-030) ──
+    bool IsPossibleDuplicate,
+    Guid? PossibleDuplicateOfReportId,
+    string? PossibleDuplicateOfReportCode,
+    // ── Violation recurrence (BR-REP-034) ──
+    bool IsSuspectedViolationRecurrence,
+    Guid? SuspectedRecurrenceOfReportId,
+    string? SuspectedRecurrenceOfReportCode);
