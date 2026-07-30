@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
@@ -12,7 +13,7 @@ using Microsoft.Extensions.Options;
 
 namespace Greenlens.Application.Features.Reports.ReassignTeam;
 
-/// <summary>Reassign report to different team (same type). BR-OFF-012.</summary>
+/// <summary>Reassign report to different team (same type). BR-OFF-012, BR-ADM-010.</summary>
 public sealed class ReassignTeamCommandHandler(
     IReportRepository reports,
     IEnvironmentalTeamRepository teams,
@@ -21,6 +22,7 @@ public sealed class ReassignTeamCommandHandler(
     IUnitOfWork uow,
     ICleanupTaskAssignedNotifier taskNotifier,
     IOptions<WorkloadLimitsOptions> workloadOptions,
+    IAuditLogger auditLogger,
     ILogger<ReassignTeamCommandHandler> logger) : IRequestHandler<ReassignTeamCommand, Result>
 {
     public async Task<Result> Handle(ReassignTeamCommand request, CancellationToken ct)
@@ -87,6 +89,18 @@ public sealed class ReassignTeamCommandHandler(
         assignments.Add(newAssignment);
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        await auditLogger.LogAsync(
+            "ReassignTeam",
+            "Report",
+            report.Id.ToString(),
+            oldValues: JsonSerializer.Serialize(new { oldTeamId = request.OldTeamId }),
+            newValues: JsonSerializer.Serialize(new
+            {
+                newTeamId = request.NewTeamId,
+                reasonLength = request.Reason.Length
+            }),
+            ct).ConfigureAwait(false);
 
         await taskNotifier.NotifyTeamAsync(
             request.NewTeamId,

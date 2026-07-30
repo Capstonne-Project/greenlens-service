@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
@@ -8,11 +9,12 @@ using Microsoft.Extensions.Logging;
 namespace Greenlens.Application.Features.Inspection.DeletePenaltyPayment;
 
 /// <summary>Soft-delete a penalty payment record and recalculate inspection paid amount.</summary>
-/// <remarks>Implements: BR-INS-020 (payment correction).</remarks>
+/// <remarks>Implements: BR-INS-020 (payment correction), BR-ADM-010.</remarks>
 public sealed class DeletePenaltyPaymentCommandHandler(
     IInspectionReportRepository inspections,
     IUnitOfWork uow,
     ICurrentUser currentUser,
+    IAuditLogger auditLogger,
     ILogger<DeletePenaltyPaymentCommandHandler> logger) : IRequestHandler<DeletePenaltyPaymentCommand, Result>
 {
     public async Task<Result> Handle(DeletePenaltyPaymentCommand request, CancellationToken ct)
@@ -46,6 +48,12 @@ public sealed class DeletePenaltyPaymentCommandHandler(
             return Errors.Inspections.PaymentNotFound;
         }
 
+        var oldSnapshot = JsonSerializer.Serialize(new
+        {
+            paidAmount = inspection.PaidAmount,
+            paymentAmount = payment.Amount
+        });
+
         payment.SoftDelete(currentUser.UserId.ToString());
 
         var removeResult = inspection.RemovePayment(payment);
@@ -56,6 +64,19 @@ public sealed class DeletePenaltyPaymentCommandHandler(
         }
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        await auditLogger.LogAsync(
+            "DeletePenaltyPayment",
+            "PenaltyPayment",
+            request.PaymentId.ToString(),
+            oldValues: oldSnapshot,
+            newValues: JsonSerializer.Serialize(new
+            {
+                isDeleted = true,
+                inspectionId = inspection.Id,
+                paidAmount = inspection.PaidAmount
+            }),
+            ct).ConfigureAwait(false);
 
         logger.LogInformation(
             "PenaltyPayment {PaymentId} soft-deleted by {UserId}. Inspection {InspectionId} PaidAmount updated.",
