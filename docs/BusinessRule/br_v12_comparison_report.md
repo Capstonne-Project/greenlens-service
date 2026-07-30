@@ -2,7 +2,7 @@
 
 > **Source of truth:** [SU26SE049_BusinessRules_v1_2.md](file:///d:/LEARNING/S9SU26/SEP490/greenlens-service/SU26SE049_BusinessRules_v1_2.md) (v1.2, 07/06/2026)
 > **OVERVIEW hiện tại:** [OVERVIEW.md](file:///d:/LEARNING/S9SU26/SEP490/greenlens-service/OVERVIEW.md) v1.5
-> **Cập nhật báo cáo:** 2026-07-24 — Revert API breaking auth (Login/Register); ghi chú defer BR-AUTH-003/004/006/013/014
+> **Cập nhật báo cáo:** 2026-07-30 — Đồng bộ BR-MAP-004, unique index satisfaction, BR-ADM-010 partial audit; P0 performance (BR-SYS-004)
 
 ---
 
@@ -95,9 +95,11 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 
 |      Trạng thái       | Modules                                                                                                                                                                   | % ước tính |
 | :-------------------: | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :--------: |
-|  ✅ Core hoàn thành   | Auth, Reports (36+ slices), Comments, Duplicate Detection, Organization, Inspection, Cleanup, Company, Admin, Gamification, Notifications, Map (2), Catalog, Media, Users |    ~89%    |
-| ⚠️ Implement một phần | Map (6 rules còn lại), AI (BR-AI-002/004/005/007), Global API rate limit middleware (BR-SYS-004), Auth phone/confirm/CAPTCHA (BR-AUTH-003/004/006/013/014 — defer API) |    ~6%     |
+|  ✅ Core hoàn thành   | Auth, Reports (36+ slices), Comments, Duplicate Detection, Organization, Inspection, Cleanup, Company, Admin, Gamification, Notifications, Map (2), Catalog, Media, Users, **Global rate limit (BR-SYS-004)**, **Response compression** |    ~90%    |
+| ⚠️ Implement một phần | Map (5 rules còn lại), AI (BR-AI-002/004/005/007), **Audit log coverage (BR-ADM-010 — ~38% mutate commands có audit)**, Auth phone/confirm/CAPTCHA (BR-AUTH-003/004/006/013/014 — defer API) |    ~6%     |
 |   ❌ Chưa implement   | Brute-force CAPTCHA Turnstile (BR-AUTH-014)                                                                                                                               |    ~3%     |
+
+> **Cập nhật 2026-07-30:** Đồng bộ coverage — BR-MAP-004 ✅ (`PublicMapCoordinateRounding`); unique index `(report_id, user_id)` trên `report_satisfactions` ✅; BR-ADM-010 ⚠️ một phần (xem §B.9.1); P0 performance BR-SYS-004.
 
 > **Cập nhật 2026-07-15:** BR-REP-004 (mô tả 10–1000 + profanity), BR-REP-010 (Redis rate limit 5/h, 20/24h), BR-REP-011 (EXIF stale → Suspicious). Comments, Duplicate, AiRetryJob.
 
@@ -172,7 +174,7 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 | BR-REP-015     | Citizen yêu cầu reopen → LEO duyệt (7d, max 1) |   ✅   | `RequestReopenReport/` (lý do + ≥1 ảnh, video optional, không bắt buộc rate). LEO: `ApproveReopenRequest/`, `RejectReopenRequest/`, `GET reopen-requests`. Status **Reopened** sau duyệt; `AssignTeam` nhận Verified **hoặc** Reopened. `HasPendingReopenRequest` + auto-close skip pending. |
 | BR-REP-016     | Auto-close 7 ngày                             |   ✅   | `AutoCloseResolvedReportJob` + StatusHistory + Notification                                     |
 | BR-REP-017     | Không xóa report đã verified                  |   ✅   | `DeleteReport/` + `CanDelete()` guard (Submitted only, no AI/Officer)                           |
-| BR-REP-018     | Đánh giá của Citizen sau Resolved             |   ✅   | `RateReport/` — check Resolved/Closed, 1 lần/report. `POST /reports/{id}/rate`                  |
+| BR-REP-018     | Đánh giá của Citizen sau Resolved             |   ✅   | `RateReport/` — Resolved/Closed, 1 lần/report/user. DB: `HasIndex(ReportId, UserId).IsUnique()` — migration `AddIdentityNumberAndSatisfactionUniqueIndexes`. `POST /reports/{id}/rate` |
 | BR-REP-019     | Draft max 3, xóa 7d                           |   ✅   | `SaveDraft/`, `GetMyDrafts/`, `DeleteDraft/` + `DraftCleanupJob` (daily 03:00)                  |
 | BR-REP-020/021 | State machine + role transitions              |   ✅   | `Report.cs` state machine methods                                                               |
 | BR-REP-022     | Reject reason ≥ 20 chars                      |   ✅   | `RejectReport/` validator                                                                       |
@@ -188,18 +190,18 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 | Tier 1     | Inline submit: ≤50m + cùng category → `MarkPossibleDuplicate("geo_category")`. **Loại trừ** `Closed` (BR-REP-016 auto-close) | `GeoMath.cs`, `SubmitPollutionReportCommandHandler`, `DuplicateTier1PrimarySelector` |
 | Tier 2     | Hangfire `CompareDuplicateImagesJob` → Python `POST /api/v1/compare-images` (DINOv2)        | `AiImageCompareService`, `EnqueueDuplicateCompareHandler`       |
 | LEO review | `GET duplicate-candidates`, `POST confirm-duplicate`, `POST dismiss-duplicate`, `POST flag` | `ReportsController`, docs `fe-leo-duplicate-detection-guide.md` |
-| Migrations | `AddDuplicateDetectionFields`, `AddPenaltyPaymentSoftDelete`                                | Chưa apply DB dev (cần `dotnet ef database update`)             |
+| Migrations | `AddDuplicateDetectionFields`, `AddPenaltyPaymentSoftDelete`, `AddIdentityNumberAndSatisfactionUniqueIndexes` | ✅ Đã apply DB dev (phiên 20)             |
 
 ---
 
-## B.4 Map (`BR-MAP-001..012`) — ⚠️ 2/8 rules
+## B.4 Map (`BR-MAP-001..012`) — ⚠️ 3/8 rules
 
 | BR         | Status | Ghi chú                                                           |
 | ---------- | :----: | ----------------------------------------------------------------- |
 | BR-MAP-001 |   ⚠️   | Default location logic — FE concern nhưng API cần hỗ trợ          |
 | BR-MAP-002 |   ⚠️   | Nearby 5km — cần verify query                                     |
 | BR-MAP-003 |   ⚠️   | Filter — có `GetPublicMapReports/` nhưng cần verify filter params |
-| BR-MAP-004 |   ❌   | GPS round 10m cho public                                          |
+| BR-MAP-004 |   ✅   | `PublicMapCoordinateRounding` — `Math.Round(lat/lng, 4)` (~11 m) trong `GetPublicMapReportsQueryHandler` (detail + aggregate cells) |
 | BR-MAP-005 |   ❌   | Clustering — FE + API support                                     |
 | BR-MAP-010 |   ❌   | Hotspot detection                                                 |
 | BR-MAP-011 |   ❌   | Heatmap cho Officer                                               |
@@ -360,7 +362,7 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 | BR-AI-006 | Fallback `ai_pending` retry trong 1h |   ✅   | `AiRetryJob` (every 5', batch 50) + `AiPending` trên manual submit flow |
 | BR-AI-007 | Strip EXIF GPS trước khi gửi AI      |   ❌   | Chưa implement — ảnh gửi AI chưa strip EXIF nhạy cảm                    |
 
-### ✅ Administration (`BR-ADM-001..012`) — 12/12 rules
+### ✅ Administration (`BR-ADM-001..012`) — ⚠️ 11/12 rules (BR-ADM-010 một phần)
 
 | BR         | Status | Ghi chú / Evidence                                                                                                                         |
 | ---------- | :----: | ------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -373,9 +375,31 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 | BR-ADM-007 |   ✅   | Spam dashboard: `GetSpamSuspectsQuery` lọc danh sách tài khoản nghi spam theo heuristic (submit/giờ, reject/tuần, AI flag) trên DB.        |
 | BR-ADM-008 |   ✅   | Khung tiền phạt: `PenaltyFramework` entity + CRUD. Unique index cho `(CategoryId, ViolationLevel)` active. MinAmount <= MaxAmount.         |
 | BR-ADM-009 |   ✅   | Phân quyền dữ liệu theo phạm vi: DEO lọc theo tỉnh, LEO lọc theo xã/phường, Company lọc theo CM/Staff (ví dụ: `GetCompaniesQuery`).        |
-| BR-ADM-010 |   ✅   | Audit log: Admin/Company/Penalty + **Officer/Inspection workflow** (manual snapshot). API GET list/detail/export/stats + filter `entityId`. `DataRetentionJob` xóa `audit_logs` >12 tháng. |
+| BR-ADM-010 |   ⚠️   | **Một phần** — infra + API đủ (list/detail/export/stats, retention job). ~**57/~152** mutate commands có audit; ~**95** chưa. Chi tiết **§B.9.1**. |
 | BR-ADM-011 |   ✅   | Sao lưu dữ liệu tự động định kỳ hàng ngày (Infra / DevOps concern).                                                                        |
 | BR-ADM-012 |   ✅   | Giám sát công ty: Admin xem toàn bộ (mọi tỉnh); DEO chỉ xem & quản lý công ty có ServiceArea thuộc tỉnh mình (`GetCompaniesQueryHandler`). |
+
+#### B.9.1 Audit log coverage (BR-ADM-010 — mục 2)
+
+> **Đã có (production-ready cho Admin UI):** `audit_logs` table, `IAuditLogger`, `AuditLogBehavior`, API `GET/GET{id}/export/stats`, filter `entityId` + `actorRole`, `DataRetentionJob` 12 tháng. Manual snapshot Phase 2–3 cho Officer/Inspection workflow + Admin Update handlers. FE: `fe-admin-audit-log-guide.md`.
+
+| Kênh audit | Số lượng (ước tính) | Ghi chú |
+|------------|---------------------|---------|
+| `IAuditable` → `AuditLogBehavior` | **19** commands | Ghi `newValues` từ command payload; **`oldValues: null`** (trừ khi handler refactor manual) |
+| Manual `IAuditLogger` trong handler | **38** handlers | Officer/Inspection workflow, Create*, BlockedWords, Phase 3 Update với old/new snapshot |
+| **Chưa có audit** | **~95** commands | Auth, submit report, comments, gamification lock, community cleanup, media upload, … |
+| **Tổng mutate commands** | **~152** | Quét `Features/**/*Command.cs` implement `IRequest` |
+
+**Gap / rủi ro còn lại:**
+
+| # | Gap | Mức |
+|---|-----|-----|
+| 1 | ~63% commands mutate không ghi audit | Trung bình — BR yêu cầu “mọi thao tác nhạy cảm”; chưa đủ cho compliance audit trail đầy đủ |
+| 2 | `AuditLogBehavior` không kiểm tra `Result.IsSuccess` — có thể ghi log cả khi handler trả `Failure` | Thấp — cần fix pipeline |
+| 3 | Export audit load rows vào memory (chưa stream) | Thấp — backlog P2 `PERFORMANCE_EXECUTION_PRIORITIES.md` |
+| 4 | Citizen-facing actions (submit, rate, comment) cố ý không audit hoặc chưa — cần product quyết định | Thông tin |
+
+**Backlog đề xuất:** Phase 4 — gắn manual audit cho org/company mutate còn lại; chỉ audit failure khi `Result.IsSuccess`; optional audit cho `SubmitPollutionReport` (metadata only, không PII GPS).
 
 ### ✅ Data Privacy (`BR-DAT-001..005`) — 5/5 rules
 
@@ -387,10 +411,14 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 | BR-DAT-004 |   ✅   | Infra concern — pg_dump daily, 30 bản, S3 lifecycle. Không cần code backend                                                             |
 | BR-DAT-005 |   ✅   | `User.HasDataConsent` + `ConsentAcceptedAt`. `POST /v1/users/me/consent` khi mở app lần đầu. SubmitReport handler chặn nếu chưa consent |
 
-### ❌ Non-functional (`BR-SYS-001..006`)
+### ✅ Non-functional (`BR-SYS-001..006`)
 
-- BR-SYS-004: Rate limiting ❌
-- Còn lại: infra/DevOps concern
+| BR | Status | Evidence |
+|----|--------|----------|
+| BR-SYS-004 | ✅ | `PerformanceServiceExtensions` — sliding window 60 rpm/IP (anon), 300 rpm/user (JWT); 429 `API_RATE_LIMIT_EXCEEDED` + `Retry-After`. Bypass: `/health`, `/swagger`, `/hangfire`, `/hubs/*`. Submit quota riêng BR-REP-010. |
+| BR-SYS-001..003, 005..006 | — | Infra/DevOps concern (p95, uptime, i18n) |
+
+> **Lưu ý scale:** Global limiter in-process per API node; multi-instance cần Redis-backed limit (backlog P3) hoặc chấp nhận bucket per-node.
 
 ---
 
@@ -431,6 +459,7 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 | `Badge`, `UserPoints`                    | ✅ ĐÃ IMPLEMENT                | BR-GAM-001..006                                                 |
 | `Notification`, `NotificationPreference` | ✅ ĐÃ IMPLEMENT                | BR-NTF-001..004                                                 |
 | `ReportDraft`                            | ✅                             | Max 3 + `DraftCleanupJob` đã có                                 |
+| `ReportSatisfaction`                     | ✅                             | Unique `(report_id, user_id)` — `ReportSatisfactionConfiguration` + migration `AddIdentityNumberAndSatisfactionUniqueIndexes` |
 
 ---
 
@@ -455,7 +484,7 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 | 8   | **Workload limit** (6 task/team, warn at 5)              | BR-OFF-013                 |                               ✅                               |
 | 9   | **Comments** (entity + CRUD + moderation)                | BR-CMT-001..004            |                               ✅                               |
 | 10  | **Brute-force protection** (sliding window + Turnstile)  | BR-AUTH-014                |                                                                |
-| 11  | **Rate limiting** (Redis + ASP.NET middleware)           | BR-SYS-004, BR-REP-010     | ⚠️ BR-REP-010 submit quota ✅; BR-SYS-004 global middleware ❌ |
+| 11  | **Rate limiting** (Redis + ASP.NET middleware)           | BR-SYS-004, BR-REP-010     | ✅ BR-REP-010 submit quota; BR-SYS-004 global middleware (2026-07-30 P0) |
 | 12  | ~~**Check-in ≤ 200m** (PostGIS ST_DWithin)~~             | BR-CLN-002/003, BR-INS-004 |                               ✅                               |
 | 13  | ~~**Company contract renewal** (gia hạn/tái ký)~~        | BR-CMP-006                 |                               ✅                               |
 | 14  | ~~**Duplicate detection** (geo Tier 1 + AI Tier 2)~~     | BR-REP-030..033            |                               ✅                               |
@@ -470,7 +499,7 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 | 15  | ~~**KPI / Analytics / Export**~~                           | BR-OFF-021/022, BR-CMP-020, BR-INS-032 |                  ✅                  |
 | 16  | **Content moderation** (word filter report desc + AI text) | BR-REP-004, BR-CMT-003 (AI)            | ✅ word filter comment + report desc |
 | 17  | ~~**Invitation entity** (7d expiry, single-use)~~          | BR-ORG-021                             |                  ✅                  |
-| 18  | **Map enhancements** (hotspot, cache, heatmap)             | BR-MAP-004..012                        |                                      |
+| 18  | **Map enhancements** (hotspot, cache, heatmap)             | BR-MAP-005/010/011/012                 | ⚠️ BR-MAP-004 ✅ (coordinate rounding) |
 | 19  | **EXIF strip** trước AI                                    | BR-AI-007, BR-REP-011                  |                                      |
 
 ## P3 — Hardening & Compliance
@@ -479,7 +508,7 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 | --- | ------------------------------------------------- | --------------- | :----: |
 | 20  | **Integration tests** (Testcontainers Postgres)   | Testing pyramid |        |
 | 21  | **Security headers** (OwaspHeaders.Core)          | BR-DAT-001      |        |
-| 22  | ~~**Audit log** (comprehensive)~~                 | BR-ADM-010      |   ✅   |
+| 22  | **Audit log** (comprehensive)                     | BR-ADM-010      |   ⚠️ ~57/152 commands — §B.9.1 |
 | 23  | ~~**Data privacy** (consent, export, retention)~~ | BR-DAT-002..005 |   ✅   |
 | 24  | **EXIF validation**                               | BR-REP-011      |   ✅   |
 

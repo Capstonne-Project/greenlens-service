@@ -17,6 +17,7 @@ using Greenlens.Infrastructure.DomainEvents;
 using Greenlens.Infrastructure.Moderation;
 using Greenlens.Application.Features.Notifications;
 using Greenlens.Infrastructure.Notifications;
+using Greenlens.Infrastructure.Options;
 using Greenlens.Infrastructure.Services;
 using Hangfire;
 using Hangfire.PostgreSql;
@@ -165,8 +166,23 @@ public static class DependencyInjection
         services.AddSingleton<IImageExifAnalyzer, Imaging.MetadataExtractorImageExifAnalyzer>();
         services.AddScoped<IImageBytesFetcher, Imaging.HttpImageBytesFetcher>();
 
-        // ── Report submit rate limit (BR-REP-010) ──
+        // ── Redis + report submit rate limit (BR-REP-010, P0-3) ──
+        services.AddOptions<RedisInfrastructureOptions>()
+            .Bind(configuration.GetSection(RedisInfrastructureOptions.SectionName))
+            .ValidateOnStart();
+
+        var redisOptions = configuration
+            .GetSection(RedisInfrastructureOptions.SectionName)
+            .Get<RedisInfrastructureOptions>() ?? new RedisInfrastructureOptions();
+
         var redisConnection = configuration.GetConnectionString("Redis");
+        if (redisOptions.Required && string.IsNullOrWhiteSpace(redisConnection))
+        {
+            throw new InvalidOperationException(
+                "ConnectionStrings:Redis is required when Redis:Required is true (staging/production). " +
+                "Set the connection string via environment variable or secrets manager.");
+        }
+
         if (!string.IsNullOrWhiteSpace(redisConnection))
         {
             services.AddSingleton<IConnectionMultiplexer>(_ =>
