@@ -109,7 +109,7 @@ GreenLens follows **Clean Architecture** with strict dependency rules:
 │              Controllers · Middlewares           │
 ├─────────────────────────────────────────────────┤
 │              Greenlens.Infrastructure            │  ◄── Adapters (DB, R2, Redis, FCM)
-│  Persistence · Identity · Storage · Security · Geo│
+│  Persistence · Identity · Storage · Notifications · Geo│
 ├─────────────────────────────────────────────────┤
 │              Greenlens.Application               │  ◄── Use Cases (CQRS + MediatR)
 │          Features · Behaviors · Interfaces       │
@@ -134,33 +134,35 @@ Api ──► Application ──► Domain
 | **CQRS**            | Commands (mutate) + Queries (read) via MediatR                      |
 | **Result Pattern**  | `Result<T>` for business logic, exceptions only for infrastructure  |
 | **Vertical Slices** | Each use case = 1 folder (Command + Handler + Validator + Response) |
-| **Outbox Pattern**  | At-least-once delivery for events (notifications, AI, MQ)           |
-| **Domain Events**   | State transitions raise events (`ReportVerifiedEvent`, etc.)        |
+| **Domain Events**   | State transitions raise events; side effects via MediatR notification handlers + Hangfire |
 
 ---
 
 ## 🛠️ Tech Stack
 
-| Layer                | Technology                                                   |
-| -------------------- | ------------------------------------------------------------ |
-| **Runtime**          | .NET 9 (C# 13)                                               |
-| **Web API**          | ASP.NET Core 9 — Controller-based                            |
-| **ORM**              | Entity Framework Core 9                                      |
-| **Database**         | PostgreSQL 18 + PostGIS                                      |
-| **Cache**            | Redis (multi-level: L1 Memory + L2 Redis)                    |
-| **Object Storage**   | Cloudflare R2 (S3-compatible, zero egress)                   |
-| **CDN / WAF / DDoS** | Cloudflare (edge proxy, 300+ POP)                            |
-| **CAPTCHA**          | Cloudflare Turnstile (BR-AUTH-011)                           |
-| **Message Queue**    | RabbitMQ / MassTransit                                       |
-| **Background Jobs**  | Hangfire                                                     |
-| **Auth**             | ASP.NET Core Identity + JWT RS256 (24h access / 30d refresh) |
-| **Validation**       | FluentValidation (3-layer: edge + input + business)          |
-| **Mapping**          | Mapster (source-gen, faster than AutoMapper)                 |
-| **Security**         | OwaspHeaders.Core, Data Protection API, bcrypt.net-next      |
-| **Logging**          | Serilog → Seq / ELK                                          |
-| **Observability**    | OpenTelemetry → Jaeger / Tempo                               |
-| **API Docs**         | Swashbuckle (OpenAPI 3.0)                                    |
-| **Testing**          | xUnit + FluentAssertions + NSubstitute + Testcontainers      |
+| Layer                | Technology                                                                 |
+| -------------------- | -------------------------------------------------------------------------- |
+| **Runtime**          | .NET 9 (C# 13)                                                             |
+| **Web API**          | ASP.NET Core 9 — Controller-based                                          |
+| **CQRS**             | MediatR (commands, queries, domain event notifications)                    |
+| **ORM**              | Entity Framework Core 9                                                    |
+| **Database**         | PostgreSQL 18 + PostGIS                                                    |
+| **Cache**            | Redis (optional — report submit rate limit); in-memory blocked-word cache  |
+| **Object Storage**   | Cloudflare R2 (S3-compatible via AWSSDK.S3)                                |
+| **Background Jobs**  | Hangfire (PostgreSQL storage)                                              |
+| **Real-time**        | SignalR (notification hub)                                                 |
+| **Auth**             | Custom JWT Bearer HS256 (24h access / 30d refresh, hashed in DB)           |
+| **Validation**       | FluentValidation (input) + business rules in handlers                      |
+| **Mapping**          | LINQ `.Select()` projection + manual DTO construction                      |
+| **Security**         | bcrypt.net-next (password hashing)                                         |
+| **Push**             | Firebase Admin SDK (FCM)                                                   |
+| **Email**            | SMTP                                                                       |
+| **AI Integration**   | Python FastAPI service (HTTP client — classify / duplicate compare)        |
+| **Media processing** | MetadataExtractor (EXIF), FFMpegCore (video transcode)                     |
+| **Rate limiting**    | ASP.NET Core `RateLimiter` (global API) + Redis sliding window (submit)    |
+| **Logging**          | Serilog (Console in dev; configurable sinks)                               |
+| **API Docs**         | Swashbuckle (OpenAPI 3.0)                                                  |
+| **Testing**          | xUnit + FluentAssertions + NSubstitute + Testcontainers                    |
 
 ---
 
@@ -193,7 +195,6 @@ dotnet user-secrets set "ConnectionStrings:Redis" "localhost:6379"
 dotnet user-secrets set "Jwt:Secret" "your-256-bit-secret-key-here-minimum-32-chars"
 dotnet user-secrets set "Cloudflare:R2:AccessKeyId" "your-r2-access-key"
 dotnet user-secrets set "Cloudflare:R2:SecretAccessKey" "your-r2-secret-key"
-dotnet user-secrets set "Cloudflare:Turnstile:SecretKey" "your-turnstile-secret"
 
 # 4. Apply database migrations
 dotnet ef database update --project ../Greenlens.Infrastructure
@@ -221,10 +222,9 @@ docker compose up -d
 | `Jwt__Audience`                        | JWT audience                                 | `greenlens-client` |
 | `Cloudflare__R2__Endpoint`             | R2 endpoint URL                              | —                  |
 | `Cloudflare__R2__Bucket`               | R2 bucket name                               | `greenlens-media`  |
-| `Cloudflare__Turnstile__SiteKey`       | Turnstile site key (public)                  | —                  |
 | `ASPNETCORE_ENVIRONMENT`               | Environment name                             | `Development`      |
 
-> ⚠️ **Never** commit real secrets (R2 keys, Turnstile secret, JWT private key). Use `dotnet user-secrets` for dev, Azure Key Vault for production.
+> ⚠️ **Never** commit real secrets (R2 keys, JWT signing key, SMTP password). Use `dotnet user-secrets` for dev, Azure Key Vault for production.
 
 ---
 
@@ -254,13 +254,13 @@ greenlens-service/
 │   │   │   └── Admin/                 # Users, Roles, Categories, AuditLog
 │   │   └── BusinessRules/             # BR-*-NNN constants
 │   │
-│   ├── Greenlens.Infrastructure/      # Adapters — DB, R2, Redis, FCM
+│   ├── Greenlens.Infrastructure/      # Adapters — DB, R2, Redis, FCM, AI
 │   │   ├── Persistence/               # DbContext, Configurations, Migrations
-│   │   ├── Identity/                  # JWT service, CurrentUser
-│   │   ├── Storage/                   # R2FileStorage (S3-compatible), ImageProcessor
-│   │   ├── Caching/                   # Redis cache service
+│   │   ├── Identity/                  # JWT, bcrypt, CurrentUser, Firebase phone auth
+│   │   ├── Storage/                   # R2FileStorage, EXIF/image helpers
+│   │   ├── RateLimiting/              # Redis report submit rate limiter
 │   │   ├── Geo/                       # PostGIS query helpers
-│   │   ├── Security/                  # TurnstileVerifier, BcryptHasher, SecretsRotator
+│   │   ├── Notifications/             # FCM, SMTP, SignalR hub
 │   │   ├── BackgroundJobs/            # Hangfire jobs
 │   │   └── DependencyInjection.cs     # All registrations
 │   │
@@ -345,10 +345,10 @@ Accept-Language: vi-VN
 
 | Scope              | Limit                                               |
 | ------------------ | --------------------------------------------------- |
-| Anonymous API      | 60 req/min/IP (Cloudflare edge + app)               |
-| Authenticated user | 300 req/min/user (app layer)                        |
-| Submit report      | 5/hour, 20/24h per citizen (Redis-backed)           |
-| Login attempts     | 5 fail/15min → lock 30min + Turnstile from 3rd fail |
+| Anonymous API      | 60 req/min/IP (ASP.NET Core RateLimiter)            |
+| Authenticated user | 300 req/min/user (ASP.NET Core RateLimiter)         |
+| Submit report      | 5/hour, 20/24h per citizen (Redis or in-memory)    |
+| Login attempts     | 5 fail/15min → lock 30min (`RequiresCaptcha` flag) |
 
 ---
 
