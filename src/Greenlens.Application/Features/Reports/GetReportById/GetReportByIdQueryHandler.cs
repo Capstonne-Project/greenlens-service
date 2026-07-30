@@ -13,8 +13,9 @@ namespace Greenlens.Application.Features.Reports.GetReportById;
 /// Return full report detail including satisfaction, pending reopen request, and merged-duplicate thumbs.
 /// </summary>
 /// <remarks>
-/// Implements: BR-REP-015 (pending reopen in response), BR-REP-018 (satisfaction in response),
-/// BR-REP-032 (mergedReports + SourceReportId thumbs).
+/// Implements: BR-REP-012 (ẩn danh người gửi), BR-REP-015 (pending reopen in response),
+/// BR-REP-018 (satisfaction in response), BR-REP-032 (mergedReports + SourceReportId thumbs),
+/// BR-AUTH-022 (reporter đã xóa tài khoản → ẩn danh tính).
 /// </remarks>
 public sealed class GetReportByIdQueryHandler(
     IReportRepository reports,
@@ -34,6 +35,7 @@ public sealed class GetReportByIdQueryHandler(
             .Include(x => x.Assignments).ThenInclude(a => a.Team)
             .Include(x => x.WasteTags).ThenInclude(wt => wt.WasteTag)
             .Include(x => x.ParentReport)
+            .Include(x => x.Reporter)
             .FirstOrDefaultAsync(x => x.Id == request.Id, ct)
             .ConfigureAwait(false);
 
@@ -140,9 +142,16 @@ public sealed class GetReportByIdQueryHandler(
         Guid? mergedIntoPrimaryId = r.ParentReportId;
         string? mergedIntoPrimaryCode = r.ParentReport?.Code;
 
+        // ── Reporter identity (BR-REP-012, BR-AUTH-022) ──
+        // Ẩn danh hoặc đã xóa tài khoản → không lộ tên/avatar; FE hiển thị "Người dùng ẩn danh".
+        var showReporter = !r.HideReporterName && r.Reporter is not null && !r.Reporter.IsBanned;
+        var reporterName = showReporter ? r.Reporter!.FullName : null;
+        var reporterAvatarUrl = showReporter ? r.Reporter!.AvatarUrl : null;
+
         logger.LogInformation("Lấy chi tiết báo cáo thành công. Mã báo cáo: {ReportCode}", r.Code);
         return new ReportDetailResponse(
             r.Id, r.Code, r.ReporterId,
+            reporterName, reporterAvatarUrl,
             r.CategoryId, r.Category.Code, r.Category.NameVi,
             r.Severity, r.SeveritySetBy, r.Status, r.Description,
             r.Latitude, r.Longitude, r.Address,
