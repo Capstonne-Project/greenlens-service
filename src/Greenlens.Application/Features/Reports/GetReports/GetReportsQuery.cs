@@ -10,7 +10,9 @@ public sealed record GetReportsQuery(
     ReportStatus? Status = null,
     Guid? CategoryId = null,
     string? WardCode = null,
-    Severity? Severity = null) : IRequest<Result<GetReportsResponse>>;
+    Severity? Severity = null,
+    /// <summary>Tìm theo mã báo cáo, mô tả, hoặc địa chỉ. Không phân biệt hoa/thường.</summary>
+    string? Keyword = null) : IRequest<Result<GetReportsResponse>>;
 
 public sealed record GetReportsResponse(
     IReadOnlyList<ReportListItem> Items, PaginationMeta Pagination);

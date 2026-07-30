@@ -154,14 +154,17 @@ public sealed class ReportsController(
     [HttpGet]
     [Authorize]
     [Tags("📋 Reports — Citizen Flow")]
-    [SwaggerOperation(Summary = "[Auth] Danh sách báo cáo", Description = "Trả về danh sách báo cáo ô nhiễm. Hỗ trợ lọc theo status, category, ward, severity.")]
+    [SwaggerOperation(Summary = "[Auth] Danh sách báo cáo", Description = "Trả về danh sách báo cáo ô nhiễm. Hỗ trợ lọc theo status, category, ward, severity, và tìm kiếm theo keyword (mã / mô tả / địa chỉ).")]
     [SwaggerResponse(200, "Danh sách báo cáo", typeof(ApiResponse<GetReportsResponse>))]
     public async Task<IActionResult> GetAllAsync(
         [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
         [FromQuery] ReportStatus? status = null, [FromQuery] Guid? categoryId = null,
         [FromQuery] string? wardCode = null, [FromQuery] Severity? severity = null,
+        [FromQuery] string? keyword = null,
         CancellationToken ct = default)
-        => (await sender.Send(new GetReportsQuery(page, pageSize, status, categoryId, wardCode, severity), ct)).ToHttp();
+        => (await sender.Send(
+            new GetReportsQuery(page, pageSize, status, categoryId, wardCode, severity, keyword),
+            ct)).ToHttp();
 
     [HttpGet("{id:guid}")]
     [Authorize]
