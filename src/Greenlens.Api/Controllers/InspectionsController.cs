@@ -188,7 +188,7 @@ public sealed class InspectionsController(ISender sender) : ControllerBase
     public async Task<IActionResult> UploadEvidenceAsync(
         [FromRoute] Guid id,
         [FromForm] InspectionEvidenceCategory category,
-        [FromForm] List<IFormFile> files,
+        List<IFormFile> files,
         [FromForm] string? description = null,
         CancellationToken ct = default)
         => await UploadEvidenceInternalAsync(id, category, files, description, ct);
@@ -204,7 +204,7 @@ public sealed class InspectionsController(ISender sender) : ControllerBase
     [SwaggerResponse(200, "Đã upload", typeof(ApiResponse<UploadInspectionEvidenceResponse>))]
     public async Task<IActionResult> UploadEvidenceImagesAsync(
         [FromRoute] Guid id,
-        [FromForm] List<IFormFile> images,
+        List<IFormFile> images,
         CancellationToken ct)
         => await UploadEvidenceInternalAsync(id, InspectionEvidenceCategory.ScenePhoto, images, null, ct);
 
@@ -288,7 +288,7 @@ public sealed class InspectionsController(ISender sender) : ControllerBase
         [FromRoute] Guid id,
         [FromForm] decimal paidAmount,
         [FromForm] DateTime paidAt,
-        [FromForm] IFormFile receipt,
+        IFormFile receipt,
         [FromForm] string? note = null,
         CancellationToken ct = default)
     {
