@@ -1,7 +1,7 @@
-# GreenLens — Sequence Diagrams (22 ⭐ Ưu tiên)
+# GreenLens — Sequence Diagrams (30 ⭐ Ưu tiên)
 
 > **Dự án:** SU26SE049 — Crowdsourced Application for Reporting Environmental Pollution  
-> **Tổng quan:** 22 Sequence Diagram ưu tiên cho bài bảo vệ tốt nghiệp, dựa trên source code thực tế.  
+> **Tổng quan:** 30 Sequence Diagram ưu tiên cho bài bảo vệ tốt nghiệp, dựa trên source code thực tế (gồm luồng inspection checklist BR-INS-033).  
 > **Thứ tự:** Theo luồng trải nghiệm người dùng: Auth → Report → Cleanup → Inspection → Organization → Community → Gamification → Notification → Map → Media → Admin
 
 > [!NOTE]
@@ -766,6 +766,22 @@ sequenceDiagram
 
 ## Nhóm 4: Inspection & Penalty
 
+> **Luồng đầy đủ (BR-INS-033):** SD-28 → SD-29 → **SD-41** (mở detail) → SD-30 → SD-31 (optional) → SD-33 → SD-34 → SD-32 *hoặc* SD-35 → SD-39 → SD-40
+
+| SD | Use case | Actor |
+|----|----------|-------|
+| SD-28 | Tạo biên bản | LEO (Web) |
+| SD-29 | Giao đội thanh tra | LEO (Web) |
+| SD-41 | GET detail + capability flags | Inspector (Mobile) |
+| SD-30 | Nhận nhiệm vụ | Inspector (Mobile) |
+| SD-31 | Xác nhận đến nơi (GPS mềm) | Inspector (Mobile) |
+| SD-33 | Checklist + upload evidence | Inspector (Mobile) |
+| SD-34 | Gửi biên bản hiện trường | Team Leader |
+| SD-32 | Lập quyết định xử phạt | Team Leader |
+| SD-35 | Đóng — không vi phạm | Team Leader |
+| SD-39 | Ghi nhận thanh toán + biên lai | Team Leader |
+| SD-40 | Đóng biên bản | Team Leader |
+
 ---
 
 ### SD-28 ⭐ Create Inspection Report
@@ -784,7 +800,7 @@ sequenceDiagram
     participant DB as Database
 
     LEO->>+App: Chọn report đã Verified → Tạo biên bản thanh tra
-    App->>+Ctrl: POST /api/inspections {reportId}
+    App->>+Ctrl: POST /v1/inspections {reportId}
     Ctrl->>+Hdl: Send(CreateInspectionCommand)
 
     Hdl->>+RptRepo: GetByIdAsync(reportId)
@@ -842,7 +858,7 @@ sequenceDiagram
     participant DB as Database
 
     LEO->>+App: Mở inspection → Chọn team thanh tra
-    App->>+Ctrl: PUT /api/inspections/{id}/assign-team {teamId}
+    App->>+Ctrl: PUT /v1/inspections/{id}/assign-team {teamId}
     Ctrl->>+Hdl: Send(AssignInspTeamCommand)
 
     Hdl->>+InspRepo: GetByIdAsync(inspectionId)
@@ -886,6 +902,348 @@ sequenceDiagram
 
 ---
 
+### SD-41 ⭐ Get Inspection Detail (Capability Flags)
+
+**Actor:** Inspector · **BR:** BR-INS-033, BR-INS-010
+
+> **Mục đích:** Query read-only — Mobile App biết **nút nào bật/tắt** trước khi gọi các command SD-30..40. Backend tính sẵn `can*` từ `Status` + `FieldInvestigationSubmittedAt`.
+
+```mermaid
+sequenceDiagram
+    actor Inspector
+    participant App as Mobile App
+    participant Ctrl as :InspectionsController
+    participant Hdl as :GetInspectionReportByIdHandler
+    participant InspRepo as :IInspectionReportRepository
+    participant EvRepo as :IInspectionEvidenceRepository
+    participant TeamRepo as :ITeamMemberRepository
+    participant DB as Database
+
+    Inspector->>+App: Mở chi tiết biên bản thanh tra
+    App->>+Ctrl: GET /v1/inspections/{id}
+    Ctrl->>+Hdl: Send(GetInspectionReportByIdQuery)
+
+    Hdl->>+InspRepo: QueryAsNoTracking + Include(report, team, payments...)
+    InspRepo->>+DB: SELECT inspection_reports, payments, ...
+    DB-->>-InspRepo: inspection row
+    InspRepo-->>-Hdl: inspection
+
+    alt Inspection không tồn tại
+        Hdl-->>Ctrl: Result.Failure(NotFound)
+        Ctrl-->>App: 404 Not Found
+        App-->>Inspector: Hiển thị "Không tìm thấy biên bản"
+    else Inspector không thuộc assigned team
+        Hdl->>+TeamRepo: ValidateTeamMemberAsync
+        TeamRepo->>DB: SELECT team_members ...
+        TeamRepo-->>-Hdl: forbidden
+        Hdl-->>Ctrl: Result.Failure(Forbidden)
+        Ctrl-->>App: 403 Forbidden
+        App-->>Inspector: Hiển thị lỗi quyền truy cập
+    else Happy path
+        Hdl->>+EvRepo: Query checklist evidence by inspectionId
+        EvRepo->>+DB: SELECT inspection_evidences ORDER BY uploaded_at
+        DB-->>-EvRepo: checklist items
+        EvRepo-->>-Hdl: checklistEvidence[]
+
+        Hdl->>Hdl: fieldSubmitted = FieldInvestigationSubmittedAt.HasValue
+        Hdl->>Hdl: inProgress = Status == InProgress
+
+        Note over Hdl: Tính capability flags [BR-INS-033]
+        Hdl->>Hdl: CanAcceptTask = Draft && AssignedTeamId != null
+        Hdl->>Hdl: CanConfirmArrival / CanEditChecklist /<br/>CanSubmitFieldReport / CanEditDetails<br/>= inProgress && !fieldSubmitted
+        Hdl->>Hdl: CanIssuePenalty / CanCloseNoViolation<br/>= inProgress && fieldSubmitted
+        Hdl->>Hdl: CanRecordPayment = PenaltyIssued | PartiallyPaid | Overdue
+        Hdl->>Hdl: CanClose = Paid
+
+        Hdl-->>-Ctrl: Result InspectionReportDetailResponse<br/>{status, checklistEvidence, payments, can*}
+        Ctrl-->>-App: 200 OK
+        App->>App: Bật/tắt nút theo canAcceptTask, canIssuePenalty, ...
+        App-->>-Inspector: Hiển thị màn detail + action buttons
+    end
+```
+
+**Capability flags → UI mapping:**
+
+| Flag | Nút UI (Inspector App) |
+|------|------------------------|
+| `canAcceptTask` | Nhận nhiệm vụ → SD-30 |
+| `canConfirmArrival` | Xác nhận đến nơi → SD-31 |
+| `canEditChecklist` | Sửa checklist / upload → SD-33 |
+| `canEditDetails` | Sửa mô tả vi phạm (trong giai đoạn checklist) |
+| `canSubmitFieldReport` | Gửi biên bản hiện trường → SD-34 |
+| `canIssuePenalty` | Lập quyết định xử phạt → SD-32 |
+| `canCloseNoViolation` | Đóng — không vi phạm → SD-35 |
+| `canRecordPayment` | Ghi nhận thanh toán → SD-39 |
+| `canClose` | Đóng biên bản → SD-40 |
+
+---
+
+### SD-30 ⭐ Accept Inspection Task
+
+**Actor:** Inspector · **BR:** BR-INS-003, BR-INS-033
+
+```mermaid
+sequenceDiagram
+    actor Inspector
+    participant App as Mobile App
+    participant Ctrl as :InspectionsController
+    participant Hdl as :AcceptInspectionTaskHandler
+    participant InspRepo as :IInspectionReportRepository
+    participant TeamRepo as :ITeamMemberRepository
+    participant UoW as :IUnitOfWork
+    participant DB as Database
+
+    Inspector->>+App: Mở task được giao → Nhận nhiệm vụ
+    App->>+Ctrl: POST /v1/inspections/{id}/accept
+    Ctrl->>+Hdl: Send(AcceptInspectionTaskCommand)
+
+    Hdl->>+InspRepo: GetByIdAsync(inspectionId)
+    InspRepo->>+DB: SELECT * FROM inspection_reports WHERE id = ?
+    DB-->>-InspRepo: inspection
+    InspRepo-->>-Hdl: inspection
+
+    alt inspection.Status ≠ Draft
+        Hdl-->>Ctrl: Result.Failure(BusinessRule:<br/>"Phải ở trạng thái Draft")
+        Ctrl-->>App: 400 Bad Request
+        App-->>Inspector: Hiển thị lỗi trạng thái
+    else AssignedTeamId is null
+        Hdl-->>Ctrl: Result.Failure(BusinessRule:<br/>"Chưa giao đội thanh tra")
+        Ctrl-->>App: 400 Bad Request
+        App-->>Inspector: Hiển thị lỗi
+    else User không thuộc assigned team
+        Hdl->>+TeamRepo: IsMemberAsync(teamId, userId)
+        TeamRepo->>DB: SELECT team_members ...
+        TeamRepo-->>-Hdl: false
+        Hdl-->>Ctrl: Result.Failure(Forbidden)
+        Ctrl-->>App: 403 Forbidden
+    else Happy path
+        Hdl->>Hdl: inspection.AcceptTask(userId)
+        Note over Hdl: Status: Draft → InProgress
+        Hdl->>+UoW: SaveChangesAsync()
+        UoW->>+DB: UPDATE inspection_reports SET status, accepted_at
+        DB-->>-UoW: OK
+        UoW-->>-Hdl: OK
+        Hdl-->>-Ctrl: Result.Success
+        Ctrl-->>-App: 200 OK
+        App-->>-Inspector: Hiển thị "Đã nhận nhiệm vụ"
+    end
+```
+
+---
+
+### SD-31 ⭐ Confirm Arrival (Soft GPS)
+
+**Actor:** Inspector · **BR:** BR-INS-033
+
+```mermaid
+sequenceDiagram
+    actor Inspector
+    participant App as Mobile App
+    participant Ctrl as :InspectionsController
+    participant Hdl as :ConfirmArrivalHandler
+    participant InspRepo as :IInspectionReportRepository
+    participant RptRepo as :IReportRepository
+    participant Geo as :IGeoDistanceService
+    participant UoW as :IUnitOfWork
+    participant DB as Database
+
+    Inspector->>+App: Xác nhận đã đến hiện trường (GPS)
+    App->>+Ctrl: POST /v1/inspections/{id}/confirm-arrival {lat, lng, note?}
+    Ctrl->>+Hdl: Send(ConfirmArrivalCommand)
+
+    Hdl->>+InspRepo: GetByIdAsync(inspectionId)
+    InspRepo-->>-Hdl: inspection (InProgress)
+
+    Hdl->>+RptRepo: GetByIdAsync(reportId)
+    RptRepo-->>-Hdl: report (lat, lng)
+
+    Hdl->>+Geo: GetDistanceInMetersAsync(inspectorGPS, reportGPS)
+    Geo-->>-Hdl: distanceMeters
+
+    alt distance > 200m AND note is empty
+        Hdl-->>Ctrl: Result.Failure(Validation:<br/>"Cần ghi chú giải trình khi xa > 200m")
+        Ctrl-->>App: 400 Bad Request
+        App-->>Inspector: Hiển thị yêu cầu nhập note
+    else inspection.Status ≠ InProgress
+        Hdl-->>Ctrl: Result.Failure(BusinessRule)
+        Ctrl-->>App: 400 Bad Request
+    else Happy path
+        Hdl->>Hdl: inspection.ConfirmArrival(lat, lng, note)
+        Note over Hdl: Status vẫn InProgress
+        Hdl->>+UoW: SaveChangesAsync()
+        UoW->>+DB: UPDATE arrival_confirmed_at, arrival_lat/lng
+        DB-->>-UoW: OK
+        UoW-->>-Hdl: OK
+        Hdl-->>-Ctrl: Result.Success
+        Ctrl-->>-App: 200 OK
+        App-->>-Inspector: Hiển thị "Đã xác nhận đến nơi"
+    end
+```
+
+---
+
+### SD-33 ⭐ Update Checklist & Upload Evidence
+
+**Actor:** Inspector · **BR:** BR-INS-033, BR-INS-010
+
+```mermaid
+sequenceDiagram
+    actor Inspector
+    participant App as Mobile App
+    participant Ctrl as :InspectionsController
+    participant ChkHdl as :UpdateInspectionChecklistHandler
+    participant EvHdl as :UploadInspectionEvidenceHandler
+    participant InspRepo as :IInspectionReportRepository
+    participant EvRepo as :IInspectionEvidenceRepository
+    participant Storage as :IFileStorageService
+    participant UoW as :IUnitOfWork
+    participant DB as Database
+
+    Note over Inspector,DB: Bước A — Text checklist
+    Inspector->>+App: Nhập mô tả tình trạng vi phạm
+    App->>+Ctrl: PUT /v1/inspections/{id}/checklist {violationStatusText, otherDescription?}
+    Ctrl->>+ChkHdl: Send(UpdateInspectionChecklistCommand)
+    ChkHdl->>InspRepo: GetByIdAsync
+    alt Field report đã submit
+        ChkHdl-->>Ctrl: Result.Failure(BusinessRule:<br/>"Checklist đã khóa")
+        Ctrl-->>App: 400 Bad Request
+    else Happy path
+        ChkHdl->>EvRepo: Upsert ViolationStatus / Other text
+        ChkHdl->>UoW: SaveChangesAsync()
+        UoW->>DB: INSERT/UPDATE inspection_evidences
+        ChkHdl-->>Ctrl: Result.Success
+        Ctrl-->>App: 200 OK
+    end
+
+    Note over Inspector,DB: Bước B — Upload ảnh hiện trường (≥ 2 ScenePhoto)
+    Inspector->>App: Chụp / chọn ảnh hiện trường
+    App->>Ctrl: POST /v1/inspections/{id}/evidence?category=ScenePhoto (multipart)
+    Ctrl->>+EvHdl: Send(UploadInspectionEvidenceCommand)
+    EvHdl->>InspRepo: GetByIdAsync (InProgress, chưa submit)
+    alt File quá size limit
+        EvHdl-->>Ctrl: Result.Failure(Validation:<br/>"FILE_TOO_LARGE")
+        Ctrl-->>App: 400 Bad Request
+    else Happy path
+        EvHdl->>+Storage: UploadAsync → R2
+        Storage-->>-EvHdl: mediaUrl
+        EvHdl->>EvRepo: Add(InspectionEvidence.CreateMedia)
+        EvHdl->>UoW: SaveChangesAsync()
+        UoW->>DB: INSERT inspection_evidences
+        EvHdl-->>-Ctrl: Result {uploadedUrls, totalCount}
+        Ctrl-->>App: 200 OK
+        App-->>Inspector: Hiển thị số ảnh đã upload
+    end
+```
+
+---
+
+### SD-34 ⭐ Submit Field Investigation Report
+
+**Actor:** Team Leader · **BR:** BR-INS-033, BR-INS-012
+
+```mermaid
+sequenceDiagram
+    actor Leader as Team Leader
+    participant App as Mobile App
+    participant Ctrl as :InspectionsController
+    participant Hdl as :SubmitFieldInvestigationHandler
+    participant InspRepo as :IInspectionReportRepository
+    participant EvRepo as :IInspectionEvidenceRepository
+    participant Val as :InspectionChecklistValidator
+    participant UoW as :IUnitOfWork
+    participant DB as Database
+
+    Leader->>+App: Hoàn tất checklist → Gửi biên bản hiện trường
+    App->>+Ctrl: PUT /v1/inspections/{id}/submit-field-report
+    Ctrl->>+Hdl: Send(SubmitFieldInvestigationCommand)
+
+    Hdl->>+InspRepo: GetByIdAsync(inspectionId)
+    InspRepo-->>-Hdl: inspection
+
+    alt User không phải Team Leader
+        Hdl-->>Ctrl: Result.Failure(Forbidden)
+        Ctrl-->>App: 403 Forbidden
+        App-->>Leader: Hiển thị lỗi quyền
+    else Checklist chưa đủ
+        Hdl->>+EvRepo: GetByInspectionReportIdAsync
+        EvRepo-->>-Hdl: evidences
+        Hdl->>Val: Validate(evidences)
+        alt Thiếu ViolationStatus text
+            Val-->>Hdl: ChecklistViolationStatusRequired
+            Hdl-->>Ctrl: Result.Failure(Validation)
+            Ctrl-->>App: 400 Bad Request
+            App-->>Leader: Hiển thị lỗi checklist
+        else ScenePhoto < 2
+            Val-->>Hdl: InsufficientEvidenceImages
+            Hdl-->>Ctrl: Result.Failure(Validation)
+            Ctrl-->>App: 400 Bad Request
+            App-->>Leader: Hiển thị "Cần ≥ 2 ảnh hiện trường"
+        end
+    else Happy path
+        Hdl->>Hdl: inspection.SubmitFieldInvestigation(leaderId)
+        Note over Hdl: field_investigation_submitted_at set<br/>Status vẫn InProgress<br/>canIssuePenalty / canCloseNoViolation = true
+        Hdl->>+UoW: SaveChangesAsync()
+        UoW->>+DB: UPDATE inspection_reports
+        DB-->>-UoW: OK
+        UoW-->>-Hdl: OK
+        Hdl-->>-Ctrl: Result.Success
+        Ctrl-->>-App: 200 OK
+        App-->>-Leader: Hiển thị "Đã gửi biên bản hiện trường"
+    end
+```
+
+---
+
+### SD-35 ⭐ Close No Violation
+
+**Actor:** Team Leader · **BR:** BR-INS-013, BR-INS-033, BR-ADM-010
+
+```mermaid
+sequenceDiagram
+    actor Leader as Team Leader
+    participant App as Mobile App
+    participant Ctrl as :InspectionsController
+    participant Hdl as :CloseNoViolationHandler
+    participant InspRepo as :IInspectionReportRepository
+    participant Audit as :IAuditLogger
+    participant UoW as :IUnitOfWork
+    participant DB as Database
+
+    Leader->>+App: Không phát hiện vi phạm → Đóng biên bản
+    App->>+Ctrl: PUT /v1/inspections/{id}/close-no-violation {reason}
+    Ctrl->>+Hdl: Send(CloseNoViolationCommand)
+
+    Hdl->>+InspRepo: GetByIdAsync(inspectionId)
+    InspRepo-->>-Hdl: inspection
+
+    alt Chưa submit field report
+        Hdl-->>Ctrl: Result.Failure(BusinessRule:<br/>"INSPECTION_FIELD_REPORT_REQUIRED")
+        Ctrl-->>App: 422 Unprocessable Entity
+        App-->>Leader: Hiển thị lỗi
+    else reason.length < 50
+        Hdl-->>Ctrl: Result.Failure(Validation:<br/>"Lý do ≥ 50 ký tự")
+        Ctrl-->>App: 400 Bad Request
+    else User không phải Team Leader
+        Hdl-->>Ctrl: Result.Failure(Forbidden)
+        Ctrl-->>App: 403 Forbidden
+    else Happy path
+        Hdl->>Hdl: inspection.CloseNoViolation(reason)
+        Note over Hdl: Status: InProgress → ClosedNoViolation
+        Hdl->>+UoW: SaveChangesAsync()
+        UoW->>+DB: UPDATE inspection_reports
+        DB-->>-UoW: OK
+        UoW-->>-Hdl: OK
+        Hdl->>+Audit: LogAsync("CloseNoViolation", ...)
+        Audit->>DB: INSERT audit_logs
+        Audit-->>-Hdl: OK
+        Hdl-->>-Ctrl: Result.Success
+        Ctrl-->>-App: 200 OK
+        App-->>-Leader: Hiển thị "Đã đóng — không vi phạm"
+    end
+```
+
+---
+
 ### SD-32 ⭐ Issue Penalty
 
 **Actor:** Inspector / LEO · **BR:** BR-INS-005, BR-INS-006, BR-INS-010
@@ -904,16 +1262,27 @@ sequenceDiagram
     participant DB as Database
 
     Inspector->>+App: Nhập thông tin xử phạt (số tiền, quyết định, ...)
-    App->>+Ctrl: PUT /api/inspections/{id}/issue-penalty {amount, decisionNo, ...}
+    App->>+Ctrl: PUT /v1/inspections/{id}/issue-penalty {amount, decisionNo, ...}
     Ctrl->>+Hdl: Send(IssuePenaltyCommand)
 
     Hdl->>+InspRepo: GetByIdAsync(inspectionId)
     InspRepo->>+DB: SELECT * FROM inspection_reports WHERE id = ?
     DB-->>-InspRepo: inspection
     InspRepo-->>-Hdl: inspection
-    Hdl->>Hdl: Check inspection.Status == InProgress
 
-    Hdl->>+FwRepo: Get framework for category + level
+    alt User không phải Team Leader
+        Hdl-->>Ctrl: Result.Failure(Forbidden)
+        Ctrl-->>App: 403 Forbidden
+        App-->>Inspector: Hiển thị lỗi quyền
+    else Field report chưa submit [BR-INS-033]
+        Hdl-->>Ctrl: Result.Failure(BusinessRule:<br/>"INSPECTION_FIELD_REPORT_REQUIRED")
+        Ctrl-->>App: 422 Unprocessable Entity
+        App-->>Inspector: Hiển thị "Cần gửi biên bản hiện trường trước"
+    else inspection.Status ≠ InProgress
+        Hdl-->>Ctrl: Result.Failure(BusinessRule)
+        Ctrl-->>App: 400 Bad Request
+    else Happy path
+        Hdl->>+FwRepo: Get framework for category + level
     FwRepo->>+DB: SELECT * FROM penalty_frameworks<br/>WHERE category_id = ? AND level = ?
     DB-->>-FwRepo: framework
     FwRepo-->>-Hdl: framework (minAmount, maxAmount)
@@ -949,6 +1318,107 @@ sequenceDiagram
     Hdl-->>-Ctrl: Result<success>
     Ctrl-->>-App: 200 OK
     App-->>-Inspector: Hiển thị "Đã lập biên bản xử phạt"
+    end
+```
+
+---
+
+### SD-39 ⭐ Record Payment (Multipart Receipt)
+
+**Actor:** Team Leader · **BR:** BR-INS-020, BR-ADM-010
+
+```mermaid
+sequenceDiagram
+    actor Leader as Team Leader
+    participant App as Mobile App
+    participant Ctrl as :InspectionsController
+    participant Hdl as :RecordPaymentHandler
+    participant InspRepo as :IInspectionReportRepository
+    participant Storage as :IFileStorageService
+    participant Audit as :IAuditLogger
+    participant UoW as :IUnitOfWork
+    participant DB as Database
+
+    Leader->>+App: Ghi nhận thanh toán + upload biên lai
+    App->>+Ctrl: PUT /v1/inspections/{id}/record-payment (multipart:<br/>paidAmount, paidAt, receipt, note?)
+    Ctrl->>+Hdl: Send(RecordPaymentCommand)
+
+    Hdl->>+InspRepo: GetByIdAsync(inspectionId)
+    InspRepo-->>-Hdl: inspection (PenaltyIssued/PartiallyPaid/Overdue)
+
+    alt User không phải Team Leader
+        Hdl-->>Ctrl: Result.Failure(Forbidden)
+        Ctrl-->>App: 403 Forbidden
+    else Thiếu file receipt
+        Hdl-->>Ctrl: Result.Failure(Validation:<br/>"PaymentReceiptRequired")
+        Ctrl-->>App: 400 Bad Request
+        App-->>Leader: Hiển thị "Cần upload biên lai"
+    else Status không hợp lệ
+        Hdl-->>Ctrl: Result.Failure(BusinessRule)
+        Ctrl-->>App: 422 Unprocessable Entity
+    else Happy path
+        Hdl->>+Storage: UploadAsync(receipt) → R2
+        Storage-->>-Hdl: evidenceUrl
+        Hdl->>Hdl: PenaltyPayment.Create + inspection.RecordPayment(payment)
+        Note over Hdl: Status → Paid hoặc PartiallyPaid
+        Hdl->>+UoW: SaveChangesAsync()
+        UoW->>+DB: INSERT penalty_payments,<br/>UPDATE inspection_reports
+        DB-->>-UoW: OK
+        UoW-->>-Hdl: OK
+        Hdl->>+Audit: LogAsync("RecordPayment", ...)
+        Audit->>DB: INSERT audit_logs
+        Audit-->>-Hdl: OK
+        Hdl-->>-Ctrl: Result.Success
+        Ctrl-->>-App: 200 OK
+        App-->>-Leader: Hiển thị trạng thái thanh toán
+    end
+```
+
+---
+
+### SD-40 ⭐ Close Inspection (After Paid)
+
+**Actor:** Team Leader · **BR:** BR-INS-021, BR-ADM-010
+
+```mermaid
+sequenceDiagram
+    actor Leader as Team Leader
+    participant App as Mobile App
+    participant Ctrl as :InspectionsController
+    participant Hdl as :CloseInspectionHandler
+    participant InspRepo as :IInspectionReportRepository
+    participant Audit as :IAuditLogger
+    participant UoW as :IUnitOfWork
+    participant DB as Database
+
+    Leader->>+App: Xác nhận đóng biên bản sau khi thu đủ tiền
+    App->>+Ctrl: PUT /v1/inspections/{id}/close {reason?}
+    Ctrl->>+Hdl: Send(CloseInspectionCommand)
+
+    Hdl->>+InspRepo: GetByIdAsync(inspectionId)
+    InspRepo-->>-Hdl: inspection
+
+    alt inspection.Status ≠ Paid
+        Hdl-->>Ctrl: Result.Failure(BusinessRule:<br/>"Phải thu đủ tiền phạt trước")
+        Ctrl-->>App: 422 Unprocessable Entity
+        App-->>Leader: Hiển thị lỗi trạng thái
+    else User không phải Team Leader
+        Hdl-->>Ctrl: Result.Failure(Forbidden)
+        Ctrl-->>App: 403 Forbidden
+    else Happy path
+        Hdl->>Hdl: inspection.Close(reason)
+        Note over Hdl: Status: Paid → Closed
+        Hdl->>+UoW: SaveChangesAsync()
+        UoW->>+DB: UPDATE inspection_reports SET status, closed_at
+        DB-->>-UoW: OK
+        UoW-->>-Hdl: OK
+        Hdl->>+Audit: LogAsync("CloseInspection", ...)
+        Audit->>DB: INSERT audit_logs
+        Audit-->>-Hdl: OK
+        Hdl-->>-Ctrl: Result.Success
+        Ctrl-->>-App: 200 OK
+        App-->>-Leader: Hiển thị "Biên bản đã đóng"
+    end
 ```
 
 ---
@@ -1593,7 +2063,15 @@ flowchart LR
     subgraph Inspection ["4️⃣ Inspection"]
         SD28["SD-28<br/>Create"]
         SD29["SD-29<br/>Assign Team"]
+        SD41["SD-41<br/>GET Detail"]
+        SD30["SD-30<br/>Accept Task"]
+        SD31["SD-31<br/>Confirm Arrival"]
+        SD33["SD-33<br/>Checklist"]
+        SD34["SD-34<br/>Submit Field Report"]
         SD32["SD-32<br/>Issue Penalty"]
+        SD35["SD-35<br/>Close No Violation"]
+        SD39["SD-39<br/>Record Payment"]
+        SD40["SD-40<br/>Close"]
     end
 
     subgraph Org ["5️⃣ Organization"]
