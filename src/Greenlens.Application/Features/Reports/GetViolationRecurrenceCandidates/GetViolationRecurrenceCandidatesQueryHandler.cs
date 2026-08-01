@@ -1,5 +1,6 @@
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Common.Models;
+using Greenlens.Application.Features.Reports.Common;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -16,6 +17,7 @@ namespace Greenlens.Application.Features.Reports.GetViolationRecurrenceCandidate
 /// </remarks>
 public sealed class GetViolationRecurrenceCandidatesQueryHandler(
     IReportRepository reports,
+    IReportMediaRepository reportMedia,
     ILogger<GetViolationRecurrenceCandidatesQueryHandler> logger)
     : IRequestHandler<GetViolationRecurrenceCandidatesQuery, Result<GetViolationRecurrenceCandidatesResponse>>
 {
@@ -46,13 +48,17 @@ public sealed class GetViolationRecurrenceCandidatesQueryHandler(
                 r.Longitude,
                 r.Address,
                 r.CreatedAt,
-                r.Media
-                    .Where(m => m.Type == MediaType.Image)
-                    .OrderBy(m => m.UploadedAt)
-                    .Select(m => m.ThumbnailUrl ?? m.Url)
-                    .FirstOrDefault(),
                 r.SuspectedRecurrenceOfReportId))
             .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        var reportIds = rows
+            .Select(r => r.Id)
+            .Concat(rows.Where(r => r.SuspectedRecurrenceOfReportId.HasValue).Select(r => r.SuspectedRecurrenceOfReportId!.Value))
+            .Distinct()
+            .ToList();
+
+        var mediaByReportId = await CitizenReportMediaLoader.LoadByReportIdsAsync(reportMedia, reportIds, ct)
             .ConfigureAwait(false);
 
         var priorIds = rows
@@ -84,7 +90,8 @@ public sealed class GetViolationRecurrenceCandidatesQueryHandler(
                     p.ClosedAt,
                     p.ClosedAt.HasValue
                         ? (int)Math.Floor((now - p.ClosedAt.Value).TotalDays)
-                        : null);
+                        : null,
+                    CitizenReportMediaLoader.GetMediaOrEmpty(mediaByReportId, p.Id));
             }
 
             return new ViolationRecurrenceCandidateItem(
@@ -97,7 +104,7 @@ public sealed class GetViolationRecurrenceCandidatesQueryHandler(
                 r.Longitude,
                 r.Address,
                 r.CreatedAt,
-                r.FirstImageUrl,
+                CitizenReportMediaLoader.GetMediaOrEmpty(mediaByReportId, r.Id),
                 prior);
         }).ToList();
 
@@ -116,7 +123,6 @@ public sealed class GetViolationRecurrenceCandidatesQueryHandler(
         decimal Longitude,
         string? Address,
         DateTime CreatedAt,
-        string? FirstImageUrl,
         Guid? SuspectedRecurrenceOfReportId);
 
     private sealed record PriorRow(

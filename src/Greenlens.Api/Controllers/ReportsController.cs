@@ -483,7 +483,7 @@ public sealed class ReportsController(
     [SwaggerOperation(
         Summary = "[LEO/DEO] Danh sách báo cáo nghi ngờ trùng lặp",
         Description = "BR-REP-031: Trả về các báo cáo bị gắn cờ possible_duplicate (Tier 1 geo/time hoặc Tier 2 AI) " +
-            "kèm thông tin báo cáo gốc để LEO so sánh và quyết định gộp/bác bỏ.")]
+            "kèm thông tin báo cáo gốc và toàn bộ ảnh/video citizen submit (media[]) để LEO so sánh và quyết định gộp/bác bỏ.")]
     [SwaggerResponse(200, "Danh sách nghi ngờ trùng lặp", typeof(ApiResponse<GetDuplicateCandidatesResponse>))]
     public async Task<IActionResult> GetDuplicateCandidatesAsync(
         [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
@@ -524,7 +524,8 @@ public sealed class ReportsController(
     [SwaggerOperation(
         Summary = "[LEO/DEO] Danh sách báo cáo nghi ngờ tái phạm vi phạm",
         Description = "BR-REP-034: Trả về các báo cáo bị gắn cờ isSuspectedViolationRecurrence " +
-            "(cùng category, ≤50m, báo cáo trước đã Closed trong 30 ngày) kèm thông tin báo cáo Closed trước đó " +
+            "(cùng category, ≤50m, báo cáo trước đã Closed trong 30 ngày) kèm báo cáo Closed trước đó " +
+            "và toàn bộ ảnh/video citizen submit (media[] / priorClosedReport.media[]) " +
             "để LEO so sánh và quyết định mở hồ sơ thanh tra hoặc bác cờ.")]
     [SwaggerResponse(200, "Danh sách nghi ngờ tái phạm", typeof(ApiResponse<GetViolationRecurrenceCandidatesResponse>))]
     public async Task<IActionResult> GetViolationRecurrenceCandidatesAsync(

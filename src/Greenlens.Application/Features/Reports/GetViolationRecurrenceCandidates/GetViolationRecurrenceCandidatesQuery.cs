@@ -1,4 +1,5 @@
 using Greenlens.Application.Common.Models;
+using Greenlens.Application.Features.Reports.Common;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -24,7 +25,7 @@ public sealed record ViolationRecurrenceCandidateItem(
     decimal Longitude,
     string? Address,
     DateTime CreatedAt,
-    string? FirstImageUrl,
+    IReadOnlyList<ReportReviewMediaItem> Media,
     ViolationRecurrencePriorReport? PriorClosedReport);
 
 public sealed record ViolationRecurrencePriorReport(
@@ -33,4 +34,5 @@ public sealed record ViolationRecurrencePriorReport(
     string? Address,
     ReportStatus Status,
     DateTime? ClosedAt,
-    int? DaysSinceClosed);
+    int? DaysSinceClosed,
+    IReadOnlyList<ReportReviewMediaItem> Media);
