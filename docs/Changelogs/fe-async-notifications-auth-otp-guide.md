@@ -213,7 +213,7 @@ sequenceDiagram
     API->>SR: Toast (Web only, sync)
     API-->>App: 200 OK (fast)
     API->>HF: Enqueue DispatchNotificationChannelsJob
-    HF->>SMTP: Send push + email (async)
+    HF->>SMTP: Push (FCM) and email (SMTP) independently
 ```
 
 Auth OTP tương tự với `SendAuthEmailJob` thay vì notification job.
@@ -223,6 +223,8 @@ Auth OTP tương tự với `SendAuthEmailJob` thay vì notification job.
 ## 8. Migration DB (DevOps)
 
 Migration mới: `push_dispatched_at`, `email_dispatched_at` trên bảng `notifications` (idempotency Hangfire retry).
+
+**Kênh độc lập:** Push (FCM) và Email (SMTP) chạy song song logic trong cùng job nhưng **không chặn nhau**. Push thành công → ghi `push_dispatched_at` ngay; email lỗi vẫn không gửi lại push khi Hangfire retry. Web vẫn nhận toast qua **SignalR** (sync trong request, tách khỏi FCM/SMTP).
 
 ```bash
 dotnet ef database update --project src/Greenlens.Infrastructure --startup-project src/Greenlens.Api
@@ -241,7 +243,10 @@ Set `Smtp:Enabled: false` trong user-secrets hoặc env → backend dùng `NoOpE
 ## 10. Liên hệ / câu hỏi thường gặp
 
 **Q: API success nhưng không nhận email/push?**  
-A: Kiểm tra Hangfire dashboard (`/hangfire`), SMTP config, FCM token. User Auth: dùng **Gửi lại OTP**.
+A: Kiểm tra Hangfire dashboard (`/hangfire`), SMTP config, FCM token. Push và email retry **riêng** — push OK + email fail chỉ retry email. User Auth: dùng **Gửi lại OTP**.
+
+**Q: Nhận push nhưng không có email (hoặc ngược lại)?**  
+A: Có thể một kênh lỗi (SMTP chậm/timeout, FCM token hết hạn). Xem Hangfire job `DispatchNotificationChannelsJob` — cột `push_dispatched_at` / `email_dispatched_at` cho biết kênh nào đã gửi.
 
 **Q: Register trả 503 — user có tồn tại không?**  
 A: Có — gọi `request-otp`, không register lại.

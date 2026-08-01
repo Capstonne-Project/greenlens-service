@@ -1,5 +1,4 @@
 using Greenlens.Application.Common.Interfaces;
-using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using Greenlens.Infrastructure.Persistence;
 using Hangfire;
@@ -13,7 +12,8 @@ namespace Greenlens.Infrastructure.BackgroundJobs;
 /// </summary>
 /// <remarks>
 /// Implements: BR-NTF-001 (channels), BR-SYS-001 (non-blocking API).
-/// Idempotent: skips channels already marked dispatched (Hangfire retry safe).
+/// Push and email are independent: one channel failing does not block the other.
+/// Each channel is marked dispatched immediately after success so Hangfire retry only retries failed channels.
 /// </remarks>
 [AutomaticRetry(Attempts = 3, DelaysInSeconds = [30, 120, 600])]
 internal sealed class DispatchNotificationChannelsJob(
@@ -61,76 +61,120 @@ internal sealed class DispatchNotificationChannelsJob(
             return;
         }
 
-        var pushSent = false;
-        var emailSent = false;
+        Exception? pushFailure = null;
+        Exception? emailFailure = null;
+        var pushAttempted = false;
+        var pushSucceeded = false;
+        var emailAttempted = false;
+        var emailSucceeded = false;
 
-        if (pushPending && !string.IsNullOrEmpty(row.FcmToken))
+        if (pushPending)
         {
-            try
+            pushAttempted = true;
+
+            if (string.IsNullOrEmpty(row.FcmToken))
             {
-                var data = new Dictionary<string, string>
+                await MarkPushDispatchedAsync(notificationId, ct).ConfigureAwait(false);
+                pushSucceeded = true;
+                logger.LogDebug(
+                    "DispatchNotificationChannelsJob: no FCM token for user {UserId}, skipping push",
+                    row.RecipientId);
+            }
+            else
+            {
+                try
                 {
-                    ["notificationId"] = row.Id.ToString(),
-                    ["type"] = row.Type.ToString(),
-                };
-                if (row.ReferenceId.HasValue)
-                    data["referenceId"] = row.ReferenceId.Value.ToString();
+                    var data = new Dictionary<string, string>
+                    {
+                        ["notificationId"] = row.Id.ToString(),
+                        ["type"] = row.Type.ToString(),
+                    };
+                    if (row.ReferenceId.HasValue)
+                        data["referenceId"] = row.ReferenceId.Value.ToString();
 
-                await pushSender.SendPushAsync(row.FcmToken, row.Title, row.Message, data, ct)
-                    .ConfigureAwait(false);
-                pushSent = true;
+                    await pushSender.SendPushAsync(row.FcmToken, row.Title, row.Message, data, ct)
+                        .ConfigureAwait(false);
+
+                    await MarkPushDispatchedAsync(notificationId, ct).ConfigureAwait(false);
+                    pushSucceeded = true;
+                }
+                catch (Exception ex)
+                {
+                    pushFailure = ex;
+                    logger.LogError(
+                        ex,
+                        "FCM push failed for notification {Id}, user {UserId}",
+                        notificationId,
+                        row.RecipientId);
+                }
             }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "FCM push failed for notification {Id}, user {UserId}", notificationId, row.RecipientId);
-                throw;
-            }
-        }
-        else if (pushPending)
-        {
-            // No device token — nothing to send; mark as dispatched to avoid endless retries.
-            pushSent = true;
-            logger.LogDebug(
-                "DispatchNotificationChannelsJob: no FCM token for user {UserId}, skipping push",
-                row.RecipientId);
         }
 
         if (emailPending)
         {
+            emailAttempted = true;
+
             try
             {
                 await emailSender.SendNotificationEmailAsync(row.RecipientEmail, row.Title, row.Message, ct)
                     .ConfigureAwait(false);
-                emailSent = true;
+
+                await MarkEmailDispatchedAsync(notificationId, ct).ConfigureAwait(false);
+                emailSucceeded = true;
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Email failed for notification {Id}, user {UserId}", notificationId, row.RecipientId);
-                throw;
+                emailFailure = ex;
+                logger.LogError(
+                    ex,
+                    "Email failed for notification {Id}, user {UserId}",
+                    notificationId,
+                    row.RecipientId);
             }
         }
 
-        if (pushSent || emailSent)
-        {
-            var tracked = await db.Notifications
-                .FirstOrDefaultAsync(n => n.Id == notificationId, ct)
-                .ConfigureAwait(false);
-
-            if (tracked is null)
-                return;
-
-            if (pushSent && tracked.PushDispatchedAt is null)
-                tracked.MarkPushDispatched();
-
-            if (emailSent && tracked.EmailDispatchedAt is null)
-                tracked.MarkEmailDispatched();
-
-            await db.SaveChangesAsync(ct).ConfigureAwait(false);
-        }
-
         logger.LogInformation(
-            "DispatchNotificationChannelsJob: notification {Id} push={PushSent} email={EmailSent}",
-            notificationId, pushSent, emailSent);
+            "DispatchNotificationChannelsJob: notification {Id} pushAttempted={PushAttempted} pushOk={PushOk} emailAttempted={EmailAttempted} emailOk={EmailOk}",
+            notificationId,
+            pushAttempted,
+            pushSucceeded,
+            emailAttempted,
+            emailSucceeded);
+
+        if (pushFailure is not null && emailFailure is not null)
+            throw new AggregateException("Notification channel dispatch failed", pushFailure, emailFailure);
+
+        if (pushFailure is not null)
+            throw pushFailure;
+
+        if (emailFailure is not null)
+            throw emailFailure;
+    }
+
+    private async Task MarkPushDispatchedAsync(Guid notificationId, CancellationToken ct)
+    {
+        var tracked = await db.Notifications
+            .FirstOrDefaultAsync(n => n.Id == notificationId, ct)
+            .ConfigureAwait(false);
+
+        if (tracked is null || tracked.PushDispatchedAt is not null)
+            return;
+
+        tracked.MarkPushDispatched();
+        await db.SaveChangesAsync(ct).ConfigureAwait(false);
+    }
+
+    private async Task MarkEmailDispatchedAsync(Guid notificationId, CancellationToken ct)
+    {
+        var tracked = await db.Notifications
+            .FirstOrDefaultAsync(n => n.Id == notificationId, ct)
+            .ConfigureAwait(false);
+
+        if (tracked is null || tracked.EmailDispatchedAt is not null)
+            return;
+
+        tracked.MarkEmailDispatched();
+        await db.SaveChangesAsync(ct).ConfigureAwait(false);
     }
 
     private static bool ShouldSendPush(NotificationChannel channel, DateTime? dispatchedAt)
