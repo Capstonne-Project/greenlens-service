@@ -24,6 +24,7 @@ using Greenlens.Application.Features.Reports.GetOfficerKpi;
 using Greenlens.Application.Features.Reports.GetOfficerQueue;
 using Greenlens.Application.Features.Reports.GetReportProgress;
 using Greenlens.Application.Features.Reports.GetReportProgressBoard;
+using Greenlens.Application.Features.Reports.GetViolationRecurrenceCandidates;
 using Greenlens.Application.Features.Reports.GetViolationRecurrenceComparison;
 using Greenlens.Application.Features.Reports.GetReportById;
 using Greenlens.Application.Features.Reports.GetReportHistory;
@@ -516,6 +517,19 @@ public sealed class ReportsController(
     public async Task<IActionResult> DismissDuplicateAsync(
         [FromRoute] Guid id, CancellationToken ct)
         => (await sender.Send(new DismissDuplicateCommand(id), ct)).ToHttpNoContent("Đã bác bỏ cờ nghi ngờ trùng lặp.");
+
+    [HttpGet("violation-recurrence-candidates")]
+    [Authorize(Roles = "LEO,DEO,Admin")]
+    [Tags("📌 LEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO/DEO] Danh sách báo cáo nghi ngờ tái phạm vi phạm",
+        Description = "BR-REP-034: Trả về các báo cáo bị gắn cờ isSuspectedViolationRecurrence " +
+            "(cùng category, ≤50m, báo cáo trước đã Closed trong 30 ngày) kèm thông tin báo cáo Closed trước đó " +
+            "để LEO so sánh và quyết định mở hồ sơ thanh tra hoặc bác cờ.")]
+    [SwaggerResponse(200, "Danh sách nghi ngờ tái phạm", typeof(ApiResponse<GetViolationRecurrenceCandidatesResponse>))]
+    public async Task<IActionResult> GetViolationRecurrenceCandidatesAsync(
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
+        => (await sender.Send(new GetViolationRecurrenceCandidatesQuery(page, pageSize), ct)).ToHttp();
 
     [HttpGet("{id:guid}/violation-recurrence-comparison")]
     [Authorize(Roles = "LEO,DEO,Admin")]
