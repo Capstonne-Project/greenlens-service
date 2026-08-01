@@ -118,10 +118,21 @@ public static class DependencyInjection
         services.AddScoped<IGoogleAuthService, GoogleAuthService>();
 
         // ── Email ────────────────────────────────────────────
-        services.AddScoped<IEmailSender, SmtpEmailSender>();
+        services.AddOptions<SmtpOptions>()
+            .Bind(configuration.GetSection("Smtp"))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        var smtpEnabled = configuration.GetValue("Smtp:Enabled", true);
+        if (smtpEnabled)
+            services.AddScoped<IEmailSender, SmtpEmailSender>();
+        else
+            services.AddScoped<IEmailSender, NoOpEmailSender>();
 
         // ── Notifications (BR-NTF-001..004) ───────────────
         services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<INotificationDispatchScheduler, NotificationDispatchScheduler>();
+        services.AddScoped<IAuthEmailScheduler, AuthEmailScheduler>();
         services.AddScoped<IPushNotificationSender, FcmPushNotificationSender>();
         services.AddScoped<IOfficerRecipientQuery, OfficerRecipientQuery>();
         services.AddScoped<ITeamMemberRecipientQuery, TeamMemberRecipientQuery>();

@@ -26,6 +26,12 @@ public sealed class Notification : AuditableEntity
     public bool IsRead { get; private set; }
     public DateTime? ReadAt { get; private set; }
 
+    /// <summary>UTC timestamp when FCM push was successfully dispatched (idempotency for Hangfire retry).</summary>
+    public DateTime? PushDispatchedAt { get; private set; }
+
+    /// <summary>UTC timestamp when SMTP email was successfully dispatched (idempotency for Hangfire retry).</summary>
+    public DateTime? EmailDispatchedAt { get; private set; }
+
     // ── Navigation ──
     public User? Recipient { get; private set; }
 
@@ -64,4 +70,8 @@ public sealed class Notification : AuditableEntity
         IsRead = true;
         ReadAt = DateTime.UtcNow;
     }
+
+    public void MarkPushDispatched() => PushDispatchedAt = DateTime.UtcNow;
+
+    public void MarkEmailDispatched() => EmailDispatchedAt = DateTime.UtcNow;
 }

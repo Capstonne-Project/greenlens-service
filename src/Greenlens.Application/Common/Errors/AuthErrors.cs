@@ -112,5 +112,11 @@ public static partial class Errors
             "FORBIDDEN",
             "Bạn không có quyền thực hiện hành động này.",
             ErrorType.Forbidden);
+
+        /// <summary>Hangfire enqueue failed after user/OTP persisted — client should call request-otp.</summary>
+        public static Error EmailDispatchUnavailable => new(
+            "EMAIL_DISPATCH_UNAVAILABLE",
+            "Tạm thời không thể gửi email. Vui lòng thử 'Gửi lại mã OTP' sau vài phút.",
+            ErrorType.Unexpected);
     }
 }
