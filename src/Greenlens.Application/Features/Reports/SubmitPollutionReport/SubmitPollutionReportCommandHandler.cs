@@ -45,6 +45,7 @@ public sealed class SubmitPollutionReportCommandHandler(
     IFileStorageService fileStorage,
     IProfanityFilter profanityFilter,
     IReportSubmissionRateLimiter rateLimiter,
+    IIdempotencyContext idempotencyContext,
     IImageExifAnalyzer exifAnalyzer,
     IImageBytesFetcher imageBytesFetcher,
     IDateTimeProvider clock,
@@ -77,12 +78,15 @@ public sealed class SubmitPollutionReportCommandHandler(
         }
 
         // ── BR-REP-010: sliding-window submit quota (5/h, 20/24h) ─────────
-        var rateLimit = await rateLimiter.TryAcquireAsync(currentUser.UserId, cancellationToken)
-            .ConfigureAwait(false);
-        if (!rateLimit.IsAllowed)
+        if (!idempotencyContext.IsReplay)
         {
-            logger.LogWarning("Rate limit exceeded for user {UserId}", currentUser.UserId);
-            return Errors.Reports.RateLimitExceeded(rateLimit.RetryAfterMinutes);
+            var rateLimit = await rateLimiter.TryAcquireAsync(currentUser.UserId, cancellationToken)
+                .ConfigureAwait(false);
+            if (!rateLimit.IsAllowed)
+            {
+                logger.LogWarning("Rate limit exceeded for user {UserId}", currentUser.UserId);
+                return Errors.Reports.RateLimitExceeded(rateLimit.RetryAfterMinutes);
+            }
         }
 
         // ── BR-REP-004: profanity filter when description provided ─────────

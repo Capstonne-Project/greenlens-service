@@ -200,11 +200,15 @@ public static class DependencyInjection
             services.AddSingleton<IConnectionMultiplexer>(_ =>
                 ConnectionMultiplexer.Connect(redisConnection));
             services.AddSingleton<IReportSubmissionRateLimiter, RateLimiting.RedisReportSubmissionRateLimiter>();
+            services.AddSingleton<IIdempotencyStore, Idempotency.RedisIdempotencyStore>();
         }
         else
         {
             services.AddSingleton<IReportSubmissionRateLimiter, RateLimiting.InMemoryReportSubmissionRateLimiter>();
+            services.AddSingleton<IIdempotencyStore, Idempotency.InMemoryIdempotencyStore>();
         }
+
+        services.AddScoped<IIdempotencyContext, Idempotency.IdempotencyContext>();
 
         // ── Comment moderation (BR-CMT-003 phase 1, BR-REP-004) ──
         services.AddSingleton<BlockedWordCache>();

@@ -1,3 +1,4 @@
+using Greenlens.Api.Attributes;
 using Greenlens.Api.Extensions;
 using Greenlens.Application.Common.Models;
 using Greenlens.Application.Features.Comments.AddComment;
@@ -35,6 +36,7 @@ public sealed class CommentsController(ISender sender) : ControllerBase
         => (await sender.Send(new GetReportCommentsQuery(reportId, page, pageSize), ct)).ToHttp();
 
     [HttpPost("reports/{reportId:guid}/comments")]
+    [SupportsIdempotency]
     [SwaggerOperation(
         Summary = "[Auth] Thêm bình luận / trả lời",
         Description = "1–500 ký tự, tối đa 2 ảnh. parentCommentId = trả lời (TikTok-style, 1 cấp). " +

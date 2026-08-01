@@ -1,3 +1,4 @@
+using Greenlens.Api.Attributes;
 using Greenlens.Api.Extensions;
 using Greenlens.Application.Common.Models;
 using Greenlens.Application.Features.Organization.AddCompanyTeamMember;
@@ -104,6 +105,7 @@ public sealed class TeamsController(ISender sender) : ControllerBase
         => (await sender.Send(new GetMyTaskDetailQuery(reportId), ct)).ToHttp();
 
     [HttpPut("my-tasks/{reportId:guid}/accept")]
+    [SupportsIdempotency]
     [Authorize(Roles = "Cleaner,CompanyStaff,Inspector,Admin")]
     [Tags("🧹 Cleaner Dashboard")]
     [SwaggerOperation(
@@ -135,6 +137,7 @@ public sealed class TeamsController(ISender sender) : ControllerBase
     // ═══════════════════════════════════════════
 
     [HttpPost("my-tasks/{reportId:guid}/check-in")]
+    [SupportsIdempotency]
     [Authorize(Roles = "Cleaner,CompanyStaff")]
     [Tags("🧹 Cleaner Dashboard")]
     [SwaggerOperation(

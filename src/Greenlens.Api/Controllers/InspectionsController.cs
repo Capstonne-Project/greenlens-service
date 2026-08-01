@@ -1,4 +1,5 @@
 using Greenlens.Application.Common;
+using Greenlens.Api.Attributes;
 using Greenlens.Api.Extensions;
 using Greenlens.Application.Common.Models;
 using Greenlens.Application.Features.Inspection.AcceptInspectionTask;
@@ -120,6 +121,7 @@ public sealed class InspectionsController(ISender sender) : ControllerBase
     // ═══════════════════════════════════════════
 
     [HttpPost("{id:guid}/accept")]
+    [SupportsIdempotency]
     [Authorize(Roles = "Inspector")]
     [Tags("🔍 Inspection Dashboard")]
     [SwaggerOperation(
@@ -132,6 +134,7 @@ public sealed class InspectionsController(ISender sender) : ControllerBase
             .ToHttpNoContent("Đã nhận task điều tra.");
 
     [HttpPost("{id:guid}/confirm-arrival")]
+    [SupportsIdempotency]
     [Authorize(Roles = "Inspector")]
     [Tags("🔍 Inspection Dashboard")]
     [SwaggerOperation(
@@ -162,6 +165,7 @@ public sealed class InspectionsController(ISender sender) : ControllerBase
             .ToHttpNoContent("Đã cập nhật checklist.");
 
     [HttpPut("{id:guid}/submit-field-report")]
+    [SupportsIdempotency]
     [Authorize(Roles = "Inspector")]
     [Tags("🔍 Inspection Dashboard")]
     [SwaggerOperation(

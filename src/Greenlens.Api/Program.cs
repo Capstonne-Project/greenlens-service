@@ -37,6 +37,9 @@ builder.Services.AddCors(options =>
     });
 });
 
+// ── Idempotency (Idempotency-Key header replay) ─────
+builder.Services.AddGreenlensIdempotency();
+
 // ── Controllers ──────────────────────────────────────
 builder.Services.AddControllers(options =>
     {

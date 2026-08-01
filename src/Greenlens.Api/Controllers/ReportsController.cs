@@ -1,3 +1,4 @@
+using Greenlens.Api.Attributes;
 using Greenlens.Api.Extensions;
 using Greenlens.Application.Common.Models;
 using Greenlens.Application.Features.Reports.AnalyzeReportImage;
@@ -140,6 +141,7 @@ public sealed class ReportsController(
     // ═══════════════════════════════════════════
 
     [HttpPost]
+    [SupportsIdempotency]
     [Authorize(Roles = "Citizen")]
     [Tags("📋 Reports — Citizen Flow")]
     [SwaggerOperation(
@@ -198,6 +200,7 @@ public sealed class ReportsController(
     // ═══════════════════════════════════════════
 
     [HttpPut("{id:guid}/verify")]
+    [SupportsIdempotency]
     [Authorize(Roles = "LEO,Admin")]
     [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(Summary = "[LEO] Xác minh báo cáo", Description = "LEO kiểm tra thông tin và xác minh báo cáo. Có thể override severity và category nếu cần. Chuyển status Submitted → Verified.")]
@@ -220,6 +223,7 @@ public sealed class ReportsController(
         => (await sender.Send(new RejectReportCommand(id, request.Reason), ct)).ToHttpNoContent("Đã từ chối báo cáo.");
 
     [HttpPost("{id:guid}/assign")]
+    [SupportsIdempotency]
     [Authorize(Roles = "LEO,Admin")]
     [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(Summary = "[LEO] Phân công team xử lý", Description = "LEO phân công 1 hoặc nhiều team cùng xử lý. Dispatch theo nhu cầu (không ràng buộc team type). Chuyển status Verified → InProgress.")]
@@ -265,6 +269,7 @@ public sealed class ReportsController(
     // ═══════════════════════════════════════════
 
     [HttpPost("{id:guid}/dispatch-to-company")]
+    [SupportsIdempotency]
     [Authorize(Roles = "LEO,Admin")]
     [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(
@@ -278,6 +283,7 @@ public sealed class ReportsController(
             .ToHttpNoContent("Đã điều phối task đến công ty thành công.");
 
     [HttpPost("{id:guid}/assign-company-team")]
+    [SupportsIdempotency]
     [Authorize(Roles = "CompanyManager,Admin")]
     [Tags("🏢 Company Dashboard")]
     [SwaggerOperation(
@@ -433,6 +439,7 @@ public sealed class ReportsController(
             request.ImageUrls ?? []), ct)).ToHttp();
 
     [HttpPut("{id:guid}/resolve")]
+    [SupportsIdempotency]
     [Authorize(Roles = "Cleaner,CompanyStaff,Admin")]
     [Tags("🧹 Cleaner Dashboard")]
     [SwaggerOperation(Summary = "[Cleaner/CompanyStaff] Hoàn thành phần việc của team", Description = "Cleanup / company team leader đánh dấu phần việc đã hoàn thành. Yêu cầu ≥ 2 ảnh after. Khi tất cả team đều completed → report chuyển InProgress → Resolved.")]
@@ -580,6 +587,7 @@ public sealed class ReportsController(
     // ═══════════════════════════════════════════
 
     [HttpPut("{id:guid}/close")]
+    [SupportsIdempotency]
     [Authorize]
     [Tags("📋 Reports — Citizen Flow")]
     [SwaggerOperation(Summary = "[Citizen/Auto] Đóng báo cáo", Description = "Citizen xác nhận hài lòng hoặc hệ thống tự động đóng sau 7 ngày. Chuyển status Resolved → Closed.")]
@@ -589,6 +597,7 @@ public sealed class ReportsController(
         => (await sender.Send(new CloseReportCommand(id), ct)).ToHttpNoContent("Đã đóng báo cáo.");
 
     [HttpPost("{id:guid}/reopen-requests")]
+    [SupportsIdempotency]
     [Authorize]
     [Tags("📋 Reports — Citizen Flow")]
     [SwaggerOperation(
@@ -694,6 +703,7 @@ public sealed class ReportsController(
     // ═══════════════════════════════════════════
 
     [HttpPost("{id:guid}/inspections")]
+    [SupportsIdempotency]
     [Authorize(Roles = "LEO,Admin")]
     [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(
@@ -734,6 +744,7 @@ public sealed class ReportsController(
     // ═══════════════════════════════════════════
 
     [HttpPost("{id:guid}/rate")]
+    [SupportsIdempotency]
     [Authorize]
     [Tags("📋 Reports — Citizen Flow")]
     [SwaggerOperation(
