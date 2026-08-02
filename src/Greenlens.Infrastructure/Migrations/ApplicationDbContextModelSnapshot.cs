@@ -140,6 +140,10 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("required_report_count");
 
+                    b.Property<int?>("RequiredStreakDays")
+                        .HasColumnType("integer")
+                        .HasColumnName("required_streak_days");
+
                     b.HasKey("Id")
                         .HasName("pk_badges");
 
@@ -207,7 +211,8 @@ namespace Greenlens.Infrastructure.Migrations
                             IconUrl = "badges/icons/streak_7d.png",
                             IsActive = true,
                             NameEn = "7-Day Streak",
-                            NameVi = "Bền Bỉ 7 Ngày"
+                            NameVi = "Bền Bỉ 7 Ngày",
+                            RequiredStreakDays = 7
                         },
                         new
                         {
@@ -218,7 +223,8 @@ namespace Greenlens.Infrastructure.Migrations
                             IconUrl = "badges/icons/streak_30d.png",
                             IsActive = true,
                             NameEn = "30-Day Streak",
-                            NameVi = "Kiên Trì 30 Ngày"
+                            NameVi = "Kiên Trì 30 Ngày",
+                            RequiredStreakDays = 30
                         },
                         new
                         {
@@ -759,6 +765,11 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasColumnType("numeric")
                         .HasColumnName("check_in_longitude");
 
+                    b.Property<string>("CheckInOverrideReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("check_in_override_reason");
+
                     b.Property<DateTime?>("CheckedInAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("checked_in_at");
@@ -766,6 +777,10 @@ namespace Greenlens.Infrastructure.Migrations
                     b.Property<Guid>("EventId")
                         .HasColumnType("uuid")
                         .HasColumnName("event_id");
+
+                    b.Property<bool>("IsCheckInOverridden")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_check_in_overridden");
 
                     b.Property<DateTime>("JoinedAt")
                         .HasColumnType("timestamp with time zone")
