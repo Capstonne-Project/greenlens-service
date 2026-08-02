@@ -5,4 +5,5 @@ internal sealed record BadgeEligibilityMetrics(
     int VerifiedReportCount,
     int DuplicateReportCount,
     bool HasCommunityVoice,
-    int MaxSubmitStreakDays);
+    int MaxSubmitStreakDays,
+    int CompletedCleanupCount);

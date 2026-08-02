@@ -4,7 +4,6 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Gamification.CheckBadges;
@@ -23,6 +22,7 @@ public sealed class CheckBadgesCommandHandler(
     IBadgeRepository badgeRepo,
     IUserBadgeRepository userBadgeRepo,
     IReportRepository reportRepo,
+    IApplicationDbContext db,
     INotificationService notificationService,
     IUnitOfWork unitOfWork,
     IChangeTrackerCleaner changeTrackerCleaner,
@@ -36,12 +36,9 @@ public sealed class CheckBadgesCommandHandler(
 
         changeTrackerCleaner.ClearTrackedEntities();
 
-        var userPoints = await userPointsRepo
-            .GetByUserIdAsync(request.UserId, ct)
+        var (totalPoints, metrics) = await BadgeMetricsProvider
+            .LoadAsync(request.UserId, userPointsRepo, reportRepo, db, ct)
             .ConfigureAwait(false);
-
-        var totalPoints = userPoints?.TotalPoints ?? 0;
-        var metrics = await LoadMetricsAsync(request.UserId, ct).ConfigureAwait(false);
 
         var allBadges = await badgeRepo.GetAllActiveAsync(ct).ConfigureAwait(false);
         var earnedBadgeIds = (await userBadgeRepo
@@ -95,37 +92,5 @@ public sealed class CheckBadgesCommandHandler(
         logger.LogInformation("Check badges completed: {NewlyAwarded}", newlyAwardedCodes);
 
         return new CheckBadgesResponse(newlyAwardedCodes);
-    }
-
-    private async Task<BadgeEligibilityMetrics> LoadMetricsAsync(Guid userId, CancellationToken ct)
-    {
-        var userReports = reportRepo.QueryAsNoTracking()
-            .Where(r => r.ReporterId == userId);
-
-        var verifiedReportCount = await userReports
-            .CountAsync(r => r.Status != ReportStatus.Rejected
-                             && r.Status != ReportStatus.Submitted, ct)
-            .ConfigureAwait(false);
-
-        var duplicateReportCount = await userReports
-            .CountAsync(r => r.Status == ReportStatus.Duplicate, ct)
-            .ConfigureAwait(false);
-
-        var hasCommunityVoice = await userReports
-            .AnyAsync(r => r.ReporterCount >= 10, ct)
-            .ConfigureAwait(false);
-
-        var submitTimestamps = await userReports
-            .Select(r => r.CreatedAt)
-            .ToListAsync(ct)
-            .ConfigureAwait(false);
-
-        var maxSubmitStreakDays = ReportStreakCalculator.ComputeMaxConsecutiveDays(submitTimestamps);
-
-        return new BadgeEligibilityMetrics(
-            verifiedReportCount,
-            duplicateReportCount,
-            hasCommunityVoice,
-            maxSubmitStreakDays);
     }
 }
