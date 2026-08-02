@@ -118,13 +118,17 @@ public sealed class CommunityCleanupEvent : SoftDeletableEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    /// <summary>BR-CMU-008: Leader updates progress mid-cleanup.</summary>
+    /// <summary>BR-CMU-008: Leader updates progress mid-cleanup. Percent can only increase, never decrease.</summary>
     public void UpdateProgress(int percent, string? note)
     {
         EnsureStatus(CommunityCleanupStatus.InProgress);
 
         if (percent is < 0 or > 100)
             throw new ArgumentOutOfRangeException(nameof(percent), "Percent must be 0-100.");
+
+        if (percent < ProgressPercent)
+            throw new InvalidOperationException(
+                $"Progress cannot decrease from {ProgressPercent}% to {percent}%.");
 
         ProgressPercent = percent;
         ProgressNote = note;
@@ -149,6 +153,8 @@ public sealed class CommunityCleanupEvent : SoftDeletableEntity
         VerifiedAt = DateTime.UtcNow;
         VerifiedByLeoId = leoId;
         UpdatedAt = DateTime.UtcNow;
+
+        AddDomainEvent(new CommunityCleanupCompletedEvent(Id, ReportId));
     }
 
     /// <summary>BR-CMU-011: LEO rejects, reason ≥ 20 chars (validated by caller). PendingVerification → InProgress.</summary>
