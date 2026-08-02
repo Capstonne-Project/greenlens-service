@@ -1,3 +1,4 @@
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using MediatR;
@@ -11,13 +12,17 @@ public sealed record BadgeCatalogItem(
     Guid BadgeId, string Code, string NameVi, string NameEn,
     string? Description, string? IconUrl,
     bool IsUnlocked, DateTime? AwardedAt,
-    int? RequiredPoints, int? RequiredReportCount,
-    bool IsFeatured);
+    int? RequiredPoints, int? RequiredReportCount, int? RequiredStreakDays,
+    bool IsFeatured,
+    int? CurrentProgressValue);
 
 public sealed class GetBadgeCatalogQueryHandler(
     IBadgeRepository badgeRepo,
     IUserBadgeRepository userBadgeRepo,
-    IUserRepository userRepo)
+    IUserRepository userRepo,
+    IUserPointsRepository userPointsRepo,
+    IReportRepository reportRepo,
+    IApplicationDbContext db)
     : IRequestHandler<GetBadgeCatalogQuery, Result<IReadOnlyList<BadgeCatalogItem>>>
 {
     public async Task<Result<IReadOnlyList<BadgeCatalogItem>>> Handle(
@@ -30,13 +35,24 @@ public sealed class GetBadgeCatalogQueryHandler(
         var user = await userRepo.GetByIdAsync(request.UserId, ct).ConfigureAwait(false);
         var featuredBadgeId = user?.FeaturedBadgeId;
 
+        var (totalPoints, metrics) = await BadgeMetricsProvider
+            .LoadAsync(request.UserId, userPointsRepo, reportRepo, db, ct)
+            .ConfigureAwait(false);
+
         var items = allBadges
-            .Select(b => new BadgeCatalogItem(
-                b.Id, b.Code, b.NameVi, b.NameEn, b.Description, b.IconUrl,
-                IsUnlocked: ownedByBadgeId.ContainsKey(b.Id),
-                AwardedAt: ownedByBadgeId.TryGetValue(b.Id, out var awardedAt) ? awardedAt : null,
-                b.RequiredPoints, b.RequiredReportCount,
-                IsFeatured: featuredBadgeId == b.Id))
+            .Select(b =>
+            {
+                var isUnlocked = ownedByBadgeId.ContainsKey(b.Id);
+                return new BadgeCatalogItem(
+                    b.Id, b.Code, b.NameVi, b.NameEn, b.Description, b.IconUrl,
+                    IsUnlocked: isUnlocked,
+                    AwardedAt: ownedByBadgeId.TryGetValue(b.Id, out var awardedAt) ? awardedAt : null,
+                    b.RequiredPoints, b.RequiredReportCount, b.RequiredStreakDays,
+                    IsFeatured: featuredBadgeId == b.Id,
+                    CurrentProgressValue: isUnlocked
+                        ? null
+                        : BadgeEligibilityEvaluator.GetCurrentProgressValue(b, totalPoints, metrics));
+            })
             .OrderByDescending(i => i.IsUnlocked)
             .ThenBy(i => i.RequiredPoints ?? i.RequiredReportCount ?? int.MaxValue)
             .ToList();
