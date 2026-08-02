@@ -18,6 +18,7 @@ using Greenlens.Application.Features.Reports.DismissDuplicate;
 using Greenlens.Application.Features.Reports.DismissViolationRecurrence;
 using Greenlens.Application.Features.Reports.ExportReports;
 using Greenlens.Application.Features.Reports.FlagReport;
+using Greenlens.Application.Features.Reports.GetDuplicateCandidateDetail;
 using Greenlens.Application.Features.Reports.GetDuplicateCandidates;
 using Greenlens.Application.Features.Reports.GetMyDrafts;
 using Greenlens.Application.Features.Reports.GetMyReports;
@@ -495,6 +496,20 @@ public sealed class ReportsController(
     public async Task<IActionResult> GetDuplicateCandidatesAsync(
         [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
         => (await sender.Send(new GetDuplicateCandidatesQuery(page, pageSize), ct)).ToHttp();
+
+    [HttpGet("{id:guid}/duplicate-candidate-detail")]
+    [Authorize(Roles = "LEO,DEO,Admin")]
+    [Tags("📌 LEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO/DEO] Chi tiết so sánh báo cáo nghi ngờ trùng lặp",
+        Description = "BR-REP-031/BR-REP-032: Side-by-side chi tiết báo cáo hiện tại và báo cáo gốc " +
+            "(kèm toàn bộ media, khoảng cách, chênh lệch thời gian) để LEO quyết định gộp/bác bỏ.")]
+    [SwaggerResponse(200, "Chi tiết so sánh", typeof(ApiResponse<DuplicateCandidateDetailResponse>))]
+    [SwaggerResponse(404, "Không tìm thấy báo cáo hoặc báo cáo gốc", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Báo cáo không có cờ nghi ngờ trùng lặp", typeof(ApiResponse))]
+    public async Task<IActionResult> GetDuplicateCandidateDetailAsync(
+        [FromRoute] Guid id, CancellationToken ct)
+        => (await sender.Send(new GetDuplicateCandidateDetailQuery(id), ct)).ToHttp();
 
     [HttpPost("{id:guid}/confirm-duplicate")]
     [Authorize(Roles = "LEO,DEO,Admin")]
