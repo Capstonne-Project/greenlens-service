@@ -115,18 +115,23 @@ public sealed class CreateCommunityCleanupCommandHandler(
             "LEO {LeoId} opened community cleanup {EventId} on report {ReportId} with Leader {LeaderUserId}",
             currentUser.UserId, ev.Id, report.Id, request.LeaderUserId);
 
-        var thumbnailUrl = await reportMedia.QueryAsNoTracking()
+        var originalImages = await reportMedia.QueryAsNoTracking()
             .Where(m => m.ReportId == report.Id && m.Type == MediaType.Image)
             .OrderBy(m => m.UploadedAt)
-            .Select(m => m.ThumbnailUrl ?? m.Url)
-            .FirstOrDefaultAsync(ct)
+            .Select(m => new { m.Url, m.ThumbnailUrl })
+            .ToListAsync(ct)
             .ConfigureAwait(false);
+
+        var reportImageUrls = originalImages.Select(m => m.Url).ToList();
+        var thumbnailUrl = originalImages.Count > 0 ? originalImages[0].ThumbnailUrl ?? originalImages[0].Url : null;
 
         return CommunityCleanupMapper.ToDetail(
             ev, report, leaderUser, leaderTeam,
             participantCount: 1,
             mediaSummary: new CommunityCleanupMediaSummaryDto(0, 0, 0),
+            media: new CommunityCleanupMediaDto([], [], []),
             thumbnailUrl: thumbnailUrl,
+            reportImageUrls: reportImageUrls,
             myParticipation: null,
             isLeader: currentUser.UserId == ev.LeaderUserId);
     }
