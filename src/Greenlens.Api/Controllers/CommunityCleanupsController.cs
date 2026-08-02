@@ -11,6 +11,7 @@ using Greenlens.Application.Features.CommunityCleanup.GetCommunityParticipants;
 using Greenlens.Application.Features.CommunityCleanup.GetLedCommunityCleanups;
 using Greenlens.Application.Features.CommunityCleanup.GetMyCommunityCleanups;
 using Greenlens.Application.Features.CommunityCleanup.GetOfficeCommunityQueue;
+using Greenlens.Application.Features.CommunityCleanup.GetOfficeCommunityQueueStats;
 using Greenlens.Application.Features.CommunityCleanup.GetOpenCommunityCleanups;
 using Greenlens.Application.Features.CommunityCleanup.JoinCommunityCleanup;
 using Greenlens.Application.Features.CommunityCleanup.RejectCommunityVerification;
@@ -98,6 +99,13 @@ public sealed class CommunityCleanupsController(ISender sender) : ControllerBase
         [FromQuery] CommunityCleanupStatus? status = null, CancellationToken ct = default)
         => (await sender.Send(new GetOfficeCommunityQueueQuery(page, pageSize, status), ct)).ToHttp();
 
+    [HttpGet("office-queue/stats")]
+    [Authorize(Roles = "LEO,Admin")]
+    [SwaggerOperation(Summary = "[LEO] Thống kê hàng đợi chương trình cộng đồng", Description = "Đếm theo trạng thái + tổng người tham gia + tổng ảnh minh chứng, scoped theo office của LEO.")]
+    [SwaggerResponse(200, "Thống kê", typeof(ApiResponse<CommunityCleanupQueueStatsResponse>))]
+    public async Task<IActionResult> GetOfficeQueueStatsAsync(CancellationToken ct)
+        => (await sender.Send(new GetOfficeCommunityQueueStatsQuery(), ct)).ToHttp();
+
     // ═══════════════════════════════════════════
     // ██  Citizen — Mobile
     // ═══════════════════════════════════════════
@@ -153,12 +161,12 @@ public sealed class CommunityCleanupsController(ISender sender) : ControllerBase
 
     [HttpPost("{eventId:guid}/check-in")]
     [Authorize]
-    [SwaggerOperation(Summary = "[Citizen/Leader] Check-in hiện trường", Description = "GPS ≤ 200m tới điểm tập trung (hoặc vị trí báo cáo).")]
+    [SwaggerOperation(Summary = "[Citizen/Leader] Check-in hiện trường", Description = "GPS ≤ 200m tới điểm tập trung (hoặc vị trí báo cáo). Nếu ngoài 200m, gửi kèm Reason (≥ 20 ký tự) để vẫn được check-in.")]
     [SwaggerResponse(200, "Đã check-in", typeof(ApiResponse))]
-    [SwaggerResponse(422, "Quá xa hiện trường hoặc trạng thái không hợp lệ", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Quá xa hiện trường (chưa có Reason) hoặc trạng thái không hợp lệ", typeof(ApiResponse))]
     public async Task<IActionResult> CheckInAsync(
         [FromRoute] Guid eventId, [FromBody] CheckInCommunityCleanupRequest request, CancellationToken ct)
-        => (await sender.Send(new CheckInCommunityCleanupCommand(eventId, request.Latitude, request.Longitude), ct))
+        => (await sender.Send(new CheckInCommunityCleanupCommand(eventId, request.Latitude, request.Longitude, request.Reason), ct))
             .ToHttpNoContent("Đã check-in thành công.");
 
     // ═══════════════════════════════════════════
@@ -234,7 +242,7 @@ public sealed record CreateCommunityCleanupRequest(
 
 public sealed record CancelCommunityCleanupRequest(string Reason);
 
-public sealed record CheckInCommunityCleanupRequest(decimal Latitude, decimal Longitude);
+public sealed record CheckInCommunityCleanupRequest(decimal Latitude, decimal Longitude, string? Reason = null);
 
 public sealed record CommunityImageUrlsRequest(List<string>? ImageUrls);
 
