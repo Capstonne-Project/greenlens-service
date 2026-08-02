@@ -55,6 +55,8 @@ public sealed class SubmitPollutionReportCommandHandler(
         SubmitPollutionReportCommand request,
         CancellationToken cancellationToken)
     {
+        var swTotal = System.Diagnostics.Stopwatch.StartNew();
+
         if (!currentUser.IsAuthenticated)
         {
             logger.LogWarning("User is not authenticated");
@@ -211,6 +213,7 @@ public sealed class SubmitPollutionReportCommandHandler(
             // Manual flow persists the uploaded image without scheduling AI classification.
             var first = request.Images![0];
             byte[]? manualBytes;
+            var swDownload = System.Diagnostics.Stopwatch.StartNew();
             if (!string.IsNullOrWhiteSpace(first.Key))
             {
                 var stored = await fileStorage.DownloadAsync(
@@ -231,6 +234,10 @@ public sealed class SubmitPollutionReportCommandHandler(
                     .TryFetchAsync(first.Url.Trim(), cancellationToken)
                     .ConfigureAwait(false);
             }
+            swDownload.Stop();
+            logger.LogWarning(
+                "[TIMING] Re-download image from storage took {ElapsedMs}ms (size={Size} bytes)",
+                swDownload.ElapsedMilliseconds, manualBytes?.LongLength ?? 0);
             resolvedImage = new ResolvedImage(
                 Url: first.Url.Trim(),
                 MimeType: first.MimeType.Trim(),
@@ -304,8 +311,11 @@ public sealed class SubmitPollutionReportCommandHandler(
         string? exifWarning = null;
         if (resolvedImage.ImageBytes is { Length: > 0 } bytes)
         {
+            var swExif = System.Diagnostics.Stopwatch.StartNew();
             var submittedAtUtc = clock.UtcNow;
             var exif = exifAnalyzer.Analyze(bytes, submittedAtUtc);
+            swExif.Stop();
+            logger.LogWarning("[TIMING] EXIF analyze took {ElapsedMs}ms", swExif.ElapsedMilliseconds);
 
             if (!string.IsNullOrEmpty(exif.ExifJson))
                 primaryMedia.SetExifData(exif.ExifJson);
@@ -376,6 +386,7 @@ public sealed class SubmitPollutionReportCommandHandler(
 
         report.RaiseSubmittedForVerification();
 
+        var swSave = System.Diagnostics.Stopwatch.StartNew();
         try
         {
             await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -387,10 +398,15 @@ public sealed class SubmitPollutionReportCommandHandler(
                 return mapped;
             throw;
         }
+        swSave.Stop();
+        logger.LogWarning("[TIMING] SaveChangesAsync took {ElapsedMs}ms", swSave.ElapsedMilliseconds);
 
         logger.LogInformation(
             "Report {ReportCode} submitted by {ReporterId}, routed to office {OfficeId} / department {DepartmentId}",
             report.Code, reporterId, report.AssignedOfficeId, report.AssignedDepartmentId);
+
+        swTotal.Stop();
+        logger.LogWarning("[TIMING] Total SubmitPollutionReport handler took {ElapsedMs}ms", swTotal.ElapsedMilliseconds);
 
         // ── Cleanup temp after successful save (AI flow only) ───────────────
         if (resolvedImage.IsAiFlow)
