@@ -8,6 +8,7 @@ using Greenlens.Application.Features.Inspection.CloseInspection;
 using Greenlens.Application.Features.Inspection.CloseNoViolation;
 using Greenlens.Application.Features.Inspection.ConfirmArrival;
 using Greenlens.Application.Features.Inspection.DeclineInspection;
+using Greenlens.Application.Features.Inspection.GetOfficerInspectionQueue;
 using Greenlens.Application.Features.Inspection.GetInspectionQueue;
 using Greenlens.Application.Features.Inspection.GetInspectionReportById;
 using Greenlens.Application.Features.Inspection.GetInspectionTeamKpi;
@@ -20,6 +21,7 @@ using Greenlens.Application.Features.Inspection.UpdateInspectionChecklist;
 using Greenlens.Application.Features.Inspection.UpdateInspectionDetails;
 using Greenlens.Application.Features.Inspection.UploadInspectionEvidence;
 using Greenlens.Application.Features.Reports.GetOfficerKpi;
+using Greenlens.Application.Features.Reports.GetOfficerQueue;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -52,6 +54,41 @@ public sealed class InspectionsController(ISender sender) : ControllerBase
         [FromQuery] InspectionStatus? status = null,
         CancellationToken ct = default)
         => (await sender.Send(new GetInspectionQueueQuery(page, pageSize, status), ct)).ToHttp();
+
+    [HttpGet("officer-queue")]
+    [Authorize(Roles = "LEO,DEO,Admin")]
+    [Tags("📌 LEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO/DEO] Hàng đợi hồ sơ xử phạt",
+        Description = "Danh sách InspectionReport trong phạm vi phường (LEO) hoặc sở (DEO). " +
+            "Hỗ trợ lọc status, team, chưa gán team, SLA breach, khoảng ngày, tìm kiếm (mã báo cáo, địa chỉ, tên đối tượng). " +
+            "Sắp xếp mặc định: createdAt desc.")]
+    [SwaggerResponse(200, "Danh sách hồ sơ xử phạt", typeof(ApiResponse<GetOfficerInspectionQueueResponse>))]
+    public async Task<IActionResult> GetOfficerQueueAsync(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] InspectionStatus? status = null,
+        [FromQuery] Guid? assignedTeamId = null,
+        [FromQuery] bool? unassignedOnly = null,
+        [FromQuery] bool? slaBreached = null,
+        [FromQuery] DateTime? fromDate = null,
+        [FromQuery] DateTime? toDate = null,
+        [FromQuery] string? search = null,
+        [FromQuery] OfficerInspectionQueueSortBy sortBy = OfficerInspectionQueueSortBy.CreatedAt,
+        [FromQuery] SortDirection sortDir = SortDirection.Desc,
+        CancellationToken ct = default)
+        => (await sender.Send(new GetOfficerInspectionQueueQuery(
+            page,
+            pageSize,
+            status,
+            assignedTeamId,
+            unassignedOnly,
+            slaBreached,
+            fromDate,
+            toDate,
+            search,
+            sortBy,
+            sortDir), ct)).ToHttp();
 
     // ═══════════════════════════════════════════
     // ██  INSPECTION DETAIL

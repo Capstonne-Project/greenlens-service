@@ -72,6 +72,40 @@ internal static class NotificationPlaceholders
             ["team_name"] = teamName
         };
 
+    internal static Dictionary<string, string> ForInspectionTaskAssigned(string reportCode, string teamName) =>
+        new(StringComparer.Ordinal)
+        {
+            ["report_code"] = reportCode,
+            ["team_name"] = teamName
+        };
+
+    internal static Dictionary<string, string> ForInspectionTaskDeclined(
+        string reportCode,
+        string declineReason) =>
+        new(StringComparer.Ordinal)
+        {
+            ["report_code"] = reportCode,
+            ["decline_reason"] = declineReason
+        };
+
+    internal static Dictionary<string, string> ForInspectionClosedNoViolation(
+        string reportCode,
+        string reason) =>
+        new(StringComparer.Ordinal)
+        {
+            ["report_code"] = reportCode,
+            ["reason"] = reason
+        };
+
+    internal static Dictionary<string, string> ForPenaltyPaymentOverdue(
+        string reportCode,
+        string decisionNumber) =>
+        new(StringComparer.Ordinal)
+        {
+            ["report_code"] = reportCode,
+            ["decision_number"] = decisionNumber
+        };
+
     internal static Dictionary<string, string> ForReportStatus(string reportCode, ReportStatus status) =>
         ForReportStatus(reportCode, NotificationVietnameseLabels.FormatReportStatus(status));
 

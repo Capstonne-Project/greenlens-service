@@ -118,6 +118,10 @@ internal sealed class GetMyNotificationsQueryHandler(
         NotificationType.SlaVerificationEscalatedDeo or
         NotificationType.SlaResolutionBreached or
         NotificationType.SlaInspectionBreached or
+        NotificationType.InspectionTaskAssigned or
+        NotificationType.InspectionTaskDeclined or
+        NotificationType.InspectionClosedNoViolation or
+        NotificationType.PenaltyPaymentOverdue or
         NotificationType.CleanupProgressStale or
         NotificationType.CleanupTaskAssigned or
         NotificationType.CompanyReportDispatched or

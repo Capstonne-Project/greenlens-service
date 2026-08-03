@@ -17,6 +17,18 @@ internal sealed class OfficerRecipientQuery(ApplicationDbContext db) : IOfficerR
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
+    public async Task<IReadOnlyList<Guid>> GetDeoIdsByDepartmentAsync(
+        Guid departmentId,
+        CancellationToken ct = default)
+        => await db.Users
+            .AsNoTracking()
+            .Where(u => u.Role == UserRole.DEO
+                        && u.DepartmentId == departmentId
+                        && !u.IsBanned)
+            .Select(u => u.Id)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
     public async Task<Guid?> GetPrimaryOfficerIdAsync(
         Guid? assignedOfficeId,
         Guid? assignedDepartmentId,

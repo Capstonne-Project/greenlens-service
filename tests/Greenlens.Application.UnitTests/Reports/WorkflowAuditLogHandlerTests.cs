@@ -1,6 +1,7 @@
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Features.Inspection.CreateInspectionReport;
+using Greenlens.Application.Features.Notifications;
 using Greenlens.Application.Features.Reports.RejectReport;
 using Greenlens.Application.Features.Reports.VerifyReport;
 using Greenlens.Domain.Entities;
@@ -117,6 +118,7 @@ public sealed class WorkflowAuditLogHandlerTests
             _currentUser,
             _uow,
             _auditLogger,
+            Substitute.For<IInspectionTaskAssignedNotifier>(),
             NullLogger<CreateInspectionReportCommandHandler>.Instance);
 
         var result = await handler.Handle(

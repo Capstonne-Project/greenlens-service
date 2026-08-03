@@ -137,6 +137,9 @@ public static class DependencyInjection
         services.AddScoped<IOfficerRecipientQuery, OfficerRecipientQuery>();
         services.AddScoped<ITeamMemberRecipientQuery, TeamMemberRecipientQuery>();
         services.AddScoped<ICleanupTaskAssignedNotifier, CleanupTaskAssignedNotifier>();
+        services.AddScoped<IInspectionTaskAssignedNotifier, InspectionTaskAssignedNotifier>();
+        services.AddScoped<IInspectionTaskDeclinedNotifier, InspectionTaskDeclinedNotifier>();
+        services.AddScoped<IInspectionClosedNoViolationNotifier, InspectionClosedNoViolationNotifier>();
         services.AddScoped<ICompanyManagerRecipientQuery, CompanyManagerRecipientQuery>();
 
         // ── Firebase Phone Auth ──────────────────────────
@@ -440,6 +443,12 @@ public static class DependencyInjection
             "sla-breach-inspection",
             job => job.ExecuteAsync(),
             "*/30 * * * *"); // every 30 minutes
+
+        // BR-INS-021: Mark penalty payment overdue and notify LEO/DEO
+        RecurringJob.AddOrUpdate<PenaltyPaymentOverdueJob>(
+            "penalty-payment-overdue",
+            job => job.ExecuteAsync(),
+            "0 * * * *"); // every hour
 
         // BR-CLN-004: Flag stale cleanup progress (>24h / >48h)
         RecurringJob.AddOrUpdate<CleanupProgressSlaJob>(
