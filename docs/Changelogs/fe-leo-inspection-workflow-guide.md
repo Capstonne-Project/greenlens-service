@@ -58,7 +58,8 @@ flowchart TB
 ```
 Citizen submit → LEO verify (PUT verify)
     ├─ Cần dọn dẹp → gán Cleanup Team (BR-OFF-011)          [ngoài scope doc này]
-    └─ Có chủ thể vi phạm → LEO lập InspectionReport         [LEO Web — §3]
+    └─ Cần điều tra xử phạt → LEO lập InspectionReport       [LEO Web — §3]
+       (chưa cần biết chủ thể vi phạm — Inspector điền sau)
 ```
 
 **Điều kiện tạo inspection:**
@@ -201,6 +202,16 @@ stateDiagram-v2
 
 ### 5.1. Tạo hồ sơ xử phạt
 
+**LEO làm gì ở bước này?** Chỉ **mở hồ sơ điều tra** (`InspectionReport` status `Draft`) gắn với Report đã Verified — **không** ban hành quyết định xử phạt. Điều phối Inspection Team có thể làm ngay hoặc sau (`assign-team`).
+
+**Chưa biết ai vi phạm?** Đúng và là luồng bình thường. Backend **không bắt buộc** field violator lúc tạo. Thông tin chủ thể vi phạm + biên bản hiện trường do **Inspector Team** điền sau khi khảo sát (`PUT /details`, checklist, evidence) rồi mới `issue-penalty` hoặc `close-no-violation`.
+
+| Ai | Khi nào | Việc |
+|----|---------|------|
+| **LEO** | Tạo hồ sơ | Mở case, (tuỳ chọn) gán team, ghi chú nghi vấn sơ bộ nếu có |
+| **Inspector** | Hiện trường | Checklist, ảnh, `PUT /details` (biên bản), submit-field-report |
+| **Inspector (Team Leader)** | Sau biên bản | `issue-penalty` (QĐ số, mức phạt) hoặc `close-no-violation` |
+
 ```http
 POST /v1/reports/{reportId}/inspections
 Authorization: Bearer {token}
@@ -208,15 +219,36 @@ Idempotency-Key: {uuid}   # optional, khuyến nghị
 Content-Type: application/json
 ```
 
-**Body:**
+**Body — tất cả field đều optional** (validator chỉ giới hạn max length khi có giá trị):
+
+| Field | Bắt buộc | Ý nghĩa |
+|-------|----------|---------|
+| `assignedTeamId` | Không | Gán Inspection Team ngay; `null` = tạo Draft, gán sau qua §5.2 |
+| `violationDescription` | Không | Ghi chú sơ bộ LEO (nghi vấn từ verify), **không** thay biên bản chính thức |
+| `violatorName` | Không | Chỉ prefill nếu LEO đã nghi ngờ (vd. biển hiệu cơ sở); thường để trống |
+| `violatorAddress` | Không | Tương tự |
+| `violatorIdentity` | Không | MST/CCCD — thường Inspector xác định tại hiện trường |
+
+**Payload tối thiểu (phổ biến nhất):**
+
+```json
+{}
+```
+
+**Hoặc tạo + gán team một lần:**
 
 ```json
 {
-  "assignedTeamId": "uuid-or-null",
-  "violationDescription": "Mô tả sơ bộ vi phạm",
-  "violatorName": "Cơ sở / cá nhân",
-  "violatorAddress": "Địa chỉ",
-  "violatorIdentity": "MST hoặc CCCD"
+  "assignedTeamId": "550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
+**Prefill nghi vấn sơ bộ (tuỳ chọn — khi LEO verify đã thấy manh mối):**
+
+```json
+{
+  "assignedTeamId": "550e8400-e29b-41d4-a716-446655440000",
+  "violationDescription": "Nghi xả thải trực tiếp ra kênh — cần đội kiểm tra hiện trường"
 }
 ```
 
