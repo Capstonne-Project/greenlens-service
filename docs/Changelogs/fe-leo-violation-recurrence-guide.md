@@ -2,7 +2,7 @@
 
 > **Audience:** LEO Web App (chính) · DEO Web App (giám sát toàn tỉnh + fallback queue)  
 > **Backend branch:** `develop`  
-> **Related:** Duplicate flag (BR-REP-030) — có thể cùng `true` trên một báo cáo
+> **Related:** Duplicate flag (BR-REP-030) — **loại trừ lẫn nhau**; một báo cáo chỉ có tối đa một trong hai cờ
 
 ## Vai trò
 
@@ -15,7 +15,11 @@ DEO **không** nhận notification cho mọi case — chỉ khi báo cáo rơi q
 
 ## Khi nào cờ bật?
 
-Citizen submit báo cáo mới → BE so sánh với báo cáo **Closed** trong **30 ngày**, **cùng category**, **≤ 50m** → chọn Closed **mới nhất**.
+Citizen submit báo cáo mới → BE so sánh với báo cáo **Closed** trong **30 ngày**, **cùng category**, **≤ 25m** → chọn Closed **mới nhất**.
+
+**Không gắn cờ tái phát** khi:
+- Báo cáo đã được gắn cờ **nghi trùng** (`isPossibleDuplicate`), hoặc
+- Trong **≤ 25m** (cùng category) đang có báo cáo **Verified**, **InProgress** hoặc **Reopened** (đang xử lý / dọn dẹp) — khi đó chỉ áp dụng cờ trùng lặp nếu có anchor active.
 
 ## API xử lý (LEO / DEO / Admin)
 

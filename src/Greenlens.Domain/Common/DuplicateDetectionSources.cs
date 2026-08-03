@@ -5,7 +5,7 @@ namespace Greenlens.Domain.Common;
 /// </summary>
 public static class DuplicateDetectionSources
 {
-    /// <summary>Tier 1: geo ≤50m + same category (inline on submit).</summary>
+    /// <summary>Tier 1: geo ≤25m + same category (inline on submit).</summary>
     public const string Tier1 = "geo_category";
 
     /// <summary>Tier 2: Tier 1 + AI image compare confirmed same scene.</summary>

@@ -178,16 +178,17 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 | BR-REP-019     | Draft max 3, xóa 7d                           |   ✅   | `SaveDraft/`, `GetMyDrafts/`, `DeleteDraft/` + `DraftCleanupJob` (daily 03:00)                  |
 | BR-REP-020/021 | State machine + role transitions              |   ✅   | `Report.cs` state machine methods                                                               |
 | BR-REP-022     | Reject reason ≥ 20 chars                      |   ✅   | `RejectReport/` validator                                                                       |
-| BR-REP-030     | Duplicate Tier 1 (geo ≤50m + category)        |   ✅   | Inline trong `SubmitPollutionReportCommandHandler` — `GeoMath.HaversineMeters` + bbox           |
+| BR-REP-030     | Duplicate Tier 1 (geo ≤25m + category)        |   ✅   | Inline trong `SubmitPollutionReportCommandHandler` — `GeoMath.HaversineMeters` + bbox           |
 | BR-REP-031     | LEO xác nhận / bác bỏ nghi ngờ trùng          |   ✅   | `ConfirmDuplicate/`, `DismissDuplicate/`, `GetDuplicateCandidates/`                             |
 | BR-REP-032     | Merge duplicate (+50% điểm, media + comments) |   ✅   | `ConfirmDuplicate` merge media + comments; `DuplicateMergedPointsHandler` (+50% ReportVerified) |
 | BR-REP-033     | Citizen flag ≥3 → LEO review                  |   ✅   | `FlagReport/` + `DuplicateReviewNeeded` template + `SendFromTemplateAsync`                      |
+| BR-REP-034     | Cờ nghi tái phát (Closed ≤30d, ≤25m, category) |   ✅   | `SubmitPollutionReport` inline + `GetViolationRecurrenceCandidates/`, dismiss/comparison APIs; loại trừ lẫn nhau với BR-REP-031 |
 
 **Duplicate detection — chi tiết triển khai (branch `feature/duplicate-ai-compare-image`):**
 
 | Tầng       | Cơ chế                                                                                      | Files chính                                                     |
 | ---------- | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| Tier 1     | Inline submit: ≤50m + cùng category → `MarkPossibleDuplicate("geo_category")`. **Loại trừ** `Closed` (BR-REP-016 auto-close) | `GeoMath.cs`, `SubmitPollutionReportCommandHandler`, `DuplicateTier1PrimarySelector` |
+| Tier 1     | Inline submit: ≤25m + cùng category → `MarkPossibleDuplicate("geo_category")`. **Loại trừ** `Closed` (BR-REP-016 auto-close). **Loại trừ lẫn nhau** với BR-REP-034 | `GeoMath.cs`, `SubmitPollutionReportCommandHandler`, `DuplicateTier1PrimarySelector` |
 | Tier 2     | Hangfire `CompareDuplicateImagesJob` → Python `POST /api/v1/compare-images` (DINOv2)        | `AiImageCompareService`, `EnqueueDuplicateCompareHandler`       |
 | LEO review | `GET duplicate-candidates`, `POST confirm-duplicate`, `POST dismiss-duplicate`, `POST flag` | `ReportsController`, docs `fe-leo-duplicate-detection-guide.md` |
 | Migrations | `AddDuplicateDetectionFields`, `AddPenaltyPaymentSoftDelete`, `AddIdentityNumberAndSatisfactionUniqueIndexes` | ✅ Đã apply DB dev (phiên 20)             |

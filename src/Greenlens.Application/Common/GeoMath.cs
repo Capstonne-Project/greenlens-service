@@ -6,6 +6,9 @@ namespace Greenlens.Application.Common;
 /// </summary>
 public static class GeoMath
 {
+    /// <summary>GPS proximity for Tier 1 duplicate (BR-REP-030) and recurrence (BR-REP-034).</summary>
+    public const double ProximityMatchRadiusMeters = 25.0;
+
     /// <summary>
     /// Great-circle distance in meters between two WGS84 points (Haversine).
     /// </summary>
