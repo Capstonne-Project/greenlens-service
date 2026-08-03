@@ -194,6 +194,7 @@ internal sealed class SmtpEmailSender(
 
 public sealed class SmtpOptions
 {
+    public bool Enabled { get; init; } = true;
     public string Host { get; init; } = "smtp.gmail.com";
     public int Port { get; init; } = 587;
     public string Username { get; init; } = default!;

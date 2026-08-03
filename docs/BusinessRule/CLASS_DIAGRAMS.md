@@ -1,7 +1,7 @@
 # GreenLens — Class Diagrams (Theo Use Case / Luồng nghiệp vụ)
 
 > **Dự án:** SU26SE049 — Crowdsourced Application for Reporting Environmental Pollution  
-> **Tổng quan:** 24 Class Diagram theo Use Case, khớp 1:1 với 22 ⭐ Sequence Diagram ưu tiên.  
+> **Tổng quan:** 32 Class Diagram theo Use Case, khớp với 30 ⭐ Sequence Diagram ưu tiên (cập nhật inspection checklist BR-INS-033).  
 > **Nguyên tắc:** Mỗi CD hiển thị **tất cả object tham gia** trong luồng tương ứng (Entity, Enum, Interface, Handler, Controller).  
 > **Ký hiệu:** Mermaid UML. Xem bằng GitHub, VS Code, hoặc bất kỳ renderer hỗ trợ Mermaid.
 
@@ -1601,6 +1601,8 @@ classDiagram
 
 ## Nhóm 4: Inspection & Penalty
 
+> **CD mới (BR-INS-033):** CD-25..CD-32 bổ sung cho luồng checklist + GET detail. CD-13..CD-15 đã cập nhật entity/method.
+
 ---
 
 ### CD-13: Create Inspection Report (→ SD-28 ⭐)
@@ -1633,17 +1635,31 @@ classDiagram
         + ClosedReason : string?
         + SlaInspectionDueAt : DateTime?
         + SlaInspectionBreached : bool
-        + CheckedInAt : DateTime?
-        + ProgressPercent : int
-        + Create(reportId Guid, officerId Guid)$ InspectionReport
-        + AssignTeam(teamId Guid) void
-        + CheckIn(lat decimal, lng decimal, note? string) void
-        + UpdateProgress(percent int, note string) void
-        + IssuePenalty(amount, decisionNo, dueDate, ...) void
-        + RecordPayment(amount decimal) void
-        + CloseNoViolation(reason string) void
-        + Close() void
-        + MarkOverdue() void
+        + AcceptedAt : DateTime?
+        + AcceptedByUserId : Guid?
+        + ArrivalConfirmedAt : DateTime?
+        + FieldInvestigationSubmittedAt : DateTime?
+        + Evidences : ICollection~InspectionEvidence~
+        + Create(reportId Guid, officerId Guid, severity Severity)$ InspectionReport
+        + AssignTeam(teamId Guid) Result
+        + AcceptTask(userId Guid) Result
+        + ConfirmArrival(lat decimal, lng decimal, note? string) Result
+        + SubmitFieldInvestigation(leaderId Guid) Result
+        + IssuePenalty(...) Result
+        + RecordPayment(payment PenaltyPayment) Result
+        + CloseNoViolation(reason string) Result
+        + Close(reason? string) Result
+        + MarkOverdue() Result
+    }
+
+    class InspectionEvidence {
+        <<Entity>>
+        + Category : InspectionEvidenceCategory
+        + MediaUrl : string?
+        + Description : string?
+        + UploadedByUserId : Guid
+        + CreateMedia(...)$ InspectionEvidence
+        + CreateText(...)$ InspectionEvidence
     }
 
     class Report {
@@ -1696,8 +1712,10 @@ classDiagram
     }
 
     SoftDeletableEntity <|-- InspectionReport : Inheritance
+    AuditableEntity <|-- InspectionEvidence : Inheritance
     InspectionReport "0..*" --> "1" Report : Association (linked report)
     InspectionReport --> InspectionStatus : Association
+    InspectionReport "1" *-- "0..*" InspectionEvidence : Composition
 
     CreateInspectionHandler ..> IReportRepository : uses
     CreateInspectionHandler ..> IInspectionRepository : uses
@@ -1711,6 +1729,8 @@ classDiagram
 ### CD-14: Assign Inspection Team (→ SD-29 ⭐)
 
 **Actor:** LEO · **BR:** BR-INS-002
+
+> **Bước tiếp theo:** Inspector Mobile App gọi `POST /accept` (SD-30) — **không** dùng `POST /check-in` (410 Gone).
 
 ```mermaid
 classDiagram
@@ -1809,7 +1829,15 @@ classDiagram
         + PenaltyDueDate : DateTime?
         + IsRepeatOffender : bool
         + IssuedByInspectorId : Guid?
-        + IssuePenalty(amount, decisionNo, dueDate, ...) void
+        + FieldInvestigationSubmittedAt : DateTime?
+        + IssuePenalty(inspectorId, level, amount, ...) Result
+    }
+
+    class InspectionEvidence {
+        <<Entity>>
+        + Category : InspectionEvidenceCategory
+        + MediaUrl : string?
+        + Description : string?
     }
 
     class ViolatingEntity {
@@ -1900,6 +1928,7 @@ classDiagram
     InspectionReport --> ViolatingEntity : Association (violator)
     InspectionReport --> InspectionStatus : Association
     InspectionReport --> ViolationLevel : Association
+    InspectionReport "1" *-- "0..*" InspectionEvidence : Composition
     ViolatingEntity --> ViolatorType : Association
     PenaltyFramework --> ViolationLevel : Association
 
@@ -1912,6 +1941,324 @@ classDiagram
     IssuePenaltyHandler ..> ViolatingEntity : creates or finds
     InspectionsController ..> IssuePenaltyHandler : dispatches via ISender
 ```
+
+---
+
+### CD-25: Accept Inspection Task (→ SD-30 ⭐)
+
+**Actor:** Inspector (Mobile) · **BR:** BR-INS-003, BR-INS-033
+
+```mermaid
+classDiagram
+    class InspectionReport {
+        <<Aggregate Root>>
+        + Status : InspectionStatus
+        + AssignedTeamId : Guid?
+        + AcceptedAt : DateTime?
+        + AcceptTask(userId Guid) Result
+    }
+
+    class ITeamMemberRepository {
+        <<interface>>
+        + IsMemberAsync(teamId Guid, userId Guid, ct CancellationToken) Task~bool~
+    }
+
+    class AcceptInspectionTaskHandler {
+        <<Handler>>
+        - _inspections : IInspectionReportRepository
+        - _teamMembers : ITeamMemberRepository
+        + Handle(cmd AcceptInspectionTaskCommand, ct CancellationToken) Task~Result~
+    }
+
+    class InspectionsController {
+        <<Controller>>
+        + AcceptTask(id Guid) Task~IActionResult~
+    }
+
+    AcceptInspectionTaskHandler ..> IInspectionReportRepository : uses
+    AcceptInspectionTaskHandler ..> ITeamMemberRepository : validates team member
+    AcceptInspectionTaskHandler ..> InspectionReport : Draft → InProgress
+    InspectionsController ..> AcceptInspectionTaskHandler : dispatches via ISender
+```
+
+---
+
+### CD-26: Confirm Arrival — Soft GPS (→ SD-31 ⭐)
+
+**Actor:** Inspector (Mobile) · **BR:** BR-INS-033
+
+```mermaid
+classDiagram
+    class InspectionReport {
+        + ArrivalConfirmedAt : DateTime?
+        + ArrivalLatitude : decimal?
+        + ArrivalLongitude : decimal?
+        + ConfirmArrival(lat decimal, lng decimal, note? string) Result
+    }
+
+    class IGeoDistanceService {
+        <<interface>>
+        + GetDistanceInMetersAsync(lat1, lng1, lat2, lng2, ct) Task~double~
+    }
+
+    class ConfirmArrivalHandler {
+        <<Handler>>
+        - _geoDistance : IGeoDistanceService
+        + Handle(cmd ConfirmArrivalCommand, ct CancellationToken) Task~Result~
+    }
+
+    ConfirmArrivalHandler ..> IGeoDistanceService : distance ≤ 200m or note required
+    ConfirmArrivalHandler ..> InspectionReport : sets arrival fields (status unchanged)
+```
+
+---
+
+### CD-27: Update Checklist & Upload Evidence (→ SD-33 ⭐)
+
+**Actor:** Inspector (Mobile) · **BR:** BR-INS-033, BR-INS-010
+
+```mermaid
+classDiagram
+    class InspectionEvidence {
+        <<Entity>>
+        + Category : InspectionEvidenceCategory
+        + MediaUrl : string?
+        + Description : string?
+        + CreateMedia(...)$ InspectionEvidence
+        + CreateText(...)$ InspectionEvidence
+    }
+
+    class InspectionEvidenceCategory {
+        <<enumeration>>
+        ViolationStatus
+        ScenePhoto
+        Video
+        Audio
+        Other
+    }
+
+    class IFileStorageService {
+        <<interface>>
+        + UploadAsync(stream, fileName, contentType, folder, ct) Task~UploadedFile~
+    }
+
+    class UpdateInspectionChecklistHandler {
+        <<Handler>>
+        + Handle(cmd UpdateInspectionChecklistCommand, ct) Task~Result~
+    }
+
+    class UploadInspectionEvidenceHandler {
+        <<Handler>>
+        - _fileStorage : IFileStorageService
+        + Handle(cmd UploadInspectionEvidenceCommand, ct) Task~Result~UploadInspectionEvidenceResponse~~
+    }
+
+    InspectionReport "1" *-- "0..*" InspectionEvidence : Composition
+    InspectionEvidence --> InspectionEvidenceCategory : Association
+    UpdateInspectionChecklistHandler ..> InspectionEvidence : upsert ViolationStatus, Other text
+    UploadInspectionEvidenceHandler ..> IFileStorageService : upload to R2
+    UploadInspectionEvidenceHandler ..> InspectionEvidence : add ScenePhoto/Video/Audio
+```
+
+---
+
+### CD-28: Submit Field Investigation (→ SD-34 ⭐)
+
+**Actor:** Team Leader (Mobile) · **BR:** BR-INS-033, BR-INS-012
+
+```mermaid
+classDiagram
+    class InspectionReport {
+        + FieldInvestigationSubmittedAt : DateTime?
+        + FieldInvestigationSubmittedByUserId : Guid?
+        + SubmitFieldInvestigation(leaderId Guid) Result
+    }
+
+    class InspectionChecklistValidator {
+        <<static>>
+        + Validate(evidences IReadOnlyList~InspectionEvidence~) Error?
+    }
+
+    class SubmitFieldInvestigationHandler {
+        <<Handler>>
+        + Handle(cmd SubmitFieldInvestigationCommand, ct CancellationToken) Task~Result~
+    }
+
+    SubmitFieldInvestigationHandler ..> InspectionChecklistValidator : ViolationStatus + ≥2 ScenePhoto
+    SubmitFieldInvestigationHandler ..> InspectionReport : locks checklist gate
+```
+
+---
+
+### CD-29: Close No Violation (→ SD-35 ⭐)
+
+**Actor:** Team Leader (Mobile) · **BR:** BR-INS-013, BR-INS-033, BR-ADM-010
+
+```mermaid
+classDiagram
+    class InspectionReport {
+        + CloseNoViolation(reason string) Result
+    }
+
+    class IAuditLogger {
+        <<interface>>
+        + LogAsync(action, entityType, entityId, ...) Task
+    }
+
+    class CloseNoViolationHandler {
+        <<Handler>>
+        - _auditLogger : IAuditLogger
+        + Handle(cmd CloseNoViolationCommand, ct CancellationToken) Task~Result~
+    }
+
+    CloseNoViolationHandler ..> InspectionReport : InProgress → ClosedNoViolation
+    CloseNoViolationHandler ..> IAuditLogger : audit log
+```
+
+---
+
+### CD-30: Record Payment (→ SD-39 ⭐)
+
+**Actor:** Team Leader (Mobile) · **BR:** BR-INS-020, BR-ADM-010
+
+```mermaid
+classDiagram
+    class PenaltyPayment {
+        + Amount : decimal
+        + PaidAt : DateTime
+        + EvidenceUrl : string
+        + RecordedByUserId : Guid
+        + Create(inspectionId, amount, paidAt, userId, evidenceUrl, note?)$ PenaltyPayment
+    }
+
+    class InspectionReport {
+        + PaidAmount : decimal?
+        + RecordPayment(payment PenaltyPayment) Result
+    }
+
+    class RecordPaymentHandler {
+        <<Handler>>
+        - _fileStorage : IFileStorageService
+        - _auditLogger : IAuditLogger
+        + Handle(cmd RecordPaymentCommand, ct CancellationToken) Task~Result~
+    }
+
+    InspectionReport "1" *-- "0..*" PenaltyPayment : Composition
+    RecordPaymentHandler ..> IFileStorageService : upload receipt (multipart)
+    RecordPaymentHandler ..> InspectionReport : PenaltyIssued → Paid/PartiallyPaid
+```
+
+---
+
+### CD-31: Close Inspection (→ SD-40 ⭐)
+
+**Actor:** Team Leader (Mobile) · **BR:** BR-INS-021, BR-ADM-010
+
+```mermaid
+classDiagram
+    class InspectionReport {
+        + ClosedAt : DateTime?
+        + Close(reason? string) Result
+    }
+
+    class CloseInspectionHandler {
+        <<Handler>>
+        - _auditLogger : IAuditLogger
+        + Handle(cmd CloseInspectionCommand, ct CancellationToken) Task~Result~
+    }
+
+    CloseInspectionHandler ..> InspectionReport : Paid → Closed
+    CloseInspectionHandler ..> IAuditLogger : audit log
+```
+
+---
+
+### CD-32: Get Inspection Detail — Capability Flags (→ SD-41 ⭐)
+
+**Actor:** Inspector (Mobile) · **BR:** BR-INS-033, BR-INS-010
+
+> **Query read-only:** Handler trả `InspectionReportDetailResponse` kèm 9 cờ `Can*` để Mobile App bật/tắt nút — không mutate DB.
+
+```mermaid
+classDiagram
+    class GetInspectionReportByIdQuery {
+        <<Query>>
+        + InspectionId : Guid
+    }
+
+    class InspectionReportDetailResponse {
+        <<DTO>>
+        + Id : Guid
+        + Status : InspectionStatus
+        + ChecklistEvidence : IReadOnlyList~InspectionEvidenceItemDto~
+        + Payments : List~PenaltyPaymentDto~
+        + FieldInvestigationSubmittedAt : DateTime?
+        + CanAcceptTask : bool
+        + CanConfirmArrival : bool
+        + CanEditChecklist : bool
+        + CanSubmitFieldReport : bool
+        + CanEditDetails : bool
+        + CanIssuePenalty : bool
+        + CanCloseNoViolation : bool
+        + CanRecordPayment : bool
+        + CanClose : bool
+    }
+
+    class InspectionEvidenceItemDto {
+        <<DTO>>
+        + Id : Guid
+        + Category : InspectionEvidenceCategory
+        + MediaUrl : string?
+        + Description : string?
+        + UploadedAt : DateTime
+    }
+
+    class IInspectionReportRepository {
+        <<interface>>
+        + QueryAsNoTracking() IQueryable~InspectionReport~
+    }
+
+    class IInspectionEvidenceRepository {
+        <<interface>>
+        + QueryAsNoTracking() IQueryable~InspectionEvidence~
+    }
+
+    class ITeamMemberRepository {
+        <<interface>>
+        + IsMemberAsync(teamId Guid, userId Guid, ct CancellationToken) Task~bool~
+    }
+
+    class GetInspectionReportByIdHandler {
+        <<Handler>>
+        - _inspections : IInspectionReportRepository
+        - _evidences : IInspectionEvidenceRepository
+        - _teamMembers : ITeamMemberRepository
+        + Handle(query GetInspectionReportByIdQuery, ct CancellationToken) Task~Result~InspectionReportDetailResponse~~
+    }
+
+    class InspectionsController {
+        <<Controller>>
+        + GetById(id Guid) Task~IActionResult~
+    }
+
+    GetInspectionReportByIdQuery ..> GetInspectionReportByIdHandler : dispatched
+    GetInspectionReportByIdHandler ..> IInspectionReportRepository : load inspection + includes
+    GetInspectionReportByIdHandler ..> IInspectionEvidenceRepository : load checklist
+    GetInspectionReportByIdHandler ..> ITeamMemberRepository : scope check (Inspector role)
+    GetInspectionReportByIdHandler ..> InspectionReportDetailResponse : maps + computes Can*
+    InspectionReportDetailResponse *-- InspectionEvidenceItemDto : Composition
+    InspectionsController ..> GetInspectionReportByIdHandler : dispatches via ISender
+```
+
+**Logic tính `Can*` (trong handler):**
+
+| Flag | Điều kiện |
+|------|-----------|
+| `CanAcceptTask` | `Status == Draft` && `AssignedTeamId != null` |
+| `CanConfirmArrival`, `CanEditChecklist`, `CanSubmitFieldReport`, `CanEditDetails` | `InProgress` && chưa submit field report |
+| `CanIssuePenalty`, `CanCloseNoViolation` | `InProgress` && đã submit field report |
+| `CanRecordPayment` | `PenaltyIssued` / `PartiallyPaid` / `Overdue` |
+| `CanClose` | `Paid` |
 
 ---
 
@@ -2915,27 +3262,37 @@ stateDiagram-v2
 
 ## State Machine — Inspection Lifecycle
 
+> **Cập nhật BR-INS-033:** `POST /check-in` và `PUT /progress` đã deprecated (410). Luồng chính qua Accept → Checklist → Submit field report.
+
 ```mermaid
 stateDiagram-v2
-    [*] --> Draft : LEO creates
+    [*] --> Draft : LEO creates [SD-28]
 
-    Draft --> InProgress : Team check-in at site
-    Draft --> ClosedNoViolation : No violation found
+    Draft --> InProgress : Inspector POST /accept [SD-30]
 
-    InProgress --> PenaltyIssued : Inspector issues penalty
-    InProgress --> ClosedNoViolation : No violation found
+    note right of InProgress
+        confirm-arrival [SD-31]
+        checklist + evidence [SD-33]
+        (status giữ InProgress)
+    end note
 
-    PenaltyIssued --> Paid : Full payment received
-    PenaltyIssued --> PartiallyPaid : Partial payment
-    PenaltyIssued --> Overdue : Past due date
+    InProgress --> InProgress : PUT /submit-field-report [SD-34]\n(gate cho bước kết luận)
 
-    PartiallyPaid --> Paid : Remaining paid
-    PartiallyPaid --> Overdue : Past due date
+    InProgress --> PenaltyIssued : PUT /issue-penalty [SD-32]
+    InProgress --> ClosedNoViolation : PUT /close-no-violation [SD-35]
 
-    Overdue --> Paid : Late payment received
-    Overdue --> Closed : Admin force close
+    PenaltyIssued --> Paid : PUT /record-payment full [SD-39]
+    PenaltyIssued --> PartiallyPaid : partial payment [SD-39]
+    PenaltyIssued --> Overdue : past due date (job)
 
-    Paid --> Closed : Auto-close
+    PartiallyPaid --> Paid : remaining paid [SD-39]
+    PartiallyPaid --> Overdue : past due date (job)
+    Overdue --> Paid : late payment [SD-39]
+
+    Paid --> Closed : PUT /close [SD-40]
+
+    Draft --> ClosedNoViolation : ForceCloseNoViolation (SLA job)
+    InProgress --> ClosedNoViolation : ForceCloseNoViolation (SLA job)
 
     Closed --> [*]
     ClosedNoViolation --> [*]
@@ -2974,10 +3331,13 @@ classDiagram
         <<CD-18: Organization>>
     }
     class InspectionReport {
-        <<CD-13~15: Inspection>>
+        <<CD-13~15,25~32: Inspection>>
+    }
+    class InspectionEvidence {
+        <<CD-13,27: Inspection checklist>>
     }
     class PenaltyPayment {
-        <<CD-15: Inspection>>
+        <<CD-15,30: Inspection>>
     }
     class Comment {
         <<CD-19: Comment>>
@@ -3000,6 +3360,7 @@ classDiagram
     Report "1" *-- "1..*" ReportMedia : Composition
     Report "1" *-- "0..*" ReportAssignment : Composition
     InspectionReport "1" *-- "0..*" PenaltyPayment : Composition
+    InspectionReport "1" *-- "0..*" InspectionEvidence : Composition
     User "1" *-- "1" UserPoints : Composition
     User "1" *-- "0..*" Notification : Composition
     Department "1" *-- "0..*" LocalOffice : Composition

@@ -81,7 +81,7 @@ public sealed class Report : SoftDeletableEntity
     public decimal? AiSimilarityScore { get; private set; }
 
     // ── Violation recurrence suspicion (BR-REP-034) ──
-    /// <summary>Near a recently Closed report (same category, ≤50m, within 30 days) — LEO may open Inspection.</summary>
+    /// <summary>Near a recently Closed report (same category, ≤25m, within 30 days) — LEO may open Inspection.</summary>
     public bool IsSuspectedViolationRecurrence { get; private set; }
     /// <summary>The most recently Closed report this one may recur from.</summary>
     public Guid? SuspectedRecurrenceOfReportId { get; private set; }
@@ -414,7 +414,7 @@ public sealed class Report : SoftDeletableEntity
     // ── Duplicate detection (BR-REP-030/031) ──
 
     /// <summary>
-    /// Tier 1 flag: same category + within 50m of an existing report.
+    /// Tier 1 flag: same category + within 25m of an existing report.
     /// Raises an event so Tier 2 (AI image compare) can run in the background.
     /// </summary>
     /// <remarks>Implements: BR-REP-030 (definition), BR-REP-031 (possible_duplicate flag).</remarks>
@@ -424,6 +424,8 @@ public sealed class Report : SoftDeletableEntity
         PossibleDuplicateOfReportId = candidateReportId;
         DuplicateDetectionSource = source;
         AiSimilarityScore = aiScore;
+        IsSuspectedViolationRecurrence = false;
+        SuspectedRecurrenceOfReportId = null;
 
         AddDomainEvent(new ReportPossibleDuplicateFlaggedEvent(Id, candidateReportId));
     }
@@ -463,11 +465,15 @@ public sealed class Report : SoftDeletableEntity
     // ── Violation recurrence (BR-REP-034) ──
 
     /// <summary>
-    /// Flags a new report near a recently Closed report (same category, ≤50m, Closed within 30 days).
+    /// Flags a new report near a recently Closed report (same category, ≤25m, Closed within 30 days).
+    /// Mutually exclusive with <see cref="IsPossibleDuplicate"/>.
     /// Raises an event so LEO is notified to compare and decide on InspectionReport.
     /// </summary>
     public void MarkSuspectedViolationRecurrence(Guid priorClosedReportId)
     {
+        if (IsPossibleDuplicate)
+            return;
+
         IsSuspectedViolationRecurrence = true;
         SuspectedRecurrenceOfReportId = priorClosedReportId;
         AddDomainEvent(new ReportViolationRecurrenceSuspectedEvent(Id, priorClosedReportId));

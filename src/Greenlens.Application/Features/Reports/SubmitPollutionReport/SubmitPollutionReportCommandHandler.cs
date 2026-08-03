@@ -45,6 +45,7 @@ public sealed class SubmitPollutionReportCommandHandler(
     IFileStorageService fileStorage,
     IProfanityFilter profanityFilter,
     IReportSubmissionRateLimiter rateLimiter,
+    IIdempotencyContext idempotencyContext,
     IImageExifAnalyzer exifAnalyzer,
     IImageBytesFetcher imageBytesFetcher,
     IDateTimeProvider clock,
@@ -79,12 +80,15 @@ public sealed class SubmitPollutionReportCommandHandler(
         }
 
         // ── BR-REP-010: sliding-window submit quota (5/h, 20/24h) ─────────
-        var rateLimit = await rateLimiter.TryAcquireAsync(currentUser.UserId, cancellationToken)
-            .ConfigureAwait(false);
-        if (!rateLimit.IsAllowed)
+        if (!idempotencyContext.IsReplay)
         {
-            logger.LogWarning("Rate limit exceeded for user {UserId}", currentUser.UserId);
-            return Errors.Reports.RateLimitExceeded(rateLimit.RetryAfterMinutes);
+            var rateLimit = await rateLimiter.TryAcquireAsync(currentUser.UserId, cancellationToken)
+                .ConfigureAwait(false);
+            if (!rateLimit.IsAllowed)
+            {
+                logger.LogWarning("Rate limit exceeded for user {UserId}", currentUser.UserId);
+                return Errors.Reports.RateLimitExceeded(rateLimit.RetryAfterMinutes);
+            }
         }
 
         // ── BR-REP-004: profanity filter when description provided ─────────
@@ -376,13 +380,14 @@ public sealed class SubmitPollutionReportCommandHandler(
             reportWasteTags.AddRange(newTags);
         }
 
-        // ── Tier 1 duplicate detection (BR-REP-030): same category + within 50m ──
+        // ── Tier 1 duplicate detection (BR-REP-030): same category + within 25m ──
         // Runs inline (fast, free). Tier 2 (AI image compare) is triggered out-of-band via a
         // background job (see ReportPossibleDuplicateFlaggedEvent) to keep submit under p95<2s (BR-SYS-001).
         await FlagPossibleDuplicateAsync(report, cancellationToken).ConfigureAwait(false);
 
-        // ── BR-REP-034: suspected violation recurrence near a recently Closed report ──
-        await FlagSuspectedViolationRecurrenceAsync(report, cancellationToken).ConfigureAwait(false);
+        // ── BR-REP-034: suspected violation recurrence — mutually exclusive with duplicate flag ──
+        if (!report.IsPossibleDuplicate)
+            await FlagSuspectedViolationRecurrenceAsync(report, cancellationToken).ConfigureAwait(false);
 
         report.RaiseSubmittedForVerification();
 
@@ -435,7 +440,7 @@ public sealed class SubmitPollutionReportCommandHandler(
 
     /// <summary>
     /// BR-REP-030: Tier 1 duplicate check — find the canonical primary (Verified/InProgress first,
-    /// else oldest) with the same category within ~50m, then flag this report as a possible duplicate.
+    /// else oldest) with the same category within ~25m, then flag this report as a possible duplicate.
     /// Closed reports (BR-REP-016 auto-close) are excluded — new submissions at the same spot
     /// start a fresh report, not a duplicate of a finished case.
     /// Each flagged report gets its own Tier 2 AI job vs that primary.
@@ -469,7 +474,7 @@ public sealed class SubmitPollutionReportCommandHandler(
 
     /// <summary>
     /// BR-REP-034: flag when a recently Closed report (≤30 days) exists at the same spot and category.
-    /// Independent from duplicate detection — Closed reports are excluded from duplicate Tier 1.
+    /// Skipped when duplicate is flagged or when another report is InProgress nearby (cleanup underway).
     /// </summary>
     private async Task FlagSuspectedViolationRecurrenceAsync(Report report, CancellationToken ct)
     {
@@ -478,6 +483,9 @@ public sealed class SubmitPollutionReportCommandHandler(
         var cosLat = Math.Max(Math.Cos((double)report.Latitude * Math.PI / 180.0), 1e-6);
         var lngDelta = (decimal)(radiusMeters / (111_320.0 * cosLat));
         var cutoff = DateTime.UtcNow - ViolationRecurrencePrimarySelector.LookbackWindow;
+
+        if (await HasActiveCleanupNearbyAsync(report, latDelta, lngDelta, radiusMeters, ct).ConfigureAwait(false))
+            return;
 
         var candidates = await reports.QueryAsNoTracking()
             .Where(r => r.CategoryId == report.CategoryId)
@@ -497,6 +505,32 @@ public sealed class SubmitPollutionReportCommandHandler(
 
         if (priorId is not null)
             report.MarkSuspectedViolationRecurrence(priorId.Value);
+    }
+
+    /// <summary>
+    /// True when a report is actively being handled or cleaned (Verified / InProgress / Reopened)
+    /// within the recurrence radius and same category.
+    /// </summary>
+    private async Task<bool> HasActiveCleanupNearbyAsync(
+        Report report,
+        decimal latDelta,
+        decimal lngDelta,
+        double radiusMeters,
+        CancellationToken ct)
+    {
+        var nearby = await reports.QueryAsNoTracking()
+            .Where(r => r.CategoryId == report.CategoryId)
+            .Where(r => r.Id != report.Id)
+            .Where(r => ViolationRecurrencePrimarySelector.BlocksRecurrenceDetection(r.Status))
+            .Where(r => r.Latitude >= report.Latitude - latDelta && r.Latitude <= report.Latitude + latDelta)
+            .Where(r => r.Longitude >= report.Longitude - lngDelta && r.Longitude <= report.Longitude + lngDelta)
+            .Select(r => new { r.Latitude, r.Longitude })
+            .Take(20)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        return nearby.Any(n =>
+            GeoMath.HaversineMeters(report.Latitude, report.Longitude, n.Latitude, n.Longitude) <= radiusMeters);
     }
 
     private async Task<string> GenerateUniqueCodeAsync(CancellationToken ct)

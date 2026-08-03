@@ -118,10 +118,21 @@ public static class DependencyInjection
         services.AddScoped<IGoogleAuthService, GoogleAuthService>();
 
         // ── Email ────────────────────────────────────────────
-        services.AddScoped<IEmailSender, SmtpEmailSender>();
+        services.AddOptions<SmtpOptions>()
+            .Bind(configuration.GetSection("Smtp"))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        var smtpEnabled = configuration.GetValue("Smtp:Enabled", true);
+        if (smtpEnabled)
+            services.AddScoped<IEmailSender, SmtpEmailSender>();
+        else
+            services.AddScoped<IEmailSender, NoOpEmailSender>();
 
         // ── Notifications (BR-NTF-001..004) ───────────────
         services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<INotificationDispatchScheduler, NotificationDispatchScheduler>();
+        services.AddScoped<IAuthEmailScheduler, AuthEmailScheduler>();
         services.AddScoped<IPushNotificationSender, FcmPushNotificationSender>();
         services.AddScoped<IOfficerRecipientQuery, OfficerRecipientQuery>();
         services.AddScoped<ITeamMemberRecipientQuery, TeamMemberRecipientQuery>();
@@ -189,11 +200,15 @@ public static class DependencyInjection
             services.AddSingleton<IConnectionMultiplexer>(_ =>
                 ConnectionMultiplexer.Connect(redisConnection));
             services.AddSingleton<IReportSubmissionRateLimiter, RateLimiting.RedisReportSubmissionRateLimiter>();
+            services.AddSingleton<IIdempotencyStore, Idempotency.RedisIdempotencyStore>();
         }
         else
         {
             services.AddSingleton<IReportSubmissionRateLimiter, RateLimiting.InMemoryReportSubmissionRateLimiter>();
+            services.AddSingleton<IIdempotencyStore, Idempotency.InMemoryIdempotencyStore>();
         }
+
+        services.AddScoped<IIdempotencyContext, Idempotency.IdempotencyContext>();
 
         // ── Comment moderation (BR-CMT-003 phase 1, BR-REP-004) ──
         services.AddSingleton<BlockedWordCache>();

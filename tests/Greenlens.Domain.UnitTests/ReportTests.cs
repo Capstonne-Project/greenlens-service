@@ -567,6 +567,34 @@ public sealed class ReportTests
     }
 
     [Fact]
+    public void MarkSuspectedViolationRecurrence_SkippedWhenPossibleDuplicate_BR_REP_034()
+    {
+        var report = CreateTestReport();
+        var primaryId = Guid.NewGuid();
+        var priorId = Guid.NewGuid();
+
+        report.MarkPossibleDuplicate(primaryId, "geo_category");
+        report.MarkSuspectedViolationRecurrence(priorId);
+
+        Assert.True(report.IsPossibleDuplicate);
+        Assert.False(report.IsSuspectedViolationRecurrence);
+        Assert.Null(report.SuspectedRecurrenceOfReportId);
+    }
+
+    [Fact]
+    public void MarkPossibleDuplicate_ClearsRecurrenceFlag_BR_REP_034()
+    {
+        var report = CreateTestReport();
+        report.MarkSuspectedViolationRecurrence(Guid.NewGuid());
+
+        report.MarkPossibleDuplicate(Guid.NewGuid(), "geo_category");
+
+        Assert.True(report.IsPossibleDuplicate);
+        Assert.False(report.IsSuspectedViolationRecurrence);
+        Assert.Null(report.SuspectedRecurrenceOfReportId);
+    }
+
+    [Fact]
     public void MarkSuspectedViolationRecurrence_SetsFlagAndEvent_BR_REP_034()
     {
         var report = CreateTestReport();

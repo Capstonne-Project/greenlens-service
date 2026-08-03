@@ -45,9 +45,11 @@ Hệ thống phát hiện báo cáo trùng lặp theo **2 tầng**:
 
 | Tầng           | Khi nào                 | Cơ chế                                           | FE cần làm gì                                                                   |
 | -------------- | ----------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------- |
-| **Tier 1**     | Ngay khi Citizen submit | Geo ≤50m + cùng category (không check 24h)       | Citizen app đọc `isPossibleDuplicate` trong response submit                     |
+| **Tier 1**     | Ngay khi Citizen submit | Geo ≤25m + cùng category (không check 24h)       | Citizen app đọc `isPossibleDuplicate` trong response submit                     |
 | **Tier 2**     | Nền (Hangfire, ~5–15s)  | Python AI `POST /api/v1/compare-images` (DINOv2) | **LEO không gọi AI** — chỉ đọc `duplicateDetectionSource` + `aiSimilarityScore` |
 | **LEO review** | Sau Tier 1/2            | 3 API dưới đây                                   | Queue "Nghi ngờ trùng" trên LEO Dashboard                                       |
+
+> **BR-REP-034 (tái phát):** Cờ trùng lặp và cờ tái phát **loại trừ lẫn nhau** — một báo cáo chỉ có tối đa một trong hai. Chi tiết → `fe-leo-violation-recurrence-guide.md`.
 
 ```mermaid
 sequenceDiagram
@@ -175,7 +177,7 @@ Dùng `url`, `mimeType`, `sizeBytes` khi submit báo cáo (manual flow).
 
 ### 3.1 Tier 1 — ai được chọn làm báo cáo gốc (`possibleDuplicateOfReportId`)?
 
-Khi Citizen submit báo cáo mới, backend tìm báo cáo gần nhất (≤50m, cùng category) làm **primary candidate**:
+Khi Citizen submit báo cáo mới, backend tìm báo cáo gần nhất (≤25m, cùng category) làm **primary candidate**:
 
 | Báo cáo existing | Có thể làm gốc Tier 1? | Ghi chú                                                                                       |
 | ---------------- | ---------------------- | --------------------------------------------------------------------------------------------- |
@@ -217,7 +219,7 @@ Trùng B, C, …: Submitted ─────────────────�
 
 | Value                      | Badge gợi ý             | Ý nghĩa                                                                           |
 | -------------------------- | ----------------------- | --------------------------------------------------------------------------------- |
-| `geo_category`             | "Vị trí + loại"         | Tier 1: ≤50m, cùng category. Tier 2 chưa xác nhận hoặc AI timeout                 |
+| `geo_category`             | "Vị trí + loại"         | Tier 1: ≤25m, cùng category. Tier 2 chưa xác nhận hoặc AI timeout                 |
 | `geo_category_ai`          | "AI xác nhận" + score % | Tier 1 + AI `is_same_scene: true`. Hiển thị `aiSimilarityScore` (0–1 → nhân 100%) |
 | `geo_time` / `geo_time_ai` | _(legacy)_              | Map giống `geo_category` / `geo_category_ai` (dữ liệu cũ trước rename)            |
 | `null`                     | —                       | Không nghi ngờ / LEO đã dismiss / AI dismiss (khác cảnh)                          |
@@ -390,7 +392,7 @@ LEO Dashboard
 
 1. Login Citizen → upload 2 ảnh → `POST /v1/media/reports/images`
 2. `POST /v1/reports` — report 1 tại GPS A
-3. `POST /v1/reports` — report 2 tại GPS A (lệch ≤50m), **cùng category**
+3. `POST /v1/reports` — report 2 tại GPS A (lệch ≤25m), **cùng category**
 4. Đợi Hangfire ~10–15s (xem log hoặc Hangfire Dashboard)
 5. Login LEO → **Verify báo cáo gốc** (`POST /v1/reports/{primaryId}/verify`) trước khi confirm merge
 6. `GET /v1/reports/duplicate-candidates`

@@ -1,3 +1,4 @@
+using Greenlens.Api.Attributes;
 using Greenlens.Api.Extensions;
 using Greenlens.Application.Common.Models;
 using Greenlens.Application.Features.Reports.AnalyzeReportImage;
@@ -17,6 +18,7 @@ using Greenlens.Application.Features.Reports.DismissDuplicate;
 using Greenlens.Application.Features.Reports.DismissViolationRecurrence;
 using Greenlens.Application.Features.Reports.ExportReports;
 using Greenlens.Application.Features.Reports.FlagReport;
+using Greenlens.Application.Features.Reports.GetDuplicateCandidateDetail;
 using Greenlens.Application.Features.Reports.GetDuplicateCandidates;
 using Greenlens.Application.Features.Reports.GetMyDrafts;
 using Greenlens.Application.Features.Reports.GetMyReports;
@@ -24,6 +26,7 @@ using Greenlens.Application.Features.Reports.GetOfficerKpi;
 using Greenlens.Application.Features.Reports.GetOfficerQueue;
 using Greenlens.Application.Features.Reports.GetReportProgress;
 using Greenlens.Application.Features.Reports.GetReportProgressBoard;
+using Greenlens.Application.Features.Reports.GetViolationRecurrenceCandidates;
 using Greenlens.Application.Features.Reports.GetViolationRecurrenceComparison;
 using Greenlens.Application.Features.Reports.GetReportById;
 using Greenlens.Application.Features.Reports.GetReportHistory;
@@ -139,6 +142,7 @@ public sealed class ReportsController(
     // ═══════════════════════════════════════════
 
     [HttpPost]
+    [SupportsIdempotency]
     [Authorize(Roles = "Citizen")]
     [Tags("📋 Reports — Citizen Flow")]
     [SwaggerOperation(
@@ -200,6 +204,7 @@ public sealed class ReportsController(
     // ═══════════════════════════════════════════
 
     [HttpPut("{id:guid}/verify")]
+    [SupportsIdempotency]
     [Authorize(Roles = "LEO,Admin")]
     [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(Summary = "[LEO] Xác minh báo cáo", Description = "LEO kiểm tra thông tin và xác minh báo cáo. Có thể override severity và category nếu cần. Chuyển status Submitted → Verified.")]
@@ -222,6 +227,7 @@ public sealed class ReportsController(
         => (await sender.Send(new RejectReportCommand(id, request.Reason), ct)).ToHttpNoContent("Đã từ chối báo cáo.");
 
     [HttpPost("{id:guid}/assign")]
+    [SupportsIdempotency]
     [Authorize(Roles = "LEO,Admin")]
     [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(Summary = "[LEO] Phân công team xử lý", Description = "LEO phân công 1 hoặc nhiều team cùng xử lý. Dispatch theo nhu cầu (không ràng buộc team type). Chuyển status Verified → InProgress.")]
@@ -267,6 +273,7 @@ public sealed class ReportsController(
     // ═══════════════════════════════════════════
 
     [HttpPost("{id:guid}/dispatch-to-company")]
+    [SupportsIdempotency]
     [Authorize(Roles = "LEO,Admin")]
     [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(
@@ -280,6 +287,7 @@ public sealed class ReportsController(
             .ToHttpNoContent("Đã điều phối task đến công ty thành công.");
 
     [HttpPost("{id:guid}/assign-company-team")]
+    [SupportsIdempotency]
     [Authorize(Roles = "CompanyManager,Admin")]
     [Tags("🏢 Company Dashboard")]
     [SwaggerOperation(
@@ -435,6 +443,7 @@ public sealed class ReportsController(
             request.ImageUrls ?? []), ct)).ToHttp();
 
     [HttpPut("{id:guid}/resolve")]
+    [SupportsIdempotency]
     [Authorize(Roles = "Cleaner,CompanyStaff,Admin")]
     [Tags("🧹 Cleaner Dashboard")]
     [SwaggerOperation(Summary = "[Cleaner/CompanyStaff] Hoàn thành phần việc của team", Description = "Cleanup / company team leader đánh dấu phần việc đã hoàn thành. Yêu cầu ≥ 2 ảnh after. Khi tất cả team đều completed → report chuyển InProgress → Resolved.")]
@@ -485,11 +494,25 @@ public sealed class ReportsController(
     [SwaggerOperation(
         Summary = "[LEO/DEO] Danh sách báo cáo nghi ngờ trùng lặp",
         Description = "BR-REP-031: Trả về các báo cáo bị gắn cờ possible_duplicate (Tier 1 geo/time hoặc Tier 2 AI) " +
-            "kèm thông tin báo cáo gốc để LEO so sánh và quyết định gộp/bác bỏ.")]
+            "kèm thông tin báo cáo gốc và toàn bộ ảnh/video citizen submit (media[]) để LEO so sánh và quyết định gộp/bác bỏ.")]
     [SwaggerResponse(200, "Danh sách nghi ngờ trùng lặp", typeof(ApiResponse<GetDuplicateCandidatesResponse>))]
     public async Task<IActionResult> GetDuplicateCandidatesAsync(
         [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
         => (await sender.Send(new GetDuplicateCandidatesQuery(page, pageSize), ct)).ToHttp();
+
+    [HttpGet("{id:guid}/duplicate-candidate-detail")]
+    [Authorize(Roles = "LEO,DEO,Admin")]
+    [Tags("📌 LEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO/DEO] Chi tiết so sánh báo cáo nghi ngờ trùng lặp",
+        Description = "BR-REP-031/BR-REP-032: Side-by-side chi tiết báo cáo hiện tại và báo cáo gốc " +
+            "(kèm toàn bộ media, khoảng cách, chênh lệch thời gian) để LEO quyết định gộp/bác bỏ.")]
+    [SwaggerResponse(200, "Chi tiết so sánh", typeof(ApiResponse<DuplicateCandidateDetailResponse>))]
+    [SwaggerResponse(404, "Không tìm thấy báo cáo hoặc báo cáo gốc", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Báo cáo không có cờ nghi ngờ trùng lặp", typeof(ApiResponse))]
+    public async Task<IActionResult> GetDuplicateCandidateDetailAsync(
+        [FromRoute] Guid id, CancellationToken ct)
+        => (await sender.Send(new GetDuplicateCandidateDetailQuery(id), ct)).ToHttp();
 
     [HttpPost("{id:guid}/confirm-duplicate")]
     [Authorize(Roles = "LEO,DEO,Admin")]
@@ -519,6 +542,20 @@ public sealed class ReportsController(
     public async Task<IActionResult> DismissDuplicateAsync(
         [FromRoute] Guid id, CancellationToken ct)
         => (await sender.Send(new DismissDuplicateCommand(id), ct)).ToHttpNoContent("Đã bác bỏ cờ nghi ngờ trùng lặp.");
+
+    [HttpGet("violation-recurrence-candidates")]
+    [Authorize(Roles = "LEO,DEO,Admin")]
+    [Tags("📌 LEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO/DEO] Danh sách báo cáo nghi ngờ tái phạm vi phạm",
+        Description = "BR-REP-034: Trả về các báo cáo bị gắn cờ isSuspectedViolationRecurrence " +
+            "(cùng category, ≤25m, báo cáo trước đã Closed trong 30 ngày) kèm báo cáo Closed trước đó " +
+            "và toàn bộ ảnh/video citizen submit (media[] / priorClosedReport.media[]) " +
+            "để LEO so sánh và quyết định mở hồ sơ thanh tra hoặc bác cờ.")]
+    [SwaggerResponse(200, "Danh sách nghi ngờ tái phạm", typeof(ApiResponse<GetViolationRecurrenceCandidatesResponse>))]
+    public async Task<IActionResult> GetViolationRecurrenceCandidatesAsync(
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
+        => (await sender.Send(new GetViolationRecurrenceCandidatesQuery(page, pageSize), ct)).ToHttp();
 
     [HttpGet("{id:guid}/violation-recurrence-comparison")]
     [Authorize(Roles = "LEO,DEO,Admin")]
@@ -568,6 +605,7 @@ public sealed class ReportsController(
     // ═══════════════════════════════════════════
 
     [HttpPut("{id:guid}/close")]
+    [SupportsIdempotency]
     [Authorize]
     [Tags("📋 Reports — Citizen Flow")]
     [SwaggerOperation(Summary = "[Citizen/Auto] Đóng báo cáo", Description = "Citizen xác nhận hài lòng hoặc hệ thống tự động đóng sau 7 ngày. Chuyển status Resolved → Closed.")]
@@ -577,6 +615,7 @@ public sealed class ReportsController(
         => (await sender.Send(new CloseReportCommand(id), ct)).ToHttpNoContent("Đã đóng báo cáo.");
 
     [HttpPost("{id:guid}/reopen-requests")]
+    [SupportsIdempotency]
     [Authorize]
     [Tags("📋 Reports — Citizen Flow")]
     [SwaggerOperation(
@@ -682,6 +721,7 @@ public sealed class ReportsController(
     // ═══════════════════════════════════════════
 
     [HttpPost("{id:guid}/inspections")]
+    [SupportsIdempotency]
     [Authorize(Roles = "LEO,Admin")]
     [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(
@@ -722,6 +762,7 @@ public sealed class ReportsController(
     // ═══════════════════════════════════════════
 
     [HttpPost("{id:guid}/rate")]
+    [SupportsIdempotency]
     [Authorize]
     [Tags("📋 Reports — Citizen Flow")]
     [SwaggerOperation(

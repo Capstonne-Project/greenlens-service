@@ -1,4 +1,5 @@
 using Greenlens.Application.Common.Models;
+using Greenlens.Application.Features.Reports.Common;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -26,10 +27,12 @@ public sealed record DuplicateCandidateItem(
     DateTime CreatedAt,
     string? DuplicateDetectionSource,
     decimal? AiSimilarityScore,
+    IReadOnlyList<ReportReviewMediaItem> Media,
     DuplicateCandidatePrimary? Primary);
 
 public sealed record DuplicateCandidatePrimary(
     Guid Id,
     string Code,
     string? Address,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    IReadOnlyList<ReportReviewMediaItem> Media);

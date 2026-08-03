@@ -1,3 +1,4 @@
+using Greenlens.Api.Attributes;
 using Greenlens.Api.Extensions;
 using Greenlens.Application.Common.Models;
 using Greenlens.Application.Features.Organization.AcceptInvitation;
@@ -28,6 +29,7 @@ public sealed class InvitationsController(ISender sender) : ControllerBase
         => (await sender.Send(new GetMyInvitationsQuery(), ct)).ToHttp();
 
     [HttpPost("{invitationId:guid}/accept")]
+    [SupportsIdempotency]
     [Tags("👤 Citizen")]
     [SwaggerOperation(
         Summary = "[Citizen] Chấp nhận lời mời (BR-ORG-021)",

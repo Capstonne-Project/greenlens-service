@@ -1829,6 +1829,10 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("created_by");
 
+                    b.Property<DateTime?>("EmailDispatchedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("email_dispatched_at");
+
                     b.Property<bool>("IsRead")
                         .HasColumnType("boolean")
                         .HasColumnName("is_read");
@@ -1838,6 +1842,10 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)")
                         .HasColumnName("message");
+
+                    b.Property<DateTime?>("PushDispatchedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("push_dispatched_at");
 
                     b.Property<DateTime?>("ReadAt")
                         .HasColumnType("timestamp with time zone")

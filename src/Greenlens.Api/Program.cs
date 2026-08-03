@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Greenlens.Api.Extensions;
+using Greenlens.Api.Swagger;
 using Greenlens.Api.Middlewares;
 using Greenlens.Infrastructure;
 using Greenlens.Infrastructure.Seeders.Administrator;
@@ -35,6 +36,9 @@ builder.Services.AddCors(options =>
               .AllowCredentials(); // Bắt buộc đối với SignalR khi FE gọi từ domain khác
     });
 });
+
+// ── Idempotency (Idempotency-Key header replay) ─────
+builder.Services.AddGreenlensIdempotency();
 
 // ── Controllers ──────────────────────────────────────
 builder.Services.AddControllers(options =>
@@ -81,6 +85,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
     options.EnableAnnotations();
+    options.OperationFilter<MultipartFormFileOperationFilter>();
     options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
     {
         Title = "GreenLens API",

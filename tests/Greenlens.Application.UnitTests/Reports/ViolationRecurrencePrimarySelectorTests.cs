@@ -7,6 +7,53 @@ namespace Greenlens.Application.UnitTests.Reports;
 public sealed class ViolationRecurrencePrimarySelectorTests
 {
     [Fact]
+    public void SelectPrimary_Within25m_Included_BR_REP_034()
+    {
+        var id = Guid.NewGuid();
+        var baseLat = 21.0285m;
+        var baseLng = 105.8542m;
+        var offset25m = (decimal)(GeoMath.ProximityMatchRadiusMeters / 111_320.0);
+
+        var nearby = new[]
+        {
+            new ViolationRecurrenceNearbyReport(id, baseLat + offset25m, baseLng, DateTime.UtcNow.AddDays(-5)),
+        };
+
+        var selected = ViolationRecurrencePrimarySelector.SelectPrimary(baseLat, baseLng, nearby);
+
+        Assert.Equal(id, selected);
+    }
+
+    [Fact]
+    public void SelectPrimary_Beyond25m_ReturnsNull_BR_REP_034()
+    {
+        var id = Guid.NewGuid();
+        var baseLat = 21.0285m;
+        var baseLng = 105.8542m;
+        var offset26m = (decimal)(26.0 / 111_320.0);
+
+        var nearby = new[]
+        {
+            new ViolationRecurrenceNearbyReport(id, baseLat + offset26m, baseLng, DateTime.UtcNow.AddDays(-5)),
+        };
+
+        var selected = ViolationRecurrencePrimarySelector.SelectPrimary(baseLat, baseLng, nearby);
+
+        Assert.Null(selected);
+    }
+
+    [Fact]
+    public void BlocksRecurrenceDetection_VerifiedInProgressReopened_BR_REP_034()
+    {
+        Assert.True(ViolationRecurrencePrimarySelector.BlocksRecurrenceDetection(ReportStatus.Verified));
+        Assert.True(ViolationRecurrencePrimarySelector.BlocksRecurrenceDetection(ReportStatus.InProgress));
+        Assert.True(ViolationRecurrencePrimarySelector.BlocksRecurrenceDetection(ReportStatus.Reopened));
+        Assert.False(ViolationRecurrencePrimarySelector.BlocksRecurrenceDetection(ReportStatus.Submitted));
+        Assert.False(ViolationRecurrencePrimarySelector.BlocksRecurrenceDetection(ReportStatus.Closed));
+        Assert.False(ViolationRecurrencePrimarySelector.BlocksRecurrenceDetection(ReportStatus.Resolved));
+    }
+
+    [Fact]
     public void SelectPrimary_MultipleClosed_PicksMostRecentClosedAt_BR_REP_034()
     {
         var olderId = Guid.NewGuid();

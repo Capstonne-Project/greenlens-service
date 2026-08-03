@@ -19,7 +19,7 @@ public readonly record struct DuplicateNearbyReport(
 public static class DuplicateTier1PrimarySelector
 {
     public const string Tier1Source = DuplicateDetectionSources.Tier1;
-    public const double DefaultRadiusMeters = 50.0;
+    public const double DefaultRadiusMeters = GeoMath.ProximityMatchRadiusMeters;
 
     /// <summary>
     /// Closed reports (incl. auto-close BR-REP-016) are no longer duplicate anchors.

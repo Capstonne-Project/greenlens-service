@@ -1,3 +1,4 @@
+using Greenlens.Api.Attributes;
 using Greenlens.Api.Extensions;
 using Greenlens.Application.Common.Models;
 using Greenlens.Application.Features.Auth.ChangePassword;
@@ -24,6 +25,7 @@ public sealed class AuthController(ISender sender) : ControllerBase
 {
     [HttpPost("register")]
     [AllowAnonymous]
+    [SupportsIdempotency(TtlHours = 1)]
     [SwaggerOperation(
         Summary = "Register",
         Description = "Register a new citizen account. Requires email, password, fullName, and acceptTerms. Returns 409 EMAIL_TAKEN or EMAIL_DELETED_RESTORE_AVAILABLE.")]
@@ -51,6 +53,7 @@ public sealed class AuthController(ISender sender) : ControllerBase
 
     [HttpPost("request-otp")]
     [AllowAnonymous]
+    [SupportsIdempotency(TtlHours = 1)]
     [SwaggerOperation(
         Summary = "Request OTP",
         Description = "Send a 6-digit OTP code to the specified email. Valid for 10 minutes. Supports EmailVerification and PasswordReset purposes.")]
@@ -127,6 +130,7 @@ public sealed class AuthController(ISender sender) : ControllerBase
 
     [HttpPost("google-login")]
     [AllowAnonymous]
+    [SupportsIdempotency(TtlHours = 1)]
     [SwaggerOperation(
         Summary = "Login with Google",
         Description = "Login or register using a Firebase Google ID token. Auto-creates account if not exists.")]

@@ -9,13 +9,15 @@ using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Auth.RequestOtp;
 
-/// <summary>Generate and send OTP via email.</summary>
-/// <remarks>OTP: 6 digits, 10 min lifetime.</remarks>
+/// <summary>Generate and enqueue OTP email delivery.</summary>
+/// <remarks>
+/// OTP: 6 digits, 10 min lifetime. BR-SYS-001: email sent via Hangfire background job.
+/// </remarks>
 public sealed class RequestOtpCommandHandler(
     IUserRepository users,
     IOtpRepository otps,
     IUnitOfWork uow,
-    IEmailSender emailSender,
+    IAuthEmailScheduler authEmailScheduler,
     IPasswordHasher passwordHasher,
     ILogger<RequestOtpCommandHandler> logger)
     : IRequestHandler<RequestOtpCommand, Result<RequestOtpResponse>>
@@ -26,7 +28,6 @@ public sealed class RequestOtpCommandHandler(
     {
         logger.LogInformation("Getting OTP request");
 
-        // Find user by email
         var user = await users.GetByEmailAsync(request.Email, cancellationToken)
             .ConfigureAwait(false);
 
@@ -36,31 +37,27 @@ public sealed class RequestOtpCommandHandler(
             return Errors.Auth.UserNotFound;
         }
 
-        // Invalidate previous OTPs for the same purpose
         await otps.InvalidateAllAsync(request.Email, request.Purpose, cancellationToken)
             .ConfigureAwait(false);
 
-        logger.LogInformation("Invalidating previous OTPs");
-
-        // Generate 6-digit OTP and hash for storage
         var otpCode = RandomNumberGenerator.GetInt32(100000, 999999).ToString();
         var codeHash = passwordHasher.Hash(otpCode);
 
         var otp = OtpCode.Create(request.Email, codeHash, request.Purpose);
         otps.Add(otp);
 
-        logger.LogInformation("OTP added: {Otp}", otp);
-
         await uow.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-        // Send OTP via email
-        await emailSender.SendOtpAsync(
-            request.Email,
-            otpCode,
-            request.Purpose.ToString(),
-            cancellationToken).ConfigureAwait(false);
+        if (!authEmailScheduler.TryEnqueueOtpEmail(
+                request.Email,
+                otpCode,
+                request.Purpose.ToString()))
+        {
+            logger.LogError("OTP persisted but email job enqueue failed for user {UserId}", user.Id);
+            return Errors.Auth.EmailDispatchUnavailable;
+        }
 
-        logger.LogInformation("OTP sent to {Email} for purpose {Purpose}", request.Email, request.Purpose);
+        logger.LogInformation("OTP enqueued for user {UserId}, purpose {Purpose}", user.Id, request.Purpose);
 
         return new RequestOtpResponse("Mã OTP đã được gửi đến email của bạn.");
     }

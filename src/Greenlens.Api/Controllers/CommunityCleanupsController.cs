@@ -1,3 +1,4 @@
+using Greenlens.Api.Attributes;
 using Greenlens.Api.Extensions;
 using Greenlens.Application.Common.Models;
 using Greenlens.Application.Features.CommunityCleanup.CancelCommunityCleanup;
@@ -136,6 +137,7 @@ public sealed class CommunityCleanupsController(ISender sender) : ControllerBase
         => (await sender.Send(new GetActiveCommunityCleanupByReportIdQuery(reportId), ct)).ToHttp();
 
     [HttpPost("{eventId:guid}/join")]
+    [SupportsIdempotency]
     [Authorize(Roles = "Citizen")]
     [SwaggerOperation(Summary = "[Citizen] Tham gia (= Vote)", Description = "Join = vào làm ngay, không cần duyệt.")]
     [SwaggerResponse(200, "Đã tham gia", typeof(ApiResponse))]
@@ -160,6 +162,7 @@ public sealed class CommunityCleanupsController(ISender sender) : ControllerBase
         => (await sender.Send(new GetMyCommunityCleanupsQuery(page, pageSize), ct)).ToHttp();
 
     [HttpPost("{eventId:guid}/check-in")]
+    [SupportsIdempotency]
     [Authorize]
     [SwaggerOperation(Summary = "[Citizen/Leader] Check-in hiện trường", Description = "GPS ≤ 200m tới điểm tập trung (hoặc vị trí báo cáo). Nếu ngoài 200m, gửi kèm Reason (≥ 20 ký tự) để vẫn được check-in.")]
     [SwaggerResponse(200, "Đã check-in", typeof(ApiResponse))]

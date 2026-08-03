@@ -10,12 +10,16 @@ public readonly record struct ViolationRecurrenceNearbyReport(
     DateTime ClosedAt);
 
 /// <summary>
-/// Picks the most recently Closed report within 50m and same category (BR-REP-034).
+/// Picks the most recently Closed report within 25m and same category (BR-REP-034).
 /// </summary>
 public static class ViolationRecurrencePrimarySelector
 {
-    public const double DefaultRadiusMeters = 50.0;
+    public const double DefaultRadiusMeters = GeoMath.ProximityMatchRadiusMeters;
     public static readonly TimeSpan LookbackWindow = TimeSpan.FromDays(30);
+
+    /// <summary>Cleanup underway at the same spot — suppresses recurrence (BR-REP-034).</summary>
+    public static bool BlocksRecurrenceDetection(ReportStatus status) =>
+        status is ReportStatus.Verified or ReportStatus.InProgress or ReportStatus.Reopened;
 
     public static Guid? SelectPrimary(
         decimal reportLatitude,

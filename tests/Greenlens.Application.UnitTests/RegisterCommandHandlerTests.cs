@@ -13,14 +13,15 @@ public sealed class RegisterCommandHandlerTests
     private readonly IOtpRepository _otps = Substitute.For<IOtpRepository>();
     private readonly IUnitOfWork _uow = Substitute.For<IUnitOfWork>();
     private readonly IPasswordHasher _hasher = Substitute.For<IPasswordHasher>();
-    private readonly IEmailSender _email = Substitute.For<IEmailSender>();
+    private readonly IAuthEmailScheduler _authEmail = Substitute.For<IAuthEmailScheduler>();
     private readonly RegisterCommandHandler _sut;
 
     public RegisterCommandHandlerTests()
     {
-        _sut = new RegisterCommandHandler(_users, _otps, _uow, _hasher, _email, NullLogger<RegisterCommandHandler>.Instance);
+        _sut = new RegisterCommandHandler(_users, _otps, _uow, _hasher, _authEmail, NullLogger<RegisterCommandHandler>.Instance);
         _hasher.Hash(Arg.Any<string>()).Returns("hashed");
         _users.GetDeletedByEmailAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((User?)null);
+        _authEmail.TryEnqueueOtpEmail(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>()).Returns(true);
     }
 
     private static RegisterCommand CreateCommand(string email) =>
@@ -42,18 +43,30 @@ public sealed class RegisterCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_NewUser_ShouldSendOtpEmail()
+    public async Task Handle_NewUser_ShouldEnqueueOtpEmail()
     {
         _users.ExistsAsync(Arg.Any<System.Linq.Expressions.Expression<Func<User, bool>>>(), Arg.Any<CancellationToken>())
             .Returns(false);
 
         await _sut.Handle(CreateCommand("new@test.com"), CancellationToken.None);
 
-        await _email.Received(1).SendOtpAsync(
+        _authEmail.Received(1).TryEnqueueOtpEmail(
             "new@test.com",
             Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<CancellationToken>());
+            Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task Handle_EmailEnqueueFails_ReturnsEmailDispatchUnavailable()
+    {
+        _users.ExistsAsync(Arg.Any<System.Linq.Expressions.Expression<Func<User, bool>>>(), Arg.Any<CancellationToken>())
+            .Returns(false);
+        _authEmail.TryEnqueueOtpEmail(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>()).Returns(false);
+
+        var result = await _sut.Handle(CreateCommand("new@test.com"), CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("EMAIL_DISPATCH_UNAVAILABLE", result.Error!.Code);
     }
 
     [Fact]
