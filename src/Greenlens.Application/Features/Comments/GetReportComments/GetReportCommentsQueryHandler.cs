@@ -56,6 +56,7 @@ public sealed class GetReportCommentsQueryHandler(
                 c.AuthorId,
                 AuthorFullName = c.Author.FullName,
                 AuthorRole = c.Author.Role.ToString(),
+                AuthorAvatarUrl = c.Author.AvatarUrl,
                 c.CreatedAt,
                 c.UpdatedAt,
                 c.IsHidden,
@@ -72,8 +73,10 @@ public sealed class GetReportCommentsQueryHandler(
             var isAuthor = currentUser.IsAuthenticated && r.AuthorId == currentUser.UserId;
             var withinWindow = DateTime.UtcNow - r.CreatedAt <= TimeSpan.FromMinutes(15);
             var authorName = CommentAccess.ResolveAuthorDisplayName(r.AuthorRole, r.AuthorFullName);
+            // BR-CMT-001: đội xử lý hiện nhãn chung → không lộ avatar cá nhân.
+            var authorAvatarUrl = CommentAccess.IsCleanupTeamRole(r.AuthorRole) ? null : r.AuthorAvatarUrl;
             return new CommentListItem(
-                r.Id, r.Content, authorName, r.AuthorId,
+                r.Id, r.Content, authorName, r.AuthorId, authorAvatarUrl,
                 r.CreatedAt, r.UpdatedAt, r.IsHidden,
                 isAuthor && withinWindow && !r.IsHidden,
                 isAuthor && withinWindow,

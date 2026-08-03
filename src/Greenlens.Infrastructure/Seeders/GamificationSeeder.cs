@@ -19,7 +19,8 @@ internal static class GamificationSeeder
         string Description,
         string IconUrl,
         int? RequiredReportCount,
-        int? RequiredPoints);
+        int? RequiredPoints,
+        int? RequiredStreakDays = null);
 
     private static readonly BadgeSeed[] DefaultBadges =
     [
@@ -32,9 +33,9 @@ internal static class GamificationSeeder
         new("earth_guardian", "Người Bảo Vệ Trái Đất", "Earth Guardian",
             "Gửi 100 báo cáo ô nhiễm được xác minh", "badges/icons/earth_guardian.png", 100, null),
         new("streak_7d", "Bền Bỉ 7 Ngày", "7-Day Streak",
-            "Gửi báo cáo 7 ngày liên tiếp", "badges/icons/streak_7d.png", null, null),
+            "Gửi báo cáo 7 ngày liên tiếp", "badges/icons/streak_7d.png", null, null, RequiredStreakDays: 7),
         new("streak_30d", "Kiên Trì 30 Ngày", "30-Day Streak",
-            "Gửi báo cáo 30 ngày liên tiếp", "badges/icons/streak_30d.png", null, null),
+            "Gửi báo cáo 30 ngày liên tiếp", "badges/icons/streak_30d.png", null, null, RequiredStreakDays: 30),
         new("hotspot_hunter", "Thợ Săn Điểm Nóng", "Hotspot Hunter",
             "Gửi 3 báo cáo trong khu vực hotspot ô nhiễm", "badges/icons/hotspot_hunter.png", null, null),
         new("duplicate_finder", "Người Phát Hiện Trùng", "Duplicate Finder",
@@ -47,6 +48,8 @@ internal static class GamificationSeeder
             "Đạt Level 4 với 1.500 điểm tích lũy", "badges/icons/eco_expert.png", null, 1500),
         new("green_legend", "Huyền Thoại Xanh", "Green Legend",
             "Đạt Level 5 với 5.000 điểm tích lũy — thành tựu cao nhất", "badges/icons/green_legend.png", null, 5000),
+        new("cleanup_hero", "Anh Hùng Dọn Dẹp", "Cleanup Hero",
+            "Hoàn thành tham gia một chương trình dọn dẹp cộng đồng", "badges/icons/cleanup_hero.png", null, null),
     ];
 
     private static readonly (PointReason Action, int Points, string Description)[] DefaultConfigs =
@@ -57,6 +60,7 @@ internal static class GamificationSeeder
         (PointReason.DuplicateReport, 5, "Báo cáo trùng được gộp: +50% điểm báo cáo gốc (ReportVerified)"),
         (PointReason.ReportRejected, -5, "Báo cáo bị từ chối (không hợp lệ)"),
         (PointReason.FraudPenalty, -100, "BR-GAM-006: Phạt gian lận — trừ toàn bộ điểm"),
+        (PointReason.CommunityCleanupParticipation, 15, "Tham gia và check-in một chương trình dọn dẹp cộng đồng đã hoàn thành"),
     ];
 
     public static async Task SeedAsync(
@@ -94,7 +98,8 @@ internal static class GamificationSeeder
                 seed.Description,
                 seed.IconUrl,
                 seed.RequiredPoints,
-                seed.RequiredReportCount));
+                seed.RequiredReportCount,
+                seed.RequiredStreakDays));
             added++;
         }
 

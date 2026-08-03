@@ -30,6 +30,16 @@ public sealed class GetReportsQueryHandler(
         if (request.Severity.HasValue)
             query = query.Where(r => r.Severity == request.Severity.Value);
 
+        // Tìm theo mã / mô tả / địa chỉ — ToLower() để Postgres so sánh không phân biệt hoa thường.
+        if (!string.IsNullOrWhiteSpace(request.Keyword))
+        {
+            var keyword = request.Keyword.Trim().ToLower();
+            query = query.Where(r =>
+                r.Code.ToLower().Contains(keyword)
+                || (r.Description != null && r.Description.ToLower().Contains(keyword))
+                || (r.Address != null && r.Address.ToLower().Contains(keyword)));
+        }
+
         var totalCount = await query.CountAsync(ct).ConfigureAwait(false);
 
         var pagination = PaginationMeta.Create(request.Page, request.PageSize, totalCount);

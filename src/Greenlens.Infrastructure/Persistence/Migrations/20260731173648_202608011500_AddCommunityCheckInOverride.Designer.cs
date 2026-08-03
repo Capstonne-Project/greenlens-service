@@ -3,17 +3,20 @@ using System;
 using Greenlens.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace Greenlens.Infrastructure.Migrations
+namespace Greenlens.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260731173648_202608011500_AddCommunityCheckInOverride")]
+    partial class _202608011500_AddCommunityCheckInOverride
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -140,10 +143,6 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("required_report_count");
 
-                    b.Property<int?>("RequiredStreakDays")
-                        .HasColumnType("integer")
-                        .HasColumnName("required_streak_days");
-
                     b.HasKey("Id")
                         .HasName("pk_badges");
 
@@ -211,8 +210,7 @@ namespace Greenlens.Infrastructure.Migrations
                             IconUrl = "badges/icons/streak_7d.png",
                             IsActive = true,
                             NameEn = "7-Day Streak",
-                            NameVi = "Bền Bỉ 7 Ngày",
-                            RequiredStreakDays = 7
+                            NameVi = "Bền Bỉ 7 Ngày"
                         },
                         new
                         {
@@ -223,8 +221,7 @@ namespace Greenlens.Infrastructure.Migrations
                             IconUrl = "badges/icons/streak_30d.png",
                             IsActive = true,
                             NameEn = "30-Day Streak",
-                            NameVi = "Kiên Trì 30 Ngày",
-                            RequiredStreakDays = 30
+                            NameVi = "Kiên Trì 30 Ngày"
                         },
                         new
                         {
@@ -1829,10 +1826,6 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("created_by");
 
-                    b.Property<DateTime?>("EmailDispatchedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("email_dispatched_at");
-
                     b.Property<bool>("IsRead")
                         .HasColumnType("boolean")
                         .HasColumnName("is_read");
@@ -1842,10 +1835,6 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)")
                         .HasColumnName("message");
-
-                    b.Property<DateTime?>("PushDispatchedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("push_dispatched_at");
 
                     b.Property<DateTime?>("ReadAt")
                         .HasColumnType("timestamp with time zone")

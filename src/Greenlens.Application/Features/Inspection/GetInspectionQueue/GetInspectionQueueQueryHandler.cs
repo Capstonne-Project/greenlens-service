@@ -42,7 +42,7 @@ public sealed class GetInspectionQueueQueryHandler(
 
         if (request.Status.HasValue)
         {
-            logger.LogWarning("Status {Status} not found", request.Status.Value);
+            logger.LogInformation("Filtering inspection queue by status {Status}", request.Status.Value);
             query = query.Where(ir => ir.Status == request.Status.Value);
         }
 
@@ -65,7 +65,9 @@ public sealed class GetInspectionQueueQueryHandler(
                 ir.PenaltyAmount,
                 ir.IsRepeatOffender,
                 ir.SlaInspectionDueAt,
-                ir.CreatedAt))
+                ir.CreatedAt,
+                ir.Report.Latitude,
+                ir.Report.Longitude))
             .ToListAsync(ct)
             .ConfigureAwait(false);
 

@@ -8,6 +8,10 @@ public sealed record GetReportByIdQuery(Guid Id) : IRequest<Result<ReportDetailR
 
 public sealed record ReportDetailResponse(
     Guid Id, string Code, Guid? ReporterId,
+    /// <summary>Tên người gửi. Null khi báo cáo ẩn danh hoặc reporter đã xóa tài khoản (BR-REP-012, BR-AUTH-022).</summary>
+    string? ReporterName,
+    /// <summary>Avatar người gửi. Null khi ẩn danh, chưa đặt avatar, hoặc đã xóa tài khoản.</summary>
+    string? ReporterAvatarUrl,
     Guid CategoryId, string CategoryCode, string CategoryName,
     Severity Severity, SeveritySource SeveritySetBy,
     ReportStatus Status, string? Description,

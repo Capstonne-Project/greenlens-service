@@ -3,17 +3,20 @@ using System;
 using Greenlens.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace Greenlens.Infrastructure.Migrations
+namespace Greenlens.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260802123325_AddBadgeRequiredStreakDays")]
+    partial class AddBadgeRequiredStreakDays
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1829,10 +1832,6 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("created_by");
 
-                    b.Property<DateTime?>("EmailDispatchedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("email_dispatched_at");
-
                     b.Property<bool>("IsRead")
                         .HasColumnType("boolean")
                         .HasColumnName("is_read");
@@ -1842,10 +1841,6 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)")
                         .HasColumnName("message");
-
-                    b.Property<DateTime?>("PushDispatchedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("push_dispatched_at");
 
                     b.Property<DateTime?>("ReadAt")
                         .HasColumnType("timestamp with time zone")

@@ -20,6 +20,8 @@ public sealed class CommunityCleanupParticipant : BaseEntity
     public DateTime? CheckedInAt { get; private set; }
     public decimal? CheckInLatitude { get; private set; }
     public decimal? CheckInLongitude { get; private set; }
+    public bool IsCheckInOverridden { get; private set; }
+    public string? CheckInOverrideReason { get; private set; }
 
     // ── Navigation ──
     public CommunityCleanupEvent? Event { get; private set; }
@@ -38,8 +40,12 @@ public sealed class CommunityCleanupParticipant : BaseEntity
         };
     }
 
-    /// <summary>BR-CMU-007: Check-in at the site (GPS distance validated by the caller).</summary>
-    public void CheckIn(decimal latitude, decimal longitude)
+    /// <summary>
+    /// BR-CMU-007: Check-in at the site (GPS distance validated by the caller).
+    /// <paramref name="overrideReason"/> is set when the caller allowed check-in outside the
+    /// 200m radius because the user supplied a reason (draft rule — out-of-range override).
+    /// </summary>
+    public void CheckIn(decimal latitude, decimal longitude, string? overrideReason = null)
     {
         if (Status != CommunityCleanupParticipantStatus.Joined)
             throw new InvalidOperationException($"Cannot check in from status {Status}. Must be Joined.");
@@ -48,6 +54,8 @@ public sealed class CommunityCleanupParticipant : BaseEntity
         CheckedInAt = DateTime.UtcNow;
         CheckInLatitude = latitude;
         CheckInLongitude = longitude;
+        IsCheckInOverridden = overrideReason is not null;
+        CheckInOverrideReason = overrideReason;
     }
 
     /// <summary>BR-CMU-006: Withdraw before check-in (event-status window enforced by the caller).</summary>

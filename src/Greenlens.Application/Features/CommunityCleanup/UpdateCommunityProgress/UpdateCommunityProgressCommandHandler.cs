@@ -39,6 +39,9 @@ public sealed class UpdateCommunityProgressCommandHandler(
                 return Errors.Media.InvalidStorageUrl;
         }
 
+        if (request.ProgressPercent < ev.ProgressPercent)
+            return Errors.CommunityCleanup.ProgressCannotDecrease;
+
         try
         {
             ev.UpdateProgress(request.ProgressPercent, request.ProgressNote);

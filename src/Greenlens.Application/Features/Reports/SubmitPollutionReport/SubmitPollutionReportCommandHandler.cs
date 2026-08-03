@@ -56,6 +56,8 @@ public sealed class SubmitPollutionReportCommandHandler(
         SubmitPollutionReportCommand request,
         CancellationToken cancellationToken)
     {
+        var swTotal = System.Diagnostics.Stopwatch.StartNew();
+
         if (!currentUser.IsAuthenticated)
         {
             logger.LogWarning("User is not authenticated");
@@ -162,7 +164,9 @@ public sealed class SubmitPollutionReportCommandHandler(
                         first.Url.Trim(),
                         StringComparison.Ordinal))
                     {
-                        logger.LogWarning("Upload metadata mismatch for image {Url}", first.Url);
+                        logger.LogWarning(
+                            "Upload metadata mismatch (URL) for tempImageId={TempImageId} | tempUrl={TempUrl} submitUrl={SubmitUrl}",
+                            request.TempImageId, tempEntry.PublicUrl, first.Url.Trim());
                         return Errors.Media.UploadMetadataMismatch;
                     }
                 if (tempEntry.StorageKey is not null
@@ -171,7 +175,9 @@ public sealed class SubmitPollutionReportCommandHandler(
                         first.Key?.Trim(),
                         StringComparison.Ordinal))
                     {
-                        logger.LogWarning("Upload metadata mismatch for image {Url}", first.Url);
+                        logger.LogWarning(
+                            "Upload metadata mismatch (Key) for tempImageId={TempImageId} | tempKey={TempKey} submitKey={SubmitKey}",
+                            request.TempImageId, tempEntry.StorageKey, first.Key?.Trim());
                         return Errors.Media.UploadMetadataMismatch;
                     }
 
@@ -215,6 +221,7 @@ public sealed class SubmitPollutionReportCommandHandler(
             // Manual flow persists the uploaded image without scheduling AI classification.
             var first = request.Images![0];
             byte[]? manualBytes;
+            var swDownload = System.Diagnostics.Stopwatch.StartNew();
             if (!string.IsNullOrWhiteSpace(first.Key))
             {
                 var stored = await fileStorage.DownloadAsync(
@@ -222,9 +229,11 @@ public sealed class SubmitPollutionReportCommandHandler(
                         10 * 1024 * 1024,
                         cancellationToken)
                     .ConfigureAwait(false);
-                if (stored is null || stored.SizeBytes != first.SizeBytes)
+                if (stored is null || !IsSizeWithinTolerance(stored.SizeBytes, first.SizeBytes))
                 {
-                    logger.LogWarning("Upload metadata mismatch for image {Url}", first.Url);
+                    logger.LogWarning(
+                        "Upload metadata mismatch for image {Url} (stored={StoredSize}, declared={DeclaredSize})",
+                        first.Url, stored?.SizeBytes, first.SizeBytes);
                     return Errors.Media.UploadMetadataMismatch;
                 }
                 manualBytes = stored.Bytes;
@@ -235,6 +244,10 @@ public sealed class SubmitPollutionReportCommandHandler(
                     .TryFetchAsync(first.Url.Trim(), cancellationToken)
                     .ConfigureAwait(false);
             }
+            swDownload.Stop();
+            logger.LogWarning(
+                "[TIMING] Re-download image from storage took {ElapsedMs}ms (size={Size} bytes)",
+                swDownload.ElapsedMilliseconds, manualBytes?.LongLength ?? 0);
             resolvedImage = new ResolvedImage(
                 Url: first.Url.Trim(),
                 MimeType: first.MimeType.Trim(),
@@ -308,8 +321,11 @@ public sealed class SubmitPollutionReportCommandHandler(
         string? exifWarning = null;
         if (resolvedImage.ImageBytes is { Length: > 0 } bytes)
         {
+            var swExif = System.Diagnostics.Stopwatch.StartNew();
             var submittedAtUtc = clock.UtcNow;
             var exif = exifAnalyzer.Analyze(bytes, submittedAtUtc);
+            swExif.Stop();
+            logger.LogWarning("[TIMING] EXIF analyze took {ElapsedMs}ms", swExif.ElapsedMilliseconds);
 
             if (!string.IsNullOrEmpty(exif.ExifJson))
                 primaryMedia.SetExifData(exif.ExifJson);
@@ -381,6 +397,7 @@ public sealed class SubmitPollutionReportCommandHandler(
 
         report.RaiseSubmittedForVerification();
 
+        var swSave = System.Diagnostics.Stopwatch.StartNew();
         try
         {
             await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -392,10 +409,15 @@ public sealed class SubmitPollutionReportCommandHandler(
                 return mapped;
             throw;
         }
+        swSave.Stop();
+        logger.LogWarning("[TIMING] SaveChangesAsync took {ElapsedMs}ms", swSave.ElapsedMilliseconds);
 
         logger.LogInformation(
             "Report {ReportCode} submitted by {ReporterId}, routed to office {OfficeId} / department {DepartmentId}",
             report.Code, reporterId, report.AssignedOfficeId, report.AssignedDepartmentId);
+
+        swTotal.Stop();
+        logger.LogWarning("[TIMING] Total SubmitPollutionReport handler took {ElapsedMs}ms", swTotal.ElapsedMilliseconds);
 
         // ── Cleanup temp after successful save (AI flow only) ───────────────
         if (resolvedImage.IsAiFlow)
@@ -478,6 +500,7 @@ public sealed class SubmitPollutionReportCommandHandler(
             .Where(r => r.ClosedAt >= cutoff)
             .Where(r => r.Latitude >= report.Latitude - latDelta && r.Latitude <= report.Latitude + latDelta)
             .Where(r => r.Longitude >= report.Longitude - lngDelta && r.Longitude <= report.Longitude + lngDelta)
+            .OrderByDescending(r => r.ClosedAt)
             .Select(r => new ViolationRecurrenceNearbyReport(
                 r.Id, r.Latitude, r.Longitude, r.ClosedAt!.Value))
             .Take(20)
@@ -495,6 +518,10 @@ public sealed class SubmitPollutionReportCommandHandler(
     /// True when a report is actively being handled or cleaned (Verified / InProgress / Reopened)
     /// within the recurrence radius and same category.
     /// </summary>
+    /// <remarks>
+    /// Status list inlined (not calling <see cref="ViolationRecurrencePrimarySelector.BlocksRecurrenceDetection"/>)
+    /// because EF Core cannot translate an arbitrary static method call to SQL. Keep both in sync.
+    /// </remarks>
     private async Task<bool> HasActiveCleanupNearbyAsync(
         Report report,
         decimal latDelta,
@@ -505,7 +532,7 @@ public sealed class SubmitPollutionReportCommandHandler(
         var nearby = await reports.QueryAsNoTracking()
             .Where(r => r.CategoryId == report.CategoryId)
             .Where(r => r.Id != report.Id)
-            .Where(r => ViolationRecurrencePrimarySelector.BlocksRecurrenceDetection(r.Status))
+            .Where(r => r.Status == ReportStatus.Verified || r.Status == ReportStatus.InProgress || r.Status == ReportStatus.Reopened)
             .Where(r => r.Latitude >= report.Latitude - latDelta && r.Latitude <= report.Latitude + latDelta)
             .Where(r => r.Longitude >= report.Longitude - lngDelta && r.Longitude <= report.Longitude + lngDelta)
             .Select(r => new { r.Latitude, r.Longitude })
@@ -529,6 +556,18 @@ public sealed class SubmitPollutionReportCommandHandler(
         } while (attempts < 12 &&
                  await reports.ExistsAsync(r => r.Code == code, ct).ConfigureAwait(false));
         return code;
+    }
+
+    /// <summary>
+    /// So sánh size ảnh client khai (đo trước khi PUT) với size thật trên storage.
+    /// Cho phép sai số nhỏ (1% hoặc tối thiểu 4KB) — JPEG re-encode giữa các bước xử lý ảnh trên
+    /// mobile (Hermes Blob fallback, nén lại khi retry) có thể lệch vài byte dù cùng nội dung ảnh.
+    /// </summary>
+    private static bool IsSizeWithinTolerance(long storedSizeBytes, long declaredSizeBytes)
+    {
+        const long minToleranceBytes = 4 * 1024;
+        var tolerance = Math.Max(minToleranceBytes, declaredSizeBytes / 100);
+        return Math.Abs(storedSizeBytes - declaredSizeBytes) <= tolerance;
     }
 
     private sealed record ResolvedImage(

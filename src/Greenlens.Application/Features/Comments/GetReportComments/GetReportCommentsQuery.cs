@@ -18,6 +18,11 @@ public sealed record CommentListItem(
     string Content,
     string AuthorName,
     Guid AuthorId,
+    /// <summary>
+    /// Avatar tác giả. Null khi tác giả là nhân viên đội xử lý (hiển thị nhãn chung
+    /// thay danh tính thật — BR-CMT-001) hoặc chưa đặt avatar.
+    /// </summary>
+    string? AuthorAvatarUrl,
     DateTime CreatedAt,
     DateTime? UpdatedAt,
     bool IsHidden,

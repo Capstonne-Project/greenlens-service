@@ -28,12 +28,16 @@ public sealed class Badge : BaseEntity
     /// <summary>If set, badge is auto-awarded when user reaches this report count.</summary>
     public int? RequiredReportCount { get; private set; }
 
+    /// <summary>If set (streak badges), badge is auto-awarded when user reaches this many consecutive submit days.</summary>
+    public int? RequiredStreakDays { get; private set; }
+
     public DateTime CreatedAt { get; private set; }
 
     public static Badge Create(
         string code, string nameVi, string nameEn,
         string? description = null, string? iconUrl = null,
-        int? requiredPoints = null, int? requiredReportCount = null)
+        int? requiredPoints = null, int? requiredReportCount = null,
+        int? requiredStreakDays = null)
     {
         return new Badge
         {
@@ -44,6 +48,7 @@ public sealed class Badge : BaseEntity
             IconUrl = iconUrl,
             RequiredPoints = requiredPoints,
             RequiredReportCount = requiredReportCount,
+            RequiredStreakDays = requiredStreakDays,
             IsActive = true,
             CreatedAt = DateTime.UtcNow
         };

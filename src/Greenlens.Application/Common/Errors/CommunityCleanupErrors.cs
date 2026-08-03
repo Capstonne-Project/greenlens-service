@@ -108,5 +108,10 @@ public static partial class Errors
             "COMMUNITY_TOO_EARLY_TO_START",
             "Chưa đến giờ bắt đầu dọn dẹp của chương trình này.",
             ErrorType.BusinessRule);
+
+        public static Error ProgressCannotDecrease => new(
+            "COMMUNITY_PROGRESS_CANNOT_DECREASE",
+            "Tiến độ không thể giảm so với mức đã cập nhật trước đó.",
+            ErrorType.BusinessRule);
     }
 }

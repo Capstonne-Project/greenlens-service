@@ -11,7 +11,9 @@ internal static class CommunityCleanupMapper
         EnvironmentalTeam leaderTeam,
         int participantCount,
         CommunityCleanupMediaSummaryDto mediaSummary,
+        CommunityCleanupMediaDto media,
         string? thumbnailUrl,
+        List<string> reportImageUrls,
         CommunityCleanupMyParticipationDto? myParticipation,
         bool isLeader)
     {
@@ -22,6 +24,8 @@ internal static class CommunityCleanupMapper
             ev.Status,
             ev.Title,
             ev.Description,
+            report.Description,
+            reportImageUrls,
             new CommunityCleanupLeaderDto(leaderUser.Id, leaderUser.FullName, leaderTeam.Id, leaderTeam.Name),
             ev.JoinOpensAt,
             ev.JoinClosesAt,
@@ -43,6 +47,7 @@ internal static class CommunityCleanupMapper
             thumbnailUrl,
             myParticipation,
             isLeader,
-            mediaSummary);
+            mediaSummary,
+            media);
     }
 }

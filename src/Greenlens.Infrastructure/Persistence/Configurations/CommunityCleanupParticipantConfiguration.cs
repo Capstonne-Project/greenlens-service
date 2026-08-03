@@ -14,6 +14,7 @@ internal sealed class CommunityCleanupParticipantConfiguration : IEntityTypeConf
 
         builder.Property(p => p.Status).HasConversion<string>().HasMaxLength(20);
         builder.Property(p => p.Role).HasConversion<string>().HasMaxLength(20);
+        builder.Property(p => p.CheckInOverrideReason).HasMaxLength(500);
 
         // BR-CMU-005: a user can only have one participation row per event.
         builder.HasIndex(p => new { p.EventId, p.UserId }).IsUnique();

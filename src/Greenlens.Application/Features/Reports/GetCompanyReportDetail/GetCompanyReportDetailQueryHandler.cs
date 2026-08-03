@@ -128,7 +128,7 @@ public sealed class GetCompanyReportDetailQueryHandler(
 
         // ── 7. Media grouped by phase ──
         var beforeImages = r.Media
-            .Where(m => m.Type is MediaType.Before or MediaType.Image)
+            .Where(m => m.Type == MediaType.Before)
             .OrderBy(m => m.UploadedAt)
             .Select(m => new CompanyReportMediaItem(m.Url, m.UploadedAt))
             .ToList();

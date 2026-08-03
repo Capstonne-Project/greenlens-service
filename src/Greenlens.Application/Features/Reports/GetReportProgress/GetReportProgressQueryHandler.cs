@@ -112,7 +112,7 @@ public sealed class GetReportProgressQueryHandler(
 
         // ── Media grouped by phase ─────────────────────────────────
         var beforeImages = report.Media
-            .Where(m => m.Type is MediaType.Before or MediaType.Image)
+            .Where(m => m.Type == MediaType.Before)
             .OrderBy(m => m.UploadedAt)
             .Select(m => new MediaItemDto(m.Url, m.UploadedAt))
             .ToList();

@@ -51,12 +51,28 @@ internal static class CommunityCleanupDetailBuilder
             mediaCounts.FirstOrDefault(x => x.Type == MediaType.Progress)?.Count ?? 0,
             mediaCounts.FirstOrDefault(x => x.Type == MediaType.After)?.Count ?? 0);
 
-        var thumbnailUrl = await reportMedia.QueryAsNoTracking()
+        var cleanupPhaseImages = await reportMedia.QueryAsNoTracking()
+            .Where(m => m.ReportId == ev.ReportId
+                && (m.Type == MediaType.Before || m.Type == MediaType.Progress || m.Type == MediaType.After))
+            .OrderBy(m => m.UploadedAt)
+            .Select(m => new { m.Type, m.Url })
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        var media = new CommunityCleanupMediaDto(
+            cleanupPhaseImages.Where(m => m.Type == MediaType.Before).Select(m => m.Url).ToList(),
+            cleanupPhaseImages.Where(m => m.Type == MediaType.Progress).Select(m => m.Url).ToList(),
+            cleanupPhaseImages.Where(m => m.Type == MediaType.After).Select(m => m.Url).ToList());
+
+        var originalImages = await reportMedia.QueryAsNoTracking()
             .Where(m => m.ReportId == ev.ReportId && m.Type == MediaType.Image)
             .OrderBy(m => m.UploadedAt)
-            .Select(m => m.ThumbnailUrl ?? m.Url)
-            .FirstOrDefaultAsync(ct)
+            .Select(m => new { m.Url, m.ThumbnailUrl })
+            .ToListAsync(ct)
             .ConfigureAwait(false);
+
+        var reportImageUrls = originalImages.Select(m => m.Url).ToList();
+        var thumbnailUrl = originalImages.Count > 0 ? originalImages[0].ThumbnailUrl ?? originalImages[0].Url : null;
 
         CommunityCleanupMyParticipationDto? myParticipation = null;
         if (currentUser.IsAuthenticated)
@@ -68,7 +84,7 @@ internal static class CommunityCleanupDetailBuilder
 
         return CommunityCleanupMapper.ToDetail(
             ev, report, leaderUser, leaderTeam,
-            participantCount, mediaSummary, thumbnailUrl, myParticipation,
+            participantCount, mediaSummary, media, thumbnailUrl, reportImageUrls, myParticipation,
             isLeader: currentUser.IsAuthenticated && currentUser.UserId == ev.LeaderUserId);
     }
 }

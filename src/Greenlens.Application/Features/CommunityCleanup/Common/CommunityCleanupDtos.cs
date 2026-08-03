@@ -14,6 +14,11 @@ public sealed record CommunityCleanupMediaSummaryDto(
     int ProgressCount,
     int AfterCount);
 
+public sealed record CommunityCleanupMediaDto(
+    List<string> BeforeImageUrls,
+    List<string> ProgressImageUrls,
+    List<string> AfterImageUrls);
+
 public sealed record CommunityCleanupMyParticipationDto(
     CommunityCleanupParticipantStatus Status,
     DateTime JoinedAt,
@@ -27,6 +32,8 @@ public sealed record CommunityCleanupEventDetailResponse(
     CommunityCleanupStatus Status,
     string Title,
     string? Description,
+    string? ReportDescription,
+    List<string> ReportImageUrls,
     CommunityCleanupLeaderDto Leader,
     DateTime JoinOpensAt,
     DateTime? JoinClosesAt,
@@ -48,7 +55,8 @@ public sealed record CommunityCleanupEventDetailResponse(
     string? ThumbnailUrl,
     CommunityCleanupMyParticipationDto? MyParticipation,
     bool IsLeader,
-    CommunityCleanupMediaSummaryDto MediaSummary);
+    CommunityCleanupMediaSummaryDto MediaSummary,
+    CommunityCleanupMediaDto Media);
 
 /// <summary>Compact list item for open/my/led-by-me lists.</summary>
 public sealed record CommunityCleanupListItemDto(
@@ -86,3 +94,14 @@ public sealed record CommunityCleanupListResponse(
 public sealed record CommunityCleanupParticipantsResponse(
     List<CommunityCleanupParticipantDto> Items,
     PaginationMeta Pagination);
+
+/// <summary>Per-status counts of the office's community-cleanup queue.</summary>
+public sealed record CommunityCleanupStatusCountDto(
+    CommunityCleanupStatus Status,
+    int Count);
+
+/// <summary>Aggregate counters — GET /v1/community-cleanups/office-queue/stats.</summary>
+public sealed record CommunityCleanupQueueStatsResponse(
+    List<CommunityCleanupStatusCountDto> CountsByStatus,
+    int TotalParticipants,
+    int TotalMediaCount);

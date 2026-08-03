@@ -21,5 +21,8 @@ public enum PointReason
     ReportRejected,
 
     /// <summary>BR-GAM-006: Fraud penalty — deduct all points from batch.</summary>
-    FraudPenalty
+    FraudPenalty,
+
+    /// <summary>Community cleanup event completed, participant checked in: +15 points.</summary>
+    CommunityCleanupParticipation
 }
