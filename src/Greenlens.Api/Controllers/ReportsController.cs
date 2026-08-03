@@ -546,7 +546,7 @@ public sealed class ReportsController(
     [SwaggerOperation(
         Summary = "[LEO/DEO] Danh sách báo cáo nghi ngờ tái phạm vi phạm",
         Description = "BR-REP-034: Trả về các báo cáo bị gắn cờ isSuspectedViolationRecurrence " +
-            "(cùng category, ≤50m, báo cáo trước đã Closed trong 30 ngày) kèm báo cáo Closed trước đó " +
+            "(cùng category, ≤25m, báo cáo trước đã Closed trong 30 ngày) kèm báo cáo Closed trước đó " +
             "và toàn bộ ảnh/video citizen submit (media[] / priorClosedReport.media[]) " +
             "để LEO so sánh và quyết định mở hồ sơ thanh tra hoặc bác cờ.")]
     [SwaggerResponse(200, "Danh sách nghi ngờ tái phạm", typeof(ApiResponse<GetViolationRecurrenceCandidatesResponse>))]
