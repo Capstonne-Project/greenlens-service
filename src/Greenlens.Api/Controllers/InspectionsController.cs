@@ -99,7 +99,8 @@ public sealed class InspectionsController(ISender sender) : ControllerBase
     [Tags("🔍 Inspection Dashboard")]
     [SwaggerOperation(
         Summary = "[Inspector/LEO] Chi tiết hồ sơ xử phạt",
-        Description = "Xem toàn bộ thông tin InspectionReport: vi phạm, mức phạt, SLA, trạng thái nộp phạt.")]
+        Description = "Xem toàn bộ thông tin InspectionReport: vi phạm, mức phạt, SLA, trạng thái nộp phạt, " +
+            "tọa độ GPS báo cáo gốc (latitude/longitude).")]
     [SwaggerResponse(200, "Chi tiết hồ sơ", typeof(ApiResponse<InspectionReportDetailResponse>))]
     [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
     public async Task<IActionResult> GetByIdAsync(

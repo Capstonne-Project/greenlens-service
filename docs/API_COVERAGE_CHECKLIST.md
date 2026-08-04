@@ -798,12 +798,12 @@ Bảng tra cứu nhanh **toàn bộ** route — dùng khi audit cross-team.
 | AdminDashboardController | `/v1/dashboard/admin` | 12 |
 | CompanyDashboardController | `/v1/dashboard/company` | 8 |
 
-**Tổng HTTP endpoints:** **289** (đếm `[HttpGet|Post|Put|Patch|Delete]` trên 20 controllers; không tính SignalR). Cập nhật khi thêm/xóa action.
+**Tổng HTTP endpoints:** **271** (đếm `[HttpGet|Post|Put|Patch|Delete]` trên 20 controllers; không tính SignalR). Cập nhật khi thêm/xóa action.
 
 | Kiểm tra | Giá trị |
 | -------- | ------- |
-| Tổng cột Endpoints (bảng trên) | 289 |
-| Quét `Controllers/*.cs` | 289 |
+| Tổng cột Endpoints (bảng trên) | 271 |
+| Quét `Controllers/*.cs` | 271 |
 
 ---
 
@@ -836,6 +836,7 @@ POST /v1/media/presign → PUT file lên R2 → POST /v1/reports (hoặc before-
 
 | Ngày | Thay đổi |
 |------|----------|
-| 2026-08-04 | Sửa master index §13: đồng bộ số endpoint theo controller (289); Users 8, Reports 48, Inspections 21, CommunityCleanups 20 |
+| 2026-08-04 | Sửa tổng §13: 289 → **271** (khớp tổng cột bảng + quét `Controllers/*.cs`) |
+| 2026-08-04 | Sửa master index §13: đồng bộ số endpoint theo controller; Users 8, Reports 48, Inspections 21, CommunityCleanups 20 |
 | 2026-08-03 | Tái cấu trúc theo **luồng nghiệp vụ** (workflow-first): LEO tách Cleanup vs Inspection; thêm cột Bước, sơ đồ luồng, link FE guides |
 | 2026-07-30 | Tạo checklist ban đầu từ 20 controllers; bổ sung `violation-recurrence-candidates`, `media[]` trên candidate APIs |

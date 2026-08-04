@@ -11,6 +11,8 @@ public sealed record InspectionReportDetailResponse(
     Guid Id,
     Guid ReportId,
     string ReportCode,
+    decimal Latitude,
+    decimal Longitude,
     InspectionStatus Status,
     // Team
     Guid? AssignedTeamId,
