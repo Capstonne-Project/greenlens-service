@@ -400,14 +400,18 @@ Deprecated (410): `POST .../check-in`, `PUT .../progress`.
 
 ---
 
-## 9. SLA & notification (LEO nhận)
+## 9. SLA & notification
 
-| Sự kiện | Job / trigger | Hành động LEO trên UI |
-|---------|---------------|------------------------|
-| SLA inspection breach | `SlaBreachInspectionJob` (30 phút) | Badge breach; có thể auto `ClosedNoViolation` |
-| Team decline | Inspector decline | Re-gán team |
-| Penalty overdue | Payment due job | Filter Overdue, liên hệ vi phạm |
-| Violation recurrence | Submit report | Tab nghi tái phát |
+Chi tiết template, `type` enum, SignalR/FCM và deep link: **[`fe-inspection-notifications-guide.md`](./fe-inspection-notifications-guide.md)**.
+
+| Sự kiện | `type` | Người nhận | Trigger | Hành động UI |
+|---------|--------|------------|---------|--------------|
+| Gán team thanh tra | `InspectionTaskAssigned` | Inspector (Mobile) | `POST .../inspections`, `assign-team` | — (Inspector xử lý queue) |
+| Team từ chối | `InspectionTaskDeclined` | LEO tạo hồ sơ | `POST .../decline` | Re-gán team (`assign-team`) |
+| Không vi phạm / SLA auto-close | `InspectionClosedNoViolation` | Citizen reporter | `close-no-violation`, SLA job | — (Citizen xem report detail) |
+| Quá hạn nộp phạt | `PenaltyPaymentOverdue` | LEO + DEO | `PenaltyPaymentOverdueJob` (1h) | Filter `Overdue`, officer-queue |
+| SLA inspection breach | `SlaInspectionBreached` | LEO tạo hồ sơ | `SlaBreachInspectionJob` (30 phút) | Badge breach; có thể kèm auto-close citizen notify |
+| Nghi tái phát | `ViolationRecurrenceReviewNeeded` | LEO | Citizen submit | Tab nghi tái phát |
 
 ---
 
@@ -461,6 +465,7 @@ Deprecated (410): `POST .../check-in`, `PUT .../progress`.
 | [`fe-inspection-checklist-guide.md`](./fe-inspection-checklist-guide.md) | Checklist workflow Inspector Mobile |
 | [`../fe-inspection-api-guide.md`](../fe-inspection-api-guide.md) | API chi tiết Inspector (capability flags) |
 | [`fe-leo-duplicate-detection-guide.md`](./fe-leo-duplicate-detection-guide.md) | Cờ trùng lặp (loại trừ lẫn nhau với tái phát) |
+| [`fe-inspection-notifications-guide.md`](./fe-inspection-notifications-guide.md) | 4 notification inspection mới + deep link FE |
 | `docs/BusinessRule/SU26SE049_BusinessRules_v1_2.md` | BR-INS-001..033, BR-OFF-005 |
 | `docs/API_COVERAGE_CHECKLIST.md` | §8.4 LEO-22..26, §6 Inspector |
 
