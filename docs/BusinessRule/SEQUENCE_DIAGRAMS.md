@@ -1,7 +1,7 @@
-# GreenLens — Sequence Diagrams (32 ⭐ Ưu tiên)
+# GreenLens — Sequence Diagrams (31 ⭐ Ưu tiên)
 
 > **Dự án:** SU26SE049 — Crowdsourced Application for Reporting Environmental Pollution  
-> **Tổng quan:** 32 Sequence Diagram ưu tiên cho bài bảo vệ tốt nghiệp, dựa trên source code thực tế (gồm luồng inspection checklist BR-INS-033).  
+> **Tổng quan:** 31 Sequence Diagram ưu tiên cho bài bảo vệ tốt nghiệp, dựa trên source code thực tế (gồm luồng inspection checklist BR-INS-033).  
 > **Thứ tự:** Theo luồng trải nghiệm người dùng: Auth → Report → Cleanup → Inspection → Organization → Community → Gamification → Notification → Map → Media → Admin
 
 > [!NOTE]
@@ -986,7 +986,7 @@ sequenceDiagram
 
 ## Nhóm 4: Inspection & Penalty
 
-> **Luồng đầy đủ (BR-INS-033):** SD-28 → SD-29 → **SD-41** (mở detail) → SD-30 → SD-31 (optional) → SD-33 → SD-34 → SD-32 *hoặc* SD-35 → SD-39 → SD-40
+> **Luồng đầy đủ (BR-INS-033):** SD-28 → SD-29 → **SD-41** (mở detail) → SD-30 → SD-31 (optional) → SD-33 → SD-34 → SD-32 *hoặc* SD-35 → **SD-39**
 
 | SD | Use case | Actor |
 |----|----------|-------|
@@ -999,8 +999,7 @@ sequenceDiagram
 | SD-34 | Gửi biên bản hiện trường | Team Leader |
 | SD-32 | Lập quyết định xử phạt | Team Leader |
 | SD-35 | Đóng — không vi phạm | Team Leader |
-| SD-39 | Ghi nhận thanh toán + biên lai | Team Leader |
-| SD-40 | Đóng biên bản | Team Leader |
+| SD-39 | Ghi nhận thanh toán + đóng biên bản | Team Leader |
 
 ---
 
@@ -1193,8 +1192,8 @@ sequenceDiagram
 | `canSubmitFieldReport` | Gửi biên bản hiện trường → SD-34 |
 | `canIssuePenalty` | Lập quyết định xử phạt → SD-32 |
 | `canCloseNoViolation` | Đóng — không vi phạm → SD-35 |
-| `canRecordPayment` | Ghi nhận thanh toán → SD-39 |
-| `canClose` | Đóng biên bản → SD-40 |
+| `canRecordPayment` | Ghi nhận thanh toán → SD-39 (phase 1) |
+| `canClose` | Đóng biên bản → SD-39 (phase 2) |
 
 ---
 
@@ -1543,101 +1542,92 @@ sequenceDiagram
 
 ---
 
-### SD-39 ⭐ Record Payment (Multipart Receipt)
+### SD-39 ⭐ Record Payment & Close Inspection
 
-**Actor:** Team Leader · **BR:** BR-INS-020, BR-ADM-010
+**Actor:** Team Leader · **BR:** BR-INS-020, BR-INS-021, BR-ADM-010
+
+> Sau SD-32 (Issue Penalty). Phase 1: ghi nhận thanh toán + biên lai. Phase 2: đóng biên bản khi `Status = Paid`.
 
 ```mermaid
 sequenceDiagram
     actor Leader as Team Leader
     participant App as Mobile App
     participant Ctrl as :InspectionsController
-    participant Hdl as :RecordPaymentHandler
+    participant PayHdl as :RecordPaymentHandler
+    participant CloseHdl as :CloseInspectionHandler
     participant InspRepo as :IInspectionReportRepository
     participant Storage as :IFileStorageService
     participant Audit as :IAuditLogger
     participant UoW as :IUnitOfWork
     participant DB as Database
 
-    Leader->>+App: Ghi nhận thanh toán + upload biên lai
-    App->>+Ctrl: PUT /v1/inspections/{id}/record-payment (multipart:<br/>paidAmount, paidAt, receipt, note?)
-    Ctrl->>+Hdl: Send(RecordPaymentCommand)
+    rect rgb(240, 248, 255)
+        Note over Leader,DB: Phase 1 — Ghi nhận thanh toán + biên lai
+        Leader->>+App: Ghi nhận thanh toán + upload biên lai
+        App->>+Ctrl: PUT /v1/inspections/{id}/record-payment (multipart:<br/>paidAmount, paidAt, receipt, note?)
+        Ctrl->>+PayHdl: Send(RecordPaymentCommand)
 
-    Hdl->>+InspRepo: GetByIdAsync(inspectionId)
-    InspRepo-->>-Hdl: inspection (PenaltyIssued/PartiallyPaid/Overdue)
+        PayHdl->>+InspRepo: GetByIdAsync(inspectionId)
+        InspRepo-->>-PayHdl: inspection (PenaltyIssued/PartiallyPaid/Overdue)
 
-    alt User không phải Team Leader
-        Hdl-->>Ctrl: Result.Failure(Forbidden)
-        Ctrl-->>App: 403 Forbidden
-    else Thiếu file receipt
-        Hdl-->>Ctrl: Result.Failure(Validation:<br/>"PaymentReceiptRequired")
-        Ctrl-->>App: 400 Bad Request
-        App-->>Leader: Hiển thị "Cần upload biên lai"
-    else Status không hợp lệ
-        Hdl-->>Ctrl: Result.Failure(BusinessRule)
-        Ctrl-->>App: 422 Unprocessable Entity
-    else Happy path
-        Hdl->>+Storage: UploadAsync(receipt) → R2
-        Storage-->>-Hdl: evidenceUrl
-        Hdl->>Hdl: PenaltyPayment.Create + inspection.RecordPayment(payment)
-        Note over Hdl: Status → Paid hoặc PartiallyPaid
-        Hdl->>+UoW: SaveChangesAsync()
-        UoW->>+DB: INSERT penalty_payments,<br/>UPDATE inspection_reports
-        DB-->>-UoW: OK
-        UoW-->>-Hdl: OK
-        Hdl->>+Audit: LogAsync("RecordPayment", ...)
-        Audit->>DB: INSERT audit_logs
-        Audit-->>-Hdl: OK
-        Hdl-->>-Ctrl: Result.Success
-        Ctrl-->>-App: 200 OK
-        App-->>-Leader: Hiển thị trạng thái thanh toán
+        alt User không phải Team Leader
+            PayHdl-->>Ctrl: Result.Failure(Forbidden)
+            Ctrl-->>App: 403 Forbidden
+        else Thiếu file receipt
+            PayHdl-->>Ctrl: Result.Failure(Validation:<br/>"PaymentReceiptRequired")
+            Ctrl-->>App: 400 Bad Request
+            App-->>Leader: Hiển thị "Cần upload biên lai"
+        else Status không hợp lệ
+            PayHdl-->>Ctrl: Result.Failure(BusinessRule)
+            Ctrl-->>App: 422 Unprocessable Entity
+        else Happy path — thu tiền
+            PayHdl->>+Storage: UploadAsync(receipt) → R2
+            Storage-->>-PayHdl: evidenceUrl
+            PayHdl->>PayHdl: PenaltyPayment.Create + inspection.RecordPayment(payment)
+            Note over PayHdl: Status → Paid hoặc PartiallyPaid
+            PayHdl->>+UoW: SaveChangesAsync()
+            UoW->>+DB: INSERT penalty_payments,<br/>UPDATE inspection_reports
+            DB-->>-UoW: OK
+            UoW-->>-PayHdl: OK
+            PayHdl->>+Audit: LogAsync("RecordPayment", ...)
+            Audit->>DB: INSERT audit_logs
+            Audit-->>-PayHdl: OK
+            PayHdl-->>-Ctrl: Result.Success
+            Ctrl-->>-App: 200 OK
+            App-->>Leader: Hiển thị trạng thái thanh toán
+        end
     end
-```
 
----
+    rect rgb(255, 248, 240)
+        Note over Leader,DB: Phase 2 — Đóng biên bản (khi đã thu đủ)
+        Leader->>+App: Xác nhận đóng biên bản
+        App->>+Ctrl: PUT /v1/inspections/{id}/close {reason?}
+        Ctrl->>+CloseHdl: Send(CloseInspectionCommand)
 
-### SD-40 ⭐ Close Inspection (After Paid)
+        CloseHdl->>+InspRepo: GetByIdAsync(inspectionId)
+        InspRepo-->>-CloseHdl: inspection
 
-**Actor:** Team Leader · **BR:** BR-INS-021, BR-ADM-010
-
-```mermaid
-sequenceDiagram
-    actor Leader as Team Leader
-    participant App as Mobile App
-    participant Ctrl as :InspectionsController
-    participant Hdl as :CloseInspectionHandler
-    participant InspRepo as :IInspectionReportRepository
-    participant Audit as :IAuditLogger
-    participant UoW as :IUnitOfWork
-    participant DB as Database
-
-    Leader->>+App: Xác nhận đóng biên bản sau khi thu đủ tiền
-    App->>+Ctrl: PUT /v1/inspections/{id}/close {reason?}
-    Ctrl->>+Hdl: Send(CloseInspectionCommand)
-
-    Hdl->>+InspRepo: GetByIdAsync(inspectionId)
-    InspRepo-->>-Hdl: inspection
-
-    alt inspection.Status ≠ Paid
-        Hdl-->>Ctrl: Result.Failure(BusinessRule:<br/>"Phải thu đủ tiền phạt trước")
-        Ctrl-->>App: 422 Unprocessable Entity
-        App-->>Leader: Hiển thị lỗi trạng thái
-    else User không phải Team Leader
-        Hdl-->>Ctrl: Result.Failure(Forbidden)
-        Ctrl-->>App: 403 Forbidden
-    else Happy path
-        Hdl->>Hdl: inspection.Close(reason)
-        Note over Hdl: Status: Paid → Closed
-        Hdl->>+UoW: SaveChangesAsync()
-        UoW->>+DB: UPDATE inspection_reports SET status, closed_at
-        DB-->>-UoW: OK
-        UoW-->>-Hdl: OK
-        Hdl->>+Audit: LogAsync("CloseInspection", ...)
-        Audit->>DB: INSERT audit_logs
-        Audit-->>-Hdl: OK
-        Hdl-->>-Ctrl: Result.Success
-        Ctrl-->>-App: 200 OK
-        App-->>-Leader: Hiển thị "Biên bản đã đóng"
+        alt inspection.Status ≠ Paid
+            CloseHdl-->>Ctrl: Result.Failure(BusinessRule:<br/>"Phải thu đủ tiền phạt trước")
+            Ctrl-->>App: 422 Unprocessable Entity
+            App-->>Leader: Hiển thị lỗi trạng thái
+        else User không phải Team Leader
+            CloseHdl-->>Ctrl: Result.Failure(Forbidden)
+            Ctrl-->>App: 403 Forbidden
+        else Happy path — đóng biên bản
+            CloseHdl->>CloseHdl: inspection.Close(reason)
+            Note over CloseHdl: Status: Paid → Closed
+            CloseHdl->>+UoW: SaveChangesAsync()
+            UoW->>+DB: UPDATE inspection_reports SET status, closed_at
+            DB-->>-UoW: OK
+            UoW-->>-CloseHdl: OK
+            CloseHdl->>+Audit: LogAsync("CloseInspection", ...)
+            Audit->>DB: INSERT audit_logs
+            Audit-->>-CloseHdl: OK
+            CloseHdl-->>-Ctrl: Result.Success
+            Ctrl-->>-App: 200 OK
+            App-->>-Leader: Hiển thị "Biên bản đã đóng"
+        end
     end
 ```
 
@@ -2292,8 +2282,7 @@ flowchart LR
         SD34["SD-34<br/>Submit Field Report"]
         SD32["SD-32<br/>Issue Penalty"]
         SD35["SD-35<br/>Close No Violation"]
-        SD39["SD-39<br/>Record Payment"]
-        SD40["SD-40<br/>Close"]
+        SD39["SD-39<br/>Payment & Close"]
     end
 
     subgraph Org ["5️⃣ Organization"]

@@ -780,15 +780,15 @@ Bảng tra cứu nhanh **toàn bộ** route — dùng khi audit cross-team.
 | AuthController | `/v1/auth` | 9 |
 | CatalogController | `/v1/catalog` | 3 |
 | MapController | `/v1/map` | 2 |
-| UsersController | `/v1/users` | 6 |
+| UsersController | `/v1/users` | 8 |
 | MediaController | `/v1/media` | 4 |
 | NotificationsController | `/v1/notifications` | 6 |
-| ReportsController | `/v1/reports` + `/v1/waste-tags` | 47 |
+| ReportsController | `/v1/reports` + `/v1/waste-tags` | 48 |
 | CommentsController | `/v1/reports/.../comments`, `/v1/comments/...` | 6 |
 | GamificationController | `/v1/gamification` | 6 |
 | TeamsController | `/v1/teams` | 24 |
-| InspectionsController | `/v1/inspections` | 20 |
-| CommunityCleanupsController | `/v1/community-cleanups` + nested | 19 |
+| InspectionsController | `/v1/inspections` | 21 |
+| CommunityCleanupsController | `/v1/community-cleanups` + nested | 20 |
 | InvitationsController | `/v1/invitations` | 3 |
 | LocalOfficesController | `/v1/offices` | 10 |
 | DepartmentsController | `/v1/departments` | 8 |
@@ -798,7 +798,12 @@ Bảng tra cứu nhanh **toàn bộ** route — dùng khi audit cross-team.
 | AdminDashboardController | `/v1/dashboard/admin` | 12 |
 | CompanyDashboardController | `/v1/dashboard/company` | 8 |
 
-**Tổng HTTP endpoints:** ~258 (không tính SignalR).
+**Tổng HTTP endpoints:** **289** (đếm `[HttpGet|Post|Put|Patch|Delete]` trên 20 controllers; không tính SignalR). Cập nhật khi thêm/xóa action.
+
+| Kiểm tra | Giá trị |
+| -------- | ------- |
+| Tổng cột Endpoints (bảng trên) | 289 |
+| Quét `Controllers/*.cs` | 289 |
 
 ---
 
@@ -831,5 +836,6 @@ POST /v1/media/presign → PUT file lên R2 → POST /v1/reports (hoặc before-
 
 | Ngày | Thay đổi |
 |------|----------|
+| 2026-08-04 | Sửa master index §13: đồng bộ số endpoint theo controller (289); Users 8, Reports 48, Inspections 21, CommunityCleanups 20 |
 | 2026-08-03 | Tái cấu trúc theo **luồng nghiệp vụ** (workflow-first): LEO tách Cleanup vs Inspection; thêm cột Bước, sơ đồ luồng, link FE guides |
 | 2026-07-30 | Tạo checklist ban đầu từ 20 controllers; bổ sung `violation-recurrence-candidates`, `media[]` trên candidate APIs |

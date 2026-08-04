@@ -1,7 +1,7 @@
 # GreenLens — Class Diagrams (Theo Use Case / Luồng nghiệp vụ)
 
 > **Dự án:** SU26SE049 — Crowdsourced Application for Reporting Environmental Pollution  
-> **Tổng quan:** 32 Class Diagram theo Use Case, khớp với 30 ⭐ Sequence Diagram ưu tiên (cập nhật inspection checklist BR-INS-033).  
+> **Tổng quan:** 34 Class Diagram theo Use Case, khớp với 31 ⭐ Sequence Diagram ưu tiên (cập nhật inspection checklist BR-INS-033, community cleanup SD-25).  
 > **Nguyên tắc:** Mỗi CD hiển thị **tất cả object tham gia** trong luồng tương ứng (Entity, Enum, Interface, Handler, Controller).  
 > **Ký hiệu:** Mermaid UML. Xem bằng GitHub, VS Code, hoặc bất kỳ renderer hỗ trợ Mermaid.
 
@@ -1464,6 +1464,9 @@ classDiagram
 
 ## Nhóm 3: Cleanup & Field Work
 
+> **Luồng cleanup thường (LEO gán team):** CD-07 → CD-11 → CD-12 → **CD-33** → CD-08  
+> **Luồng community cleanup:** **CD-34** (tổng hợp — thay assign team thông thường khi event active)
+
 ---
 
 ### CD-11: Accept / Decline Assignment (→ SD-21 ⭐)
@@ -1595,6 +1598,310 @@ classDiagram
     CheckInCleanupHandler ..> IUnitOfWork : uses
     CheckInCleanupHandler ..> ReportAssignment : modifies
     ReportsController ..> CheckInCleanupHandler : dispatches via ISender
+```
+
+---
+
+### CD-33: Upload Before & Update Progress (→ SD-23 ⭐)
+
+**Actor:** Team Leader (Cleaner/CompanyStaff) · **BR:** BR-REP-014, BR-CLN-004
+
+> Sau CD-12 (check-in). Ảnh upload qua presign R2 (CD-23 / SD-66). Hai command trên cùng `ReportsController`; hoàn thành → CD-08 Resolve.
+
+**Phân loại Relationship:**
+
+| Relationship | Loại | Lý do |
+|---|---|---|
+| Report → ReportMedia | **Composition** ◆ | Media thuộc về Report |
+| Report → ReportAssignment | **Composition** ◆ | Assignment thuộc về Report |
+
+```mermaid
+classDiagram
+    class Report {
+        <<referenced>>
+        + Id : Guid
+        + Status : ReportStatus
+    }
+
+    class ReportAssignment {
+        + ReportId : Guid
+        + TeamId : Guid
+        + Status : AssignmentStatus
+        + ProgressPercent : int
+        + ProgressNote : string?
+        + UpdateProgress(percent int, note? string, updatedByUserId Guid) void
+    }
+
+    class ReportMedia {
+        + ReportId : Guid
+        + Type : MediaType
+        + Url : string
+        + MimeType : string
+        + UploadedByUserId : Guid
+        + Create(reportId Guid, type MediaType, url string, mime string, size long, userId Guid)$ ReportMedia
+    }
+
+    class MediaType {
+        <<enumeration>>
+        Before
+        Progress
+        After
+    }
+
+    class AssignmentStatus {
+        <<enumeration>>
+        InProgress
+    }
+
+    class ITeamMemberRepository {
+        <<interface>>
+        + GetLeaderByUserIdAsync(userId Guid, ct CancellationToken) Task~TeamMember?~
+    }
+
+    class IReportAssignmentRepository {
+        <<interface>>
+        + GetByReportIdAsync(reportId Guid, ct CancellationToken) Task~IReadOnlyList~ReportAssignment~~
+    }
+
+    class IReportRepository {
+        <<interface>>
+        + GetByIdAsync(id Guid, ct CancellationToken) Task~Report?~
+    }
+
+    class IReportMediaRepository {
+        <<interface>>
+        + Add(media ReportMedia) void
+    }
+
+    class IFileStorageService {
+        <<interface>>
+        + IsOwnedPublicUrl(url string) bool
+    }
+
+    class IUnitOfWork {
+        <<interface>>
+        + SaveChangesAsync(ct CancellationToken) Task~int~
+    }
+
+    class UploadBeforeImagesCommandHandler {
+        <<Handler>>
+        - _reports : IReportRepository
+        - _assignments : IReportAssignmentRepository
+        - _reportMedia : IReportMediaRepository
+        - _teamMembers : ITeamMemberRepository
+        - _fileStorage : IFileStorageService
+        - _uow : IUnitOfWork
+        + Handle(cmd UploadBeforeImagesCommand, ct CancellationToken) Task~Result~UploadBeforeImagesResponse~~
+    }
+
+    class UpdateProgressCommandHandler {
+        <<Handler>>
+        - _assignments : IReportAssignmentRepository
+        - _reportMedia : IReportMediaRepository
+        - _teamMembers : ITeamMemberRepository
+        - _fileStorage : IFileStorageService
+        - _uow : IUnitOfWork
+        + Handle(cmd UpdateProgressCommand, ct CancellationToken) Task~Result~UpdateProgressResponse~~
+    }
+
+    class ReportsController {
+        <<Controller>>
+        - _sender : ISender
+        + UploadBeforeImagesAsync(id Guid, cmd UploadBeforeImagesCommand) Task~IActionResult~
+        + UpdateProgressAsync(id Guid, cmd UpdateProgressCommand) Task~IActionResult~
+    }
+
+    Report "1" *-- "0..*" ReportMedia : Composition
+    Report "1" *-- "0..*" ReportAssignment : Composition
+    ReportMedia --> MediaType : Association
+    ReportAssignment --> AssignmentStatus : Association
+
+    UploadBeforeImagesCommandHandler ..> ITeamMemberRepository : leader check
+    UploadBeforeImagesCommandHandler ..> IReportRepository : report InProgress
+    UploadBeforeImagesCommandHandler ..> IReportAssignmentRepository : team assignment InProgress
+    UploadBeforeImagesCommandHandler ..> IFileStorageService : validate R2 URL
+    UploadBeforeImagesCommandHandler ..> IReportMediaRepository : MediaType.Before
+    UploadBeforeImagesCommandHandler ..> IUnitOfWork : uses
+
+    UpdateProgressCommandHandler ..> ITeamMemberRepository : leader check
+    UpdateProgressCommandHandler ..> IReportAssignmentRepository : UpdateProgress()
+    UpdateProgressCommandHandler ..> IFileStorageService : validate R2 URL
+    UpdateProgressCommandHandler ..> IReportMediaRepository : MediaType.Progress
+    UpdateProgressCommandHandler ..> IUnitOfWork : uses
+
+    ReportsController ..> UploadBeforeImagesCommandHandler : POST /before-images
+    ReportsController ..> UpdateProgressCommandHandler : PUT /progress
+```
+
+---
+
+### CD-34: Community Cleanup — End-to-End (→ SD-25 ⭐)
+
+**Actor:** LEO (Web) · Citizen (Mobile) · Leader/Cleaner (Mobile) · **BR:** BR-CMU-001..015 (draft)
+
+> Một Report Verified chỉ có **tối đa 1** event active. Thay thế luồng AssignTeam (CD-07) trong thời gian event active.
+
+**Phân loại Relationship:**
+
+| Relationship | Loại | Lý do |
+|---|---|---|
+| Report → CommunityCleanupEvent | **Composition** ◆ | Event gắn 1 Report |
+| CommunityCleanupEvent → CommunityCleanupParticipant | **Composition** ◆ | Participant thuộc event |
+| Report → ReportMedia | **Composition** ◆ | Before/Progress ảnh leader |
+
+```mermaid
+classDiagram
+    class Report {
+        <<Aggregate Root>>
+        + Status : ReportStatus
+        + Resolve() void
+    }
+
+    class CommunityCleanupEvent {
+        <<Aggregate Root>>
+        + ReportId : Guid
+        + LeaderUserId : Guid
+        + Status : CommunityCleanupStatus
+        + MaxParticipants : int
+        + ProgressPercent : int
+        + Create(...) CommunityCleanupEvent
+        + CloseJoin() void
+        + Start() void
+        + UpdateProgress(percent int, note? string) void
+        + SubmitVerification() void
+        + Approve(leoId Guid) void
+        + Reject(reason string) void
+        + Cancel(reason string) void
+    }
+
+    class CommunityCleanupParticipant {
+        + EventId : Guid
+        + UserId : Guid
+        + Role : CommunityCleanupParticipantRole
+        + Status : CommunityCleanupParticipantStatus
+        + Create(eventId Guid, userId Guid, role Role)$ CommunityCleanupParticipant
+        + CheckIn(lat decimal, lng decimal, overrideReason? string) void
+        + Withdraw() void
+    }
+
+    class ReportMedia {
+        + ReportId : Guid
+        + Type : MediaType
+        + Url : string
+    }
+
+    class CommunityCleanupStatus {
+        <<enumeration>>
+        OpenForJoin
+        JoinClosed
+        InProgress
+        PendingVerification
+        Completed
+        Cancelled
+    }
+
+    class ICommunityCleanupEventRepository {
+        <<interface>>
+        + GetActiveByReportIdAsync(reportId Guid, ct CancellationToken) Task~CommunityCleanupEvent?~
+        + GetByIdAsync(id Guid, ct CancellationToken) Task~CommunityCleanupEvent?~
+    }
+
+    class ICommunityCleanupParticipantRepository {
+        <<interface>>
+        + Add(participant CommunityCleanupParticipant) void
+        + CountActiveByEventIdAsync(eventId Guid, ct CancellationToken) Task~int~
+    }
+
+    class IReportRepository {
+        <<interface>>
+        + GetByIdAsync(id Guid, ct CancellationToken) Task~Report?~
+    }
+
+    class IReportMediaRepository {
+        <<interface>>
+        + Add(media ReportMedia) void
+    }
+
+    class IUnitOfWork {
+        <<interface>>
+        + SaveChangesAsync(ct CancellationToken) Task~int~
+    }
+
+    class CreateCommunityCleanupHandler {
+        <<Handler — Phase 1 LEO>>
+        + Handle(cmd CreateCommunityCleanupCommand, ct CancellationToken) Task~Result~CommunityCleanupEventDetailResponse~~
+    }
+
+    class JoinCommunityCleanupHandler {
+        <<Handler — Phase 2 Citizen>>
+        + Handle(cmd JoinCommunityCleanupCommand, ct CancellationToken) Task~Result~
+    }
+
+    class StartCommunityCleanupHandler {
+        <<Handler — Phase 3 Leader>>
+        + Handle(cmd StartCommunityCleanupCommand, ct CancellationToken) Task~Result~
+    }
+
+    class SubmitCommunityVerificationHandler {
+        <<Handler — Phase 3 Leader>>
+        + Handle(cmd SubmitCommunityVerificationCommand, ct CancellationToken) Task~Result~
+    }
+
+    class VerifyCommunityCleanupHandler {
+        <<Handler — Phase 4 LEO>>
+        + Handle(cmd VerifyCommunityCleanupCommand, ct CancellationToken) Task~Result~
+    }
+
+    class RejectCommunityVerificationHandler {
+        <<Handler — Phase 4 LEO>>
+        + Handle(cmd RejectCommunityVerificationCommand, ct CancellationToken) Task~Result~
+    }
+
+    class CommunityCleanupsController {
+        <<Controller>>
+        - _sender : ISender
+        + CreateAsync(reportId Guid, cmd CreateCommunityCleanupCommand) Task~IActionResult~
+        + JoinAsync(eventId Guid) Task~IActionResult~
+        + StartAsync(eventId Guid) Task~IActionResult~
+        + SubmitVerificationAsync(eventId Guid, cmd) Task~IActionResult~
+        + VerifyAsync(eventId Guid) Task~IActionResult~
+        + RejectVerificationAsync(eventId Guid, cmd) Task~IActionResult~
+    }
+
+    Report "1" *-- "0..1" CommunityCleanupEvent : Composition (1 active)
+    CommunityCleanupEvent "1" *-- "1..*" CommunityCleanupParticipant : Composition
+    Report "1" *-- "0..*" ReportMedia : Composition
+    CommunityCleanupEvent --> CommunityCleanupStatus : Association
+
+    CreateCommunityCleanupHandler ..> ICommunityCleanupEventRepository : 1 active / report
+    CreateCommunityCleanupHandler ..> CommunityCleanupEvent : OpenForJoin + Report InProgress
+    JoinCommunityCleanupHandler ..> CommunityCleanupParticipant : Member row
+    StartCommunityCleanupHandler ..> CommunityCleanupEvent : Start()
+    SubmitCommunityVerificationHandler ..> CommunityCleanupEvent : PendingVerification
+    VerifyCommunityCleanupHandler ..> CommunityCleanupEvent : Approve()
+    VerifyCommunityCleanupHandler ..> Report : Resolve()
+    RejectCommunityVerificationHandler ..> CommunityCleanupEvent : Reject() → InProgress
+    CommunityCleanupsController ..> CreateCommunityCleanupHandler : dispatches via ISender
+    CommunityCleanupsController ..> JoinCommunityCleanupHandler : dispatches via ISender
+    CommunityCleanupsController ..> VerifyCommunityCleanupHandler : dispatches via ISender
+```
+
+**State machine (CommunityCleanupEvent):**
+
+```mermaid
+stateDiagram-v2
+    [*] --> OpenForJoin : Create [SD-25 phase 1]
+    OpenForJoin --> JoinClosed : CloseJoin (optional)
+    OpenForJoin --> InProgress : Start [SD-25 phase 3]
+    JoinClosed --> InProgress : Start
+    InProgress --> PendingVerification : SubmitVerification
+    PendingVerification --> Completed : Verify → Report Resolved [SD-25 phase 4]
+    PendingVerification --> InProgress : RejectVerification
+    OpenForJoin --> Cancelled : Cancel
+    JoinClosed --> Cancelled : Cancel
+    InProgress --> Cancelled : Cancel
+    Completed --> [*]
+    Cancelled --> [*]
 ```
 
 ---
@@ -2150,7 +2457,7 @@ classDiagram
 
 ---
 
-### CD-31: Close Inspection (→ SD-40 ⭐)
+### CD-31: Close Inspection (→ SD-39 ⭐ phase 2)
 
 **Actor:** Team Leader (Mobile) · **BR:** BR-INS-021, BR-ADM-010
 
@@ -3289,7 +3596,7 @@ stateDiagram-v2
     PartiallyPaid --> Overdue : past due date (job)
     Overdue --> Paid : late payment [SD-39]
 
-    Paid --> Closed : PUT /close [SD-40]
+    Paid --> Closed : PUT /close [SD-39]
 
     Draft --> ClosedNoViolation : ForceCloseNoViolation (SLA job)
     InProgress --> ClosedNoViolation : ForceCloseNoViolation (SLA job)
@@ -3313,10 +3620,10 @@ classDiagram
         <<CD-04~10: Report>>
     }
     class ReportAssignment {
-        <<CD-07~08: Report>>
+        <<CD-07~08,11~12,33: Cleanup>>
     }
     class ReportMedia {
-        <<CD-04,23: Report/Media>>
+        <<CD-04,23,33,34: Report/Media>>
     }
     class EnvironmentalTeam {
         <<CD-07,14,17: Org>>
@@ -3351,6 +3658,12 @@ classDiagram
     class PollutionCategory {
         <<CD-04: Catalog>>
     }
+    class CommunityCleanupEvent {
+        <<CD-34: Community Cleanup>>
+    }
+    class CommunityCleanupParticipant {
+        <<CD-34: Community Cleanup>>
+    }
 
     %% Inheritance (△)
     SoftDeletableEntity <|-- User : Inheritance
@@ -3359,6 +3672,8 @@ classDiagram
     %% Composition (◆ child dies with parent)
     Report "1" *-- "1..*" ReportMedia : Composition
     Report "1" *-- "0..*" ReportAssignment : Composition
+    Report "1" *-- "0..1" CommunityCleanupEvent : Composition (1 active)
+    CommunityCleanupEvent "1" *-- "1..*" CommunityCleanupParticipant : Composition
     InspectionReport "1" *-- "0..*" PenaltyPayment : Composition
     InspectionReport "1" *-- "0..*" InspectionEvidence : Composition
     User "1" *-- "1" UserPoints : Composition
@@ -3727,9 +4042,19 @@ flowchart LR
 | CD-10 | SD-18 ⭐ | Duplicate Detection | AI/LEO |
 | CD-11 | SD-21 ⭐ | Accept/Decline Assignment | Cleaner |
 | CD-12 | SD-22 ⭐ | Check-in at Cleanup Site | Cleaner |
+| CD-33 | SD-23 ⭐ | Upload Before & Update Progress | Team Leader |
+| CD-34 | SD-25 ⭐ | Community Cleanup (End-to-End) | LEO / Citizen / Leader |
 | CD-13 | SD-28 ⭐ | Create Inspection Report | LEO |
 | CD-14 | SD-29 ⭐ | Assign Inspection Team | LEO |
 | CD-15 | SD-32 ⭐ | Issue Penalty | Inspector |
+| CD-25 | SD-30 ⭐ | Accept Inspection Task | Inspector |
+| CD-26 | SD-31 ⭐ | Confirm Arrival (Soft GPS) | Inspector |
+| CD-27 | SD-33 ⭐ | Update Checklist & Evidence | Inspector |
+| CD-28 | SD-34 ⭐ | Submit Field Investigation | Team Leader |
+| CD-29 | SD-35 ⭐ | Close No Violation | Team Leader |
+| CD-30 | SD-39 ⭐ | Record Payment (phase 1) | Team Leader |
+| CD-31 | SD-39 ⭐ | Close Inspection (phase 2) | Team Leader |
+| CD-32 | SD-41 ⭐ | GET Detail + Capability Flags | Inspector |
 | CD-16 | SD-36 ⭐ | Create Dept & LocalOffice | Admin |
 | CD-17 | SD-37 ⭐ | Create Team | LEO |
 | CD-18 | SD-38 ⭐ | Onboard Company | DEO |
