@@ -1,7 +1,7 @@
-# GreenLens — Sequence Diagrams (30 ⭐ Ưu tiên)
+# GreenLens — Sequence Diagrams (32 ⭐ Ưu tiên)
 
 > **Dự án:** SU26SE049 — Crowdsourced Application for Reporting Environmental Pollution  
-> **Tổng quan:** 30 Sequence Diagram ưu tiên cho bài bảo vệ tốt nghiệp, dựa trên source code thực tế (gồm luồng inspection checklist BR-INS-033).  
+> **Tổng quan:** 32 Sequence Diagram ưu tiên cho bài bảo vệ tốt nghiệp, dựa trên source code thực tế (gồm luồng inspection checklist BR-INS-033).  
 > **Thứ tự:** Theo luồng trải nghiệm người dùng: Auth → Report → Cleanup → Inspection → Organization → Community → Gamification → Notification → Map → Media → Admin
 
 > [!NOTE]
@@ -664,6 +664,9 @@ sequenceDiagram
 
 ## Nhóm 3: Cleanup & Field Work
 
+> **Luồng cleanup thường (LEO gán team):** SD-13 (Nhóm 2) → SD-21 → SD-22 → **SD-23** → SD-15 (Nhóm 2) → SD-16 (Nhóm 2)  
+> **Luồng community cleanup:** **SD-25** (tổng hợp — thay cho assign team thông thường trên cùng Report Verified)
+
 ---
 
 ### SD-21 ⭐ Accept / Decline Assignment
@@ -760,6 +763,223 @@ sequenceDiagram
     Hdl-->>-Ctrl: Result<success>
     Ctrl-->>-App: 200 OK {checkedInAt}
     App-->>-Cleaner: Hiển thị "Check-in thành công"
+```
+
+---
+
+### SD-23 ⭐ Upload Before & Update Progress
+
+**Actor:** Cleaner/CompanyStaff (Team Leader) · **BR:** BR-REP-014, BR-CLN-004
+
+> Sau SD-22 (check-in). Ảnh upload qua presign R2 (xem SD-66). Hoàn thành cuối cùng → SD-15.
+
+```mermaid
+sequenceDiagram
+    actor Leader as Team Leader
+    participant App as Mobile App
+    participant Media as :MediaController
+    participant RptCtrl as :ReportsController
+    participant BeforeHdl as :UploadBeforeImagesHandler
+    participant ProgHdl as :UpdateProgressHandler
+    participant TeamRepo as :ITeamMemberRepository
+    participant AsgRepo as :IAssignmentRepository
+    participant Storage as :IFileStorageService
+    participant MediaRepo as :IReportMediaRepository
+    participant UoW as :IUnitOfWork
+    participant DB as Database
+
+    Leader->>+App: Chụp ảnh hiện trường + cập nhật % tiến độ
+
+    Note over App,Storage: Bước 1 — Presign & upload R2 (SD-66)
+    App->>+Media: POST /v1/media/presign {purpose: Before|Progress, reportId}
+    Media-->>-App: presignedUrl, publicUrl
+
+    App->>App: PUT ảnh trực tiếp lên R2
+
+    Note over App,RptCtrl: Bước 2 — Lưu URL ảnh Before
+    App->>+RptCtrl: POST /v1/reports/{id}/before-images {imageUrls[]}
+    RptCtrl->>+BeforeHdl: Send(UploadBeforeImagesCommand)
+
+    BeforeHdl->>+TeamRepo: GetLeaderByUserIdAsync(userId)
+    TeamRepo-->>-BeforeHdl: leader?
+
+    alt Không phải Team Leader
+        BeforeHdl-->>RptCtrl: Result.Failure(NotTeamLeader)
+        RptCtrl-->>App: 422 Unprocessable Entity
+        App-->>Leader: "Chỉ trưởng đội mới upload ảnh"
+    else Assignment ≠ InProgress
+        BeforeHdl-->>RptCtrl: Result.Failure(AssignmentNotInProgress)
+        RptCtrl-->>App: 422
+        App-->>Leader: "Task chưa ở trạng thái đang xử lý"
+    else URL không thuộc CDN R2 hệ thống
+        BeforeHdl->>+Storage: IsOwnedPublicUrl(url)
+        Storage-->>-BeforeHdl: false
+        BeforeHdl-->>RptCtrl: Result.Failure(InvalidStorageUrl)
+        RptCtrl-->>App: 422
+    else Happy path — lưu Before
+        BeforeHdl->>BeforeHdl: ReportMedia.Create(type=Before)
+        BeforeHdl->>MediaRepo: Add(media)
+        BeforeHdl->>+UoW: SaveChangesAsync()
+        UoW->>DB: INSERT report_media
+        UoW-->>-BeforeHdl: OK
+        BeforeHdl-->>-RptCtrl: Result<UploadBeforeImagesResponse>
+        RptCtrl-->>-App: 200 OK {savedUrls}
+    end
+
+    Note over App,RptCtrl: Bước 3 — Cập nhật tiến độ + ảnh Progress
+    App->>+RptCtrl: PUT /v1/reports/{id}/progress<br/>{progressPercent, progressNote?, imageUrls[]}
+    RptCtrl->>+ProgHdl: Send(UpdateProgressCommand)
+
+    ProgHdl->>+TeamRepo: GetLeaderByUserIdAsync(userId)
+    TeamRepo-->>-ProgHdl: leader
+
+    ProgHdl->>+AsgRepo: GetByReportIdAsync(reportId)
+    AsgRepo-->>-ProgHdl: assignment (teamId match)
+
+    alt progressPercent ∉ [0, 100]
+        ProgHdl-->>RptCtrl: Result.Failure(InvalidProgressPercent)
+        RptCtrl-->>App: 422
+        App-->>Leader: "Phần trăm tiến độ không hợp lệ"
+    else Assignment ≠ InProgress
+        ProgHdl-->>RptCtrl: Result.Failure(AssignmentNotInProgress)
+        RptCtrl-->>App: 422
+    else Happy path
+        ProgHdl->>ProgHdl: assignment.UpdateProgress(percent, note)
+        opt imageUrls provided
+            ProgHdl->>ProgHdl: ReportMedia.Create(type=Progress)
+            ProgHdl->>MediaRepo: Add(media)
+        end
+        ProgHdl->>+UoW: SaveChangesAsync()
+        UoW->>DB: UPDATE report_assignments, INSERT report_media
+        UoW-->>-ProgHdl: OK
+        ProgHdl-->>-RptCtrl: Result<UpdateProgressResponse>
+        RptCtrl-->>-App: 200 OK
+        App-->>-Leader: Hiển thị tiến độ mới
+        Note over Leader,App: Khi đủ ảnh After → SD-15 Resolve
+    end
+```
+
+---
+
+### SD-25 ⭐ Community Cleanup (End-to-End)
+
+**Actor:** LEO (Web) · Citizen (Mobile) · Leader/Cleaner (Mobile) · **BR:** BR-CMU-001..015 (draft)
+
+> Một Report Verified chỉ có **tối đa 1** community event active. Thay thế luồng AssignTeam thông thường trong thời gian event active.
+
+```mermaid
+sequenceDiagram
+    actor LEO
+    actor Citizen
+    actor Leader as Leader (Cleaner)
+    participant Web as Web App
+    participant Mobile as Mobile App
+    participant Ctrl as :CommunityCleanupsController
+    participant CreateHdl as :CreateCommunityCleanupHandler
+    participant JoinHdl as :JoinCommunityCleanupHandler
+    participant StartHdl as :StartCommunityCleanupHandler
+    participant VerifyHdl as :VerifyCommunityCleanupHandler
+    participant Notif as :INotificationService
+    participant UoW as :IUnitOfWork
+    participant DB as Database
+
+    rect rgb(240, 248, 255)
+        Note over LEO,DB: Phase 1 — LEO mở chương trình
+        LEO->>+Web: Report Verified → Mở chương trình dọn cộng đồng
+        Web->>+Ctrl: POST /v1/reports/{reportId}/community-cleanups<br/>{title, leaderUserId, startsAt, ...}
+        Ctrl->>+CreateHdl: Send(CreateCommunityCleanupCommand)
+
+        alt Report chưa Verified hoặc đã có event active
+            CreateHdl-->>Ctrl: Result.Failure(Conflict)
+            Ctrl-->>Web: 409 Conflict
+            Web-->>LEO: "Không thể mở chương trình"
+        else Happy path
+            CreateHdl->>CreateHdl: CommunityCleanupEvent.Create()<br/>Status: OpenForJoin<br/>Report: Verified → InProgress
+            CreateHdl->>+UoW: SaveChangesAsync()
+            UoW->>DB: INSERT community_cleanup_events, UPDATE reports
+            UoW-->>-CreateHdl: OK
+            CreateHdl->>+Notif: NotifyAsync(citizens nearby, CommunityCleanupOpened)
+            Notif-->>-CreateHdl: Sent
+            CreateHdl-->>-Ctrl: Result<eventDetail>
+            Ctrl-->>-Web: 201 Created
+            Web-->>-LEO: Hiển thị chương trình đã mở
+        end
+    end
+
+    rect rgb(240, 255, 240)
+        Note over Citizen,DB: Phase 2 — Citizen tham gia
+        Citizen->>+Mobile: Xem danh sách → Tham gia
+        Mobile->>+Ctrl: GET /v1/community-cleanups (OpenForJoin)
+        Ctrl-->>-Mobile: 200 danh sách
+        Mobile->>+Ctrl: POST /v1/community-cleanups/{eventId}/join
+        Ctrl->>+JoinHdl: Send(JoinCommunityCleanupCommand)
+
+        alt Đã đủ người / đã đóng đăng ký / đã join
+            JoinHdl-->>Ctrl: Result.Failure(BusinessRule)
+            Ctrl-->>Mobile: 422
+            Mobile-->>Citizen: Hiển thị lỗi
+        else Happy path
+            JoinHdl->>JoinHdl: Participant.Join()
+            JoinHdl->>+UoW: SaveChangesAsync()
+            UoW->>DB: INSERT community_cleanup_participants
+            UoW-->>-JoinHdl: OK
+            JoinHdl-->>-Ctrl: Result.Success
+            Ctrl-->>-Mobile: 200 OK
+            Mobile-->>-Citizen: "Đã tham gia chương trình"
+        end
+
+        opt Check-in tại điểm tập trung
+            Citizen->>Mobile: Check-in GPS
+            Mobile->>Ctrl: POST /v1/community-cleanups/{eventId}/check-in {lat, lng, reason?}
+            alt Quá 200m và không có reason ≥ 20 ký tự
+                Ctrl-->>Mobile: 422
+            else OK
+                Ctrl-->>Mobile: 200 — participant CheckedIn
+            end
+        end
+    end
+
+    rect rgb(255, 248, 240)
+        Note over Leader,DB: Phase 3 — Leader thực hiện dọn dẹp
+        Leader->>+Mobile: Bắt đầu → Upload before → Cập nhật tiến độ
+        Mobile->>+Ctrl: POST /v1/community-cleanups/{eventId}/start
+        Ctrl->>+StartHdl: Send(StartCommunityCleanupCommand)
+        StartHdl->>StartHdl: Status: OpenForJoin/JoinClosed → InProgress
+        StartHdl->>UoW: SaveChangesAsync()
+        StartHdl-->>-Ctrl: OK
+        Ctrl-->>-Mobile: 200
+
+        Mobile->>Ctrl: POST .../before-images {imageUrls[]}
+        Mobile->>Ctrl: PUT .../progress {progressPercent, imageUrls[]}
+        Mobile->>Ctrl: POST .../submit-verification {imageUrls[]}
+        Ctrl->>Ctrl: Status → PendingVerification
+        Ctrl-->>Mobile: 200
+        Mobile-->>-Leader: "Đã gửi xác thực cho LEO"
+    end
+
+    rect rgb(255, 240, 245)
+        Note over LEO,DB: Phase 4 — LEO duyệt kết quả
+        LEO->>+Web: GET /v1/community-cleanups/office-queue?status=PendingVerification
+        Web->>Ctrl: GET office-queue
+        Ctrl-->>Web: Danh sách chờ duyệt
+
+        alt Duyệt thành công
+            Web->>+Ctrl: POST /v1/community-cleanups/{eventId}/verify
+            Ctrl->>+VerifyHdl: Send(VerifyCommunityCleanupCommand)
+            VerifyHdl->>VerifyHdl: Event → Completed<br/>Report → Resolved
+            VerifyHdl->>+UoW: SaveChangesAsync()
+            UoW->>DB: UPDATE community_cleanup_events, reports
+            UoW-->>-VerifyHdl: OK
+            VerifyHdl-->>-Ctrl: Result.Success
+            Ctrl-->>-Web: 200 OK
+            Web-->>-LEO: "Đã duyệt — báo cáo Resolved"
+        else Từ chối — yêu cầu làm lại
+            Web->>+Ctrl: POST .../reject-verification {reason ≥ 20 chars}
+            Ctrl->>Ctrl: PendingVerification → InProgress
+            Ctrl-->>Web: 200
+            Web-->>LEO: Leader cần bổ sung minh chứng
+        end
+    end
 ```
 
 ---
@@ -2058,6 +2278,8 @@ flowchart LR
     subgraph Cleanup ["3️⃣ Cleanup"]
         SD21["SD-21<br/>Accept/Decline"]
         SD22["SD-22<br/>Check-in"]
+        SD23["SD-23<br/>Before & Progress"]
+        SD25["SD-25<br/>Community Cleanup"]
     end
 
     subgraph Inspection ["4️⃣ Inspection"]
