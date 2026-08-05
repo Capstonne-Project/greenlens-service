@@ -1,6 +1,7 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Notifications;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -16,6 +17,7 @@ public sealed class AcceptAssignmentCommandHandler(
     IReportRepository reports,
     IReportAssignmentRepository assignments,
     ITeamMemberRepository teamMembers,
+    ICleanupAssignmentActivityNotifier activityNotifier,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     ILogger<AcceptAssignmentCommandHandler> logger) : IRequestHandler<AcceptAssignmentCommand, Result>
@@ -65,6 +67,13 @@ public sealed class AcceptAssignmentCommandHandler(
         report.MarkStarted();
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        await activityNotifier.NotifyAcceptedAsync(
+            assignment.AssignedById,
+            leader.TeamId,
+            report.Id,
+            report.Code,
+            ct).ConfigureAwait(false);
 
         logger.LogInformation("Assignment accepted: team {TeamId} for report {ReportId}",
             leader.TeamId, request.ReportId);

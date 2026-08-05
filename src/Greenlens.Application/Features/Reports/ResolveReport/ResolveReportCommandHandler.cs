@@ -1,6 +1,7 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Notifications;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
@@ -21,6 +22,7 @@ public sealed class ResolveReportCommandHandler(
     IReportStatusHistoryRepository statusHistory,
     IReportMediaRepository reportMedia,
     IFileStorageService fileStorage,
+    ICleanupAssignmentActivityNotifier activityNotifier,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     ILogger<ResolveReportCommandHandler> logger) : IRequestHandler<ResolveReportCommand, Result>
@@ -127,6 +129,14 @@ public sealed class ResolveReportCommandHandler(
         }
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        await activityNotifier.NotifyCompletedAsync(
+            assignment.AssignedById,
+            leader.TeamId,
+            report.Id,
+            report.Code,
+            allCompleted,
+            ct).ConfigureAwait(false);
 
         if (allCompleted)
             logger.LogInformation("Report {ReportId} resolved — all teams completed", report.Id);

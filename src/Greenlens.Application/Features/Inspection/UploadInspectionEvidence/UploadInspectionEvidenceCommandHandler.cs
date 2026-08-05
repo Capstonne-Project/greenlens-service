@@ -1,6 +1,7 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Notifications;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
@@ -19,8 +20,10 @@ namespace Greenlens.Application.Features.Inspection.UploadInspectionEvidence;
 public sealed class UploadInspectionEvidenceCommandHandler(
     IInspectionReportRepository inspections,
     IInspectionEvidenceRepository evidences,
+    IReportRepository reports,
     ITeamMemberRepository teamMembers,
     IFileStorageService fileStorage,
+    IInspectionAssignmentActivityNotifier activityNotifier,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     ILogger<UploadInspectionEvidenceCommandHandler> logger)
@@ -93,6 +96,21 @@ public sealed class UploadInspectionEvidenceCommandHandler(
         }
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        if (inspection.AssignedTeamId is Guid teamId)
+        {
+            var report = await reports.GetByIdAsync(inspection.ReportId, ct).ConfigureAwait(false);
+            if (report is not null)
+            {
+                await activityNotifier.NotifyProgressUpdatedAsync(
+                    inspection.CreatedByOfficerId,
+                    teamId,
+                    report.Id,
+                    report.Code,
+                    InspectionActivityLabels.FormatEvidenceUpload(request.Category),
+                    ct).ConfigureAwait(false);
+            }
+        }
 
         var totalCount = await evidences.QueryAsNoTracking()
             .CountAsync(

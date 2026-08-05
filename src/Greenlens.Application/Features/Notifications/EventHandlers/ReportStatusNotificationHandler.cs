@@ -10,10 +10,13 @@ using Microsoft.Extensions.Logging;
 namespace Greenlens.Application.Features.Notifications.EventHandlers;
 
 /// <summary>
-/// Subscribes to Report domain events and sends notifications to reporters.
-/// Decoupled — zero changes to existing Report handlers.
+/// Notifies LEO/DEO when a new report awaits verification.
+/// Skips when the report is already flagged for duplicate or violation recurrence review.
 /// </summary>
-/// <remarks>Implements: BR-NTF-002 (report status change triggers notification).</remarks>
+/// <remarks>
+/// Implements: BR-NTF-002 (officer alerts), BR-REP-030 (duplicate queue),
+/// BR-REP-034 (violation recurrence queue).
+/// </remarks>
 internal sealed class ReportSubmittedNotificationHandler(
     INotificationService notificationService,
     IReportRepository reports,
@@ -31,7 +34,9 @@ internal sealed class ReportSubmittedNotificationHandler(
                 r.Code,
                 r.WardCode,
                 r.AssignedOfficeId,
-                r.AssignedDepartmentId
+                r.AssignedDepartmentId,
+                r.IsPossibleDuplicate,
+                r.IsSuspectedViolationRecurrence
             })
             .FirstOrDefaultAsync(ct)
             .ConfigureAwait(false);
@@ -40,6 +45,22 @@ internal sealed class ReportSubmittedNotificationHandler(
         {
             logger.LogWarning("ReportSubmitted notification skipped: report {ReportId} not found",
                 notification.ReportId);
+            return;
+        }
+
+        if (report.IsPossibleDuplicate)
+        {
+            logger.LogInformation(
+                "ReportSubmitted verification notification skipped: report {ReportCode} flagged as possible duplicate",
+                report.Code);
+            return;
+        }
+
+        if (report.IsSuspectedViolationRecurrence)
+        {
+            logger.LogInformation(
+                "ReportSubmitted verification notification skipped: report {ReportCode} flagged as suspected violation recurrence",
+                report.Code);
             return;
         }
 

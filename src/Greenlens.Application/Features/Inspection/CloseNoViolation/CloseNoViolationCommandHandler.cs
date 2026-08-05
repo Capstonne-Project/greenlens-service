@@ -18,6 +18,7 @@ public sealed class CloseNoViolationCommandHandler(
     IUnitOfWork uow,
     IAuditLogger auditLogger,
     IInspectionClosedNoViolationNotifier closedNotifier,
+    IInspectionAssignmentActivityNotifier activityNotifier,
     ILogger<CloseNoViolationCommandHandler> logger)
     : IRequestHandler<CloseNoViolationCommand, Result>
 {
@@ -52,6 +53,17 @@ public sealed class CloseNoViolationCommandHandler(
         var report = await reports.GetByIdAsync(inspection.ReportId, ct).ConfigureAwait(false);
         if (report is not null)
         {
+            if (inspection.AssignedTeamId is Guid teamId)
+            {
+                await activityNotifier.NotifyCompletedAsync(
+                    inspection.CreatedByOfficerId,
+                    teamId,
+                    report.Id,
+                    report.Code,
+                    InspectionActivityLabels.ClosedNoViolation,
+                    ct).ConfigureAwait(false);
+            }
+
             await closedNotifier.NotifyReporterAsync(
                 report.Id,
                 report.Code,

@@ -31,6 +31,15 @@ public enum NotificationType
     /// <summary>BR-INS-003: LEO — assigned inspection team declined the task.</summary>
     InspectionTaskDeclined,
 
+    /// <summary>BR-INS-001: LEO — assigned inspection team accepted the task.</summary>
+    InspectionTaskAccepted,
+
+    /// <summary>BR-INS-033: LEO — inspection team updated field progress (checklist/evidence/arrival).</summary>
+    InspectionProgressUpdated,
+
+    /// <summary>BR-INS-012/013: LEO — inspection team completed the field task (penalty or no violation).</summary>
+    InspectionTaskCompleted,
+
     /// <summary>BR-INS-013: Citizen — inspection closed with no violation found.</summary>
     InspectionClosedNoViolation,
 
@@ -42,6 +51,18 @@ public enum NotificationType
 
     /// <summary>BR-CLN-001: Cleanup team member — new task assigned to the team.</summary>
     CleanupTaskAssigned,
+
+    /// <summary>BR-CLN-001: LEO/CM — assigned cleanup team accepted the task.</summary>
+    CleanupTaskAccepted,
+
+    /// <summary>BR-CLN-007: LEO/CM — assigned cleanup team declined the task.</summary>
+    CleanupTaskDeclined,
+
+    /// <summary>BR-CLN-004: LEO/CM — cleanup team posted a progress update.</summary>
+    CleanupProgressUpdated,
+
+    /// <summary>BR-CLN-005: LEO/CM — cleanup team completed their assignment.</summary>
+    CleanupTaskCompleted,
 
     NearbyReport,
     PenaltyIssued,

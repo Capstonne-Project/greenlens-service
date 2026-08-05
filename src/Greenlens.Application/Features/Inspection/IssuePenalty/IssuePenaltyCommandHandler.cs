@@ -1,6 +1,7 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Notifications;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -19,8 +20,10 @@ public sealed class IssuePenaltyCommandHandler(
     IInspectionReportRepository inspections,
     IInspectionEvidenceRepository inspectionEvidences,
     IViolatingEntityRepository violatingEntities,
+    IReportRepository reports,
     IReportMediaRepository reportMedia,
     ITeamMemberRepository teamMembers,
+    IInspectionAssignmentActivityNotifier activityNotifier,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     ILogger<IssuePenaltyCommandHandler> logger)
@@ -113,6 +116,21 @@ public sealed class IssuePenaltyCommandHandler(
         }
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        if (inspection.AssignedTeamId is Guid teamId)
+        {
+            var report = await reports.GetByIdAsync(inspection.ReportId, ct).ConfigureAwait(false);
+            if (report is not null)
+            {
+                await activityNotifier.NotifyCompletedAsync(
+                    inspection.CreatedByOfficerId,
+                    teamId,
+                    report.Id,
+                    report.Code,
+                    InspectionActivityLabels.PenaltyIssued,
+                    ct).ConfigureAwait(false);
+            }
+        }
 
         logger.LogInformation(
             "Penalty issued on InspectionReport {Id}: {Amount} VND, level {Level}, repeat={Repeat}, violatingEntityId={VeId}",

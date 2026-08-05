@@ -1,6 +1,7 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Notifications;
 using Greenlens.Domain.Common;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -14,7 +15,9 @@ namespace Greenlens.Application.Features.Inspection.SubmitFieldInvestigation;
 public sealed class SubmitFieldInvestigationCommandHandler(
     IInspectionReportRepository inspections,
     IInspectionEvidenceRepository evidences,
+    IReportRepository reports,
     ITeamMemberRepository teamMembers,
+    IInspectionAssignmentActivityNotifier activityNotifier,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     ILogger<SubmitFieldInvestigationCommandHandler> logger)
@@ -43,6 +46,21 @@ public sealed class SubmitFieldInvestigationCommandHandler(
             return result;
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        if (inspection.AssignedTeamId is Guid teamId)
+        {
+            var report = await reports.GetByIdAsync(inspection.ReportId, ct).ConfigureAwait(false);
+            if (report is not null)
+            {
+                await activityNotifier.NotifyProgressUpdatedAsync(
+                    inspection.CreatedByOfficerId,
+                    teamId,
+                    report.Id,
+                    report.Code,
+                    InspectionActivityLabels.FieldReportSubmitted,
+                    ct).ConfigureAwait(false);
+            }
+        }
 
         logger.LogInformation(
             "Field investigation submitted for inspection {InspectionId} by {UserId}",

@@ -1,6 +1,7 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Notifications;
 using Greenlens.Domain.Common;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -16,6 +17,7 @@ public sealed class ConfirmArrivalCommandHandler(
     IReportRepository reports,
     ITeamMemberRepository teamMembers,
     IGeoDistanceService geoDistance,
+    IInspectionAssignmentActivityNotifier activityNotifier,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     ILogger<ConfirmArrivalCommandHandler> logger)
@@ -55,6 +57,17 @@ public sealed class ConfirmArrivalCommandHandler(
             return result;
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        if (inspection.AssignedTeamId is Guid teamId)
+        {
+            await activityNotifier.NotifyProgressUpdatedAsync(
+                inspection.CreatedByOfficerId,
+                teamId,
+                report.Id,
+                report.Code,
+                InspectionActivityLabels.ArrivalConfirmed,
+                ct).ConfigureAwait(false);
+        }
 
         logger.LogInformation(
             "Inspection {InspectionId} arrival confirmed at {Distance:F1}m from report",

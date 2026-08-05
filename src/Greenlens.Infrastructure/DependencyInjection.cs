@@ -137,7 +137,9 @@ public static class DependencyInjection
         services.AddScoped<IOfficerRecipientQuery, OfficerRecipientQuery>();
         services.AddScoped<ITeamMemberRecipientQuery, TeamMemberRecipientQuery>();
         services.AddScoped<ICleanupTaskAssignedNotifier, CleanupTaskAssignedNotifier>();
+        services.AddScoped<ICleanupAssignmentActivityNotifier, CleanupAssignmentActivityNotifier>();
         services.AddScoped<IInspectionTaskAssignedNotifier, InspectionTaskAssignedNotifier>();
+        services.AddScoped<IInspectionAssignmentActivityNotifier, InspectionAssignmentActivityNotifier>();
         services.AddScoped<IInspectionTaskDeclinedNotifier, InspectionTaskDeclinedNotifier>();
         services.AddScoped<IInspectionClosedNoViolationNotifier, InspectionClosedNoViolationNotifier>();
         services.AddScoped<ICompanyManagerRecipientQuery, CompanyManagerRecipientQuery>();

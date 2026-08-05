@@ -1,6 +1,7 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Notifications;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
@@ -15,10 +16,12 @@ namespace Greenlens.Application.Features.Reports.UpdateProgress;
 /// Does NOT change report or assignment status.
 /// </summary>
 public sealed class UpdateProgressCommandHandler(
+    IReportRepository reports,
     IReportAssignmentRepository assignments,
     ITeamMemberRepository teamMembers,
     IReportMediaRepository reportMedia,
     IFileStorageService fileStorage,
+    ICleanupAssignmentActivityNotifier activityNotifier,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     ILogger<UpdateProgressCommandHandler> logger) : IRequestHandler<UpdateProgressCommand, Result<UpdateProgressResponse>>
@@ -91,6 +94,18 @@ public sealed class UpdateProgressCommandHandler(
         assignment.UpdateProgress(request.ProgressPercent, request.ProgressNote, currentUser.UserId);
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        var report = await reports.GetByIdAsync(request.ReportId, ct).ConfigureAwait(false);
+        if (report is not null)
+        {
+            await activityNotifier.NotifyProgressUpdatedAsync(
+                assignment.AssignedById,
+                leader.TeamId,
+                report.Id,
+                report.Code,
+                request.ProgressPercent,
+                ct).ConfigureAwait(false);
+        }
 
         logger.LogInformation("Progress updated to {Percent}% for report {ReportId} by team {TeamId}",
             request.ProgressPercent, request.ReportId, leader.TeamId);

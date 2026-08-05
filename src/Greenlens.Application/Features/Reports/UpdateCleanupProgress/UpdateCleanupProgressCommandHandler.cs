@@ -1,6 +1,7 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Notifications;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -14,6 +15,7 @@ namespace Greenlens.Application.Features.Reports.UpdateCleanupProgress;
 public sealed class UpdateCleanupProgressCommandHandler(
     IReportRepository reports,
     IReportAssignmentRepository assignments,
+    ICleanupAssignmentActivityNotifier activityNotifier,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     ILogger<UpdateCleanupProgressCommandHandler> logger)
@@ -51,6 +53,14 @@ public sealed class UpdateCleanupProgressCommandHandler(
         assignment.UpdateProgress(request.Percent, request.Note, currentUser.UserId);
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        await activityNotifier.NotifyProgressUpdatedAsync(
+            assignment.AssignedById,
+            request.TeamId,
+            report.Id,
+            report.Code,
+            request.Percent,
+            ct).ConfigureAwait(false);
 
         logger.LogInformation(
             "Team {TeamId} updated progress for report {ReportId}: {Percent}%",

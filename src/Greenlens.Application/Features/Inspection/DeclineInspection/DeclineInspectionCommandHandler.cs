@@ -70,10 +70,11 @@ public sealed class DeclineInspectionCommandHandler(
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 
         var report = await reports.GetByIdAsync(inspection.ReportId, ct).ConfigureAwait(false);
-        if (report is not null)
+        if (report is not null && declinedTeamId is Guid teamId)
         {
             await declinedNotifier.NotifyLeoAsync(
                 inspection.CreatedByOfficerId,
+                teamId,
                 report.Id,
                 report.Code,
                 request.Reason,

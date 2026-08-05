@@ -1,6 +1,7 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Notifications;
 using Greenlens.Domain.Common;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -13,7 +14,9 @@ namespace Greenlens.Application.Features.Inspection.AcceptInspectionTask;
 /// <remarks>Implements: BR-INS-003 (accept vs decline), BR-INS-033.</remarks>
 public sealed class AcceptInspectionTaskCommandHandler(
     IInspectionReportRepository inspections,
+    IReportRepository reports,
     ITeamMemberRepository teamMembers,
+    IInspectionAssignmentActivityNotifier activityNotifier,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     ILogger<AcceptInspectionTaskCommandHandler> logger)
@@ -41,6 +44,20 @@ public sealed class AcceptInspectionTaskCommandHandler(
         }
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        if (inspection.AssignedTeamId is Guid teamId)
+        {
+            var report = await reports.GetByIdAsync(inspection.ReportId, ct).ConfigureAwait(false);
+            if (report is not null)
+            {
+                await activityNotifier.NotifyAcceptedAsync(
+                    inspection.CreatedByOfficerId,
+                    teamId,
+                    report.Id,
+                    report.Code,
+                    ct).ConfigureAwait(false);
+            }
+        }
 
         logger.LogInformation("Inspection {InspectionId} accepted by user {UserId}",
             inspection.Id, currentUser.UserId);

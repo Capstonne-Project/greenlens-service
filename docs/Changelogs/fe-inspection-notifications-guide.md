@@ -1,24 +1,41 @@
 # FE Guide — Inspection Workflow Notifications
 
-> **Phiên bản:** 2026-08-04 · **Backend:** GreenLens API v1 · **Branch:** `develop`  
-> **Business rules:** BR-INS-001, BR-INS-013, BR-INS-021, BR-INS-030, BR-NTF-002  
+> **Phiên bản:** 2026-08-06 · **Backend:** GreenLens API v1 · **Branch:** `develop`  
+> **Business rules:** BR-INS-001, BR-INS-003, BR-INS-012, BR-INS-013, BR-INS-021, BR-INS-030, BR-INS-033, BR-NTF-002  
 > **Audience:** LEO/DEO Web · Inspector Mobile · Citizen Mobile  
 > **Liên quan:** [`fe-leo-inspection-workflow-guide.md`](./fe-leo-inspection-workflow-guide.md) · [`fe-async-notifications-auth-otp-guide.md`](./fe-async-notifications-auth-otp-guide.md) · [`../fe-inspection-api-guide.md`](../fe-inspection-api-guide.md)
 
-Tài liệu mô tả **4 loại notification mới** (seed template tiếng Việt) trong luồng **Inspection / xử phạt**, cách đọc qua `GET /v1/notifications`, SignalR, FCM và gợi ý **deep link** theo từng app.
+Tài liệu mô tả notification trong luồng **Inspection / xử phạt** — gồm thông báo cho **Inspector Mobile**, **LEO Web** (theo dõi hoạt động đội), **Citizen**, và job SLA.
 
 ---
 
 ## 1. Tóm tắt nhanh
 
+### 1.A Gửi cho Inspector Mobile (đội được gán)
+
+| `type` (JSON) | Ai nhận | Khi nào gửi |
+|---------------|---------|-------------|
+| `InspectionTaskAssigned` | Mọi thành viên **active** của Inspection Team | LEO gán team lúc tạo hồ sơ hoặc `assign-team` |
+
+### 1.B Gửi cho LEO tạo hồ sơ (`InspectionReport.CreatedByOfficerId`) — theo dõi đội
+
+| `type` (JSON) | Khi nào gửi | Trigger API (rút gọn) |
+|---------------|-------------|------------------------|
+| `InspectionTaskAccepted` | Đội **{team_name}** chấp nhận nhiệm vụ | `POST /v1/inspections/{id}/accept-task` |
+| `InspectionTaskDeclined` | Đội **{team_name}** từ chối (kèm lý do) | `POST /v1/inspections/{id}/decline` |
+| `InspectionProgressUpdated` | Đội cập nhật tiến độ hiện trường | Checklist · upload evidence · confirm arrival · submit field report |
+| `InspectionTaskCompleted` | Đội hoàn thành nhiệm vụ thanh tra | `issue-penalty` · `close-no-violation` |
+
+Template LEO luôn có `{team_name}` + `{report_code}` + `{ward_name}`.
+
+### 1.C Gửi cho Citizen / job SLA
+
 | `type` (JSON) | Ai nhận | App | Khi nào gửi |
 |---------------|---------|-----|-------------|
-| `InspectionTaskAssigned` | Mọi thành viên **active** của Inspection Team | **Inspector Mobile** | LEO gán team lúc tạo hồ sơ hoặc `assign-team` |
-| `InspectionTaskDeclined` | LEO tạo hồ sơ (`CreatedByOfficerId`) | **LEO Web** | Inspector team leader `decline` (Draft, trong 24h) |
 | `InspectionClosedNoViolation` | Citizen **reporter** (`Report.ReporterId`) | **Citizen Mobile** | Inspector `close-no-violation` **hoặc** job SLA auto-close |
 | `PenaltyPaymentOverdue` | LEO phường + DEO sở + LEO tạo hồ sơ | **LEO Web**, **DEO Web** | Job hàng giờ khi quá `penaltyDueDate` |
 
-**Chung cho cả 4 loại:**
+**Chung:**
 
 - `referenceId` = **`reportId`** (Guid báo cáo umbrella), **không** phải `inspectionId`.
 - `GET /v1/notifications` enrich thêm `categoryName`, `thumbnailUrl` (cùng pattern report-linked khác).
@@ -139,16 +156,17 @@ Title/body push = `title` / `message` đã render tiếng Việt (theo `Accept-L
 |--|--|
 | **Template key** | `inspection_task_declined` |
 | **Người nhận** | LEO đã tạo hồ sơ (`InspectionReport.CreatedByOfficerId`) |
-| **Trigger API** | `POST /v1/inspections/{id}/decline` (team leader, Draft, lý do ≥20 ký tự, trong 24h kể từ tạo) |
+| **Trigger API** | `POST /v1/inspections/{id}/decline` (team member, Draft, lý do ≥20 ký tự, trong 24h kể từ tạo) |
 | **Hậu quả nghiệp vụ** | Team bị clear; hồ sơ về Draft chờ LEO **re-gán** |
 
 **Title (vi):** `Đội thanh tra từ chối nhiệm vụ`
 
-**Body (vi):** `Đội thanh tra đã từ chối hồ sơ xử phạt liên quan báo cáo {report_code} tại {ward_name}. Lý do: {decline_reason}. Vui lòng gán lại đội khác.`
+**Body (vi):** `Đội {team_name} đã từ chối hồ sơ xử phạt liên quan báo cáo {report_code} tại {ward_name}. Lý do: {decline_reason}. Vui lòng gán lại đội khác.`
 
 | Placeholder | Nguồn |
 |-------------|--------|
 | `{report_code}` | Report |
+| `{team_name}` | Tên Inspection Team từ chối |
 | `{ward_name}` | Enrich locality |
 | `{decline_reason}` | Body `reason` từ API decline (plain text, đã trim) |
 
@@ -222,6 +240,46 @@ Citizen có thể nhận notification này **cùng lúc** LEO nhận `SlaInspect
 - Badge “Quá hạn nộp phạt” trên dashboard KPI.
 
 **Dedup:** Job chỉ notify khi lần đầu transition sang `Overdue` trong run đó; FE không cần dedup thêm trừ khi user pull refresh list.
+
+---
+
+### 3.5 `InspectionTaskAccepted`
+
+| | |
+|--|--|
+| **Template key** | `inspection_task_accepted` |
+| **Người nhận** | LEO tạo hồ sơ |
+| **Trigger API** | `POST /v1/inspections/{id}/accept-task` |
+
+**Body (vi):** `Đội {team_name} đã chấp nhận nhiệm vụ thanh tra báo cáo {report_code} tại {ward_name}.`
+
+---
+
+### 3.6 `InspectionProgressUpdated`
+
+| | |
+|--|--|
+| **Template key** | `inspection_progress_updated` |
+| **Người nhận** | LEO tạo hồ sơ |
+| **Trigger API** | Checklist · upload evidence · confirm arrival · submit field report |
+
+**Body (vi):** `Đội {team_name} {activity_summary} cho hồ sơ xử phạt liên quan báo cáo {report_code} tại {ward_name}.`
+
+Ví dụ `{activity_summary}`: `đã cập nhật checklist điều tra`, `đã bổ sung ảnh hiện trường`, `đã xác nhận có mặt hiện trường`, `đã nộp biên bản điều tra hiện trường`.
+
+---
+
+### 3.7 `InspectionTaskCompleted`
+
+| | |
+|--|--|
+| **Template key** | `inspection_task_completed` |
+| **Người nhận** | LEO tạo hồ sơ |
+| **Trigger API** | `PUT .../issue-penalty` · `PUT .../close-no-violation` |
+
+**Body (vi):** `Đội {team_name} đã hoàn thành nhiệm vụ thanh tra cho báo cáo {report_code} tại {ward_name}: {outcome_summary}.`
+
+**Lưu ý:** `close-no-violation` gửi **2** notification — LEO nhận `InspectionTaskCompleted`; Citizen nhận riêng `InspectionClosedNoViolation`.
 
 ---
 

@@ -1,6 +1,7 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Notifications;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
@@ -17,6 +18,7 @@ public sealed class DeclineAssignmentCommandHandler(
     IReportRepository reports,
     IReportAssignmentRepository assignments,
     IReportStatusHistoryRepository statusHistory,
+    ICleanupAssignmentActivityNotifier activityNotifier,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     ILogger<DeclineAssignmentCommandHandler> logger) : IRequestHandler<DeclineAssignmentCommand, Result>
@@ -92,6 +94,14 @@ public sealed class DeclineAssignmentCommandHandler(
         }
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        await activityNotifier.NotifyDeclinedAsync(
+            assignment.AssignedById,
+            request.TeamId,
+            report.Id,
+            report.Code,
+            request.Reason,
+            ct).ConfigureAwait(false);
 
         if (allDeclinedOrPending)
             logger.LogWarning("All teams declined report {ReportId} — reverted to Verified", report.Id);

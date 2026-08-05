@@ -75,37 +75,38 @@ public sealed class InspectionTaskAssignedNotifierTests
 
 public sealed class InspectionTaskDeclinedNotifierTests
 {
-    private readonly INotificationService _notifications = Substitute.For<INotificationService>();
+    private readonly IInspectionAssignmentActivityNotifier _activity =
+        Substitute.For<IInspectionAssignmentActivityNotifier>();
     private readonly InspectionTaskDeclinedNotifier _sut;
 
     public InspectionTaskDeclinedNotifierTests()
     {
         _sut = new InspectionTaskDeclinedNotifier(
-            _notifications,
-            NotificationTestDbFactory.CreateEmpty(),
+            _activity,
             NullLogger<InspectionTaskDeclinedNotifier>.Instance);
     }
 
     [Fact]
-    public async Task NotifyLeoAsync_SendsDeclinedTemplate_BR_INS_003()
+    public async Task NotifyLeoAsync_DelegatesToActivityNotifierWithTeamName_BR_INS_003()
     {
         var leoId = Guid.NewGuid();
+        var teamId = Guid.NewGuid();
         var reportId = Guid.NewGuid();
 
         await _sut.NotifyLeoAsync(
             leoId,
+            teamId,
             reportId,
             "RPT-802",
             "Đội đang quá tải nhiệm vụ",
             CancellationToken.None);
 
-        await _notifications.Received(1).SendFromTemplateAsync(
+        await _activity.Received(1).NotifyDeclinedAsync(
             leoId,
-            NotificationType.InspectionTaskDeclined,
-            Arg.Is<Dictionary<string, string>>(d =>
-                d["report_code"] == "RPT-802"
-                && d["decline_reason"] == "Đội đang quá tải nhiệm vụ"),
+            teamId,
             reportId,
+            "RPT-802",
+            "Đội đang quá tải nhiệm vụ",
             Arg.Any<CancellationToken>());
     }
 }

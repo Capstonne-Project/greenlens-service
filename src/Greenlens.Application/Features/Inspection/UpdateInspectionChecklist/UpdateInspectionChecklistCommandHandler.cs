@@ -1,6 +1,7 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Notifications;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
@@ -17,7 +18,9 @@ namespace Greenlens.Application.Features.Inspection.UpdateInspectionChecklist;
 public sealed class UpdateInspectionChecklistCommandHandler(
     IInspectionReportRepository inspections,
     IInspectionEvidenceRepository evidences,
+    IReportRepository reports,
     ITeamMemberRepository teamMembers,
+    IInspectionAssignmentActivityNotifier activityNotifier,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     ILogger<UpdateInspectionChecklistCommandHandler> logger)
@@ -53,6 +56,21 @@ public sealed class UpdateInspectionChecklistCommandHandler(
         }
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        if (inspection.AssignedTeamId is Guid teamId)
+        {
+            var report = await reports.GetByIdAsync(inspection.ReportId, ct).ConfigureAwait(false);
+            if (report is not null)
+            {
+                await activityNotifier.NotifyProgressUpdatedAsync(
+                    inspection.CreatedByOfficerId,
+                    teamId,
+                    report.Id,
+                    report.Code,
+                    InspectionActivityLabels.ChecklistUpdated,
+                    ct).ConfigureAwait(false);
+            }
+        }
 
         logger.LogInformation("Checklist text updated for inspection {InspectionId}", request.InspectionId);
         return Result.Success();

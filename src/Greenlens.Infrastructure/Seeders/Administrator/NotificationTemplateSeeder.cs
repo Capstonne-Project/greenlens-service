@@ -154,10 +154,34 @@ internal static class NotificationTemplateSeeder
         Create(
             "inspection_task_declined",
             "Đội thanh tra từ chối nhiệm vụ",
-            "Đội thanh tra đã từ chối hồ sơ xử phạt liên quan báo cáo {report_code} tại {ward_name}. Lý do: {decline_reason}. Vui lòng gán lại đội khác.",
+            "Đội {team_name} đã từ chối hồ sơ xử phạt liên quan báo cáo {report_code} tại {ward_name}. Lý do: {decline_reason}. Vui lòng gán lại đội khác.",
             "Inspection team declined task",
-            "The inspection team declined the penalty dossier for report {report_code}. Reason: {decline_reason}. Please re-assign another team.",
+            "Team {team_name} declined the penalty dossier for report {report_code}. Reason: {decline_reason}. Please re-assign another team.",
             NotificationType.InspectionTaskDeclined),
+
+        Create(
+            "inspection_task_accepted",
+            "Đội thanh tra chấp nhận nhiệm vụ",
+            "Đội {team_name} đã chấp nhận nhiệm vụ thanh tra báo cáo {report_code} tại {ward_name}.",
+            "Inspection team accepted task",
+            "Team {team_name} accepted the inspection task for report {report_code}.",
+            NotificationType.InspectionTaskAccepted),
+
+        Create(
+            "inspection_progress_updated",
+            "Đội cập nhật tiến độ thanh tra",
+            "Đội {team_name} {activity_summary} cho hồ sơ xử phạt liên quan báo cáo {report_code} tại {ward_name}.",
+            "Inspection progress updated",
+            "Team {team_name} {activity_summary} for the penalty dossier linked to report {report_code}.",
+            NotificationType.InspectionProgressUpdated),
+
+        Create(
+            "inspection_task_completed",
+            "Đội hoàn thành nhiệm vụ thanh tra",
+            "Đội {team_name} đã hoàn thành nhiệm vụ thanh tra cho báo cáo {report_code} tại {ward_name}: {outcome_summary}.",
+            "Inspection team completed task",
+            "Team {team_name} completed the inspection task for report {report_code}: {outcome_summary}.",
+            NotificationType.InspectionTaskCompleted),
 
         Create(
             "inspection_closed_no_violation",
@@ -294,6 +318,38 @@ internal static class NotificationTemplateSeeder
             "New cleanup task assigned",
             "Report {report_code} was assigned to team {team_name}. Please check your task queue.",
             NotificationType.CleanupTaskAssigned),
+
+        Create(
+            "cleanup_task_accepted",
+            "Đội đã chấp nhận nhiệm vụ dọn dẹp",
+            "Đội {team_name} đã chấp nhận nhiệm vụ dọn dẹp báo cáo {report_code} tại {ward_name}.",
+            "Cleanup team accepted task",
+            "Team {team_name} accepted the cleanup task for report {report_code}.",
+            NotificationType.CleanupTaskAccepted),
+
+        Create(
+            "cleanup_task_declined",
+            "Đội từ chối nhiệm vụ dọn dẹp",
+            "Đội {team_name} đã từ chối nhiệm vụ dọn dẹp báo cáo {report_code} tại {ward_name}. Lý do: {decline_reason}. Vui lòng phân công lại.",
+            "Cleanup team declined task",
+            "Team {team_name} declined the cleanup task for report {report_code}. Reason: {decline_reason}. Please re-assign.",
+            NotificationType.CleanupTaskDeclined),
+
+        Create(
+            "cleanup_progress_updated",
+            "Đội cập nhật tiến độ dọn dẹp",
+            "Đội {team_name} cập nhật tiến độ {progress_percent}% cho báo cáo {report_code} tại {ward_name}.",
+            "Cleanup progress updated",
+            "Team {team_name} updated progress to {progress_percent}% for report {report_code}.",
+            NotificationType.CleanupProgressUpdated),
+
+        Create(
+            "cleanup_task_completed",
+            "Đội hoàn thành nhiệm vụ dọn dẹp",
+            "Đội {team_name} đã hoàn thành nhiệm vụ dọn dẹp báo cáo {report_code} tại {ward_name}.{resolution_note}",
+            "Cleanup team completed task",
+            "Team {team_name} completed the cleanup task for report {report_code}.{resolution_note}",
+            NotificationType.CleanupTaskCompleted),
 
         Create(
             "report_verification_needed",
