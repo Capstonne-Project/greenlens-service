@@ -1,7 +1,7 @@
 # GreenLens — Class Diagrams (Theo Use Case / Luồng nghiệp vụ)
 
 > **Dự án:** SU26SE049 — Crowdsourced Application for Reporting Environmental Pollution  
-> **Tổng quan:** 34 Class Diagram theo Use Case, khớp với 31 ⭐ Sequence Diagram ưu tiên (cập nhật inspection checklist BR-INS-033, community cleanup SD-25).  
+> **Tổng quan:** 33 Class Diagram theo Use Case, khớp với 31 ⭐ Sequence Diagram ưu tiên (cập nhật inspection checklist BR-INS-033, community cleanup SD-25).  
 > **Nguyên tắc:** Mỗi CD hiển thị **tất cả object tham gia** trong luồng tương ứng (Entity, Enum, Interface, Handler, Controller).  
 > **Ký hiệu:** Mermaid UML. Xem bằng GitHub, VS Code, hoặc bất kỳ renderer hỗ trợ Mermaid.
 
@@ -2087,7 +2087,7 @@ stateDiagram-v2
 
 ## Nhóm 4: Inspection & Penalty
 
-> **CD mới (BR-INS-033):** CD-25..CD-32 bổ sung cho luồng checklist + GET detail. CD-13..CD-15 đã cập nhật entity/method.
+> **CD mới (BR-INS-033):** CD-25..CD-30, CD-32 bổ sung cho luồng checklist + GET detail. CD-13..CD-15 đã cập nhật entity/method.
 
 ---
 
@@ -2698,20 +2698,28 @@ classDiagram
 
 ---
 
-### CD-30: Record Payment (→ SD-39 ⭐)
+### CD-30: Record Payment & Close Inspection (→ SD-39 ⭐)
 
-**Actor:** Team Leader (Mobile) · **BR:** BR-INS-020, BR-ADM-010
+**Actor:** Team Leader (Mobile) · **BR:** BR-INS-020, BR-INS-021, BR-ADM-010
+
+> **Hai bước cùng SD-39:** Phase 1 — `POST .../payments` upload biên lai + ghi `PenaltyPayment` → `Paid`/`PartiallyPaid`/`Overdue`; Phase 2 — khi đủ tiền, `POST .../close` → `Closed`.
 
 **Phân loại Relationship:**
 
 | Relationship | Loại | Lý do |
 |---|---|---|
 | InspectionReport → PenaltyPayment | **Composition** ◆ | Payment records thuộc inspection |
-| RecordPaymentHandler ..> IFileStorageService | **Dependency** | Upload receipt multipart |
-| RecordPaymentHandler ..> IAuditLogger | **Dependency** | BR-ADM-010 audit |
-| RecordPaymentHandler ..> InspectionReport | **Dependency** | RecordPayment() status |
+| InspectionReport → InspectionStatus | **Association** → | PenaltyIssued → Paid → Closed |
+| RecordPaymentHandler ..> IFileStorageService | **Dependency** | Upload receipt (multipart) |
+| RecordPaymentHandler ..> IAuditLogger | **Dependency** | BR-ADM-010 audit (phase 1) |
+| RecordPaymentHandler ..> IUnitOfWork | **Dependency** | Commit payment |
+| RecordPaymentHandler ..> InspectionReport | **Dependency** | RecordPayment() |
 | RecordPaymentHandler ..> PenaltyPayment | **Dependency** | Tạo payment entity |
-| InspectionsController ..> RecordPaymentHandler | **Dependency** | Shorthand runtime qua ISender |
+| CloseInspectionHandler ..> InspectionReport | **Dependency** | Paid → Closed (phase 2) |
+| CloseInspectionHandler ..> IAuditLogger | **Dependency** | BR-ADM-010 audit (phase 2) |
+| CloseInspectionHandler ..> IUnitOfWork | **Dependency** | Commit close |
+| InspectionsController ..> RecordPaymentHandler | **Dependency** | POST /payments |
+| InspectionsController ..> CloseInspectionHandler | **Dependency** | POST /close |
 
 ```mermaid
 classDiagram
@@ -2720,55 +2728,83 @@ classDiagram
         + PaidAt : DateTime
         + EvidenceUrl : string
         + RecordedByUserId : Guid
+        + Note : string?
         + Create(inspectionId, amount, paidAt, userId, evidenceUrl, note?)$ PenaltyPayment
     }
 
     class InspectionReport {
+        <<Aggregate Root>>
+        + Status : InspectionStatus
+        + PenaltyAmount : decimal?
         + PaidAmount : decimal?
-        + RecordPayment(payment PenaltyPayment) Result
-    }
-
-    class RecordPaymentHandler {
-        <<Handler>>
-        - _fileStorage : IFileStorageService
-        - _auditLogger : IAuditLogger
-        + Handle(cmd RecordPaymentCommand, ct CancellationToken) Task~Result~
-    }
-
-    InspectionReport "1" *-- "0..*" PenaltyPayment : Composition
-    RecordPaymentHandler ..> IFileStorageService : upload receipt (multipart)
-    RecordPaymentHandler ..> InspectionReport : PenaltyIssued → Paid/PartiallyPaid
-```
-
----
-
-### CD-31: Close Inspection (→ SD-39 ⭐ phase 2)
-
-**Actor:** Team Leader (Mobile) · **BR:** BR-INS-021, BR-ADM-010
-
-**Phân loại Relationship:**
-
-| Relationship | Loại | Lý do |
-|---|---|---|
-| CloseInspectionHandler ..> InspectionReport | **Dependency** | Paid → Closed |
-| CloseInspectionHandler ..> IAuditLogger | **Dependency** | BR-ADM-010 audit trail |
-| InspectionsController ..> CloseInspectionHandler | **Dependency** | Shorthand runtime qua ISender |
-
-```mermaid
-classDiagram
-    class InspectionReport {
+        + PenaltyDueDate : DateTime?
         + ClosedAt : DateTime?
+        + ClosedReason : string?
+        + RecordPayment(payment PenaltyPayment) Result
         + Close(reason? string) Result
     }
 
-    class CloseInspectionHandler {
-        <<Handler>>
+    class InspectionStatus {
+        <<enumeration>>
+        PenaltyIssued
+        PartiallyPaid
+        Paid
+        Overdue
+        Closed
+    }
+
+    class IFileStorageService {
+        <<interface>>
+        + UploadAsync(stream, fileName, contentType, folder, ct) Task~UploadedFile~
+    }
+
+    class IAuditLogger {
+        <<interface>>
+        + LogAsync(action, entityType, entityId, ...) Task
+    }
+
+    class IUnitOfWork {
+        <<interface>>
+        + SaveChangesAsync(ct CancellationToken) Task~int~
+    }
+
+    class RecordPaymentHandler {
+        <<Handler — phase 1>>
+        - _fileStorage : IFileStorageService
         - _auditLogger : IAuditLogger
+        - _unitOfWork : IUnitOfWork
+        + Handle(cmd RecordPaymentCommand, ct CancellationToken) Task~Result~
+    }
+
+    class CloseInspectionHandler {
+        <<Handler — phase 2>>
+        - _auditLogger : IAuditLogger
+        - _unitOfWork : IUnitOfWork
         + Handle(cmd CloseInspectionCommand, ct CancellationToken) Task~Result~
     }
 
+    class InspectionsController {
+        <<Controller>>
+        - _sender : ISender
+        + RecordPayment(id Guid, cmd RecordPaymentCommand) Task~IActionResult~
+        + Close(id Guid, cmd CloseInspectionCommand) Task~IActionResult~
+    }
+
+    InspectionReport "1" *-- "0..*" PenaltyPayment : Composition
+    InspectionReport --> InspectionStatus : Association
+
+    RecordPaymentHandler ..> IFileStorageService : upload receipt
+    RecordPaymentHandler ..> IAuditLogger : audit log
+    RecordPaymentHandler ..> IUnitOfWork : uses
+    RecordPaymentHandler ..> InspectionReport : PenaltyIssued → Paid/PartiallyPaid
+    RecordPaymentHandler ..> PenaltyPayment : creates
+
     CloseInspectionHandler ..> InspectionReport : Paid → Closed
     CloseInspectionHandler ..> IAuditLogger : audit log
+    CloseInspectionHandler ..> IUnitOfWork : uses
+
+    InspectionsController ..> RecordPaymentHandler : dispatches via ISender
+    InspectionsController ..> CloseInspectionHandler : dispatches via ISender
 ```
 
 ---
@@ -4514,8 +4550,7 @@ flowchart LR
 | CD-27 | SD-33 ⭐ | Update Checklist & Evidence | Inspector |
 | CD-28 | SD-34 ⭐ | Submit Field Investigation | Team Leader |
 | CD-29 | SD-35 ⭐ | Close No Violation | Team Leader |
-| CD-30 | SD-39 ⭐ | Record Payment (phase 1) | Team Leader |
-| CD-31 | SD-39 ⭐ | Close Inspection (phase 2) | Team Leader |
+| CD-30 | SD-39 ⭐ | Record Payment & Close Inspection (phase 1 + 2) | Team Leader |
 | CD-32 | SD-41 ⭐ | GET Detail + Capability Flags | Inspector |
 | CD-16 | SD-36 ⭐ | Create Dept & LocalOffice | Admin |
 | CD-17 | SD-37 ⭐ | Create Team | LEO |
