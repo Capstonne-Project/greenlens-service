@@ -69,11 +69,9 @@ public sealed class GetOfficerKpiQueryHandler(
 
         var verifiedOnTime = verifiedReports.Count(r => !r.SlaVerifyBreached);
 
-        // Rejected: Submitted → Submitted (reject re-queues)
+        // Rejected: Submitted → Rejected (LEO terminal reject)
         var totalRejected = await histories
-            .CountAsync(h => h.FromStatus == ReportStatus.Submitted
-                          && h.ToStatus == ReportStatus.Submitted
-                          && h.Reason != null, cancellationToken)
+            .CountAsync(h => h.ToStatus == ReportStatus.Rejected, cancellationToken)
             .ConfigureAwait(false);
 
         // Escalated count — from Verified/InProgress with reason containing "escalat"

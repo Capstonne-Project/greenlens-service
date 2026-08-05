@@ -106,8 +106,7 @@ public sealed class ReportTests
 
         report.Reject("Ảnh không phản ánh ô nhiễm thực tế");
 
-        // BR-ORG-015: Status stays Submitted — re-queued to Department
-        Assert.Equal(ReportStatus.Submitted, report.Status);
+        Assert.Equal(ReportStatus.Rejected, report.Status);
         Assert.Equal("Ảnh không phản ánh ô nhiễm thực tế", report.RejectedReason);
     }
 
