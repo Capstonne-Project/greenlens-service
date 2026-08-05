@@ -656,6 +656,7 @@ classDiagram
         + SetDimensions(w int, h int) void
         + ChangeType(newType MediaType) void
         + ReassignToReport(primaryId Guid) void
+        _Note: ReassignToReport tồn tại trên entity; confirm-duplicate không dùng_
     }
 
     class ReportStatusHistory {
@@ -931,7 +932,9 @@ classDiagram
 
 ### CD-06: Reject Report (→ SD-12 ⭐)
 
-**Actor:** LEO · **BR:** BR-REP-021, BR-GAM-001
+**Actor:** LEO · **BR:** BR-REP-020, BR-REP-021, BR-ORG-015
+
+> **Hành vi triển khai:** LEO reject → status **Rejected** (trạng thái cuối), lưu `RejectedReason`; **không** re-queue Department / DEO.
 
 **Phân loại Relationship:**
 
@@ -945,7 +948,7 @@ classDiagram
 | RejectReportHandler ..> IUserPointsRepository | **Dependency** | Trừ điểm (BR-GAM-001) |
 | RejectReportHandler ..> INotificationService | **Dependency** | Thông báo reject |
 | RejectReportHandler ..> IUnitOfWork | **Dependency** | Commit transaction |
-| RejectReportHandler ..> Report | **Dependency** | Gọi domain Reject() |
+| RejectReportHandler ..> Report | **Dependency** | Gọi domain Reject() → **Rejected** terminal |
 | RejectReportHandler ..> UserPoints | **Dependency** | Deduct points |
 | ReportsController ..> RejectReportHandler | **Dependency** | Shorthand runtime qua ISender |
 
@@ -1381,7 +1384,7 @@ classDiagram
 | CloseReportHandler ..> IUnitOfWork | **Dependency** | Commit transaction |
 | CloseReportHandler ..> Report | **Dependency** | Gọi Close() |
 | CloseReportHandler ..> UserPoints | **Dependency** | Award points |
-| AutoCloseResolvedReportJob ..> CloseReportHandler | **Dependency** | Job gọi handler (7 ngày) |
+| AutoCloseResolvedReportJob ..> CloseReportHandler | **Dependency** | Job gọi handler (2 ngày) |
 | ReportsController ..> CloseReportHandler | **Dependency** | Shorthand runtime qua ISender |
 
 ```mermaid
@@ -1435,7 +1438,7 @@ classDiagram
     class AutoCloseResolvedReportJob {
         <<Hangfire Job>>
         + Execute(ct CancellationToken) Task
-        _Note: Quét reports Resolved quá 7 ngày_
+        _Note: Quét reports Resolved quá 2 ngày_
     }
 
     class IReportRepository {
@@ -1486,7 +1489,9 @@ classDiagram
 
 ### CD-10: Duplicate Detection & Handling (→ SD-18 ⭐)
 
-**Actor:** AI / LEO · **BR:** BR-REP-030, BR-REP-032, BR-AI-002
+**Actor:** AI / LEO · **BR:** BR-REP-030, BR-REP-031, BR-REP-032, BR-AI-002
+
+> **BR-REP-032 (confirm):** merge **comments** sang báo cáo gốc, +1 `ReporterCount`, +50% điểm; **media không merge** — ảnh giữ trên bản ghi duplicate.
 
 **Phân loại Relationship:**
 
@@ -1500,8 +1505,10 @@ classDiagram
 | DuplicateDetectionJob ..> IUnitOfWork | **Dependency** | Persist AI score |
 | DuplicateDetectionJob ..> Report | **Dependency** | MarkPossibleDuplicate |
 | ConfirmDuplicateHandler ..> IReportRepository | **Dependency** | Load reports |
-| ConfirmDuplicateHandler ..> IUnitOfWork | **Dependency** | Commit merge |
+| ConfirmDuplicateHandler ..> IUnitOfWork | **Dependency** | Commit link + comment merge |
+| ConfirmDuplicateHandler ..> Comment | **Dependency** | ReassignToReport(primary) |
 | ConfirmDuplicateHandler ..> Report | **Dependency** | MarkDuplicate (LEO) |
+| DuplicateMergedPointsHandler ..> Report | **Dependency** | +50% điểm qua domain event |
 | ReportsController ..> ConfirmDuplicateHandler | **Dependency** | Shorthand runtime qua ISender |
 
 ```mermaid
@@ -1527,6 +1534,12 @@ classDiagram
         + Url : string
         + PHash : string?
         + SetPHash(pHash string) void
+        _Note: confirm-duplicate không đổi ReportId_
+    }
+
+    class Comment {
+        + ReportId : Guid
+        + Content : string
         + ReassignToReport(primaryId Guid) void
     }
 
@@ -1567,6 +1580,12 @@ classDiagram
         - _reportRepo : IReportRepository
         - _unitOfWork : IUnitOfWork
         + Handle(cmd ConfirmDuplicateCommand, ct CancellationToken) Task~Result~success~~
+        _Note: merge comments only; media stays on duplicate_
+    }
+
+    class DuplicateMergedPointsHandler {
+        <<Notification Handler>>
+        + Handle(evt ReportMarkedDuplicateEvent, ct CancellationToken) Task
     }
 
     class ReportsController {
@@ -1587,6 +1606,8 @@ classDiagram
     ConfirmDuplicateHandler ..> IReportRepository : uses
     ConfirmDuplicateHandler ..> IUnitOfWork : uses
     ConfirmDuplicateHandler ..> Report : marks duplicate
+    ConfirmDuplicateHandler ..> Comment : reassigns to primary
+    DuplicateMergedPointsHandler ..> Report : awards +50% points
     ReportsController ..> ConfirmDuplicateHandler : dispatches via ISender
 ```
 

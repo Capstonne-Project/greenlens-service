@@ -364,7 +364,7 @@ sequenceDiagram
 
 ### SD-12 ⭐ Reject Report
 
-**Actor:** LEO · **BR:** BR-REP-021
+**Actor:** LEO · **BR:** BR-REP-020, BR-REP-021, BR-ORG-015
 
 ```mermaid
 sequenceDiagram
@@ -390,6 +390,7 @@ sequenceDiagram
     Repo-->>-Hdl: report
 
     Hdl->>Hdl: report.Reject(reason)<br/>[state: Submitted → Rejected]
+    Note over Hdl: Rejected là trạng thái cuối;<br/>lưu rejected_reason, không re-queue DEO
     Hdl->>Hdl: ReportStatusHistory.Create(Submitted → Rejected)
 
     Hdl->>+PtsRepo: Get reporter's UserPoints
@@ -566,8 +567,8 @@ sequenceDiagram
         Citizen->>+App: Xem report Resolved → Nhấn "Xác nhận"
         App->>+Ctrl: PUT /api/reports/{id}/close
         Ctrl->>+Hdl: Send(CloseReportCommand)
-    else Auto-close sau 7 ngày [BR-REP-016]
-        Job->>+DB: SELECT * FROM reports<br/>WHERE status = 'Resolved' AND resolved_at < NOW() - 7d
+    else Auto-close sau 2 ngày [BR-REP-016]
+        Job->>+DB: SELECT * FROM reports<br/>WHERE status = 'Resolved' AND resolved_at < NOW() - 2d
         DB-->>-Job: reports[]
         loop Each report
             Job->>+Hdl: Process(reportId)
@@ -603,7 +604,9 @@ sequenceDiagram
 
 ### SD-18 ⭐ Duplicate Detection & Handling
 
-**Actor:** AI / LEO · **BR:** BR-REP-030, BR-REP-032, BR-AI-002
+**Actor:** AI / LEO · **BR:** BR-REP-030, BR-REP-031, BR-REP-032, BR-AI-002
+
+> **BR-REP-032 (confirm):** merge **comments** sang báo cáo gốc, +1 reporter count, +50% điểm; **media không merge** — ảnh giữ trên bản ghi duplicate.
 
 ```mermaid
 sequenceDiagram
@@ -613,6 +616,7 @@ sequenceDiagram
     participant AI as :IAiImageCompare
     participant Ctrl as :ReportsController
     participant Hdl as :ConfirmDuplicateHandler
+    participant PtsHdl as :DuplicateMergedPointsHandler
     participant Repo as :IReportRepository
     participant UoW as :IUnitOfWork
     participant DB as Database
@@ -647,13 +651,24 @@ sequenceDiagram
     DB-->>-Repo: report, primaryReport
     Repo-->>-Hdl: report, primaryReport
 
+    loop Comments on duplicate report
+        Hdl->>Hdl: comment.ReassignToReport(primary.Id)
+    end
+    Note over Hdl: report_media KHÔNG đổi report_id<br/>[ảnh giữ trên báo cáo duplicate]
+
     Hdl->>Hdl: report.MarkDuplicate(primaryReportId)<br/>[state: → Duplicate]
-    Hdl->>Hdl: primaryReport.ReporterCount++
+    Hdl->>Hdl: primaryReport.IncrementReporterCount()
+    Hdl->>Hdl: ReportStatusHistory.Create(→ Duplicate)
 
     Hdl->>+UoW: SaveChangesAsync()
-    UoW->>+DB: UPDATE reports (both)
+    UoW->>+DB: UPDATE reports (both), UPDATE comments,<br/>INSERT status_history
     DB-->>-UoW: OK
     UoW-->>-Hdl: OK
+
+    Hdl->>Hdl: ReportMarkedDuplicateEvent
+    Hdl->>+PtsHdl: Award +50% base ReportVerified points
+    PtsHdl->>DB: UPDATE user_points, INSERT point_transactions
+    PtsHdl-->>-Hdl: OK
 
     Hdl-->>-Ctrl: Result<success>
     Ctrl-->>-App: 200 OK
