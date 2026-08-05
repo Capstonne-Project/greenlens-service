@@ -661,7 +661,7 @@ public sealed class ReportsController(
     [SupportsIdempotency]
     [Authorize]
     [Tags("📋 Reports — Citizen Flow")]
-    [SwaggerOperation(Summary = "[Citizen/Auto] Đóng báo cáo", Description = "Citizen xác nhận hài lòng hoặc hệ thống tự động đóng sau 7 ngày. Chuyển status Resolved → Closed.")]
+    [SwaggerOperation(Summary = "[Citizen/Auto] Đóng báo cáo", Description = "Citizen xác nhận hài lòng hoặc hệ thống tự động đóng sau 2 ngày. Chuyển status Resolved → Closed.")]
     [SwaggerResponse(200, "Đã đóng", typeof(ApiResponse))]
     [SwaggerResponse(422, "Status không hợp lệ", typeof(ApiResponse))]
     public async Task<IActionResult> CloseAsync([FromRoute] Guid id, CancellationToken ct)
