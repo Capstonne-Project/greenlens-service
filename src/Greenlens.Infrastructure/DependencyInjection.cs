@@ -447,6 +447,12 @@ public static class DependencyInjection
             job => job.ExecuteAsync(),
             "0 * * * *"); // every hour
 
+        // Draft BR-CMU-*: Remind Community Cleanup participants ~15 min before StartsAt to check in
+        RecurringJob.AddOrUpdate<CommunityCleanupCheckInReminderJob>(
+            "community-cleanup-checkin-reminder",
+            job => job.ExecuteAsync(),
+            "*/5 * * * *"); // every 5 minutes
+
         // Classification is an opt-in pre-submit UX feature. Remove the legacy
         // recurring registration from persistent Hangfire storage after rollout.
         RecurringJob.RemoveIfExists("ai-retry");
