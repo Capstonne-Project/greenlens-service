@@ -1,7 +1,9 @@
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Common.Models;
 using Greenlens.Application.Features.Reports.Common;
+using Greenlens.Application.Features.Reports.GetOfficerQueue;
 using Greenlens.Domain.Common;
+using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -26,11 +28,34 @@ public sealed class GetDuplicateCandidatesQueryHandler(
             .Where(r => r.IsPossibleDuplicate)
             .Where(r => r.Status != ReportStatus.Duplicate && r.Status != ReportStatus.Rejected);
 
+        query = ReportReviewCandidateFilters.ApplyCommon(
+            query,
+            request.Status,
+            request.Severity,
+            request.CategoryId,
+            request.WardCode,
+            request.FromDate,
+            request.ToDate,
+            request.Search);
+
+        if (!string.IsNullOrWhiteSpace(request.DuplicateDetectionSource))
+        {
+            var source = request.DuplicateDetectionSource.Trim();
+            query = query.Where(r => r.DuplicateDetectionSource == source);
+        }
+
+        if (request.MinAiSimilarityScore.HasValue)
+        {
+            var minScore = request.MinAiSimilarityScore.Value;
+            query = query.Where(r => r.AiSimilarityScore >= minScore);
+        }
+
         var totalCount = await query.CountAsync(ct).ConfigureAwait(false);
         var pagination = PaginationMeta.Create(request.Page, request.PageSize, totalCount);
 
-        var rows = await query
-            .OrderByDescending(r => r.CreatedAt)
+        var orderedQuery = ApplySort(query, request.SortBy, request.SortDir);
+
+        var rows = await orderedQuery
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
             .Select(r => new
@@ -57,7 +82,8 @@ public sealed class GetDuplicateCandidatesQueryHandler(
             .Distinct()
             .ToList();
 
-        var mediaByReportId = await CitizenReportMediaLoader.LoadByReportIdsAsync(reportMedia, reportIds, ct)
+        var firstMediaByReportId = await CitizenReportMediaLoader
+            .LoadFirstByReportIdsAsync(reportMedia, reportIds, ct)
             .ConfigureAwait(false);
 
         var primaryIds = rows
@@ -86,7 +112,7 @@ public sealed class GetDuplicateCandidatesQueryHandler(
                     p.Code,
                     p.Address,
                     p.CreatedAt,
-                    CitizenReportMediaLoader.GetMediaOrEmpty(mediaByReportId, p.Id));
+                    CitizenReportMediaLoader.GetFirstMediaList(firstMediaByReportId, p.Id));
             }
 
             return new DuplicateCandidateItem(
@@ -101,7 +127,7 @@ public sealed class GetDuplicateCandidatesQueryHandler(
                 r.CreatedAt,
                 r.DuplicateDetectionSource,
                 r.AiSimilarityScore,
-                CitizenReportMediaLoader.GetMediaOrEmpty(mediaByReportId, r.Id),
+                CitizenReportMediaLoader.GetFirstMediaList(firstMediaByReportId, r.Id),
                 primary);
         }).ToList();
 
@@ -109,4 +135,27 @@ public sealed class GetDuplicateCandidatesQueryHandler(
 
         return new GetDuplicateCandidatesResponse(items, pagination);
     }
+
+    private static IOrderedQueryable<Report> ApplySort(
+        IQueryable<Report> query,
+        DuplicateCandidateSortBy sortBy,
+        SortDirection sortDir) =>
+        (sortBy, sortDir) switch
+        {
+            (DuplicateCandidateSortBy.Severity, SortDirection.Asc) =>
+                query.OrderBy(r => r.Severity).ThenByDescending(r => r.CreatedAt),
+            (DuplicateCandidateSortBy.Severity, SortDirection.Desc) =>
+                query.OrderByDescending(r => r.Severity).ThenByDescending(r => r.CreatedAt),
+            (DuplicateCandidateSortBy.AiSimilarityScore, SortDirection.Asc) =>
+                query.OrderBy(r => r.AiSimilarityScore ?? 0m).ThenByDescending(r => r.CreatedAt),
+            (DuplicateCandidateSortBy.AiSimilarityScore, SortDirection.Desc) =>
+                query.OrderByDescending(r => r.AiSimilarityScore ?? 0m).ThenByDescending(r => r.CreatedAt),
+            (DuplicateCandidateSortBy.PriorityScore, SortDirection.Asc) =>
+                query.OrderBy(r => r.PriorityScore).ThenByDescending(r => r.CreatedAt),
+            (DuplicateCandidateSortBy.PriorityScore, SortDirection.Desc) =>
+                query.OrderByDescending(r => r.PriorityScore).ThenByDescending(r => r.CreatedAt),
+            (DuplicateCandidateSortBy.CreatedAt, SortDirection.Asc) =>
+                query.OrderBy(r => r.CreatedAt),
+            _ => query.OrderByDescending(r => r.CreatedAt),
+        };
 }

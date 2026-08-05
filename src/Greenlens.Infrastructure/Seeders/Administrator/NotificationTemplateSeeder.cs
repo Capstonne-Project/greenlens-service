@@ -137,11 +137,43 @@ internal static class NotificationTemplateSeeder
 
         Create(
             "sla_inspection_breached",
-            "Quá hạn xử phạt",
-            "Hồ sơ xử phạt liên quan báo cáo {report_code} tại {ward_name} đã vượt thời hạn. Vui lòng kiểm tra.",
+            "Quá hạn điều tra xử phạt",
+            "Hồ sơ xử phạt liên quan báo cáo {report_code} tại {ward_name} đã vượt thời hạn điều tra. Vui lòng kiểm tra và xử lý.",
             "Inspection SLA breached",
-            "The penalty dossier for report {report_code} exceeded SLA. Please review.",
+            "The penalty dossier for report {report_code} exceeded the investigation SLA. Please review.",
             NotificationType.SlaInspectionBreached),
+
+        Create(
+            "inspection_task_assigned",
+            "Nhiệm vụ thanh tra mới",
+            "Báo cáo {report_code} tại {ward_name} vừa được giao cho đội {team_name}. Vui lòng kiểm tra hàng đợi nhiệm vụ thanh tra.",
+            "New inspection task assigned",
+            "Report {report_code} was assigned to team {team_name}. Please check your inspection task queue.",
+            NotificationType.InspectionTaskAssigned),
+
+        Create(
+            "inspection_task_declined",
+            "Đội thanh tra từ chối nhiệm vụ",
+            "Đội thanh tra đã từ chối hồ sơ xử phạt liên quan báo cáo {report_code} tại {ward_name}. Lý do: {decline_reason}. Vui lòng gán lại đội khác.",
+            "Inspection team declined task",
+            "The inspection team declined the penalty dossier for report {report_code}. Reason: {decline_reason}. Please re-assign another team.",
+            NotificationType.InspectionTaskDeclined),
+
+        Create(
+            "inspection_closed_no_violation",
+            "Kết luận không phát hiện vi phạm",
+            "Hồ sơ xử phạt liên quan báo cáo {report_code} đã được kết luận không đủ căn cứ xử phạt. Lý do: {reason}",
+            "Inspection closed — no violation",
+            "The penalty dossier for report {report_code} was closed with no violation found. Reason: {reason}",
+            NotificationType.InspectionClosedNoViolation),
+
+        Create(
+            "penalty_payment_overdue",
+            "Quá hạn nộp phạt",
+            "Hồ sơ xử phạt liên quan báo cáo {report_code} tại {ward_name} đã quá hạn nộp phạt (quyết định số {decision_number}). Vui lòng phối hợp xử lý.",
+            "Penalty payment overdue",
+            "The penalty dossier for report {report_code} is overdue for payment (decision {decision_number}). Please coordinate follow-up.",
+            NotificationType.PenaltyPaymentOverdue),
 
         Create(
             "cleanup_progress_stale",

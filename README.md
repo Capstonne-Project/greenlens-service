@@ -272,14 +272,15 @@ greenlens-service/
 ├── tests/
 │   ├── Greenlens.Domain.UnitTests/
 │   ├── Greenlens.Application.UnitTests/
-│   ├── Greenlens.Application.IntegrationTests/    # Testcontainers
-│   └── Greenlens.Api.FunctionalTests/             # WebApplicationFactory
+│   └── Greenlens.Application.IntegrationTests/    # Testcontainers (Postgres + PostGIS)
 │
 ├── docs/                              # Documentation & images
 ├── OVERVIEW.md                        # Detailed architecture guide
 ├── 00_API_CONVENTIONS.md              # API contract conventions
 └── README.md                          # ← You are here
 ```
+
+> **Lưu ý:** `Greenlens.Api.FunctionalTests` (WebApplicationFactory) nằm trong testing pyramid nhưng **chưa scaffold** — không có trong repo hay `Greenlens.sln`. Hiện có 3 test projects (Domain/Application unit + Application integration).
 
 ---
 
@@ -360,16 +361,26 @@ Accept-Language: vi-VN
 | ------------------ | ----- | ------------------------------------------------- |
 | **Unit**           | ~70%  | xUnit + FluentAssertions + NSubstitute            |
 | **Integration**    | ~25%  | + Testcontainers (PostgreSQL + PostGIS) + Respawn |
-| **Functional/E2E** | ~5%   | + WebApplicationFactory                           |
+| **Functional/E2E** | ~5%   | + WebApplicationFactory *(planned — project chưa scaffold)* |
+
+### Test projects (trong `Greenlens.sln`)
+
+| Project | Loại |
+| -------- | ----- |
+| `Greenlens.Domain.UnitTests` | Unit |
+| `Greenlens.Application.UnitTests` | Unit |
+| `Greenlens.Application.IntegrationTests` | Integration (Testcontainers) |
 
 ### Running Tests
 
 ```bash
-# Run all tests
+# Run all tests (3 projects trong solution)
 dotnet test
 
 # Run specific test project
 dotnet test tests/Greenlens.Domain.UnitTests/
+dotnet test tests/Greenlens.Application.UnitTests/
+dotnet test tests/Greenlens.Application.IntegrationTests/
 
 # Run tests for a specific business rule
 dotnet test --filter "FullyQualifiedName~BR_REP_001"

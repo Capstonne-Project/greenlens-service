@@ -36,6 +36,17 @@ internal static class JobNotificationPlaceholders
         return placeholders;
     }
 
+    public static Dictionary<string, string> ForPenaltyPaymentOverdue(
+        string reportCode,
+        string decisionNumber)
+    {
+        var placeholders = ForReport(reportCode);
+        placeholders["decision_number"] = string.IsNullOrWhiteSpace(decisionNumber)
+            ? "chưa có"
+            : decisionNumber;
+        return placeholders;
+    }
+
     public static Dictionary<string, string> ForContractExpired(
         string companyName,
         string contractNumber)

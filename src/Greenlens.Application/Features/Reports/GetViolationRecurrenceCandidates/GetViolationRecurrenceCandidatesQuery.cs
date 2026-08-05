@@ -1,5 +1,6 @@
 using Greenlens.Application.Common.Models;
 using Greenlens.Application.Features.Reports.Common;
+using Greenlens.Application.Features.Reports.GetOfficerQueue;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -9,7 +10,26 @@ namespace Greenlens.Application.Features.Reports.GetViolationRecurrenceCandidate
 /// <summary>LEO review list of reports flagged as suspected violation recurrence. BR-REP-034.</summary>
 public sealed record GetViolationRecurrenceCandidatesQuery(
     int Page = 1,
-    int PageSize = 20) : IRequest<Result<GetViolationRecurrenceCandidatesResponse>>;
+    int PageSize = 20,
+    ReportStatus? Status = null,
+    Severity? Severity = null,
+    Guid? CategoryId = null,
+    string? WardCode = null,
+    DateTime? FromDate = null,
+    DateTime? ToDate = null,
+    string? Search = null,
+    int? MinDaysSincePriorClosed = null,
+    int? MaxDaysSincePriorClosed = null,
+    ViolationRecurrenceCandidateSortBy SortBy = ViolationRecurrenceCandidateSortBy.CreatedAt,
+    SortDirection SortDir = SortDirection.Desc) : IRequest<Result<GetViolationRecurrenceCandidatesResponse>>;
+
+public enum ViolationRecurrenceCandidateSortBy
+{
+    CreatedAt,
+    Severity,
+    PriorClosedAt,
+    PriorityScore
+}
 
 public sealed record GetViolationRecurrenceCandidatesResponse(
     IReadOnlyList<ViolationRecurrenceCandidateItem> Items,

@@ -2,6 +2,7 @@ using System.Text.Json;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Notifications;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -16,10 +17,12 @@ namespace Greenlens.Application.Features.Inspection.DeclineInspection;
 /// </summary>
 public sealed class DeclineInspectionCommandHandler(
     IInspectionReportRepository inspections,
+    IReportRepository reports,
     ITeamMemberRepository teamMembers,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     IAuditLogger auditLogger,
+    IInspectionTaskDeclinedNotifier declinedNotifier,
     ILogger<DeclineInspectionCommandHandler> logger)
     : IRequestHandler<DeclineInspectionCommand, Result>
 {
@@ -65,6 +68,17 @@ public sealed class DeclineInspectionCommandHandler(
         inspection.ClearTeam();
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        var report = await reports.GetByIdAsync(inspection.ReportId, ct).ConfigureAwait(false);
+        if (report is not null)
+        {
+            await declinedNotifier.NotifyLeoAsync(
+                inspection.CreatedByOfficerId,
+                report.Id,
+                report.Code,
+                request.Reason,
+                ct).ConfigureAwait(false);
+        }
 
         await auditLogger.LogAsync(
             "DeclineInspection",

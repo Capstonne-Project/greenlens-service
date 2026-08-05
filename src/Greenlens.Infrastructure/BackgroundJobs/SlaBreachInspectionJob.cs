@@ -1,4 +1,5 @@
 using Greenlens.Application.Common.Interfaces;
+using Greenlens.Application.Features.Notifications;
 using Greenlens.Domain.Enums;
 using Greenlens.Infrastructure.Persistence;
 using Hangfire;
@@ -16,6 +17,7 @@ namespace Greenlens.Infrastructure.BackgroundJobs;
 internal sealed class SlaBreachInspectionJob(
     ApplicationDbContext db,
     INotificationService notificationService,
+    IInspectionClosedNoViolationNotifier closedNoViolationNotifier,
     ILogger<SlaBreachInspectionJob> logger)
 {
     private const string AutoCloseReason =
@@ -43,6 +45,8 @@ internal sealed class SlaBreachInspectionJob(
             return;
         }
 
+        var autoClosedReports = new List<(Guid ReportId, string ReportCode, Guid? ReporterId)>();
+
         foreach (var inspection in breachedInspections)
         {
             inspection.MarkSlaInspectionBreached();
@@ -55,6 +59,13 @@ internal sealed class SlaBreachInspectionJob(
                     logger.LogWarning(
                         "SlaBreachInspectionJob: Could not auto-close inspection {Id}: {Error}",
                         inspection.Id, closeResult.Error?.Code);
+                }
+                else if (inspection.Report is not null)
+                {
+                    autoClosedReports.Add((
+                        inspection.ReportId,
+                        inspection.Report.Code,
+                        inspection.Report.ReporterId));
                 }
             }
         }
@@ -75,6 +86,13 @@ internal sealed class SlaBreachInspectionJob(
                 NotificationType.SlaInspectionBreached,
                 placeholders,
                 inspection.ReportId).ConfigureAwait(false);
+        }
+
+        foreach (var (reportId, reportCode, reporterId) in autoClosedReports)
+        {
+            await closedNoViolationNotifier
+                .NotifyReporterAsync(reportId, reportCode, reporterId, AutoCloseReason, CancellationToken.None)
+                .ConfigureAwait(false);
         }
 
         logger.LogWarning(

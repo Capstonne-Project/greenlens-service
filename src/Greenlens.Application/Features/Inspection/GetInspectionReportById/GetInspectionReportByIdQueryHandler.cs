@@ -94,6 +94,8 @@ public sealed class GetInspectionReportByIdQueryHandler(
             ir.Id,
             ir.ReportId,
             ir.Report!.Code,
+            ir.Report.Latitude,
+            ir.Report.Longitude,
             ir.Status,
             ir.AssignedTeamId,
             ir.AssignedTeam?.Name,

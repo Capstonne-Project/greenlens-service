@@ -1,55 +1,86 @@
 # GreenLens — Class Diagrams (Theo Use Case / Luồng nghiệp vụ)
 
 > **Dự án:** SU26SE049 — Crowdsourced Application for Reporting Environmental Pollution  
-> **Tổng quan:** 32 Class Diagram theo Use Case, khớp với 30 ⭐ Sequence Diagram ưu tiên (cập nhật inspection checklist BR-INS-033).  
+> **Tổng quan:** 33 Class Diagram theo Use Case, khớp với 31 ⭐ Sequence Diagram ưu tiên (cập nhật inspection checklist BR-INS-033, community cleanup SD-25).  
 > **Nguyên tắc:** Mỗi CD hiển thị **tất cả object tham gia** trong luồng tương ứng (Entity, Enum, Interface, Handler, Controller).  
 > **Ký hiệu:** Mermaid UML. Xem bằng GitHub, VS Code, hoặc bất kỳ renderer hỗ trợ Mermaid.
 
 ---
 
-## Chú giải 4 loại Relationship (UML)
+## Chú giải 6 loại Relationship (UML)
+
+Theo **UML Relation Notation** chuẩn (Association, Inheritance, Realization, Dependency, Aggregation, Composition):
 
 ```mermaid
 classDiagram
-    class ParentClass {
-        <<Composition>>
+    class InterfaceA {
+        <<interface>>
+        Realization
     }
-    class ChildClass {
-        <<Composition>>
+    class ImplA {
+        Realization
     }
-    class WholeClass {
-        <<Aggregation>>
+    class Depender {
+        Dependency
     }
-    class PartClass {
-        <<Aggregation>>
+    class Dependee {
+        Dependency
     }
     class BaseClass {
-        <<Inheritance>>
+        Inheritance
     }
     class DerivedClass {
-        <<Inheritance>>
+        Inheritance
+    }
+    class WholeClass {
+        Aggregation
+    }
+    class PartClass {
+        Aggregation
+    }
+    class ParentClass {
+        Composition
+    }
+    class ChildClass {
+        Composition
     }
     class ClassA {
-        <<Association>>
+        Association
     }
     class ClassB {
-        <<Association>>
+        Association
     }
 
-    ParentClass *-- ChildClass : ◆ Composition\nChild không tồn tại\nnếu Parent bị xóa
-    WholeClass o-- PartClass : ◇ Aggregation\nPart tồn tại độc lập\nnếu Whole bị xóa
-    BaseClass <|-- DerivedClass : △ Inheritance\nDerivedClass kế thừa\ntừ BaseClass
-    ClassA --> ClassB : → Association\nTham chiếu đơn giản\ngiữa 2 class
+    InterfaceA <|.. ImplA : ◁ Realization\n(dashed + hollow △)
+    Depender ..> Dependee : ◁ Dependency\n(dashed + open arrow)
+    BaseClass <|-- DerivedClass : △ Inheritance\n(solid + hollow △)
+    WholeClass o-- PartClass : ◇ Aggregation\n(solid + hollow ◇)
+    ParentClass *-- ChildClass : ◆ Composition\n(solid + filled ◆)
+    ClassA --> ClassB : → Association\n(solid + open arrow)
 ```
 
-| Ký hiệu | Tên | Mermaid syntax | Ý nghĩa | Ví dụ GreenLens |
-|----------|-----|----------------|----------|-----------------|
-| ◆ (filled diamond) | **Composition** | `A *-- B` | B **không thể tồn tại** nếu A bị xóa | `Report *-- ReportMedia` — xóa Report → xóa luôn Media |
-| ◇ (empty diamond) | **Aggregation** | `A o-- B` | B **vẫn tồn tại** độc lập khi A bị xóa | `LocalOffice o-- EnvironmentalTeam` — team có thể transfer sang office khác |
-| △ (triangle) | **Inheritance** | `A <\|-- B` | B kế thừa từ A | `AuditableEntity <\|-- User` |
-| → (arrow) | **Association** | `A --> B` | A tham chiếu đến B (lookup, FK) | `Report --> User` — Report tham chiếu reporter |
-| ◁ (dashed) | **Dependency** | `A ..> B` | A phụ thuộc vào B (sử dụng) | `Handler ..> IRepository` — Handler dùng Repository |
-| ◁ (implements) | **Realization** | `A <\|.. B` | B implement interface A | `IJwtService <\|.. JwtService` |
+| Ký hiệu UML | Tên | Mermaid syntax | Ý nghĩa | Ví dụ GreenLens |
+|-------------|-----|----------------|----------|-----------------|
+| → (solid, open arrow) | **Association** | `A --> B` | Tham chiếu/navigable (FK, lookup) | `Report --> User` (reporter) |
+| △ (solid, hollow triangle) | **Inheritance** | `A <\|-- B` | B kế thừa A (generalization) | `AuditableEntity <\|-- User` |
+| △ (dashed, hollow triangle) | **Realization** | `A <\|.. B` | B implement interface A | `IJwtService <\|.. JwtService` |
+| → (dashed, open arrow) | **Dependency** | `A ..> B` | A sử dụng B (parameter, local, inject) | `Handler ..> IRepository` |
+| ◇ (solid, hollow diamond) | **Aggregation** | `A o-- B` | B tồn tại độc lập khi A bị xóa | `LocalOffice o-- EnvironmentalTeam` |
+| ◆ (solid, filled diamond) | **Composition** | `A *-- B` | B không tồn tại nếu A bị xóa | `Report *-- ReportMedia` |
+
+**Quy ước áp dụng trong CD:**
+
+| Tình huống | Dùng |
+|-----------|------|
+| Entity kế thừa base class | **Inheritance** `<\|--` |
+| Class implement interface | **Realization** `<\|..` |
+| Handler/Controller/Job inject interface hoặc tạo entity | **Dependency** `..>` |
+| FK giữa 2 aggregate (User↔Report, Report↔Category) | **Association** `-->` |
+| Child entity lifecycle gắn parent (Media, History, OTP) | **Composition** `*--` |
+| Part có thể tách khỏi whole (Team↔Office, Badge↔User) | **Aggregation** `o--` |
+| `Controller ..> Handler` trong CD | **Dependency** — shorthand runtime qua `ISender` MediatR |
+
+**Không dùng:** `-->` cho Handler→Interface (phải `..>`); `<|--` cho interface implementation (phải `<|..`).
 
 ---
 
@@ -100,14 +131,19 @@ classDiagram
 
 | Relationship | Loại | Lý do |
 |---|---|---|
-| User → OtpCode | **Composition** ◆ | OTP gắn chặt với User |
-| User → PasswordHistory | **Composition** ◆ | Lịch sử MK thuộc về User |
-| SoftDeletableEntity → User | **Inheritance** △ | User kế thừa SoftDeletableEntity |
-| RegisterCommandHandler ..> IUserRepository | **Dependency** | Handler dùng repo để check + add |
-| RegisterCommandHandler ..> IPasswordHasher | **Dependency** | Handler dùng hasher |
-| RegisterCommandHandler ..> IOtpRepository | **Dependency** | Handler lưu OTP |
-| RegisterCommandHandler ..> IEmailSender | **Dependency** | Handler gửi OTP qua email |
-| AuthController --> ISender | **Association** | Controller dispatch qua MediatR |
+| SoftDeletableEntity → User | **Inheritance** △ | User kế thừa base entity |
+| User → OtpCode | **Composition** ◆ | OTP lifecycle gắn User |
+| User → PasswordHistory | **Composition** ◆ | Lịch sử mật khẩu thuộc User |
+| User → UserRole | **Association** → | User có role enum |
+| RegisterCommandHandler ..> IUserRepository | **Dependency** | Check email trùng + persist |
+| RegisterCommandHandler ..> IPasswordHasher | **Dependency** | Hash password (BR-DAT-001) |
+| RegisterCommandHandler ..> IOtpRepository | **Dependency** | Lưu OTP xác minh |
+| RegisterCommandHandler ..> IEmailSender | **Dependency** | Gửi OTP email |
+| RegisterCommandHandler ..> IUnitOfWork | **Dependency** | Commit transaction |
+| RegisterCommandHandler ..> User | **Dependency** | Tạo aggregate User |
+| RegisterCommandHandler ..> OtpCode | **Dependency** | Tạo OTP record |
+| AuthController ..> ISender | **Dependency** | MediatR dispatch |
+| AuthController ..> RegisterCommandHandler | **Dependency** | Shorthand runtime qua ISender |
 
 ```mermaid
 classDiagram
@@ -262,6 +298,7 @@ classDiagram
     RegisterCommandHandler ..> IUnitOfWork : uses
     RegisterCommandHandler ..> User : creates
     RegisterCommandHandler ..> OtpCode : creates
+    AuthController ..> ISender : Dependency (MediatR)
     AuthController ..> RegisterCommandHandler : dispatches via ISender
 ```
 
@@ -275,11 +312,19 @@ classDiagram
 
 | Relationship | Loại | Lý do |
 |---|---|---|
-| User → RefreshToken | **Composition** ◆ | Token thuộc về User |
-| SoftDeletableEntity → User | **Inheritance** △ | Kế thừa |
-| LoginCommandHandler ..> IUserRepository | **Dependency** | Tìm user |
-| LoginCommandHandler ..> IJwtService | **Dependency** | Tạo token |
-| LoginCommandHandler ..> IPasswordHasher | **Dependency** | Verify password |
+| SoftDeletableEntity → User | **Inheritance** △ | User kế thừa base entity |
+| User → RefreshToken | **Composition** ◆ | Refresh token lifecycle gắn User |
+| User → UserRole | **Association** → | User có role enum |
+| LoginCommandHandler ..> IUserRepository | **Dependency** | Load user by email |
+| LoginCommandHandler ..> IPasswordHasher | **Dependency** | Verify password (BR-AUTH-011) |
+| LoginCommandHandler ..> ICompanyStaffRepository | **Dependency** | CompanyStaff scope check |
+| LoginCommandHandler ..> IJwtService | **Dependency** | Sinh access + refresh token |
+| LoginCommandHandler ..> IRefreshTokenRepository | **Dependency** | Persist refresh token |
+| LoginCommandHandler ..> IUnitOfWork | **Dependency** | Commit lockout / token |
+| LoginCommandHandler ..> User | **Dependency** | Cập nhật failed attempts |
+| LoginCommandHandler ..> RefreshToken | **Dependency** | Tạo refresh token mới |
+| AuthController ..> ISender | **Dependency** | MediatR dispatch |
+| AuthController ..> LoginCommandHandler | **Dependency** | Shorthand runtime qua ISender |
 
 ```mermaid
 classDiagram
@@ -400,6 +445,7 @@ classDiagram
     LoginCommandHandler ..> IUnitOfWork : uses
     LoginCommandHandler ..> User : reads
     LoginCommandHandler ..> RefreshToken : creates
+    AuthController ..> ISender : Dependency (MediatR)
     AuthController ..> LoginCommandHandler : dispatches via ISender
 ```
 
@@ -413,9 +459,14 @@ classDiagram
 
 | Relationship | Loại | Lý do |
 |---|---|---|
-| User → RefreshToken | **Composition** ◆ | Token thuộc về User |
-| RefreshTokenCommandHandler ..> IJwtService | **Dependency** | Hash + generate |
-| RefreshTokenCommandHandler ..> IRefreshTokenRepository | **Dependency** | Rotate token |
+| User → RefreshToken | **Composition** ◆ | Token lifecycle gắn User |
+| RefreshTokenCommandHandler ..> IJwtService | **Dependency** | Hash + sinh token mới |
+| RefreshTokenCommandHandler ..> IRefreshTokenRepository | **Dependency** | Load + revoke + add token |
+| RefreshTokenCommandHandler ..> IUserRepository | **Dependency** | Load user từ token |
+| RefreshTokenCommandHandler ..> IUnitOfWork | **Dependency** | Commit rotation |
+| RefreshTokenCommandHandler ..> RefreshToken | **Dependency** | Revoke cũ + tạo mới |
+| AuthController ..> ISender | **Dependency** | MediatR dispatch |
+| AuthController ..> RefreshTokenCommandHandler | **Dependency** | Shorthand runtime qua ISender |
 
 ```mermaid
 classDiagram
@@ -487,6 +538,7 @@ classDiagram
     RefreshTokenCommandHandler ..> IUserRepository : uses
     RefreshTokenCommandHandler ..> IUnitOfWork : uses
     RefreshTokenCommandHandler ..> RefreshToken : revokes old + creates new
+    AuthController ..> ISender : Dependency (MediatR)
     AuthController ..> RefreshTokenCommandHandler : dispatches via ISender
 ```
 
@@ -507,8 +559,24 @@ classDiagram
 | Report → ReportMedia | **Composition** ◆ | Media thuộc về Report |
 | Report → ReportStatusHistory | **Composition** ◆ | Lịch sử gắn chặt |
 | Report → ReportWasteTag | **Composition** ◆ | Join table |
-| Report → PollutionCategory | **Association** → | Report lookup danh mục |
-| Report → User | **Association** → | Report tham chiếu reporter |
+| Report → PollutionCategory | **Association** → | FK category |
+| Report → User | **Association** → | FK reporter |
+| Report → ReportStatus | **Association** → | Status enum |
+| Report → Severity | **Association** → | Severity enum |
+| ReportMedia → MediaType | **Association** → | Media type enum |
+| SoftDeletableEntity → Report | **Inheritance** △ | Report kế thừa |
+| SoftDeletableEntity → ReportMedia | **Inheritance** △ | Media kế thừa |
+| SubmitReportCommandHandler ..> IReportSubmissionRateLimiter | **Dependency** | BR-REP-010 rate limit |
+| SubmitReportCommandHandler ..> IProfanityFilter | **Dependency** | BR-REP-004 profanity |
+| SubmitReportCommandHandler ..> ICategoryRepository | **Dependency** | Validate category |
+| SubmitReportCommandHandler ..> IWardRepository | **Dependency** | Validate ward |
+| SubmitReportCommandHandler ..> ILocalOfficeRepository | **Dependency** | BR-ORG-010 routing |
+| SubmitReportCommandHandler ..> IExifAnalyzer | **Dependency** | BR-REP-011 EXIF |
+| SubmitReportCommandHandler ..> IUnitOfWork | **Dependency** | Commit transaction |
+| SubmitReportCommandHandler ..> Report | **Dependency** | Tạo aggregate |
+| SubmitReportCommandHandler ..> ReportMedia | **Dependency** | Tạo media metadata |
+| SubmitReportCommandHandler ..> ReportStatusHistory | **Dependency** | Ghi lịch sử Submitted |
+| ReportsController ..> SubmitReportCommandHandler | **Dependency** | Shorthand runtime qua ISender |
 
 ```mermaid
 classDiagram
@@ -613,6 +681,12 @@ classDiagram
         + SortOrder : int
     }
 
+    class User {
+        <<referenced>>
+        + Id : Guid
+        + FullName : string
+    }
+
     class ReportStatus {
         <<enumeration>>
         Submitted
@@ -702,6 +776,7 @@ classDiagram
     Report "1" *-- "0..*" ReportStatusHistory : Composition
     Report "1" *-- "0..*" ReportWasteTag : Composition
     Report "0..*" --> "1" PollutionCategory : Association
+    Report "0..*" --> "0..1" User : Association (reporter)
     Report --> ReportStatus : Association
     Report --> Severity : Association
     ReportMedia --> MediaType : Association
@@ -729,9 +804,16 @@ classDiagram
 
 | Relationship | Loại | Lý do |
 |---|---|---|
-| Report → ReportStatusHistory | **Composition** ◆ | Lịch sử gắn chặt |
+| Report → ReportStatusHistory | **Composition** ◆ | Lịch sử gắn Report |
+| Report → ReportStatus | **Association** → | Status enum |
+| Report → Severity | **Association** → | Severity enum |
 | VerifyReportHandler ..> IReportRepository | **Dependency** | Load report |
-| VerifyReportHandler ..> INotificationService | **Dependency** | Gửi thông báo |
+| VerifyReportHandler ..> IUnitOfWork | **Dependency** | Commit transition |
+| VerifyReportHandler ..> INotificationService | **Dependency** | Thông báo Citizen |
+| VerifyReportHandler ..> Report | **Dependency** | Gọi domain Verify() |
+| VerifyReportHandler ..> ReportStatusHistory | **Dependency** | Ghi lịch sử |
+| VerifyReportHandler ..> Notification | **Dependency** | Side-effect notify |
+| ReportsController ..> VerifyReportHandler | **Dependency** | Shorthand runtime qua ISender |
 
 ```mermaid
 classDiagram
@@ -855,11 +937,17 @@ classDiagram
 
 | Relationship | Loại | Lý do |
 |---|---|---|
-| Report → ReportStatusHistory | **Composition** ◆ | Lịch sử gắn chặt |
-| User → UserPoints | **Composition** ◆ | Points thuộc về User |
-| UserPoints → PointTransaction | **Composition** ◆ | Transaction gắn chặt |
+| Report → ReportStatusHistory | **Composition** ◆ | Lịch sử gắn Report |
+| UserPoints → PointTransaction | **Composition** ◆ | Transaction thuộc UserPoints |
+| Report → ReportStatus | **Association** → | Status enum |
+| PointTransaction → PointReason | **Association** → | Lý do cộng/trừ điểm |
 | RejectReportHandler ..> IReportRepository | **Dependency** | Load report |
-| RejectReportHandler ..> IUserPointsRepository | **Dependency** | Trừ điểm |
+| RejectReportHandler ..> IUserPointsRepository | **Dependency** | Trừ điểm (BR-GAM-001) |
+| RejectReportHandler ..> INotificationService | **Dependency** | Thông báo reject |
+| RejectReportHandler ..> IUnitOfWork | **Dependency** | Commit transaction |
+| RejectReportHandler ..> Report | **Dependency** | Gọi domain Reject() |
+| RejectReportHandler ..> UserPoints | **Dependency** | Deduct points |
+| ReportsController ..> RejectReportHandler | **Dependency** | Shorthand runtime qua ISender |
 
 ```mermaid
 classDiagram
@@ -981,9 +1069,23 @@ classDiagram
 
 | Relationship | Loại | Lý do |
 |---|---|---|
-| Report → ReportAssignment | **Composition** ◆ | Assignment thuộc về Report |
-| Report → ReportStatusHistory | **Composition** ◆ | Lịch sử gắn chặt |
-| ReportAssignment → EnvironmentalTeam | **Association** → | Assignment tham chiếu Team |
+| SoftDeletableEntity → Report | **Inheritance** △ | Report kế thừa |
+| SoftDeletableEntity → ReportAssignment | **Inheritance** △ | Assignment kế thừa |
+| SoftDeletableEntity → EnvironmentalTeam | **Inheritance** △ | Team kế thừa |
+| Report → ReportAssignment | **Composition** ◆ | Assignment thuộc Report |
+| Report → ReportStatusHistory | **Composition** ◆ | Lịch sử gắn Report |
+| ReportAssignment → EnvironmentalTeam | **Association** → | FK team được gán |
+| Report → ReportStatus | **Association** → | Status enum |
+| ReportAssignment → AssignmentStatus | **Association** → | Assignment status enum |
+| EnvironmentalTeam → TeamType | **Association** → | Cleanup vs Inspection |
+| AssignTeamHandler ..> IReportRepository | **Dependency** | Load report Verified |
+| AssignTeamHandler ..> ITeamRepository | **Dependency** | Validate team active |
+| AssignTeamHandler ..> INotificationService | **Dependency** | Notify team members |
+| AssignTeamHandler ..> IUnitOfWork | **Dependency** | Commit transaction |
+| AssignTeamHandler ..> Report | **Dependency** | Chuyển InProgress |
+| AssignTeamHandler ..> ReportAssignment | **Dependency** | Tạo assignment |
+| AssignTeamHandler ..> ReportStatusHistory | **Dependency** | Ghi lịch sử |
+| ReportsController ..> AssignTeamHandler | **Dependency** | Shorthand runtime qua ISender |
 
 ```mermaid
 classDiagram
@@ -1130,9 +1232,20 @@ classDiagram
 
 | Relationship | Loại | Lý do |
 |---|---|---|
-| Report → ReportAssignment | **Composition** ◆ | Assignment thuộc về Report |
-| Report → ReportMedia | **Composition** ◆ | Media thuộc về Report |
-| Report → ReportStatusHistory | **Composition** ◆ | Lịch sử gắn chặt |
+| Report → ReportAssignment | **Composition** ◆ | Assignment thuộc Report |
+| Report → ReportMedia | **Composition** ◆ | Media thuộc Report |
+| Report → ReportStatusHistory | **Composition** ◆ | Lịch sử gắn Report |
+| Report → ReportStatus | **Association** → | Status enum |
+| ReportAssignment → AssignmentStatus | **Association** → | Assignment status enum |
+| ReportMedia → MediaType | **Association** → | BR-CLN-004 After ≥ 2 |
+| ResolveReportHandler ..> IReportRepository | **Dependency** | Load report |
+| ResolveReportHandler ..> IAssignmentRepository | **Dependency** | Validate assignment |
+| ResolveReportHandler ..> IReportMediaRepository | **Dependency** | Đếm ảnh After |
+| ResolveReportHandler ..> INotificationService | **Dependency** | Notify Citizen |
+| ResolveReportHandler ..> IUnitOfWork | **Dependency** | Commit transaction |
+| ResolveReportHandler ..> Report | **Dependency** | Gọi Resolve() |
+| ResolveReportHandler ..> ReportAssignment | **Dependency** | Complete assignment |
+| ReportsController ..> ResolveReportHandler | **Dependency** | Shorthand runtime qua ISender |
 
 ```mermaid
 classDiagram
@@ -1259,9 +1372,17 @@ classDiagram
 
 | Relationship | Loại | Lý do |
 |---|---|---|
-| Report → ReportStatusHistory | **Composition** ◆ | Lịch sử gắn chặt |
-| User → UserPoints | **Composition** ◆ | Points thuộc về User |
-| UserPoints → PointTransaction | **Composition** ◆ | Transaction gắn chặt |
+| Report → ReportStatusHistory | **Composition** ◆ | Lịch sử gắn Report |
+| UserPoints → PointTransaction | **Composition** ◆ | Transaction thuộc UserPoints |
+| Report → ReportStatus | **Association** → | Resolved → Closed |
+| PointTransaction → PointReason | **Association** → | ReportResolved reason |
+| CloseReportHandler ..> IReportRepository | **Dependency** | Load report Resolved |
+| CloseReportHandler ..> IUserPointsRepository | **Dependency** | Cộng điểm resolve |
+| CloseReportHandler ..> IUnitOfWork | **Dependency** | Commit transaction |
+| CloseReportHandler ..> Report | **Dependency** | Gọi Close() |
+| CloseReportHandler ..> UserPoints | **Dependency** | Award points |
+| AutoCloseResolvedReportJob ..> CloseReportHandler | **Dependency** | Job gọi handler (7 ngày) |
+| ReportsController ..> CloseReportHandler | **Dependency** | Shorthand runtime qua ISender |
 
 ```mermaid
 classDiagram
@@ -1371,8 +1492,17 @@ classDiagram
 
 | Relationship | Loại | Lý do |
 |---|---|---|
-| Report → ReportMedia | **Composition** ◆ | Media thuộc về Report |
-| Report → Report | **Association** → | Self-reference: duplicate → parent |
+| Report → ReportMedia | **Composition** ◆ | Media thuộc Report |
+| Report → Report (parent) | **Association** → | Self-ref ParentReportId |
+| Report → ReportStatus | **Association** → | Duplicate status |
+| DuplicateDetectionJob ..> IAiImageCompareService | **Dependency** | Tier 2 AI compare |
+| DuplicateDetectionJob ..> IReportRepository | **Dependency** | Load candidate pair |
+| DuplicateDetectionJob ..> IUnitOfWork | **Dependency** | Persist AI score |
+| DuplicateDetectionJob ..> Report | **Dependency** | MarkPossibleDuplicate |
+| ConfirmDuplicateHandler ..> IReportRepository | **Dependency** | Load reports |
+| ConfirmDuplicateHandler ..> IUnitOfWork | **Dependency** | Commit merge |
+| ConfirmDuplicateHandler ..> Report | **Dependency** | MarkDuplicate (LEO) |
+| ReportsController ..> ConfirmDuplicateHandler | **Dependency** | Shorthand runtime qua ISender |
 
 ```mermaid
 classDiagram
@@ -1464,11 +1594,25 @@ classDiagram
 
 ## Nhóm 3: Cleanup & Field Work
 
+> **Luồng cleanup thường (LEO gán team):** CD-07 → CD-11 → CD-12 → **CD-33** → CD-08  
+> **Luồng community cleanup:** **CD-34** (tổng hợp — thay assign team thông thường khi event active)
+
 ---
 
 ### CD-11: Accept / Decline Assignment (→ SD-21 ⭐)
 
 **Actor:** Cleaner / CompanyStaff · **BR:** BR-CLN-001
+
+**Phân loại Relationship:**
+
+| Relationship | Loại | Lý do |
+|---|---|---|
+| ReportAssignment → AssignmentStatus | **Association** → | Assigned / Declined / InProgress |
+| AcceptAssignmentHandler ..> IAssignmentRepository | **Dependency** | Load assignment |
+| AcceptAssignmentHandler ..> INotificationService | **Dependency** | Notify LEO khi decline |
+| AcceptAssignmentHandler ..> IUnitOfWork | **Dependency** | Commit status change |
+| AcceptAssignmentHandler ..> ReportAssignment | **Dependency** | Accept() hoặc Decline() |
+| TeamsController ..> AcceptAssignmentHandler | **Dependency** | Shorthand runtime qua ISender |
 
 ```mermaid
 classDiagram
@@ -1541,6 +1685,17 @@ classDiagram
 
 **Actor:** Cleaner / CompanyStaff · **BR:** BR-CLN-002
 
+**Phân loại Relationship:**
+
+| Relationship | Loại | Lý do |
+|---|---|---|
+| ReportAssignment → Report | **Association** → | Lấy GPS report để so khoảng cách |
+| CheckInCleanupHandler ..> IAssignmentRepository | **Dependency** | Load assignment InProgress |
+| CheckInCleanupHandler ..> IGeoDistanceService | **Dependency** | BR-CLN-002 ≤ 200m |
+| CheckInCleanupHandler ..> IUnitOfWork | **Dependency** | Commit check-in |
+| CheckInCleanupHandler ..> ReportAssignment | **Dependency** | Gọi CheckIn() |
+| ReportsController ..> CheckInCleanupHandler | **Dependency** | Shorthand runtime qua ISender |
+
 ```mermaid
 classDiagram
     class ReportAssignment {
@@ -1599,15 +1754,361 @@ classDiagram
 
 ---
 
+### CD-33: Upload Before & Update Progress (→ SD-23 ⭐)
+
+**Actor:** Team Leader (Cleaner/CompanyStaff) · **BR:** BR-REP-014, BR-CLN-004
+
+> Sau CD-12 (check-in). Ảnh upload qua presign R2 (CD-23 / SD-66). Hai command trên cùng `ReportsController`; hoàn thành → CD-08 Resolve.
+
+**Phân loại Relationship:**
+
+| Relationship | Loại | Lý do |
+|---|---|---|
+| Report → ReportMedia | **Composition** ◆ | Media thuộc về Report |
+| Report → ReportAssignment | **Composition** ◆ | Assignment thuộc Report |
+| ReportMedia → MediaType | **Association** → | Before / Progress enum |
+| ReportAssignment → AssignmentStatus | **Association** → | InProgress |
+| UploadBeforeImagesCommandHandler ..> ITeamMemberRepository | **Dependency** | Leader-only guard |
+| UploadBeforeImagesCommandHandler ..> IReportRepository | **Dependency** | Report InProgress |
+| UploadBeforeImagesCommandHandler ..> IReportAssignmentRepository | **Dependency** | Team assignment |
+| UploadBeforeImagesCommandHandler ..> IFileStorageService | **Dependency** | Validate R2 URL |
+| UploadBeforeImagesCommandHandler ..> IReportMediaRepository | **Dependency** | Persist Before media |
+| UploadBeforeImagesCommandHandler ..> IUnitOfWork | **Dependency** | Commit transaction |
+| UpdateProgressCommandHandler ..> ITeamMemberRepository | **Dependency** | Leader-only guard |
+| UpdateProgressCommandHandler ..> IReportAssignmentRepository | **Dependency** | UpdateProgress() |
+| UpdateProgressCommandHandler ..> IFileStorageService | **Dependency** | Validate R2 URL |
+| UpdateProgressCommandHandler ..> IReportMediaRepository | **Dependency** | Persist Progress media |
+| UpdateProgressCommandHandler ..> IUnitOfWork | **Dependency** | Commit transaction |
+| ReportsController ..> UploadBeforeImagesCommandHandler | **Dependency** | POST /before-images |
+| ReportsController ..> UpdateProgressCommandHandler | **Dependency** | PUT /progress |
+
+```mermaid
+classDiagram
+    class Report {
+        <<referenced>>
+        + Id : Guid
+        + Status : ReportStatus
+    }
+
+    class ReportAssignment {
+        + ReportId : Guid
+        + TeamId : Guid
+        + Status : AssignmentStatus
+        + ProgressPercent : int
+        + ProgressNote : string?
+        + UpdateProgress(percent int, note? string, updatedByUserId Guid) void
+    }
+
+    class ReportMedia {
+        + ReportId : Guid
+        + Type : MediaType
+        + Url : string
+        + MimeType : string
+        + UploadedByUserId : Guid
+        + Create(reportId Guid, type MediaType, url string, mime string, size long, userId Guid)$ ReportMedia
+    }
+
+    class MediaType {
+        <<enumeration>>
+        Before
+        Progress
+        After
+    }
+
+    class AssignmentStatus {
+        <<enumeration>>
+        InProgress
+    }
+
+    class ITeamMemberRepository {
+        <<interface>>
+        + GetLeaderByUserIdAsync(userId Guid, ct CancellationToken) Task~TeamMember?~
+    }
+
+    class IReportAssignmentRepository {
+        <<interface>>
+        + GetByReportIdAsync(reportId Guid, ct CancellationToken) Task~IReadOnlyList~ReportAssignment~~
+    }
+
+    class IReportRepository {
+        <<interface>>
+        + GetByIdAsync(id Guid, ct CancellationToken) Task~Report?~
+    }
+
+    class IReportMediaRepository {
+        <<interface>>
+        + Add(media ReportMedia) void
+    }
+
+    class IFileStorageService {
+        <<interface>>
+        + IsOwnedPublicUrl(url string) bool
+    }
+
+    class IUnitOfWork {
+        <<interface>>
+        + SaveChangesAsync(ct CancellationToken) Task~int~
+    }
+
+    class UploadBeforeImagesCommandHandler {
+        <<Handler>>
+        - _reports : IReportRepository
+        - _assignments : IReportAssignmentRepository
+        - _reportMedia : IReportMediaRepository
+        - _teamMembers : ITeamMemberRepository
+        - _fileStorage : IFileStorageService
+        - _uow : IUnitOfWork
+        + Handle(cmd UploadBeforeImagesCommand, ct CancellationToken) Task~Result~UploadBeforeImagesResponse~~
+    }
+
+    class UpdateProgressCommandHandler {
+        <<Handler>>
+        - _assignments : IReportAssignmentRepository
+        - _reportMedia : IReportMediaRepository
+        - _teamMembers : ITeamMemberRepository
+        - _fileStorage : IFileStorageService
+        - _uow : IUnitOfWork
+        + Handle(cmd UpdateProgressCommand, ct CancellationToken) Task~Result~UpdateProgressResponse~~
+    }
+
+    class ReportsController {
+        <<Controller>>
+        - _sender : ISender
+        + UploadBeforeImagesAsync(id Guid, cmd UploadBeforeImagesCommand) Task~IActionResult~
+        + UpdateProgressAsync(id Guid, cmd UpdateProgressCommand) Task~IActionResult~
+    }
+
+    Report "1" *-- "0..*" ReportMedia : Composition
+    Report "1" *-- "0..*" ReportAssignment : Composition
+    ReportMedia --> MediaType : Association
+    ReportAssignment --> AssignmentStatus : Association
+
+    UploadBeforeImagesCommandHandler ..> ITeamMemberRepository : leader check
+    UploadBeforeImagesCommandHandler ..> IReportRepository : report InProgress
+    UploadBeforeImagesCommandHandler ..> IReportAssignmentRepository : team assignment InProgress
+    UploadBeforeImagesCommandHandler ..> IFileStorageService : validate R2 URL
+    UploadBeforeImagesCommandHandler ..> IReportMediaRepository : MediaType.Before
+    UploadBeforeImagesCommandHandler ..> IUnitOfWork : uses
+
+    UpdateProgressCommandHandler ..> ITeamMemberRepository : leader check
+    UpdateProgressCommandHandler ..> IReportAssignmentRepository : UpdateProgress()
+    UpdateProgressCommandHandler ..> IFileStorageService : validate R2 URL
+    UpdateProgressCommandHandler ..> IReportMediaRepository : MediaType.Progress
+    UpdateProgressCommandHandler ..> IUnitOfWork : uses
+
+    ReportsController ..> UploadBeforeImagesCommandHandler : POST /before-images
+    ReportsController ..> UpdateProgressCommandHandler : PUT /progress
+```
+
+---
+
+### CD-34: Community Cleanup — End-to-End (→ SD-25 ⭐)
+
+**Actor:** LEO (Web) · Citizen (Mobile) · Leader/Cleaner (Mobile) · **BR:** BR-CMU-001..015 (draft)
+
+> Một Report Verified chỉ có **tối đa 1** event active. Thay thế luồng AssignTeam (CD-07) trong thời gian event active.
+
+**Phân loại Relationship:**
+
+| Relationship | Loại | Lý do |
+|---|---|---|
+| Report → CommunityCleanupEvent | **Composition** ◆ | Event gắn 1 Report |
+| CommunityCleanupEvent → CommunityCleanupParticipant | **Composition** ◆ | Participant thuộc event |
+| Report → ReportMedia | **Composition** ◆ | Before/Progress ảnh leader |
+| CommunityCleanupEvent → CommunityCleanupStatus | **Association** → | State machine enum |
+| CreateCommunityCleanupHandler ..> ICommunityCleanupEventRepository | **Dependency** | 1 active event / report |
+| CreateCommunityCleanupHandler ..> CommunityCleanupEvent | **Dependency** | OpenForJoin + Report InProgress |
+| JoinCommunityCleanupHandler ..> CommunityCleanupParticipant | **Dependency** | Thêm participant |
+| StartCommunityCleanupHandler ..> CommunityCleanupEvent | **Dependency** | Start() |
+| SubmitCommunityVerificationHandler ..> CommunityCleanupEvent | **Dependency** | PendingVerification |
+| VerifyCommunityCleanupHandler ..> CommunityCleanupEvent | **Dependency** | Approve() |
+| VerifyCommunityCleanupHandler ..> Report | **Dependency** | Resolve report |
+| RejectCommunityVerificationHandler ..> CommunityCleanupEvent | **Dependency** | Reject → InProgress |
+| CommunityCleanupsController ..> CreateCommunityCleanupHandler | **Dependency** | Shorthand qua ISender |
+| CommunityCleanupsController ..> JoinCommunityCleanupHandler | **Dependency** | Shorthand qua ISender |
+| CommunityCleanupsController ..> VerifyCommunityCleanupHandler | **Dependency** | Shorthand qua ISender |
+
+```mermaid
+classDiagram
+    class Report {
+        <<Aggregate Root>>
+        + Status : ReportStatus
+        + Resolve() void
+    }
+
+    class CommunityCleanupEvent {
+        <<Aggregate Root>>
+        + ReportId : Guid
+        + LeaderUserId : Guid
+        + Status : CommunityCleanupStatus
+        + MaxParticipants : int
+        + ProgressPercent : int
+        + Create(...) CommunityCleanupEvent
+        + CloseJoin() void
+        + Start() void
+        + UpdateProgress(percent int, note? string) void
+        + SubmitVerification() void
+        + Approve(leoId Guid) void
+        + Reject(reason string) void
+        + Cancel(reason string) void
+    }
+
+    class CommunityCleanupParticipant {
+        + EventId : Guid
+        + UserId : Guid
+        + Role : CommunityCleanupParticipantRole
+        + Status : CommunityCleanupParticipantStatus
+        + Create(eventId Guid, userId Guid, role Role)$ CommunityCleanupParticipant
+        + CheckIn(lat decimal, lng decimal, overrideReason? string) void
+        + Withdraw() void
+    }
+
+    class ReportMedia {
+        + ReportId : Guid
+        + Type : MediaType
+        + Url : string
+    }
+
+    class CommunityCleanupStatus {
+        <<enumeration>>
+        OpenForJoin
+        JoinClosed
+        InProgress
+        PendingVerification
+        Completed
+        Cancelled
+    }
+
+    class ICommunityCleanupEventRepository {
+        <<interface>>
+        + GetActiveByReportIdAsync(reportId Guid, ct CancellationToken) Task~CommunityCleanupEvent?~
+        + GetByIdAsync(id Guid, ct CancellationToken) Task~CommunityCleanupEvent?~
+    }
+
+    class ICommunityCleanupParticipantRepository {
+        <<interface>>
+        + Add(participant CommunityCleanupParticipant) void
+        + CountActiveByEventIdAsync(eventId Guid, ct CancellationToken) Task~int~
+    }
+
+    class IReportRepository {
+        <<interface>>
+        + GetByIdAsync(id Guid, ct CancellationToken) Task~Report?~
+    }
+
+    class IReportMediaRepository {
+        <<interface>>
+        + Add(media ReportMedia) void
+    }
+
+    class IUnitOfWork {
+        <<interface>>
+        + SaveChangesAsync(ct CancellationToken) Task~int~
+    }
+
+    class CreateCommunityCleanupHandler {
+        <<Handler — Phase 1 LEO>>
+        + Handle(cmd CreateCommunityCleanupCommand, ct CancellationToken) Task~Result~CommunityCleanupEventDetailResponse~~
+    }
+
+    class JoinCommunityCleanupHandler {
+        <<Handler — Phase 2 Citizen>>
+        + Handle(cmd JoinCommunityCleanupCommand, ct CancellationToken) Task~Result~
+    }
+
+    class StartCommunityCleanupHandler {
+        <<Handler — Phase 3 Leader>>
+        + Handle(cmd StartCommunityCleanupCommand, ct CancellationToken) Task~Result~
+    }
+
+    class SubmitCommunityVerificationHandler {
+        <<Handler — Phase 3 Leader>>
+        + Handle(cmd SubmitCommunityVerificationCommand, ct CancellationToken) Task~Result~
+    }
+
+    class VerifyCommunityCleanupHandler {
+        <<Handler — Phase 4 LEO>>
+        + Handle(cmd VerifyCommunityCleanupCommand, ct CancellationToken) Task~Result~
+    }
+
+    class RejectCommunityVerificationHandler {
+        <<Handler — Phase 4 LEO>>
+        + Handle(cmd RejectCommunityVerificationCommand, ct CancellationToken) Task~Result~
+    }
+
+    class CommunityCleanupsController {
+        <<Controller>>
+        - _sender : ISender
+        + CreateAsync(reportId Guid, cmd CreateCommunityCleanupCommand) Task~IActionResult~
+        + JoinAsync(eventId Guid) Task~IActionResult~
+        + StartAsync(eventId Guid) Task~IActionResult~
+        + SubmitVerificationAsync(eventId Guid, cmd) Task~IActionResult~
+        + VerifyAsync(eventId Guid) Task~IActionResult~
+        + RejectVerificationAsync(eventId Guid, cmd) Task~IActionResult~
+    }
+
+    Report "1" *-- "0..1" CommunityCleanupEvent : Composition (1 active)
+    CommunityCleanupEvent "1" *-- "1..*" CommunityCleanupParticipant : Composition
+    Report "1" *-- "0..*" ReportMedia : Composition
+    CommunityCleanupEvent --> CommunityCleanupStatus : Association
+
+    CreateCommunityCleanupHandler ..> ICommunityCleanupEventRepository : 1 active / report
+    CreateCommunityCleanupHandler ..> CommunityCleanupEvent : OpenForJoin + Report InProgress
+    JoinCommunityCleanupHandler ..> CommunityCleanupParticipant : Member row
+    StartCommunityCleanupHandler ..> CommunityCleanupEvent : Start()
+    SubmitCommunityVerificationHandler ..> CommunityCleanupEvent : PendingVerification
+    VerifyCommunityCleanupHandler ..> CommunityCleanupEvent : Approve()
+    VerifyCommunityCleanupHandler ..> Report : Resolve()
+    RejectCommunityVerificationHandler ..> CommunityCleanupEvent : Reject() → InProgress
+    CommunityCleanupsController ..> CreateCommunityCleanupHandler : dispatches via ISender
+    CommunityCleanupsController ..> JoinCommunityCleanupHandler : dispatches via ISender
+    CommunityCleanupsController ..> VerifyCommunityCleanupHandler : dispatches via ISender
+```
+
+**State machine (CommunityCleanupEvent):**
+
+```mermaid
+stateDiagram-v2
+    [*] --> OpenForJoin : Create [SD-25 phase 1]
+    OpenForJoin --> JoinClosed : CloseJoin (optional)
+    OpenForJoin --> InProgress : Start [SD-25 phase 3]
+    JoinClosed --> InProgress : Start
+    InProgress --> PendingVerification : SubmitVerification
+    PendingVerification --> Completed : Verify → Report Resolved [SD-25 phase 4]
+    PendingVerification --> InProgress : RejectVerification
+    OpenForJoin --> Cancelled : Cancel
+    JoinClosed --> Cancelled : Cancel
+    InProgress --> Cancelled : Cancel
+    Completed --> [*]
+    Cancelled --> [*]
+```
+
+---
+
 ## Nhóm 4: Inspection & Penalty
 
-> **CD mới (BR-INS-033):** CD-25..CD-32 bổ sung cho luồng checklist + GET detail. CD-13..CD-15 đã cập nhật entity/method.
+> **CD mới (BR-INS-033):** CD-25..CD-30, CD-32 bổ sung cho luồng checklist + GET detail. CD-13..CD-15 đã cập nhật entity/method.
 
 ---
 
 ### CD-13: Create Inspection Report (→ SD-28 ⭐)
 
 **Actor:** LEO · **BR:** BR-INS-001
+
+**Phân loại Relationship:**
+
+| Relationship | Loại | Lý do |
+|---|---|---|
+| SoftDeletableEntity → InspectionReport | **Inheritance** △ | Inspection kế thừa |
+| AuditableEntity → InspectionEvidence | **Inheritance** △ | Evidence kế thừa |
+| InspectionReport → Report | **Association** → | FK linked pollution report |
+| InspectionReport → InspectionStatus | **Association** → | Draft / InProgress / … |
+| InspectionReport → InspectionEvidence | **Composition** ◆ | Evidence lifecycle gắn inspection |
+| CreateInspectionHandler ..> IReportRepository | **Dependency** | Validate report exists |
+| CreateInspectionHandler ..> IInspectionRepository | **Dependency** | Check duplicate inspection |
+| CreateInspectionHandler ..> IUnitOfWork | **Dependency** | Commit transaction |
+| CreateInspectionHandler ..> InspectionReport | **Dependency** | Tạo aggregate Draft |
+| InspectionsController ..> CreateInspectionHandler | **Dependency** | Shorthand runtime qua ISender |
 
 ```mermaid
 classDiagram
@@ -1732,6 +2233,20 @@ classDiagram
 
 > **Bước tiếp theo:** Inspector Mobile App gọi `POST /accept` (SD-30) — **không** dùng `POST /check-in` (410 Gone).
 
+**Phân loại Relationship:**
+
+| Relationship | Loại | Lý do |
+|---|---|---|
+| InspectionReport → InspectionStatus | **Association** → | Draft → InProgress |
+| EnvironmentalTeam → TeamType | **Association** → | Phải là Inspection team |
+| InspectionReport → EnvironmentalTeam | **Association** → | AssignedTeamId FK |
+| AssignInspTeamHandler ..> IInspectionRepository | **Dependency** | Load inspection |
+| AssignInspTeamHandler ..> ITeamRepository | **Dependency** | Validate team type/active |
+| AssignInspTeamHandler ..> INotificationService | **Dependency** | Notify inspectors |
+| AssignInspTeamHandler ..> IUnitOfWork | **Dependency** | Commit assignment |
+| AssignInspTeamHandler ..> InspectionReport | **Dependency** | AssignTeam() |
+| InspectionsController ..> AssignInspTeamHandler | **Dependency** | Shorthand runtime qua ISender |
+
 ```mermaid
 classDiagram
     class InspectionReport {
@@ -1814,6 +2329,27 @@ classDiagram
 ### CD-15: Issue Penalty (→ SD-32 ⭐)
 
 **Actor:** Inspector / LEO · **BR:** BR-INS-005, BR-INS-006, BR-INS-010
+
+**Phân loại Relationship:**
+
+| Relationship | Loại | Lý do |
+|---|---|---|
+| SoftDeletableEntity → InspectionReport | **Inheritance** △ | Inspection kế thừa |
+| SoftDeletableEntity → ViolatingEntity | **Inheritance** △ | Violator registry |
+| InspectionReport → ViolatingEntity | **Association** → | FK violator |
+| InspectionReport → InspectionStatus | **Association** → | PenaltyIssued transition |
+| InspectionReport → ViolationLevel | **Association** → | Mức vi phạm |
+| InspectionReport → InspectionEvidence | **Composition** ◆ | Evidence gắn inspection |
+| ViolatingEntity → ViolatorType | **Association** → | Individual / Business |
+| PenaltyFramework → ViolationLevel | **Association** → | Validate amount range |
+| IssuePenaltyHandler ..> IInspectionRepository | **Dependency** | Load inspection |
+| IssuePenaltyHandler ..> IViolatingEntityRepository | **Dependency** | Find/create violator |
+| IssuePenaltyHandler ..> IPenaltyFrameworkRepository | **Dependency** | BR-INS-006 amount range |
+| IssuePenaltyHandler ..> INotificationService | **Dependency** | PenaltyIssued notify |
+| IssuePenaltyHandler ..> IUnitOfWork | **Dependency** | Commit transaction |
+| IssuePenaltyHandler ..> InspectionReport | **Dependency** | IssuePenalty() |
+| IssuePenaltyHandler ..> ViolatingEntity | **Dependency** | Create or link |
+| InspectionsController ..> IssuePenaltyHandler | **Dependency** | Shorthand runtime qua ISender |
 
 ```mermaid
 classDiagram
@@ -1948,6 +2484,15 @@ classDiagram
 
 **Actor:** Inspector (Mobile) · **BR:** BR-INS-003, BR-INS-033
 
+**Phân loại Relationship:**
+
+| Relationship | Loại | Lý do |
+|---|---|---|
+| AcceptInspectionTaskHandler ..> IInspectionReportRepository | **Dependency** | Load inspection Draft |
+| AcceptInspectionTaskHandler ..> ITeamMemberRepository | **Dependency** | User ∈ assigned team |
+| AcceptInspectionTaskHandler ..> InspectionReport | **Dependency** | AcceptTask() Draft→InProgress |
+| InspectionsController ..> AcceptInspectionTaskHandler | **Dependency** | Shorthand runtime qua ISender |
+
 ```mermaid
 classDiagram
     class InspectionReport {
@@ -1987,6 +2532,14 @@ classDiagram
 
 **Actor:** Inspector (Mobile) · **BR:** BR-INS-033
 
+**Phân loại Relationship:**
+
+| Relationship | Loại | Lý do |
+|---|---|---|
+| ConfirmArrivalHandler ..> IGeoDistanceService | **Dependency** | ≤ 200m hoặc bắt buộc note |
+| ConfirmArrivalHandler ..> InspectionReport | **Dependency** | Set arrival GPS fields |
+| InspectionsController ..> ConfirmArrivalHandler | **Dependency** | Shorthand runtime qua ISender |
+
 ```mermaid
 classDiagram
     class InspectionReport {
@@ -2007,8 +2560,15 @@ classDiagram
         + Handle(cmd ConfirmArrivalCommand, ct CancellationToken) Task~Result~
     }
 
+    class InspectionsController {
+        <<Controller>>
+        - _sender : ISender
+        + ConfirmArrivalAsync(id Guid, request ConfirmArrivalRequest) Task~IActionResult~
+    }
+
     ConfirmArrivalHandler ..> IGeoDistanceService : distance ≤ 200m or note required
     ConfirmArrivalHandler ..> InspectionReport : sets arrival fields (status unchanged)
+    InspectionsController ..> ConfirmArrivalHandler : dispatches via ISender
 ```
 
 ---
@@ -2016,6 +2576,18 @@ classDiagram
 ### CD-27: Update Checklist & Upload Evidence (→ SD-33 ⭐)
 
 **Actor:** Inspector (Mobile) · **BR:** BR-INS-033, BR-INS-010
+
+**Phân loại Relationship:**
+
+| Relationship | Loại | Lý do |
+|---|---|---|
+| InspectionReport → InspectionEvidence | **Composition** ◆ | Evidence thuộc inspection |
+| InspectionEvidence → InspectionEvidenceCategory | **Association** → | Checklist category enum |
+| UpdateInspectionChecklistHandler ..> InspectionEvidence | **Dependency** | Upsert ViolationStatus/text |
+| UploadInspectionEvidenceHandler ..> IFileStorageService | **Dependency** | Upload R2 |
+| UploadInspectionEvidenceHandler ..> InspectionEvidence | **Dependency** | Add ScenePhoto/Video/Audio |
+| InspectionsController ..> UpdateInspectionChecklistHandler | **Dependency** | Shorthand runtime qua ISender |
+| InspectionsController ..> UploadInspectionEvidenceHandler | **Dependency** | Shorthand runtime qua ISender |
 
 ```mermaid
 classDiagram
@@ -2053,11 +2625,20 @@ classDiagram
         + Handle(cmd UploadInspectionEvidenceCommand, ct) Task~Result~UploadInspectionEvidenceResponse~~
     }
 
+    class InspectionsController {
+        <<Controller>>
+        - _sender : ISender
+        + UpdateChecklistAsync(id Guid, request UpdateInspectionChecklistRequest) Task~IActionResult~
+        + UploadEvidenceAsync(id Guid, category InspectionEvidenceCategory, files) Task~IActionResult~
+    }
+
     InspectionReport "1" *-- "0..*" InspectionEvidence : Composition
     InspectionEvidence --> InspectionEvidenceCategory : Association
     UpdateInspectionChecklistHandler ..> InspectionEvidence : upsert ViolationStatus, Other text
     UploadInspectionEvidenceHandler ..> IFileStorageService : upload to R2
     UploadInspectionEvidenceHandler ..> InspectionEvidence : add ScenePhoto/Video/Audio
+    InspectionsController ..> UpdateInspectionChecklistHandler : PUT /checklist
+    InspectionsController ..> UploadInspectionEvidenceHandler : POST /evidence
 ```
 
 ---
@@ -2065,6 +2646,14 @@ classDiagram
 ### CD-28: Submit Field Investigation (→ SD-34 ⭐)
 
 **Actor:** Team Leader (Mobile) · **BR:** BR-INS-033, BR-INS-012
+
+**Phân loại Relationship:**
+
+| Relationship | Loại | Lý do |
+|---|---|---|
+| SubmitFieldInvestigationHandler ..> InspectionChecklistValidator | **Dependency** | BR-INS-033 gate rules |
+| SubmitFieldInvestigationHandler ..> InspectionReport | **Dependency** | Lock checklist + timestamp |
+| InspectionsController ..> SubmitFieldInvestigationHandler | **Dependency** | Shorthand runtime qua ISender |
 
 ```mermaid
 classDiagram
@@ -2084,8 +2673,15 @@ classDiagram
         + Handle(cmd SubmitFieldInvestigationCommand, ct CancellationToken) Task~Result~
     }
 
+    class InspectionsController {
+        <<Controller>>
+        - _sender : ISender
+        + SubmitFieldReportAsync(id Guid) Task~IActionResult~
+    }
+
     SubmitFieldInvestigationHandler ..> InspectionChecklistValidator : ViolationStatus + ≥2 ScenePhoto
     SubmitFieldInvestigationHandler ..> InspectionReport : locks checklist gate
+    InspectionsController ..> SubmitFieldInvestigationHandler : dispatches via ISender
 ```
 
 ---
@@ -2093,6 +2689,14 @@ classDiagram
 ### CD-29: Close No Violation (→ SD-35 ⭐)
 
 **Actor:** Team Leader (Mobile) · **BR:** BR-INS-013, BR-INS-033, BR-ADM-010
+
+**Phân loại Relationship:**
+
+| Relationship | Loại | Lý do |
+|---|---|---|
+| CloseNoViolationHandler ..> InspectionReport | **Dependency** | InProgress → ClosedNoViolation |
+| CloseNoViolationHandler ..> IAuditLogger | **Dependency** | BR-ADM-010 audit trail |
+| InspectionsController ..> CloseNoViolationHandler | **Dependency** | Shorthand runtime qua ISender |
 
 ```mermaid
 classDiagram
@@ -2111,15 +2715,41 @@ classDiagram
         + Handle(cmd CloseNoViolationCommand, ct CancellationToken) Task~Result~
     }
 
+    class InspectionsController {
+        <<Controller>>
+        - _sender : ISender
+        + CloseNoViolationAsync(id Guid, request CloseNoViolationRequest) Task~IActionResult~
+    }
+
     CloseNoViolationHandler ..> InspectionReport : InProgress → ClosedNoViolation
     CloseNoViolationHandler ..> IAuditLogger : audit log
+    InspectionsController ..> CloseNoViolationHandler : dispatches via ISender
 ```
 
 ---
 
-### CD-30: Record Payment (→ SD-39 ⭐)
+### CD-30: Record Payment & Close Inspection (→ SD-39 ⭐)
 
-**Actor:** Team Leader (Mobile) · **BR:** BR-INS-020, BR-ADM-010
+**Actor:** Team Leader (Mobile) · **BR:** BR-INS-020, BR-INS-021, BR-ADM-010
+
+> **Hai bước cùng SD-39:** Phase 1 — `POST .../payments` upload biên lai + ghi `PenaltyPayment` → `Paid`/`PartiallyPaid`/`Overdue`; Phase 2 — khi đủ tiền, `POST .../close` → `Closed`.
+
+**Phân loại Relationship:**
+
+| Relationship | Loại | Lý do |
+|---|---|---|
+| InspectionReport → PenaltyPayment | **Composition** ◆ | Payment records thuộc inspection |
+| InspectionReport → InspectionStatus | **Association** → | PenaltyIssued → Paid → Closed |
+| RecordPaymentHandler ..> IFileStorageService | **Dependency** | Upload receipt (multipart) |
+| RecordPaymentHandler ..> IAuditLogger | **Dependency** | BR-ADM-010 audit (phase 1) |
+| RecordPaymentHandler ..> IUnitOfWork | **Dependency** | Commit payment |
+| RecordPaymentHandler ..> InspectionReport | **Dependency** | RecordPayment() |
+| RecordPaymentHandler ..> PenaltyPayment | **Dependency** | Tạo payment entity |
+| CloseInspectionHandler ..> InspectionReport | **Dependency** | Paid → Closed (phase 2) |
+| CloseInspectionHandler ..> IAuditLogger | **Dependency** | BR-ADM-010 audit (phase 2) |
+| CloseInspectionHandler ..> IUnitOfWork | **Dependency** | Commit close |
+| InspectionsController ..> RecordPaymentHandler | **Dependency** | POST /payments |
+| InspectionsController ..> CloseInspectionHandler | **Dependency** | POST /close |
 
 ```mermaid
 classDiagram
@@ -2128,47 +2758,83 @@ classDiagram
         + PaidAt : DateTime
         + EvidenceUrl : string
         + RecordedByUserId : Guid
+        + Note : string?
         + Create(inspectionId, amount, paidAt, userId, evidenceUrl, note?)$ PenaltyPayment
     }
 
     class InspectionReport {
+        <<Aggregate Root>>
+        + Status : InspectionStatus
+        + PenaltyAmount : decimal?
         + PaidAmount : decimal?
-        + RecordPayment(payment PenaltyPayment) Result
-    }
-
-    class RecordPaymentHandler {
-        <<Handler>>
-        - _fileStorage : IFileStorageService
-        - _auditLogger : IAuditLogger
-        + Handle(cmd RecordPaymentCommand, ct CancellationToken) Task~Result~
-    }
-
-    InspectionReport "1" *-- "0..*" PenaltyPayment : Composition
-    RecordPaymentHandler ..> IFileStorageService : upload receipt (multipart)
-    RecordPaymentHandler ..> InspectionReport : PenaltyIssued → Paid/PartiallyPaid
-```
-
----
-
-### CD-31: Close Inspection (→ SD-40 ⭐)
-
-**Actor:** Team Leader (Mobile) · **BR:** BR-INS-021, BR-ADM-010
-
-```mermaid
-classDiagram
-    class InspectionReport {
+        + PenaltyDueDate : DateTime?
         + ClosedAt : DateTime?
+        + ClosedReason : string?
+        + RecordPayment(payment PenaltyPayment) Result
         + Close(reason? string) Result
     }
 
-    class CloseInspectionHandler {
-        <<Handler>>
+    class InspectionStatus {
+        <<enumeration>>
+        PenaltyIssued
+        PartiallyPaid
+        Paid
+        Overdue
+        Closed
+    }
+
+    class IFileStorageService {
+        <<interface>>
+        + UploadAsync(stream, fileName, contentType, folder, ct) Task~UploadedFile~
+    }
+
+    class IAuditLogger {
+        <<interface>>
+        + LogAsync(action, entityType, entityId, ...) Task
+    }
+
+    class IUnitOfWork {
+        <<interface>>
+        + SaveChangesAsync(ct CancellationToken) Task~int~
+    }
+
+    class RecordPaymentHandler {
+        <<Handler — phase 1>>
+        - _fileStorage : IFileStorageService
         - _auditLogger : IAuditLogger
+        - _unitOfWork : IUnitOfWork
+        + Handle(cmd RecordPaymentCommand, ct CancellationToken) Task~Result~
+    }
+
+    class CloseInspectionHandler {
+        <<Handler — phase 2>>
+        - _auditLogger : IAuditLogger
+        - _unitOfWork : IUnitOfWork
         + Handle(cmd CloseInspectionCommand, ct CancellationToken) Task~Result~
     }
 
+    class InspectionsController {
+        <<Controller>>
+        - _sender : ISender
+        + RecordPayment(id Guid, cmd RecordPaymentCommand) Task~IActionResult~
+        + Close(id Guid, cmd CloseInspectionCommand) Task~IActionResult~
+    }
+
+    InspectionReport "1" *-- "0..*" PenaltyPayment : Composition
+    InspectionReport --> InspectionStatus : Association
+
+    RecordPaymentHandler ..> IFileStorageService : upload receipt
+    RecordPaymentHandler ..> IAuditLogger : audit log
+    RecordPaymentHandler ..> IUnitOfWork : uses
+    RecordPaymentHandler ..> InspectionReport : PenaltyIssued → Paid/PartiallyPaid
+    RecordPaymentHandler ..> PenaltyPayment : creates
+
     CloseInspectionHandler ..> InspectionReport : Paid → Closed
     CloseInspectionHandler ..> IAuditLogger : audit log
+    CloseInspectionHandler ..> IUnitOfWork : uses
+
+    InspectionsController ..> RecordPaymentHandler : dispatches via ISender
+    InspectionsController ..> CloseInspectionHandler : dispatches via ISender
 ```
 
 ---
@@ -2178,6 +2844,18 @@ classDiagram
 **Actor:** Inspector (Mobile) · **BR:** BR-INS-033, BR-INS-010
 
 > **Query read-only:** Handler trả `InspectionReportDetailResponse` kèm 9 cờ `Can*` để Mobile App bật/tắt nút — không mutate DB.
+
+**Phân loại Relationship:**
+
+| Relationship | Loại | Lý do |
+|---|---|---|
+| InspectionReportDetailResponse → InspectionEvidenceItemDto | **Composition** ◆ | DTO chứa checklist items |
+| GetInspectionReportByIdQuery ..> GetInspectionReportByIdHandler | **Dependency** | MediatR dispatch |
+| GetInspectionReportByIdHandler ..> IInspectionReportRepository | **Dependency** | Load inspection + includes |
+| GetInspectionReportByIdHandler ..> IInspectionEvidenceRepository | **Dependency** | Load checklist evidence |
+| GetInspectionReportByIdHandler ..> ITeamMemberRepository | **Dependency** | Inspector team scope |
+| GetInspectionReportByIdHandler ..> InspectionReportDetailResponse | **Dependency** | Map + compute Can* flags |
+| InspectionsController ..> GetInspectionReportByIdHandler | **Dependency** | Shorthand runtime qua ISender |
 
 ```mermaid
 classDiagram
@@ -2269,6 +2947,27 @@ classDiagram
 ### CD-16: Create Department & LocalOffice (→ SD-36 ⭐)
 
 **Actor:** Admin · **BR:** BR-ORG-001, BR-ORG-002
+
+**Phân loại Relationship:**
+
+| Relationship | Loại | Lý do |
+|---|---|---|
+| AuditableEntity → Department | **Inheritance** △ | Department kế thừa |
+| AuditableEntity → LocalOffice | **Inheritance** △ | LocalOffice kế thừa |
+| Department → LocalOffice | **Composition** ◆ | Office thuộc Department |
+| Province → Ward | **Composition** ◆ | Ward thuộc Province (catalog) |
+| Department → Province | **Association** → | provinceCode FK |
+| LocalOffice → Ward | **Association** → | wardCode FK |
+| CreateDeptHandler ..> IProvinceRepository | **Dependency** | Validate province |
+| CreateDeptHandler ..> IDepartmentRepository | **Dependency** | Unique per province |
+| CreateDeptHandler ..> IUnitOfWork | **Dependency** | Commit transaction |
+| CreateDeptHandler ..> Department | **Dependency** | Tạo department |
+| CreateOfficeHandler ..> IWardRepository | **Dependency** | Validate ward |
+| CreateOfficeHandler ..> ILocalOfficeRepository | **Dependency** | Unique ward per office |
+| CreateOfficeHandler ..> IUnitOfWork | **Dependency** | Commit transaction |
+| CreateOfficeHandler ..> LocalOffice | **Dependency** | Tạo local office |
+| DepartmentsController ..> CreateDeptHandler | **Dependency** | Shorthand runtime qua ISender |
+| LocalOfficesController ..> CreateOfficeHandler | **Dependency** | Shorthand runtime qua ISender |
 
 ```mermaid
 classDiagram
@@ -2398,6 +3097,22 @@ classDiagram
 
 **Actor:** LEO · **BR:** BR-ORG-013
 
+**Phân loại Relationship:**
+
+| Relationship | Loại | Lý do |
+|---|---|---|
+| SoftDeletableEntity → EnvironmentalTeam | **Inheritance** △ | Team kế thừa |
+| EnvironmentalTeam → TeamMember | **Aggregation** ◇ | Member có thể tách team |
+| TeamMember → User | **Association** → | FK user trong team |
+| EnvironmentalTeam → TeamType | **Association** → | Cleanup / Inspection |
+| User → UserRole | **Association** → | Validate Cleaner/Inspector |
+| CreateTeamHandler ..> ITeamRepository | **Dependency** | Persist team |
+| CreateTeamHandler ..> IUserRepository | **Dependency** | Validate member role |
+| CreateTeamHandler ..> IUnitOfWork | **Dependency** | Commit transaction |
+| CreateTeamHandler ..> EnvironmentalTeam | **Dependency** | Tạo team |
+| CreateTeamHandler ..> TeamMember | **Dependency** | Tạo join rows |
+| TeamsController ..> CreateTeamHandler | **Dependency** | Shorthand runtime qua ISender |
+
 ```mermaid
 classDiagram
     class EnvironmentalTeam {
@@ -2489,6 +3204,24 @@ classDiagram
 ### CD-18: Onboard Environmental Company (→ SD-38 ⭐)
 
 **Actor:** DEO · **BR:** BR-CMP-001, BR-CMP-006
+
+**Phân loại Relationship:**
+
+| Relationship | Loại | Lý do |
+|---|---|---|
+| SoftDeletableEntity → EnvironmentalServiceCompany | **Inheritance** △ | Company kế thừa |
+| EnvironmentalServiceCompany → ContractPeriod | **Composition** ◆ | Contract history gắn company |
+| EnvironmentalServiceCompany → CompanyServiceArea | **Composition** ◆ | Service area gắn company |
+| EnvironmentalServiceCompany → CompanyStatus | **Association** → | Pending/Active/… |
+| ContractPeriod → ContractType | **Association** → | Subsidiary / Bidding |
+| CreateCompanyHandler ..> ICompanyRepository | **Dependency** | TaxCode unique check |
+| CreateCompanyHandler ..> IContractPeriodRepository | **Dependency** | Initial contract |
+| CreateCompanyHandler ..> IServiceAreaRepository | **Dependency** | Ward coverage |
+| CreateCompanyHandler ..> IUnitOfWork | **Dependency** | Commit transaction |
+| CreateCompanyHandler ..> EnvironmentalServiceCompany | **Dependency** | Tạo company |
+| CreateCompanyHandler ..> ContractPeriod | **Dependency** | Tạo contract row |
+| CreateCompanyHandler ..> CompanyServiceArea | **Dependency** | Tạo area rows |
+| CompaniesController ..> CreateCompanyHandler | **Dependency** | Shorthand runtime qua ISender |
 
 ```mermaid
 classDiagram
@@ -2607,6 +3340,27 @@ classDiagram
 ### CD-19: Add Comment (→ SD-44 ⭐)
 
 **Actor:** Citizen · **BR:** BR-CMT-001, BR-CMT-002, BR-CMT-003
+
+**Phân loại Relationship:**
+
+| Relationship | Loại | Lý do |
+|---|---|---|
+| SoftDeletableEntity → Comment | **Inheritance** △ | Comment kế thừa |
+| Comment → CommentMedia | **Composition** ◆ | Media gắn comment |
+| Comment → CommentLike | **Composition** ◆ | Like gắn comment |
+| Comment → Comment (replies) | **Composition** ◆ | Thread replies |
+| Comment → Report | **Association** → | FK report |
+| Comment → User | **Association** → | FK author |
+| CommentLike → User | **Association** → | FK liker |
+| AddCommentCommandHandler ..> IUserRepository | **Dependency** | Ban check |
+| AddCommentCommandHandler ..> IReportRepository | **Dependency** | Report exists |
+| AddCommentCommandHandler ..> IProfanityFilter | **Dependency** | BR-CMT-002 profanity |
+| AddCommentCommandHandler ..> IApplicationDbContext | **Dependency** | Persist comment |
+| AddCommentCommandHandler ..> IUnitOfWork | **Dependency** | Commit transaction |
+| AddCommentCommandHandler ..> Comment | **Dependency** | Tạo comment |
+| AddCommentCommandHandler ..> CommentMedia | **Dependency** | Optional media |
+| AddCommentCommandHandler ..> User | **Dependency** | Record violation |
+| CommentsController ..> AddCommentCommandHandler | **Dependency** | Shorthand runtime qua ISender |
 
 ```mermaid
 classDiagram
@@ -2735,6 +3489,24 @@ classDiagram
 ### CD-20: Award Points — Event-driven (→ SD-48 ⭐)
 
 **Actor:** System · **BR:** BR-GAM-001, BR-GAM-002, BR-GAM-003
+
+**Phân loại Relationship:**
+
+| Relationship | Loại | Lý do |
+|---|---|---|
+| UserPoints → PointTransaction | **Composition** ◆ | Transaction thuộc UserPoints |
+| User → Badge | **Aggregation** ◇ | Badge tồn tại độc lập (via UserBadge) |
+| PointTransaction → PointReason | **Association** → | Lý do cộng điểm |
+| UserBadge → User | **Association** → | FK user earned |
+| UserBadge → Badge | **Association** → | FK badge earned |
+| ReportVerifiedEvent ..> AwardPointsHandler | **Dependency** | Domain event trigger |
+| AwardPointsHandler ..> IGamificationConfigRepository | **Dependency** | Points per action |
+| AwardPointsHandler ..> IUserPointsRepository | **Dependency** | Load/create UserPoints |
+| AwardPointsHandler ..> IBadgeRepository | **Dependency** | Eligibility check |
+| AwardPointsHandler ..> INotificationService | **Dependency** | LevelUp / BadgeEarned |
+| AwardPointsHandler ..> IUnitOfWork | **Dependency** | Commit transaction |
+| AwardPointsHandler ..> UserPoints | **Dependency** | AddPoints() |
+| AwardPointsHandler ..> UserBadge | **Dependency** | Award badge |
 
 ```mermaid
 classDiagram
@@ -2867,6 +3639,30 @@ classDiagram
 
 **Actor:** System · **BR:** BR-NTF-001, BR-NTF-002
 
+**Phân loại Relationship:**
+
+| Relationship | Loại | Lý do |
+|---|---|---|
+| AuditableEntity → Notification | **Inheritance** △ | Notification kế thừa |
+| AuditableEntity → NotificationPreference | **Inheritance** △ | Preference kế thừa |
+| AuditableEntity → NotificationTemplate | **Inheritance** △ | Template kế thừa |
+| INotificationService implements NotificationService | **Realization** △ | Interface implementation |
+| Notification → NotificationType | **Association** → | Loại thông báo |
+| Notification → NotificationChannel | **Association** → | Push / Email / Both |
+| Notification → User | **Association** → | FK recipient |
+| NotificationPreference → User | **Association** → | FK user settings |
+| NotificationPreference → NotificationType | **Association** → | Per-type preference |
+| NotificationTemplate → NotificationType | **Association** → | Template mapping |
+| NotificationTemplate → NotificationChannel | **Association** → | Channel mapping |
+| DomainEvent ..> NotificationEventHandler | **Dependency** | Event trigger |
+| NotificationEventHandler ..> INotificationService | **Dependency** | Dispatch notify |
+| NotificationService ..> INotifPreferenceRepository | **Dependency** | User opt-in check |
+| NotificationService ..> INotifTemplateRepository | **Dependency** | Render template |
+| NotificationService ..> IPushNotificationSender | **Dependency** | FCM push |
+| NotificationService ..> IEmailSender | **Dependency** | SMTP email |
+| NotificationService ..> IUnitOfWork | **Dependency** | Persist notification |
+| NotificationService ..> Notification | **Dependency** | Tạo record |
+
 ```mermaid
 classDiagram
     class Notification {
@@ -2969,6 +3765,11 @@ classDiagram
         + SaveChangesAsync(ct CancellationToken) Task~int~
     }
 
+    class User {
+        <<referenced>>
+        + Id : Guid
+    }
+
     class NotificationEventHandler {
         <<DomainEvent Handler>>
         - _notificationService : INotificationService
@@ -2993,6 +3794,8 @@ classDiagram
 
     Notification --> NotificationType : Association
     Notification --> NotificationChannel : Association
+    Notification --> User : Association (recipient)
+    NotificationPreference --> User : Association
     NotificationPreference --> NotificationType : Association
     NotificationTemplate --> NotificationType : Association
     NotificationTemplate --> NotificationChannel : Association
@@ -3016,6 +3819,18 @@ classDiagram
 ### CD-22: View Public Map (→ SD-55 ⭐)
 
 **Actor:** Citizen / Anonymous · **BR:** BR-MAP-001, BR-MAP-004, BR-MAP-012
+
+**Phân loại Relationship:**
+
+| Relationship | Loại | Lý do |
+|---|---|---|
+| Report → ReportStatus | **Association** → | Filter public statuses |
+| Report → Severity | **Association** → | Map marker severity |
+| Report → PollutionCategory | **Association** → | Category icon/label |
+| GetNearbyHandler ..> RedisCache | **Dependency** | BR-MAP-012 cache 10' |
+| GetNearbyHandler ..> PostGISDatabase | **Dependency** | Spatial bbox query |
+| GetNearbyHandler ..> Report | **Dependency** | Project DTO (BR-MAP-004 round GPS) |
+| MapController ..> GetNearbyHandler | **Dependency** | Shorthand runtime qua ISender |
 
 ```mermaid
 classDiagram
@@ -3098,6 +3913,18 @@ classDiagram
 ### CD-23: Upload Report Image — Presigned URL + AI (→ SD-66 ⭐)
 
 **Actor:** Citizen · **BR:** BR-REP-001, BR-REP-002, BR-AI-001, BR-AI-007
+
+**Phân loại Relationship:**
+
+| Relationship | Loại | Lý do |
+|---|---|---|
+| IFileStorageService implements R2FileStorageService | **Realization** △ | S3/R2 adapter |
+| ReportMedia → MediaType | **Association** → | Image / Video enum |
+| AnalyzeImageHandler ..> IFileStorageService | **Dependency** | Download + validate upload |
+| AnalyzeImageHandler ..> IExifAnalyzer | **Dependency** | BR-AI-007 strip GPS |
+| AnalyzeImageHandler ..> IAiClassificationService | **Dependency** | AI classify + severity |
+| AnalyzeImageHandler ..> ITempImageStore | **Dependency** | Temp result until submit |
+| MediaController ..> AnalyzeImageHandler | **Dependency** | Shorthand runtime qua ISender |
 
 ```mermaid
 classDiagram
@@ -3196,6 +4023,14 @@ classDiagram
 
 **Actor:** Admin · **BR:** BR-ADM-010
 
+**Phân loại Relationship:**
+
+| Relationship | Loại | Lý do |
+|---|---|---|
+| GetAuditLogsHandler ..> IApplicationDbContext | **Dependency** | Query audit_logs paginated |
+| GetAuditLogsHandler ..> AuditLog | **Dependency** | Read + map to DTO |
+| AdminController ..> GetAuditLogsHandler | **Dependency** | Shorthand runtime qua ISender |
+
 ```mermaid
 classDiagram
     class AuditLog {
@@ -3289,7 +4124,7 @@ stateDiagram-v2
     PartiallyPaid --> Overdue : past due date (job)
     Overdue --> Paid : late payment [SD-39]
 
-    Paid --> Closed : PUT /close [SD-40]
+    Paid --> Closed : PUT /close [SD-39]
 
     Draft --> ClosedNoViolation : ForceCloseNoViolation (SLA job)
     InProgress --> ClosedNoViolation : ForceCloseNoViolation (SLA job)
@@ -3302,7 +4137,7 @@ stateDiagram-v2
 
 ## Tổng hợp quan hệ liên module (Cross-Module Overview)
 
-> Diagram tổng quan cấp cao, hiển thị các entity chính và quan hệ cross-module với đầy đủ 4 loại relationship.
+> Diagram tổng quan cấp cao, hiển thị các entity chính và quan hệ cross-module với đầy đủ **6 loại UML** (Composition, Aggregation, Association, Inheritance — không gồm Dependency/Realization vì tầng kiến trúc xem ở §Architecture Layer).
 
 ```mermaid
 classDiagram
@@ -3313,10 +4148,10 @@ classDiagram
         <<CD-04~10: Report>>
     }
     class ReportAssignment {
-        <<CD-07~08: Report>>
+        <<CD-07~08,11~12,33: Cleanup>>
     }
     class ReportMedia {
-        <<CD-04,23: Report/Media>>
+        <<CD-04,23,33,34: Report/Media>>
     }
     class EnvironmentalTeam {
         <<CD-07,14,17: Org>>
@@ -3351,6 +4186,12 @@ classDiagram
     class PollutionCategory {
         <<CD-04: Catalog>>
     }
+    class CommunityCleanupEvent {
+        <<CD-34: Community Cleanup>>
+    }
+    class CommunityCleanupParticipant {
+        <<CD-34: Community Cleanup>>
+    }
 
     %% Inheritance (△)
     SoftDeletableEntity <|-- User : Inheritance
@@ -3359,10 +4200,12 @@ classDiagram
     %% Composition (◆ child dies with parent)
     Report "1" *-- "1..*" ReportMedia : Composition
     Report "1" *-- "0..*" ReportAssignment : Composition
+    Report "1" *-- "0..1" CommunityCleanupEvent : Composition (1 active)
+    CommunityCleanupEvent "1" *-- "1..*" CommunityCleanupParticipant : Composition
     InspectionReport "1" *-- "0..*" PenaltyPayment : Composition
     InspectionReport "1" *-- "0..*" InspectionEvidence : Composition
     User "1" *-- "1" UserPoints : Composition
-    User "1" *-- "0..*" Notification : Composition
+    User "1" --> "0..*" Notification : Association (recipient)
     Department "1" *-- "0..*" LocalOffice : Composition
 
     %% Aggregation (◇ child exists independently)
@@ -3422,7 +4265,7 @@ flowchart TB
     API -->|depends on| APP
     API -.->|DI registration| INFRA
     APP -->|depends on| DOM
-    INFRA -->|implements| APP
+    INFRA -.->|realizes| APP
     INFRA -->|depends on| DOM
 
     style DOM fill:#2d5016,stroke:#4a8c2a,color:#fff
@@ -3676,8 +4519,8 @@ classDiagram
     IPipelineBehavior <|.. TransactionBehavior : implements
     IPipelineBehavior <|.. AuditLogBehavior : implements
 
-    ISender --> IPipelineBehavior : 1. dispatches through
-    IPipelineBehavior --> IRequestHandler : 2. delegates to
+    ISender ..> IPipelineBehavior : 1. dispatches through
+    IPipelineBehavior ..> IRequestHandler : 2. delegates to
 ```
 
 ### Request Flow tổng quan (API → Handler → Domain)
@@ -3727,9 +4570,18 @@ flowchart LR
 | CD-10 | SD-18 ⭐ | Duplicate Detection | AI/LEO |
 | CD-11 | SD-21 ⭐ | Accept/Decline Assignment | Cleaner |
 | CD-12 | SD-22 ⭐ | Check-in at Cleanup Site | Cleaner |
+| CD-33 | SD-23 ⭐ | Upload Before & Update Progress | Team Leader |
+| CD-34 | SD-25 ⭐ | Community Cleanup (End-to-End) | LEO / Citizen / Leader |
 | CD-13 | SD-28 ⭐ | Create Inspection Report | LEO |
 | CD-14 | SD-29 ⭐ | Assign Inspection Team | LEO |
 | CD-15 | SD-32 ⭐ | Issue Penalty | Inspector |
+| CD-25 | SD-30 ⭐ | Accept Inspection Task | Inspector |
+| CD-26 | SD-31 ⭐ | Confirm Arrival (Soft GPS) | Inspector |
+| CD-27 | SD-33 ⭐ | Update Checklist & Evidence | Inspector |
+| CD-28 | SD-34 ⭐ | Submit Field Investigation | Team Leader |
+| CD-29 | SD-35 ⭐ | Close No Violation | Team Leader |
+| CD-30 | SD-39 ⭐ | Record Payment & Close Inspection (phase 1 + 2) | Team Leader |
+| CD-32 | SD-41 ⭐ | GET Detail + Capability Flags | Inspector |
 | CD-16 | SD-36 ⭐ | Create Dept & LocalOffice | Admin |
 | CD-17 | SD-37 ⭐ | Create Team | LEO |
 | CD-18 | SD-38 ⭐ | Onboard Company | DEO |

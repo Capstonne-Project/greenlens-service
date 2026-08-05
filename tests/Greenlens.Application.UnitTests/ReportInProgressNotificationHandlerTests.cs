@@ -4,6 +4,7 @@ using Greenlens.Application.Features.Notifications;
 using Greenlens.Application.Features.Notifications.EventHandlers;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
+using Greenlens.Application.UnitTests.Helpers;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 
@@ -51,7 +52,7 @@ public sealed class CleanupTaskAssignedNotifierTests
             _notifications,
             _teams,
             _teamRecipients,
-            Substitute.For<IApplicationDbContext>(),
+            NotificationTestDbFactory.CreateEmpty(),
             NullLogger<CleanupTaskAssignedNotifier>.Instance);
     }
 

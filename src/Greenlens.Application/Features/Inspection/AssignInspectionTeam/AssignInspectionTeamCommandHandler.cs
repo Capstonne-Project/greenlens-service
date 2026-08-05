@@ -2,6 +2,7 @@ using System.Text.Json;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Notifications;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
@@ -23,6 +24,7 @@ public sealed class AssignInspectionTeamCommandHandler(
     ICurrentUser currentUser,
     IUnitOfWork uow,
     IAuditLogger auditLogger,
+    IInspectionTaskAssignedNotifier taskAssignedNotifier,
     ILogger<AssignInspectionTeamCommandHandler> logger)
     : IRequestHandler<AssignInspectionTeamCommand, Result>
 {
@@ -91,6 +93,13 @@ public sealed class AssignInspectionTeamCommandHandler(
         logger.LogInformation(
             "InspectionReport {InspectionId} assigned to Inspector Team {TeamId} by LEO {UserId}",
             request.InspectionId, request.TeamId, currentUser.UserId);
+
+        if (report is not null)
+        {
+            await taskAssignedNotifier
+                .NotifyTeamAsync(request.TeamId, report.Id, report.Code, ct)
+                .ConfigureAwait(false);
+        }
 
         return Result.Success();
     }

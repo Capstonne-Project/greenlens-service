@@ -2,6 +2,7 @@ using System.Text.Json;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Notifications;
 using Greenlens.Domain.Common;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -11,10 +12,12 @@ namespace Greenlens.Application.Features.Inspection.CloseNoViolation;
 /// <summary>BR-INS-013: Close inspection — no violation found. BR-ADM-010.</summary>
 public sealed class CloseNoViolationCommandHandler(
     IInspectionReportRepository inspections,
+    IReportRepository reports,
     ITeamMemberRepository teamMembers,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     IAuditLogger auditLogger,
+    IInspectionClosedNoViolationNotifier closedNotifier,
     ILogger<CloseNoViolationCommandHandler> logger)
     : IRequestHandler<CloseNoViolationCommand, Result>
 {
@@ -45,6 +48,17 @@ public sealed class CloseNoViolationCommandHandler(
         }
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        var report = await reports.GetByIdAsync(inspection.ReportId, ct).ConfigureAwait(false);
+        if (report is not null)
+        {
+            await closedNotifier.NotifyReporterAsync(
+                report.Id,
+                report.Code,
+                report.ReporterId,
+                request.Reason,
+                ct).ConfigureAwait(false);
+        }
 
         await auditLogger.LogAsync(
             "CloseNoViolation",

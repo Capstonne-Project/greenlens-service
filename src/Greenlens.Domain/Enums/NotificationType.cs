@@ -25,6 +25,18 @@ public enum NotificationType
     /// <summary>BR-INS-030: Officer — inspection penalty dossier exceeded SLA.</summary>
     SlaInspectionBreached,
 
+    /// <summary>BR-INS-001: Inspection team member — new inspection task assigned.</summary>
+    InspectionTaskAssigned,
+
+    /// <summary>BR-INS-003: LEO — assigned inspection team declined the task.</summary>
+    InspectionTaskDeclined,
+
+    /// <summary>BR-INS-013: Citizen — inspection closed with no violation found.</summary>
+    InspectionClosedNoViolation,
+
+    /// <summary>BR-INS-021: LEO/DEO — penalty payment deadline passed.</summary>
+    PenaltyPaymentOverdue,
+
     /// <summary>BR-CLN-004: LEO — cleanup team stale progress &gt; 48h.</summary>
     CleanupProgressStale,
 
