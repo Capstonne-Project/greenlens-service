@@ -72,7 +72,8 @@ public sealed class RejectReportCommandHandler(
             ReportStatus.Submitted,   // stays Submitted
             ReportStatus.Submitted,   // re-queued (not terminal Rejected)
             currentUser.UserId,
-            $"LEO rejected — re-queued to Department: {request.Reason}");
+            request.Reason,
+            metadata: "LEO rejected — re-queued to Department");
 
         statusHistory.Add(history);
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);

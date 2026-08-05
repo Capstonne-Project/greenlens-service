@@ -4,6 +4,7 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Gamification.CheckBadges;
@@ -49,6 +50,7 @@ public sealed class CheckBadgesCommandHandler(
 
         var newlyAwardedCodes = new List<string>();
         var newlyAwardedBadges = new List<Badge>();
+        var nearProgressBadges = new List<Badge>();
 
         foreach (var badge in allBadges)
         {
@@ -61,6 +63,12 @@ public sealed class CheckBadgesCommandHandler(
             if (!BadgeEligibilityEvaluator.IsEligible(badge, totalPoints, metrics))
             {
                 logger.LogDebug("Badge {BadgeCode} not eligible for user {UserId}", badge.Code, request.UserId);
+
+                var current = BadgeEligibilityEvaluator.GetCurrentProgressValue(badge, totalPoints, metrics);
+                var target = BadgeEligibilityEvaluator.GetTargetValue(badge);
+                if (current.HasValue && target.HasValue && target.Value > 1 && current.Value == target.Value - 1)
+                    nearProgressBadges.Add(badge);
+
                 continue;
             }
 
@@ -87,6 +95,27 @@ public sealed class CheckBadgesCommandHandler(
                     referenceId: badge.Id,
                     ct).ConfigureAwait(false);
             }
+        }
+
+        foreach (var badge in nearProgressBadges)
+        {
+            var alreadyNotified = await db.Set<Notification>()
+                .AsNoTracking()
+                .AnyAsync(n => n.RecipientId == request.UserId
+                               && n.Type == NotificationType.BadgeProgressNear
+                               && n.ReferenceId == badge.Id, ct)
+                .ConfigureAwait(false);
+            if (alreadyNotified)
+                continue;
+
+            var target = BadgeEligibilityEvaluator.GetTargetValue(badge)!.Value;
+
+            await notificationService.SendFromTemplateAsync(
+                request.UserId,
+                NotificationType.BadgeProgressNear,
+                GamificationNotificationPlaceholders.ForBadgeProgressNear(badge, target - 1, target),
+                referenceId: badge.Id,
+                ct).ConfigureAwait(false);
         }
 
         logger.LogInformation("Check badges completed: {NewlyAwarded}", newlyAwardedCodes);

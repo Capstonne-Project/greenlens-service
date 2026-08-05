@@ -49,7 +49,7 @@ internal static class GamificationSeeder
         new("green_legend", "Huyền Thoại Xanh", "Green Legend",
             "Đạt Level 5 với 5.000 điểm tích lũy — thành tựu cao nhất", "badges/icons/green_legend.png", null, 5000),
         new("cleanup_hero", "Anh Hùng Dọn Dẹp", "Cleanup Hero",
-            "Hoàn thành tham gia một chương trình dọn dẹp cộng đồng", "badges/icons/cleanup_hero.png", null, null),
+            "Hoàn thành tham gia 2 chương trình dọn dẹp cộng đồng", "badges/icons/cleanup_hero.png", null, null),
     ];
 
     private static readonly (PointReason Action, int Points, string Description)[] DefaultConfigs =

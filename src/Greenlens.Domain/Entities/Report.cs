@@ -12,7 +12,7 @@ namespace Greenlens.Domain.Entities;
 /// LEO direct verification model (v3.0):
 ///   Submit:   SUBMITTED (auto-routed to LocalOffice by GPS, fallback Department queue)
 ///   LEO:      SUBMITTED → VERIFIED → IN_PROGRESS → RESOLVED → CLOSED
-///   Reject:   SUBMITTED → REJECTED (LEO, reason ≥ 20 chars)
+///   Reject:   SUBMITTED → SUBMITTED, re-queued to Department (BR-ORG-015, LEO, reason ≥ 20 chars)
 ///   Duplicate: SUBMITTED/VERIFIED → DUPLICATE
 ///   Reopen:   RESOLVED → [pending request] → REOPENED (LEO approve) → IN_PROGRESS (assign)
 ///
@@ -253,7 +253,7 @@ public sealed class Report : SoftDeletableEntity
         // AssignedDepartmentId is kept — DEO of the same province handles it
 
         if (ReporterId.HasValue)
-            AddDomainEvent(new ReportRejectedEvent(Id, ReporterId.Value));
+            AddDomainEvent(new ReportRejectedEvent(Id, ReporterId.Value, reason));
     }
 
     /// <summary>LEO assigns community team(s). Verified/Reopened → InProgress. BR-OFF-011.</summary>

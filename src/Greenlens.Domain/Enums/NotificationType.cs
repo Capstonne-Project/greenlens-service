@@ -74,6 +74,28 @@ public enum NotificationType
 
     /// <summary>Draft BR-CMU-002: Cleaner was appointed Leader of a new Community Cleanup program.</summary>
     CommunityCleanupLeaderAssigned,
+
+    /// <summary>Draft BR-CMU-*: Leader checked in / event started — notifies other participants.</summary>
+    CommunityCleanupStarted,
+
+    /// <summary>Draft BR-CMU-*: Leader posted a progress update (percent/photos) — notifies participants.</summary>
+    CommunityCleanupProgressUpdated,
+
+    /// <summary>Draft BR-CMU-*: Leader submitted completion evidence — notifies the LEO to review.</summary>
+    CommunityCleanupVerificationSubmitted,
+
+    /// <summary>Draft BR-CMU-*: LEO approved the cleanup as complete — notifies participants.</summary>
+    CommunityCleanupVerified,
+
+    /// <summary>Draft BR-CMU-*: LEO rejected the submitted evidence — notifies the Leader.</summary>
+    CommunityCleanupVerificationRejected,
+
+    /// <summary>Reminder ~15 minutes before a Community Cleanup's StartsAt for participants who haven't checked in.</summary>
+    CommunityCleanupCheckInReminder,
+
+    /// <summary>Progress toward a not-yet-earned badge crossed the halfway (or later) mark.</summary>
+    BadgeProgressNear,
+
     /// <summary>BR-REP-015: Citizen submitted a reopen request with evidence.</summary>
     ReopenReviewNeeded,
 

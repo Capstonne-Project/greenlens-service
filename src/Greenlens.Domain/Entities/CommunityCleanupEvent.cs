@@ -116,6 +116,8 @@ public sealed class CommunityCleanupEvent : SoftDeletableEntity
 
         Status = CommunityCleanupStatus.InProgress;
         UpdatedAt = DateTime.UtcNow;
+
+        AddDomainEvent(new CommunityCleanupStartedEvent(Id, ReportId, Title, LeaderUserId, CreatedByLeoId));
     }
 
     /// <summary>BR-CMU-008: Leader updates progress mid-cleanup. Percent can only increase, never decrease.</summary>
@@ -134,6 +136,8 @@ public sealed class CommunityCleanupEvent : SoftDeletableEntity
         ProgressNote = note;
         ProgressUpdatedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
+
+        AddDomainEvent(new CommunityCleanupProgressUpdatedEvent(Id, Title, percent, LeaderUserId, CreatedByLeoId));
     }
 
     /// <summary>BR-CMU-009: Leader submits evidence for LEO review. InProgress → PendingVerification.</summary>
@@ -143,6 +147,8 @@ public sealed class CommunityCleanupEvent : SoftDeletableEntity
         Status = CommunityCleanupStatus.PendingVerification;
         SubmittedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
+
+        AddDomainEvent(new CommunityCleanupVerificationSubmittedEvent(Id, ReportId, Title, CreatedByLeoId));
     }
 
     /// <summary>BR-CMU-010: LEO approves. PendingVerification → Completed.</summary>
@@ -155,6 +161,7 @@ public sealed class CommunityCleanupEvent : SoftDeletableEntity
         UpdatedAt = DateTime.UtcNow;
 
         AddDomainEvent(new CommunityCleanupCompletedEvent(Id, ReportId));
+        AddDomainEvent(new CommunityCleanupVerifiedEvent(Id, Title, CreatedByLeoId));
     }
 
     /// <summary>BR-CMU-011: LEO rejects, reason ≥ 20 chars (validated by caller). PendingVerification → InProgress.</summary>
@@ -165,6 +172,8 @@ public sealed class CommunityCleanupEvent : SoftDeletableEntity
         RejectionReason = reason;
         SubmittedAt = null;
         UpdatedAt = DateTime.UtcNow;
+
+        AddDomainEvent(new CommunityCleanupVerificationRejectedEvent(Id, Title, LeaderUserId, reason));
     }
 
     /// <summary>BR-CMU-012: LEO cancels. Any status except Completed → Cancelled.</summary>
