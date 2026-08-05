@@ -2560,8 +2560,15 @@ classDiagram
         + Handle(cmd ConfirmArrivalCommand, ct CancellationToken) Task~Result~
     }
 
+    class InspectionsController {
+        <<Controller>>
+        - _sender : ISender
+        + ConfirmArrivalAsync(id Guid, request ConfirmArrivalRequest) Task~IActionResult~
+    }
+
     ConfirmArrivalHandler ..> IGeoDistanceService : distance ≤ 200m or note required
     ConfirmArrivalHandler ..> InspectionReport : sets arrival fields (status unchanged)
+    InspectionsController ..> ConfirmArrivalHandler : dispatches via ISender
 ```
 
 ---
@@ -2618,11 +2625,20 @@ classDiagram
         + Handle(cmd UploadInspectionEvidenceCommand, ct) Task~Result~UploadInspectionEvidenceResponse~~
     }
 
+    class InspectionsController {
+        <<Controller>>
+        - _sender : ISender
+        + UpdateChecklistAsync(id Guid, request UpdateInspectionChecklistRequest) Task~IActionResult~
+        + UploadEvidenceAsync(id Guid, category InspectionEvidenceCategory, files) Task~IActionResult~
+    }
+
     InspectionReport "1" *-- "0..*" InspectionEvidence : Composition
     InspectionEvidence --> InspectionEvidenceCategory : Association
     UpdateInspectionChecklistHandler ..> InspectionEvidence : upsert ViolationStatus, Other text
     UploadInspectionEvidenceHandler ..> IFileStorageService : upload to R2
     UploadInspectionEvidenceHandler ..> InspectionEvidence : add ScenePhoto/Video/Audio
+    InspectionsController ..> UpdateInspectionChecklistHandler : PUT /checklist
+    InspectionsController ..> UploadInspectionEvidenceHandler : POST /evidence
 ```
 
 ---
@@ -2657,8 +2673,15 @@ classDiagram
         + Handle(cmd SubmitFieldInvestigationCommand, ct CancellationToken) Task~Result~
     }
 
+    class InspectionsController {
+        <<Controller>>
+        - _sender : ISender
+        + SubmitFieldReportAsync(id Guid) Task~IActionResult~
+    }
+
     SubmitFieldInvestigationHandler ..> InspectionChecklistValidator : ViolationStatus + ≥2 ScenePhoto
     SubmitFieldInvestigationHandler ..> InspectionReport : locks checklist gate
+    InspectionsController ..> SubmitFieldInvestigationHandler : dispatches via ISender
 ```
 
 ---
@@ -2692,8 +2715,15 @@ classDiagram
         + Handle(cmd CloseNoViolationCommand, ct CancellationToken) Task~Result~
     }
 
+    class InspectionsController {
+        <<Controller>>
+        - _sender : ISender
+        + CloseNoViolationAsync(id Guid, request CloseNoViolationRequest) Task~IActionResult~
+    }
+
     CloseNoViolationHandler ..> InspectionReport : InProgress → ClosedNoViolation
     CloseNoViolationHandler ..> IAuditLogger : audit log
+    InspectionsController ..> CloseNoViolationHandler : dispatches via ISender
 ```
 
 ---
