@@ -493,12 +493,39 @@ public sealed class ReportsController(
     [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(
         Summary = "[LEO/DEO] Danh sách báo cáo nghi ngờ trùng lặp",
-        Description = "BR-REP-031: Trả về các báo cáo bị gắn cờ possible_duplicate (Tier 1 geo/time hoặc Tier 2 AI) " +
-            "kèm thông tin báo cáo gốc và toàn bộ ảnh/video citizen submit (media[]) để LEO so sánh và quyết định gộp/bác bỏ.")]
+        Description = "BR-REP-031: Trả về các báo cáo bị gắn cờ possible_duplicate (Tier 1 geo/category hoặc Tier 2 AI) " +
+            "kèm thông tin báo cáo gốc và ảnh thumbnail đầu tiên (media[] tối đa 1 phần tử). " +
+            "Hỗ trợ search (code, address, category), filter (status, severity, categoryId, wardCode, fromDate, toDate, duplicateDetectionSource, minAiSimilarityScore), sort.")]
     [SwaggerResponse(200, "Danh sách nghi ngờ trùng lặp", typeof(ApiResponse<GetDuplicateCandidatesResponse>))]
     public async Task<IActionResult> GetDuplicateCandidatesAsync(
-        [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
-        => (await sender.Send(new GetDuplicateCandidatesQuery(page, pageSize), ct)).ToHttp();
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] ReportStatus? status = null,
+        [FromQuery] Severity? severity = null,
+        [FromQuery] Guid? categoryId = null,
+        [FromQuery] string? wardCode = null,
+        [FromQuery] DateTime? fromDate = null,
+        [FromQuery] DateTime? toDate = null,
+        [FromQuery] string? search = null,
+        [FromQuery] string? duplicateDetectionSource = null,
+        [FromQuery] decimal? minAiSimilarityScore = null,
+        [FromQuery] DuplicateCandidateSortBy sortBy = DuplicateCandidateSortBy.CreatedAt,
+        [FromQuery] SortDirection sortDir = SortDirection.Desc,
+        CancellationToken ct = default)
+        => (await sender.Send(new GetDuplicateCandidatesQuery(
+            page,
+            pageSize,
+            status,
+            severity,
+            categoryId,
+            wardCode,
+            fromDate,
+            toDate,
+            search,
+            duplicateDetectionSource,
+            minAiSimilarityScore,
+            sortBy,
+            sortDir), ct)).ToHttp();
 
     [HttpGet("{id:guid}/duplicate-candidate-detail")]
     [Authorize(Roles = "LEO,DEO,Admin")]
@@ -550,12 +577,38 @@ public sealed class ReportsController(
         Summary = "[LEO/DEO] Danh sách báo cáo nghi ngờ tái phạm vi phạm",
         Description = "BR-REP-034: Trả về các báo cáo bị gắn cờ isSuspectedViolationRecurrence " +
             "(cùng category, ≤25m, báo cáo trước đã Closed trong 30 ngày) kèm báo cáo Closed trước đó " +
-            "và toàn bộ ảnh/video citizen submit (media[] / priorClosedReport.media[]) " +
-            "để LEO so sánh và quyết định mở hồ sơ thanh tra hoặc bác cờ.")]
+            "và ảnh thumbnail đầu tiên (media[] / priorClosedReport.media[] tối đa 1 phần tử). " +
+            "Hỗ trợ search, filter (status, severity, categoryId, wardCode, fromDate, toDate, minDaysSincePriorClosed, maxDaysSincePriorClosed), sort.")]
     [SwaggerResponse(200, "Danh sách nghi ngờ tái phạm", typeof(ApiResponse<GetViolationRecurrenceCandidatesResponse>))]
     public async Task<IActionResult> GetViolationRecurrenceCandidatesAsync(
-        [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
-        => (await sender.Send(new GetViolationRecurrenceCandidatesQuery(page, pageSize), ct)).ToHttp();
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] ReportStatus? status = null,
+        [FromQuery] Severity? severity = null,
+        [FromQuery] Guid? categoryId = null,
+        [FromQuery] string? wardCode = null,
+        [FromQuery] DateTime? fromDate = null,
+        [FromQuery] DateTime? toDate = null,
+        [FromQuery] string? search = null,
+        [FromQuery] int? minDaysSincePriorClosed = null,
+        [FromQuery] int? maxDaysSincePriorClosed = null,
+        [FromQuery] ViolationRecurrenceCandidateSortBy sortBy = ViolationRecurrenceCandidateSortBy.CreatedAt,
+        [FromQuery] SortDirection sortDir = SortDirection.Desc,
+        CancellationToken ct = default)
+        => (await sender.Send(new GetViolationRecurrenceCandidatesQuery(
+            page,
+            pageSize,
+            status,
+            severity,
+            categoryId,
+            wardCode,
+            fromDate,
+            toDate,
+            search,
+            minDaysSincePriorClosed,
+            maxDaysSincePriorClosed,
+            sortBy,
+            sortDir), ct)).ToHttp();
 
     [HttpGet("{id:guid}/violation-recurrence-comparison")]
     [Authorize(Roles = "LEO,DEO,Admin")]

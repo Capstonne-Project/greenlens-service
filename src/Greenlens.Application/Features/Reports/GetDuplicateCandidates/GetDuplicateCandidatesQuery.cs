@@ -1,5 +1,6 @@
 using Greenlens.Application.Common.Models;
 using Greenlens.Application.Features.Reports.Common;
+using Greenlens.Application.Features.Reports.GetOfficerQueue;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -9,7 +10,26 @@ namespace Greenlens.Application.Features.Reports.GetDuplicateCandidates;
 /// <summary>LEO review list of reports flagged as possible duplicates. BR-REP-031, BR-REP-032.</summary>
 public sealed record GetDuplicateCandidatesQuery(
     int Page = 1,
-    int PageSize = 20) : IRequest<Result<GetDuplicateCandidatesResponse>>;
+    int PageSize = 20,
+    ReportStatus? Status = null,
+    Severity? Severity = null,
+    Guid? CategoryId = null,
+    string? WardCode = null,
+    DateTime? FromDate = null,
+    DateTime? ToDate = null,
+    string? Search = null,
+    string? DuplicateDetectionSource = null,
+    decimal? MinAiSimilarityScore = null,
+    DuplicateCandidateSortBy SortBy = DuplicateCandidateSortBy.CreatedAt,
+    SortDirection SortDir = SortDirection.Desc) : IRequest<Result<GetDuplicateCandidatesResponse>>;
+
+public enum DuplicateCandidateSortBy
+{
+    CreatedAt,
+    Severity,
+    AiSimilarityScore,
+    PriorityScore
+}
 
 public sealed record GetDuplicateCandidatesResponse(
     IReadOnlyList<DuplicateCandidateItem> Items,
