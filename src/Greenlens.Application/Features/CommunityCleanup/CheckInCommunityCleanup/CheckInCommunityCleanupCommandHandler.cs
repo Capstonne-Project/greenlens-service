@@ -2,6 +2,7 @@ using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
+using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -33,9 +34,6 @@ public sealed class CheckInCommunityCleanupCommandHandler(
         if (ev.Status is not (CommunityCleanupStatus.OpenForJoin or CommunityCleanupStatus.JoinClosed or CommunityCleanupStatus.InProgress))
             return Errors.CommunityCleanup.InvalidStatusTransition;
 
-        if (DateTime.UtcNow < ev.StartsAt)
-            return Errors.CommunityCleanup.TooEarlyToStart;
-
         var participant = await participants.GetByEventAndUserAsync(request.EventId, currentUser.UserId, ct).ConfigureAwait(false);
         if (participant is null)
             return Errors.CommunityCleanup.ParticipantNotFound;
@@ -65,6 +63,9 @@ public sealed class CheckInCommunityCleanupCommandHandler(
         {
             return Errors.CommunityCleanup.InvalidStatusTransition;
         }
+
+        if (participant.Role == CommunityCleanupParticipantRole.Leader)
+            ev.AddDomainEvent(new CommunityCleanupLeaderCheckedInEvent(ev.Id, ev.Title, currentUser.UserId, ev.CreatedByLeoId));
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
         if (isOutOfRange)
