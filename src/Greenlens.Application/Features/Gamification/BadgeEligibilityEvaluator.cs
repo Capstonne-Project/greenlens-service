@@ -15,7 +15,7 @@ internal static class BadgeEligibilityEvaluator
             "streak_30d" => metrics.MaxSubmitStreakDays >= 30,
             "duplicate_finder" => metrics.DuplicateReportCount >= 5,
             "community_voice" => metrics.HasCommunityVoice,
-            "cleanup_hero" => metrics.CompletedCleanupCount >= 1,
+            "cleanup_hero" => metrics.CompletedCleanupCount >= 2,
             // TODO: enable when BR-MAP-010 hotspot detection is implemented
             "hotspot_hunter" => false,
             _ => badge.RequiredPoints.HasValue && totalPoints >= badge.RequiredPoints.Value
@@ -46,6 +46,22 @@ internal static class BadgeEligibilityEvaluator
                 : badge.RequiredReportCount.HasValue
                     ? metrics.VerifiedReportCount
                     : null
+        };
+    }
+
+    /// <summary>
+    /// The numeric target the badge's progress axis must reach to be earned. Null when the badge
+    /// has no single numeric target (boolean conditions, or not-yet-implemented conditions).
+    /// </summary>
+    internal static int? GetTargetValue(Badge badge)
+    {
+        return badge.Code switch
+        {
+            "cleanup_hero" => 2,
+            "streak_7d" => 7,
+            "streak_30d" => 30,
+            "duplicate_finder" => 5,
+            _ => badge.RequiredPoints ?? badge.RequiredReportCount
         };
     }
 }

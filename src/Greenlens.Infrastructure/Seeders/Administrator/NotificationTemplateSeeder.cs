@@ -309,7 +309,63 @@ internal static class NotificationTemplateSeeder
             "Bạn được chỉ định làm Leader cho chương trình dọn cộng đồng \"{title}\". Hãy vào mục Việc của tôi để bắt đầu.",
             "You were appointed Leader",
             "You were appointed Leader for the community cleanup program \"{title}\". Check My Tasks to get started.",
-            NotificationType.CommunityCleanupLeaderAssigned)
+            NotificationType.CommunityCleanupLeaderAssigned),
+
+        Create(
+            "community_cleanup_started",
+            "Chương trình dọn cộng đồng đã bắt đầu",
+            "Leader đã có mặt và chương trình \"{title}\" đã bắt đầu. Hãy check-in nếu bạn đã đến điểm hẹn!",
+            "Community cleanup started",
+            "The Leader has arrived and \"{title}\" has started. Check in if you're at the meeting point!",
+            NotificationType.CommunityCleanupStarted),
+
+        Create(
+            "community_cleanup_progress_updated",
+            "Cập nhật tiến độ dọn dẹp",
+            "Chương trình \"{title}\" đã hoàn thành {percent}% tiến độ.",
+            "Cleanup progress updated",
+            "\"{title}\" has reached {percent}% progress.",
+            NotificationType.CommunityCleanupProgressUpdated),
+
+        Create(
+            "community_cleanup_verification_submitted",
+            "Cần duyệt hoàn thành chương trình",
+            "Leader đã nộp minh chứng hoàn thành cho chương trình \"{title}\". Hãy vào duyệt.",
+            "Cleanup evidence needs review",
+            "The Leader submitted completion evidence for \"{title}\". Please review it.",
+            NotificationType.CommunityCleanupVerificationSubmitted),
+
+        Create(
+            "community_cleanup_verification_rejected",
+            "Minh chứng bị từ chối",
+            "Minh chứng hoàn thành cho chương trình \"{title}\" đã bị từ chối. Lý do: {reason}",
+            "Evidence rejected",
+            "Your completion evidence for \"{title}\" was rejected. Reason: {reason}",
+            NotificationType.CommunityCleanupVerificationRejected),
+
+        Create(
+            "community_cleanup_verified",
+            "Chương trình dọn cộng đồng đã hoàn thành",
+            "Chương trình \"{title}\" đã được xác nhận hoàn thành. Cảm ơn bạn đã tham gia!",
+            "Community cleanup completed",
+            "\"{title}\" has been verified as complete. Thanks for participating!",
+            NotificationType.CommunityCleanupVerified),
+
+        Create(
+            "community_cleanup_checkin_reminder",
+            "Sắp đến giờ dọn dẹp",
+            "Chương trình \"{title}\" sẽ bắt đầu sau 15 phút. Đừng quên check-in khi đến điểm hẹn!",
+            "Cleanup starting soon",
+            "\"{title}\" starts in 15 minutes. Don't forget to check in when you arrive!",
+            NotificationType.CommunityCleanupCheckInReminder),
+
+        Create(
+            "badge_progress_near",
+            "Sắp đạt huy hiệu mới",
+            "Bạn đã đạt {current}/{target} cho huy hiệu \"{badge_name}\". Cố gắng thêm chút nữa để nhận huy hiệu!",
+            "Almost there for a new badge",
+            "You've reached {current}/{target} toward the \"{badge_name}\" badge. Keep going to earn it!",
+            NotificationType.BadgeProgressNear)
     ];
 
     private static NotificationTemplate Create(
