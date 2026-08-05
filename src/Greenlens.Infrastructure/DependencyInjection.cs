@@ -386,7 +386,7 @@ public static class DependencyInjection
             job => job.ExecuteAsync(),
             "5 0 * * *"); // 00:05 UTC daily
 
-        // BR-REP-016: Auto-close reports Resolved > 7 days
+        // BR-REP-016: Auto-close reports Resolved > 2 days
         RecurringJob.AddOrUpdate<AutoCloseResolvedReportJob>(
             "auto-close-resolved-reports",
             job => job.ExecuteAsync(),

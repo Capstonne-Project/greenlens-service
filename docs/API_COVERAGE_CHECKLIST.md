@@ -1,7 +1,7 @@
 # GreenLens — API Coverage Checklist (FE Web & Mobile)
 
 > **Mục đích:** Đối chiếu repo **FE Web** và **Mobile** — tick từng API theo **luồng nghiệp vụ** của từng actor (không chỉ liệt kê phẳng theo endpoint).  
-> **Nguồn:** Quét trực tiếp `src/Greenlens.Api/Controllers/` · branch `develop` · cập nhật **2026-08-03**.  
+> **Nguồn:** Quét trực tiếp `src/Greenlens.Api/Controllers/` · branch `develop` · cập nhật **2026-08-04**.  
 > **Base URL API:** `/v1` · **SignalR:** `/hubs/notifications`
 
 ---
@@ -839,4 +839,4 @@ POST /v1/media/presign → PUT file lên R2 → POST /v1/reports (hoặc before-
 | 2026-08-04 | Sửa tổng §13: 289 → **271** (khớp tổng cột bảng + quét `Controllers/*.cs`) |
 | 2026-08-04 | Sửa master index §13: đồng bộ số endpoint theo controller; Users 8, Reports 48, Inspections 21, CommunityCleanups 20 |
 | 2026-08-03 | Tái cấu trúc theo **luồng nghiệp vụ** (workflow-first): LEO tách Cleanup vs Inspection; thêm cột Bước, sơ đồ luồng, link FE guides |
-| 2026-07-30 | Tạo checklist ban đầu từ 20 controllers; bổ sung `violation-recurrence-candidates`, `media[]` trên candidate APIs |
+| 2026-08-03 | Tạo checklist ban đầu từ 20 controllers; bổ sung `violation-recurrence-candidates`, `media[]` trên candidate APIs |

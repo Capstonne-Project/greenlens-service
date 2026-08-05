@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 namespace Greenlens.Infrastructure.BackgroundJobs;
 
 /// <summary>
-/// BR-REP-016: Auto-close reports that have been in Resolved status for ≥ 7 days
+/// BR-REP-016: Auto-close reports that have been in Resolved status for ≥ 2 days
 /// without citizen confirmation or reopening.
 /// Runs hourly. Processes in batches of 100 to avoid long transactions.
 /// Creates ReportStatusHistory records and notifies report owner.
@@ -22,7 +22,7 @@ internal sealed class AutoCloseResolvedReportJob(
     ILogger<AutoCloseResolvedReportJob> logger)
 {
     private const int BatchSize = 100;
-    private static readonly TimeSpan AutoCloseAfter = TimeSpan.FromDays(7);
+    private static readonly TimeSpan AutoCloseAfter = TimeSpan.FromDays(2);
 
     public async Task ExecuteAsync()
     {

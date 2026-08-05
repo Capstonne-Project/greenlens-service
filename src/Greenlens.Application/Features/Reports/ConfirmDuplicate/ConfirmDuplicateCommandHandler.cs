@@ -13,19 +13,18 @@ using Microsoft.Extensions.Logging;
 namespace Greenlens.Application.Features.Reports.ConfirmDuplicate;
 
 /// <summary>
-/// LEO confirms a possible duplicate: merge the report into a primary, move its images onto
-/// the primary, increment the primary's reporter count, and award the duplicate reporter
-/// +50% of base report points (via domain event).
+/// LEO confirms a possible duplicate: link to primary, merge comments, increment reporter count,
+/// and award the duplicate reporter +50% of base report points (via domain event).
+/// Duplicate report media stays on the duplicate record.
 /// </summary>
 /// <remarks>
 /// Implements: BR-REP-031 (LEO makes the final duplicate decision),
 /// BR-REP-032 (primary must be Verified/InProgress; duplicate may be Submitted;
-/// link to primary, merge images + comments, +50% points, +1 reporter count),
+/// link to primary, merge comments, +50% points, +1 reporter count; media not merged),
 /// BR-ADM-010 (audit log).
 /// </remarks>
 public sealed class ConfirmDuplicateCommandHandler(
     IReportRepository reports,
-    IReportMediaRepository reportMedia,
     IReportStatusHistoryRepository statusHistory,
     IApplicationDbContext db,
     ISender sender,
@@ -58,7 +57,6 @@ public sealed class ConfirmDuplicateCommandHandler(
             return Errors.Reports.PrimaryReportNotFound;
         }
 
-        // BR-REP-032: primary must be verified before any duplicate can merge into it.
         if (primary.Status is not (ReportStatus.Verified or ReportStatus.InProgress or ReportStatus.Reopened))
         {
             logger.LogWarning(
@@ -67,7 +65,6 @@ public sealed class ConfirmDuplicateCommandHandler(
             return Errors.Reports.InvalidStatusTransition;
         }
 
-        // Duplicate side: Submitted (and Verified) may merge; reports already in cleanup or terminal states may not.
         if (report.Status is ReportStatus.Duplicate or ReportStatus.Rejected
             or ReportStatus.InProgress or ReportStatus.Resolved or ReportStatus.Closed)
         {
@@ -77,16 +74,6 @@ public sealed class ConfirmDuplicateCommandHandler(
 
         var fromStatus = report.Status;
 
-        // BR-REP-032: merge images from duplicate into primary before marking status.
-        var mediaToMerge = await reportMedia.Query()
-            .Where(m => m.ReportId == report.Id)
-            .ToListAsync(ct)
-            .ConfigureAwait(false);
-
-        foreach (var media in mediaToMerge)
-            media.ReassignToReport(primary.Id);
-
-        // BR-REP-032: merge comments into primary
         var commentsToMerge = await db.Set<Comment>()
             .Where(c => c.ReportId == report.Id)
             .ToListAsync(ct)
@@ -94,7 +81,7 @@ public sealed class ConfirmDuplicateCommandHandler(
         foreach (var comment in commentsToMerge)
             comment.ReassignToReport(primary.Id);
 
-        report.MarkDuplicate(primary.Id); // raises ReportMarkedDuplicateEvent → points + notification
+        report.MarkDuplicate(primary.Id);
         primary.IncrementReporterCount();
 
         statusHistory.Add(ReportStatusHistory.Create(
@@ -102,7 +89,7 @@ public sealed class ConfirmDuplicateCommandHandler(
             fromStatus,
             ReportStatus.Duplicate,
             currentUser.UserId,
-            $"LEO confirmed duplicate of {primary.Code}; merged {mediaToMerge.Count} media"));
+            $"LEO confirmed duplicate of {primary.Code}"));
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 
@@ -115,7 +102,7 @@ public sealed class ConfirmDuplicateCommandHandler(
             {
                 status = report.Status.ToString(),
                 primaryReportId = request.PrimaryReportId,
-                mergedMediaCount = mediaToMerge.Count
+                mergedCommentCount = commentsToMerge.Count
             }),
             ct).ConfigureAwait(false);
 
@@ -126,8 +113,8 @@ public sealed class ConfirmDuplicateCommandHandler(
         }
 
         logger.LogInformation(
-            "Report {ReportId} confirmed duplicate of {PrimaryId} by {UserId}; merged {MediaCount} media",
-            report.Id, primary.Id, currentUser.UserId, mediaToMerge.Count);
+            "Report {ReportId} confirmed duplicate of {PrimaryId} by {UserId}",
+            report.Id, primary.Id, currentUser.UserId);
 
         return Result.Success();
     }

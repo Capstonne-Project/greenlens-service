@@ -12,7 +12,7 @@ namespace Greenlens.Domain.Entities;
 /// LEO direct verification model (v3.0):
 ///   Submit:   SUBMITTED (auto-routed to LocalOffice by GPS, fallback Department queue)
 ///   LEO:      SUBMITTED → VERIFIED → IN_PROGRESS → RESOLVED → CLOSED
-///   Reject:   SUBMITTED → SUBMITTED, re-queued to Department (BR-ORG-015, LEO, reason ≥ 20 chars)
+///   Reject:   SUBMITTED → REJECTED (LEO, reason ≥ 20 chars, BR-REP-022)
 ///   Duplicate: SUBMITTED/VERIFIED → DUPLICATE
 ///   Reopen:   RESOLVED → [pending request] → REOPENED (LEO approve) → IN_PROGRESS (assign)
 ///
@@ -238,8 +238,7 @@ public sealed class Report : SoftDeletableEntity
     }
 
     /// <summary>
-    /// BR-ORG-015: LEO rejects the report. Report stays Submitted and is re-queued
-    /// to the Department Common Queue for DEO to re-assign.
+    /// LEO rejects the report as invalid. Submitted → Rejected.
     /// BR-REP-022: reason ≥ 20 chars.
     /// </summary>
     public void Reject(string reason)
@@ -247,10 +246,7 @@ public sealed class Report : SoftDeletableEntity
         EnsureStatus(ReportStatus.Submitted);
 
         RejectedReason = reason;
-        // Status stays Submitted — report goes back to Department queue
-        // Clear office assignment so DEO sees it in the common queue
-        AssignedOfficeId = null;
-        // AssignedDepartmentId is kept — DEO of the same province handles it
+        Status = ReportStatus.Rejected;
 
         if (ReporterId.HasValue)
             AddDomainEvent(new ReportRejectedEvent(Id, ReporterId.Value, reason));

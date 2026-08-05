@@ -92,7 +92,7 @@ public sealed class WorkflowAuditLogHandlerTests
             "Report",
             report.Id.ToString(),
             Arg.Is<string>(s => s.Contains("Submitted")),
-            Arg.Any<string>(),
+            Arg.Is<string>(s => s.Contains("Rejected")),
             Arg.Any<CancellationToken>());
     }
 

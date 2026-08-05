@@ -171,11 +171,7 @@ internal sealed class ReportVerifiedNotificationHandler(
     }
 }
 
-/// <summary>
-/// BR-ORG-015: LEO reject re-queues the report to Department — it is NOT a terminal
-/// rejection, so this must not claim status "Rejected". Sends a raw message instead of
-/// the generic ReportStatusChanged template to avoid implying a status the report isn't in.
-/// </summary>
+/// <summary>Notifies reporter when LEO rejects their report (Submitted → Rejected).</summary>
 internal sealed class ReportRejectedNotificationHandler(
     INotificationService notificationService,
     IReportRepository reports,
@@ -184,18 +180,17 @@ internal sealed class ReportRejectedNotificationHandler(
 {
     public async Task Handle(ReportRejectedEvent notification, CancellationToken ct)
     {
-        logger.LogDebug("Notification: Report {ReportId} rejected by LEO, re-queued → notify reporter {UserId}",
+        logger.LogDebug("Notification: Report {ReportId} rejected → notify reporter {UserId}",
             notification.ReportId, notification.ReporterId);
 
         var reportCode = await ReportVerifiedNotificationHandler
             .ResolveReportCodeAsync(reports, notification.ReportId, ct)
             .ConfigureAwait(false);
 
-        await notificationService.SendRawAsync(
+        await notificationService.SendFromTemplateAsync(
             notification.ReporterId,
             NotificationType.ReportStatusChanged,
-            "Báo cáo cần xem xét lại",
-            $"Báo cáo {reportCode} của bạn đang được chuyển lại để xem xét thêm. Lý do: {notification.Reason}",
+            NotificationPlaceholders.ForReportStatus(reportCode, ReportStatus.Rejected),
             notification.ReportId,
             ct).ConfigureAwait(false);
     }

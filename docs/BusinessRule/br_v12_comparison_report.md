@@ -147,7 +147,7 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 | BR-ORG-012 | Conflict of interest (LEO ≠ reporter + ward scope)          |   ✅   | `VerifyReport/`: `ConflictOfInterest` (self) + `OutsideJurisdiction` (ngoài phường)                                                      |
 | BR-ORG-013 | Quyết định xử lý khi xác minh (dọn dẹp + xử phạt song song) |   ✅   | `VerifyReport/` → verify, `AssignTeam/` → cleanup, `CreateInspectionReport/` → xử phạt (2 nhánh độc lập)                                 |
 | BR-ORG-014 | SLA tiếp nhận 24h → escalate DEO                            |   ✅   | `SlaBreachVerificationJob`: flag `SlaVerifyBreached` + `EscalateToDepartment()` (clear AssignedOfficeId → DEO queue)                     |
-| BR-ORG-015 | Re-assign khi LEO reject                                    |   ✅   | `RejectReport/`: reason ≥ 20 chars, status stays Submitted, AssignedOfficeId cleared → Department queue                                  |
+| BR-ORG-015 | Re-assign khi LEO reject                                    |   ⚠️   | **Triển khai hiện tại:** `RejectReport/`: reason ≥ 20 chars → status **Rejected** (terminal), lưu `rejected_reason`; **không** clear office / re-queue Department. Khác mô tả BR v1.2 (re-assign DEO). |
 | BR-ORG-016 | Escalation tuyến cấp TP                                     |   ✅   | `EscalateReport/`: LEO manually escalate Verified/InProgress → DEO queue (clear AssignedOfficeId). Endpoint `POST reports/{id}/escalate` |
 | BR-ORG-020 | Mời thành viên đội (LEO mời qua email)                      |   ✅   | `RecruitStaff/` (invitation flow), `LookupCitizenByEmail/`, `AcceptInvitation/`, `DeclineInvitation/`                                    |
 | BR-ORG-021 | Hiệu lực lời mời 7 ngày                                     |   ✅   | `StaffInvitation` entity (7d expiry, single-use), `GetMyInvitations/`, `ReleaseStaff/`                                                   |
@@ -172,7 +172,7 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 | BR-REP-013     | Initial status = Submitted                    |   ✅   | `Report.cs` factory                                                                             |
 | BR-REP-014     | Ảnh before/after khi Resolved                 |   ✅   | `UploadBeforeImages/` + enforce ≥ 1 before trên `ResolveReportHandler`                          |
 | BR-REP-015     | Citizen yêu cầu reopen → LEO duyệt (7d, max 1) |   ✅   | `RequestReopenReport/` (lý do + ≥1 ảnh, video optional, không bắt buộc rate). LEO: `ApproveReopenRequest/`, `RejectReopenRequest/`, `GET reopen-requests`. Status **Reopened** sau duyệt; `AssignTeam` nhận Verified **hoặc** Reopened. `HasPendingReopenRequest` + auto-close skip pending. |
-| BR-REP-016     | Auto-close 7 ngày                             |   ✅   | `AutoCloseResolvedReportJob` + StatusHistory + Notification                                     |
+| BR-REP-016     | Auto-close 2 ngày                             |   ✅   | `AutoCloseResolvedReportJob` (`TimeSpan.FromDays(2)`) + StatusHistory + Notification              |
 | BR-REP-017     | Không xóa report đã verified                  |   ✅   | `DeleteReport/` + `CanDelete()` guard (Submitted only, no AI/Officer)                           |
 | BR-REP-018     | Đánh giá của Citizen sau Resolved             |   ✅   | `RateReport/` — Resolved/Closed, 1 lần/report/user. DB: `HasIndex(ReportId, UserId).IsUnique()` — migration `AddIdentityNumberAndSatisfactionUniqueIndexes`. `POST /reports/{id}/rate` |
 | BR-REP-019     | Draft max 3, xóa 7d                           |   ✅   | `SaveDraft/`, `GetMyDrafts/`, `DeleteDraft/` + `DraftCleanupJob` (daily 03:00)                  |
@@ -180,7 +180,7 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 | BR-REP-022     | Reject reason ≥ 20 chars                      |   ✅   | `RejectReport/` validator                                                                       |
 | BR-REP-030     | Duplicate Tier 1 (geo ≤25m + category)        |   ✅   | Inline trong `SubmitPollutionReportCommandHandler` — `GeoMath.HaversineMeters` + bbox           |
 | BR-REP-031     | LEO xác nhận / bác bỏ nghi ngờ trùng          |   ✅   | `ConfirmDuplicate/`, `DismissDuplicate/`, `GetDuplicateCandidates/`                             |
-| BR-REP-032     | Merge duplicate (+50% điểm, media + comments) |   ✅   | `ConfirmDuplicate` merge media + comments; `DuplicateMergedPointsHandler` (+50% ReportVerified) |
+| BR-REP-032     | Merge duplicate (+50% điểm, comments only)    |   ✅   | `ConfirmDuplicate`: merge **comments** (`Comment.ReassignToReport`), +1 reporter count; **media giữ trên báo cáo duplicate**; `DuplicateMergedPointsHandler` (+50% ReportVerified) |
 | BR-REP-033     | Citizen flag ≥3 → LEO review                  |   ✅   | `FlagReport/` + `DuplicateReviewNeeded` template + `SendFromTemplateAsync`                      |
 | BR-REP-034     | Cờ nghi tái phát (Closed ≤30d, ≤25m, category) |   ✅   | `SubmitPollutionReport` inline + `GetViolationRecurrenceCandidates/`, dismiss/comparison APIs; loại trừ lẫn nhau với BR-REP-031 |
 
@@ -323,7 +323,7 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 - `CommentsController` — 5 endpoints (`GET/POST /reports/{id}/comments`, `PUT/DELETE /comments/{id}`, `POST /comments/{id}/hide`)
 - `POST /v1/media/comments/images` — upload ảnh đính kèm
 - `fe-comments-api-guide.md`, link từ `fe-citizen-map-report-detail.md`
-- BR-REP-032: merge comments trong `ConfirmDuplicateCommandHandler`
+- BR-REP-032: merge comments trong `ConfirmDuplicateCommandHandler` (media **không** merge)
 - Migration: `20260714184414_AddCommentModule`
 - Tests: `CommentTests`, `CommentAccessTests`, `ProfanityFilterTests` (BR-CMT-\*)
 
@@ -427,7 +427,7 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 
 | Job                            | BR                | Lịch / Trigger   | Mô tả                                                  |
 | ------------------------------ | ----------------- | ---------------- | ------------------------------------------------------ |
-| `AutoCloseResolvedReportJob`   | BR-REP-016        | hourly           | ✅ Resolved → Closed sau 7 ngày (batch 100)            |
+| `AutoCloseResolvedReportJob`   | BR-REP-016        | hourly           | ✅ Resolved → Closed sau **2 ngày** (batch 100)        |
 | `SlaBreachVerificationJob`     | BR-OFF-002        | every 15'        | ✅ Submitted > 24h → flag breached + notification      |
 | `SlaBreachResolutionJob`       | BR-OFF-020        | every 30'        | ✅ InProgress > SLA → flag breached + notification     |
 | `OverdueReportNotificationJob` | BR-REP-008/009    | hourly           | ✅ Pending > 72h, Verified > 24h                       |
@@ -456,7 +456,7 @@ OVERVIEW.md v1.5 tuyên bố đã "Đồng bộ với SU26SE049_BusinessRules_v1
 | `CompanyStatus` enum                     | ✅ 5 values (incl. Terminated) | Suspend/Terminate/Reactivate/Expire transitions implemented     |
 | `PollutionCategory`                      | ✅ Configurable                | ⚠️ Seed data cần đúng 3 loại (v1.2 bỏ Không khí, Tiếng ồn)      |
 | `Invitation` entity                      | ✅ ĐÃ IMPLEMENT                | BR-ORG-020/021: `StaffInvitation` entity, 7d expiry, single-use |
-| `Comment` entity                         | ✅                             | BR-CMT-001..004, BR-REP-032 merge                               |
+| `Comment` entity                         | ✅                             | BR-CMT-001..004; BR-REP-032 merge comments (không merge media)   |
 | `Badge`, `UserPoints`                    | ✅ ĐÃ IMPLEMENT                | BR-GAM-001..006                                                 |
 | `Notification`, `NotificationPreference` | ✅ ĐÃ IMPLEMENT                | BR-NTF-001..004                                                 |
 | `ReportDraft`                            | ✅                             | Max 3 + `DraftCleanupJob` đã có                                 |

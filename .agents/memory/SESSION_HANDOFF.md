@@ -1,14 +1,15 @@
 # Session Handoff — GreenLens Backend
 
-> **Cập nhật lần cuối:** 2026-07-26 10:49 · **Phiên bản:** 21 · **Agent:** Antigravity
+> **Cập nhật lần cuối:** 2026-08-04 17:54 · **Phiên bản:** 22 · **Agent:** Antigravity / Cursor
 
 ## 0. TL;DR
 
-Backend .NET 9 GreenLens trên branch **`develop`**. Phiên 21 (kéo dài 22-07 → 26-07): Hoàn thành bộ **8 Class Diagrams + 1 Architecture Layer** trong `CLASS_DIAGRAMS.md`, **22 Sequence Diagrams** trong `SEQUENCE_DIAGRAMS.md` (đã bổ sung bad case cho 8 diagram còn thiếu). Thử nghiệm chuyển đổi sang **PlantUML** để import draw.io (1 file test SD-62). Đã xác nhận document FE LEO duplicate detection đầy đủ. **Việc tiếp theo:** Hoàn thành chuyển 22 diagram sang PlantUML nếu draw.io test OK; commit docs; tiếp tục backlog code (Unique index satisfaction, Profanity filter rate, Map module).
+Backend .NET 9 GreenLens trên branch **`develop`**. Phiên 22 (03-08 → 04-08): Tạo **`docs/API_COVERAGE_CHECKLIST.md`** — checklist đối chiếu FE Web/Mobile theo **luồng nghiệp vụ** từng actor (~271 endpoints, master index §13). Phiên 21 (22-07 → 26-07) đã hoàn thành Class/Sequence Diagrams. **Việc tiếp theo:** Tick coverage trên repo FE; PlantUML convert nếu draw.io OK; backlog code (satisfaction unique index, profanity, Map module).
 
 ## 1. Mục tiêu & Bối cảnh
 
 - **Mục tiêu tổng thể:** Backend .NET 9 crowdsourcing báo cáo ô nhiễm (SU26SE049)
+- **Phạm vi phiên 22:** API coverage checklist cho FE Web/Mobile (workflow-first, master index theo controller)
 - **Phạm vi phiên 21:** Vẽ UML diagrams cho tài liệu bảo vệ (Class + Sequence), bổ sung bad case, chuyển đổi PlantUML
 - **Branch hiện tại:** `develop`
 - **Ngôn ngữ:** Tiếng Việt (giao tiếp + XML doc BR), English (code)
@@ -25,6 +26,12 @@ Backend .NET 9 GreenLens trên branch **`develop`**. Phiên 21 (kéo dài 22-07 
 | 62  | **22/22 Sequence Diagram đều có bad case** (alt blocks cho error paths)                                            | Đầy đủ cho bảo vệ khi thầy/cô hỏi "nếu xảy ra lỗi thì sao?"                                               | 2026-07-22 |
 
 ## 3. Trạng thái hiện tại
+
+### ✅ Hoàn thành trong Phiên 22 (2026-08-03~04)
+
+**Documentation / FE integration:**
+- **`docs/API_COVERAGE_CHECKLIST.md`** (~842 dòng): checklist tick ☐ Web / ☐ Mobile theo luồng actor (Citizen → Admin); LEO tách Cleanup vs Inspection; §13 master index **271** endpoints (quét `Controllers/*.cs`); link FE guides trong `docs/Changelogs/`
+- Commits: `7d0221f` (03-08 tạo checklist), `9ef8dc9` (04-08 tái cấu trúc + sửa số đếm §13)
 
 ### ✅ Hoàn thành trong Phiên 21
 
@@ -56,6 +63,7 @@ Backend .NET 9 GreenLens trên branch **`develop`**. Phiên 21 (kéo dài 22-07 
 
 ## 4. Việc tiếp theo (Next Steps)
 
+- [ ] Dùng `docs/API_COVERAGE_CHECKLIST.md` tick coverage trên repo FE Web + Mobile
 - [ ] User test PlantUML file SD-62 trên draw.io → nếu OK, convert hết 22 diagram
 - [ ] Commit docs: CLASS_DIAGRAMS.md, SEQUENCE_DIAGRAMS.md, br_v12_comparison_report.md
 - [ ] Unique index + migration cho `report_satisfactions`
@@ -75,6 +83,7 @@ Backend .NET 9 GreenLens trên branch **`develop`**. Phiên 21 (kéo dài 22-07 
 | `docs/BusinessRule/br_v12_comparison_report.md` | BR coverage matrix | ⚠️ Modified, chưa commit |
 | `docs/Changelogs/fe-leo-duplicate-detection-guide.md` | FE: LEO duplicate detection guide | ✅ Đầy đủ 325 dòng |
 | `docs/BusinessRule/conceptual-erd.md` | Conceptual ERD 43 entities | ✅ Đã cập nhật (phiên 20) |
+| `docs/API_COVERAGE_CHECKLIST.md` | FE Web/Mobile API coverage theo luồng actor | ✅ Hoàn thành (phiên 22, cập nhật 04-08) |
 
 ## 6. Kiến thức nền & Quy ước
 
@@ -113,3 +122,4 @@ Backend .NET 9 GreenLens trên branch **`develop`**. Phiên 21 (kéo dài 22-07 
 - 2026-07-15 — Session v19: Audit satisfaction flow (đã có API); FE guide `fe-citizen-satisfaction-api-guide.md`.
 - 2026-07-15 — Session v20: Apply migrations dev DB. Cập nhật `GetReportById` trả satisfaction. Hoàn thiện ERD 43 entities.
 - 2026-07-22~26 — **Session v21:** Vẽ 8 Class Diagrams + Architecture Layer + 22 Sequence Diagrams. Bổ sung bad case cho 8 SD còn thiếu. Thử PlantUML cho draw.io (1 test file). Giải thích EXIF validation + Duplicate detection architecture. Xác nhận FE LEO duplicate guide đầy đủ.
+- 2026-08-03~04 — **Session v22:** `docs/API_COVERAGE_CHECKLIST.md` — workflow-first FE coverage checklist, master index 271 endpoints, LEO dual-track map.

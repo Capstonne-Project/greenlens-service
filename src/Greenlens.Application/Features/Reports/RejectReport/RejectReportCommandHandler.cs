@@ -11,12 +11,10 @@ using Microsoft.Extensions.Logging;
 namespace Greenlens.Application.Features.Reports.RejectReport;
 
 /// <summary>
-/// LEO rejects a report — report is re-queued to Department Common Queue.
+/// LEO rejects a report — terminal Rejected status with reason.
 /// </summary>
 /// <remarks>
-/// Implements: BR-ORG-015 (re-assign khi LEO reject, reason ≥ 20 chars),
-/// BR-ADM-010 (audit log).
-/// Report stays Submitted, AssignedOfficeId cleared → DEO picks up from common queue.
+/// Implements: BR-REP-022 (reason ≥ 20 chars), BR-ADM-010 (audit log).
 /// </remarks>
 public sealed class RejectReportCommandHandler(
     IReportRepository reports,
@@ -59,21 +57,17 @@ public sealed class RejectReportCommandHandler(
 
         var oldSnapshot = JsonSerializer.Serialize(new
         {
-            status = report.Status.ToString(),
-            assignedOfficeId = report.AssignedOfficeId
+            status = report.Status.ToString()
         });
 
-        // BR-ORG-015: Reject re-queues to Department — status stays Submitted,
-        // AssignedOfficeId cleared so DEO sees it in common queue
         report.Reject(request.Reason);
 
         var history = ReportStatusHistory.Create(
             report.Id,
-            ReportStatus.Submitted,   // stays Submitted
-            ReportStatus.Submitted,   // re-queued (not terminal Rejected)
+            ReportStatus.Submitted,
+            ReportStatus.Rejected,
             currentUser.UserId,
-            request.Reason,
-            metadata: "LEO rejected — re-queued to Department");
+            request.Reason);
 
         statusHistory.Add(history);
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
@@ -86,13 +80,12 @@ public sealed class RejectReportCommandHandler(
             newValues: JsonSerializer.Serialize(new
             {
                 status = report.Status.ToString(),
-                assignedOfficeId = report.AssignedOfficeId,
                 reasonLength = request.Reason.Length
             }),
             ct).ConfigureAwait(false);
 
         logger.LogInformation(
-            "Report {ReportId} rejected by LEO {UserId}, re-queued to Department",
+            "Report {ReportId} rejected by LEO {UserId}",
             report.Id, currentUser.UserId);
 
         return Result.Success();

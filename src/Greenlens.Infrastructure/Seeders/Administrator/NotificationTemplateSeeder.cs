@@ -274,9 +274,9 @@ internal static class NotificationTemplateSeeder
         Create(
             "report_auto_closed",
             "Báo cáo tự động đóng",
-            "Báo cáo {report_code} đã được hệ thống tự động đóng sau 7 ngày chờ xác nhận.",
+            "Báo cáo {report_code} đã được hệ thống tự động đóng sau 2 ngày chờ xác nhận.",
             "Report Auto-Closed",
-            "Report {report_code} has been automatically closed after 7 days pending confirmation.",
+            "Report {report_code} has been automatically closed after 2 days pending confirmation.",
             NotificationType.ReportAutoClosed),
 
         Create(
