@@ -8,8 +8,11 @@ public sealed record ReportSubmittedEvent(Guid ReportId) : IDomainEvent;
 /// <summary>Raised when a report is verified by LEO (Submitted → Verified).</summary>
 public sealed record ReportVerifiedEvent(Guid ReportId, Guid ReporterId) : IDomainEvent;
 
-/// <summary>Raised when a report is rejected by LEO (Submitted → Rejected).</summary>
-public sealed record ReportRejectedEvent(Guid ReportId, Guid ReporterId) : IDomainEvent;
+/// <summary>
+/// Raised when LEO rejects a report for re-queue to the Department common queue (BR-ORG-015).
+/// Report stays Submitted — this is NOT a terminal rejection.
+/// </summary>
+public sealed record ReportRejectedEvent(Guid ReportId, Guid ReporterId, string Reason) : IDomainEvent;
 
 /// <summary>Raised when a report is resolved (InProgress → Resolved).</summary>
 public sealed record ReportResolvedEvent(Guid ReportId, Guid ReporterId) : IDomainEvent;
