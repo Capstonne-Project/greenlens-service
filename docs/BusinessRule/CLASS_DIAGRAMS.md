@@ -7,49 +7,80 @@
 
 ---
 
-## Chú giải 4 loại Relationship (UML)
+## Chú giải 6 loại Relationship (UML)
+
+Theo **UML Relation Notation** chuẩn (Association, Inheritance, Realization, Dependency, Aggregation, Composition):
 
 ```mermaid
 classDiagram
-    class ParentClass {
-        <<Composition>>
+    class InterfaceA {
+        <<interface>>
+        Realization
     }
-    class ChildClass {
-        <<Composition>>
+    class ImplA {
+        Realization
     }
-    class WholeClass {
-        <<Aggregation>>
+    class Depender {
+        Dependency
     }
-    class PartClass {
-        <<Aggregation>>
+    class Dependee {
+        Dependency
     }
     class BaseClass {
-        <<Inheritance>>
+        Inheritance
     }
     class DerivedClass {
-        <<Inheritance>>
+        Inheritance
+    }
+    class WholeClass {
+        Aggregation
+    }
+    class PartClass {
+        Aggregation
+    }
+    class ParentClass {
+        Composition
+    }
+    class ChildClass {
+        Composition
     }
     class ClassA {
-        <<Association>>
+        Association
     }
     class ClassB {
-        <<Association>>
+        Association
     }
 
-    ParentClass *-- ChildClass : ◆ Composition\nChild không tồn tại\nnếu Parent bị xóa
-    WholeClass o-- PartClass : ◇ Aggregation\nPart tồn tại độc lập\nnếu Whole bị xóa
-    BaseClass <|-- DerivedClass : △ Inheritance\nDerivedClass kế thừa\ntừ BaseClass
-    ClassA --> ClassB : → Association\nTham chiếu đơn giản\ngiữa 2 class
+    InterfaceA <|.. ImplA : ◁ Realization\n(dashed + hollow △)
+    Depender ..> Dependee : ◁ Dependency\n(dashed + open arrow)
+    BaseClass <|-- DerivedClass : △ Inheritance\n(solid + hollow △)
+    WholeClass o-- PartClass : ◇ Aggregation\n(solid + hollow ◇)
+    ParentClass *-- ChildClass : ◆ Composition\n(solid + filled ◆)
+    ClassA --> ClassB : → Association\n(solid + open arrow)
 ```
 
-| Ký hiệu | Tên | Mermaid syntax | Ý nghĩa | Ví dụ GreenLens |
-|----------|-----|----------------|----------|-----------------|
-| ◆ (filled diamond) | **Composition** | `A *-- B` | B **không thể tồn tại** nếu A bị xóa | `Report *-- ReportMedia` — xóa Report → xóa luôn Media |
-| ◇ (empty diamond) | **Aggregation** | `A o-- B` | B **vẫn tồn tại** độc lập khi A bị xóa | `LocalOffice o-- EnvironmentalTeam` — team có thể transfer sang office khác |
-| △ (triangle) | **Inheritance** | `A <\|-- B` | B kế thừa từ A | `AuditableEntity <\|-- User` |
-| → (arrow) | **Association** | `A --> B` | A tham chiếu đến B (lookup, FK) | `Report --> User` — Report tham chiếu reporter |
-| ◁ (dashed) | **Dependency** | `A ..> B` | A phụ thuộc vào B (sử dụng) | `Handler ..> IRepository` — Handler dùng Repository |
-| ◁ (implements) | **Realization** | `A <\|.. B` | B implement interface A | `IJwtService <\|.. JwtService` |
+| Ký hiệu UML | Tên | Mermaid syntax | Ý nghĩa | Ví dụ GreenLens |
+|-------------|-----|----------------|----------|-----------------|
+| → (solid, open arrow) | **Association** | `A --> B` | Tham chiếu/navigable (FK, lookup) | `Report --> User` (reporter) |
+| △ (solid, hollow triangle) | **Inheritance** | `A <\|-- B` | B kế thừa A (generalization) | `AuditableEntity <\|-- User` |
+| △ (dashed, hollow triangle) | **Realization** | `A <\|.. B` | B implement interface A | `IJwtService <\|.. JwtService` |
+| → (dashed, open arrow) | **Dependency** | `A ..> B` | A sử dụng B (parameter, local, inject) | `Handler ..> IRepository` |
+| ◇ (solid, hollow diamond) | **Aggregation** | `A o-- B` | B tồn tại độc lập khi A bị xóa | `LocalOffice o-- EnvironmentalTeam` |
+| ◆ (solid, filled diamond) | **Composition** | `A *-- B` | B không tồn tại nếu A bị xóa | `Report *-- ReportMedia` |
+
+**Quy ước áp dụng trong CD:**
+
+| Tình huống | Dùng |
+|-----------|------|
+| Entity kế thừa base class | **Inheritance** `<\|--` |
+| Class implement interface | **Realization** `<\|..` |
+| Handler/Controller/Job inject interface hoặc tạo entity | **Dependency** `..>` |
+| FK giữa 2 aggregate (User↔Report, Report↔Category) | **Association** `-->` |
+| Child entity lifecycle gắn parent (Media, History, OTP) | **Composition** `*--` |
+| Part có thể tách khỏi whole (Team↔Office, Badge↔User) | **Aggregation** `o--` |
+| `Controller ..> Handler` trong CD | **Dependency** — shorthand runtime qua `ISender` MediatR |
+
+**Không dùng:** `-->` cho Handler→Interface (phải `..>`); `<|--` cho interface implementation (phải `<|..`).
 
 ---
 
@@ -107,7 +138,7 @@ classDiagram
 | RegisterCommandHandler ..> IPasswordHasher | **Dependency** | Handler dùng hasher |
 | RegisterCommandHandler ..> IOtpRepository | **Dependency** | Handler lưu OTP |
 | RegisterCommandHandler ..> IEmailSender | **Dependency** | Handler gửi OTP qua email |
-| AuthController --> ISender | **Association** | Controller dispatch qua MediatR |
+| AuthController ..> ISender | **Dependency** | Controller inject MediatR dispatch |
 
 ```mermaid
 classDiagram
@@ -262,6 +293,7 @@ classDiagram
     RegisterCommandHandler ..> IUnitOfWork : uses
     RegisterCommandHandler ..> User : creates
     RegisterCommandHandler ..> OtpCode : creates
+    AuthController ..> ISender : Dependency (MediatR)
     AuthController ..> RegisterCommandHandler : dispatches via ISender
 ```
 
@@ -400,6 +432,7 @@ classDiagram
     LoginCommandHandler ..> IUnitOfWork : uses
     LoginCommandHandler ..> User : reads
     LoginCommandHandler ..> RefreshToken : creates
+    AuthController ..> ISender : Dependency (MediatR)
     AuthController ..> LoginCommandHandler : dispatches via ISender
 ```
 
@@ -487,6 +520,7 @@ classDiagram
     RefreshTokenCommandHandler ..> IUserRepository : uses
     RefreshTokenCommandHandler ..> IUnitOfWork : uses
     RefreshTokenCommandHandler ..> RefreshToken : revokes old + creates new
+    AuthController ..> ISender : Dependency (MediatR)
     AuthController ..> RefreshTokenCommandHandler : dispatches via ISender
 ```
 
@@ -613,6 +647,12 @@ classDiagram
         + SortOrder : int
     }
 
+    class User {
+        <<referenced>>
+        + Id : Guid
+        + FullName : string
+    }
+
     class ReportStatus {
         <<enumeration>>
         Submitted
@@ -702,6 +742,7 @@ classDiagram
     Report "1" *-- "0..*" ReportStatusHistory : Composition
     Report "1" *-- "0..*" ReportWasteTag : Composition
     Report "0..*" --> "1" PollutionCategory : Association
+    Report "0..*" --> "0..1" User : Association (reporter)
     Report --> ReportStatus : Association
     Report --> Severity : Association
     ReportMedia --> MediaType : Association
@@ -3276,6 +3317,11 @@ classDiagram
         + SaveChangesAsync(ct CancellationToken) Task~int~
     }
 
+    class User {
+        <<referenced>>
+        + Id : Guid
+    }
+
     class NotificationEventHandler {
         <<DomainEvent Handler>>
         - _notificationService : INotificationService
@@ -3300,6 +3346,8 @@ classDiagram
 
     Notification --> NotificationType : Association
     Notification --> NotificationChannel : Association
+    Notification --> User : Association (recipient)
+    NotificationPreference --> User : Association
     NotificationPreference --> NotificationType : Association
     NotificationTemplate --> NotificationType : Association
     NotificationTemplate --> NotificationChannel : Association
@@ -3609,7 +3657,7 @@ stateDiagram-v2
 
 ## Tổng hợp quan hệ liên module (Cross-Module Overview)
 
-> Diagram tổng quan cấp cao, hiển thị các entity chính và quan hệ cross-module với đầy đủ 4 loại relationship.
+> Diagram tổng quan cấp cao, hiển thị các entity chính và quan hệ cross-module với đầy đủ **6 loại UML** (Composition, Aggregation, Association, Inheritance — không gồm Dependency/Realization vì tầng kiến trúc xem ở §Architecture Layer).
 
 ```mermaid
 classDiagram
@@ -3677,7 +3725,7 @@ classDiagram
     InspectionReport "1" *-- "0..*" PenaltyPayment : Composition
     InspectionReport "1" *-- "0..*" InspectionEvidence : Composition
     User "1" *-- "1" UserPoints : Composition
-    User "1" *-- "0..*" Notification : Composition
+    User "1" --> "0..*" Notification : Association (recipient)
     Department "1" *-- "0..*" LocalOffice : Composition
 
     %% Aggregation (◇ child exists independently)
@@ -3737,7 +3785,7 @@ flowchart TB
     API -->|depends on| APP
     API -.->|DI registration| INFRA
     APP -->|depends on| DOM
-    INFRA -->|implements| APP
+    INFRA -.->|realizes| APP
     INFRA -->|depends on| DOM
 
     style DOM fill:#2d5016,stroke:#4a8c2a,color:#fff
@@ -3991,8 +4039,8 @@ classDiagram
     IPipelineBehavior <|.. TransactionBehavior : implements
     IPipelineBehavior <|.. AuditLogBehavior : implements
 
-    ISender --> IPipelineBehavior : 1. dispatches through
-    IPipelineBehavior --> IRequestHandler : 2. delegates to
+    ISender ..> IPipelineBehavior : 1. dispatches through
+    IPipelineBehavior ..> IRequestHandler : 2. delegates to
 ```
 
 ### Request Flow tổng quan (API → Handler → Domain)
