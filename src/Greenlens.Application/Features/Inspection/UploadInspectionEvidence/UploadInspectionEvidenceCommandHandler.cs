@@ -12,10 +12,10 @@ using Microsoft.Extensions.Logging;
 namespace Greenlens.Application.Features.Inspection.UploadInspectionEvidence;
 
 /// <summary>
-/// Upload inspection checklist evidence to cloud storage and persist as InspectionEvidence.
+/// Persist inspection checklist evidence URLs already uploaded to R2 via presigned PUT.
 /// </summary>
 /// <remarks>
-/// Implements: BR-INS-033 (checklist), BR-INS-010 (≥ 2 scene photos).
+/// Implements: BR-INS-033 (checklist), BR-INS-010 (≥ 2 scene photos), BR-SYS-002 (object storage).
 /// </remarks>
 public sealed class UploadInspectionEvidenceCommandHandler(
     IInspectionReportRepository inspections,
@@ -29,18 +29,11 @@ public sealed class UploadInspectionEvidenceCommandHandler(
     ILogger<UploadInspectionEvidenceCommandHandler> logger)
     : IRequestHandler<UploadInspectionEvidenceCommand, Result<UploadInspectionEvidenceResponse>>
 {
-    private const long MaxImageBytes = 20 * 1024 * 1024;
-    private const long MaxVideoBytes = 30 * 1024 * 1024;
-    private const long MaxAudioBytes = 10 * 1024 * 1024;
-
     public async Task<Result<UploadInspectionEvidenceResponse>> Handle(
         UploadInspectionEvidenceCommand request, CancellationToken ct)
     {
-        if (request.Files.Count == 0)
+        if (request.Items.Count == 0)
             return Errors.Inspections.EvidenceImagesRequired;
-
-        if (request.Category == InspectionEvidenceCategory.ViolationStatus)
-            return Errors.Inspections.ChecklistViolationStatusRequired;
 
         var inspection = await inspections.GetByIdAsync(request.InspectionId, ct).ConfigureAwait(false);
         if (inspection is null)
@@ -57,42 +50,44 @@ public sealed class UploadInspectionEvidenceCommandHandler(
         if (authError is not null)
             return authError;
 
-        var uploadedUrls = new List<string>();
-        var folder = $"reports/{inspection.ReportId}/inspection/{inspection.Id}/{request.Category.ToString().ToLowerInvariant()}";
+        var folderPrefix = InspectionEvidenceUploadRules.BuildFolderPrefix(
+            inspection.ReportId,
+            inspection.Id,
+            request.Category);
 
-        foreach (var file in request.Files)
+        var savedUrls = new List<string>(request.Items.Count);
+
+        foreach (var item in request.Items)
         {
-            var maxSize = request.Category switch
-            {
-                InspectionEvidenceCategory.Video => MaxVideoBytes,
-                InspectionEvidenceCategory.Audio => MaxAudioBytes,
-                _ => MaxImageBytes
-            };
+            var url = item.Url.Trim();
 
-            if (file.Bytes.LongLength > maxSize)
+            if (!fileStorage.IsOwnedPublicUrl(url))
             {
-                return Result<UploadInspectionEvidenceResponse>.Failure(new Error(
-                    "FILE_TOO_LARGE",
-                    $"File '{file.FileName}' exceeds size limit for {request.Category}.",
-                    ErrorType.Validation));
+                logger.LogWarning("Invalid storage URL for inspection evidence: {Url}", url);
+                return Errors.Media.InvalidStorageUrl;
             }
 
-            using var stream = new MemoryStream(file.Bytes);
-            var uploaded = await fileStorage.UploadAsync(
-                stream, file.FileName, file.ContentType, folder, ct).ConfigureAwait(false);
+            if (!InspectionEvidenceUploadRules.UrlMatchesFolder(url, folderPrefix))
+            {
+                logger.LogWarning(
+                    "Inspection evidence URL outside expected folder {FolderPrefix}: {Url}",
+                    folderPrefix,
+                    url);
+                return Errors.Media.InvalidStorageUrl;
+            }
 
             var evidence = InspectionEvidence.CreateMedia(
                 inspection.Id,
                 request.Category,
-                uploaded.Url,
-                file.ContentType,
-                file.Bytes.LongLength,
+                url,
+                item.ContentType.Trim(),
+                item.SizeBytes,
                 currentUser.UserId,
-                file.DurationSeconds,
+                item.DurationSeconds,
                 request.Description);
 
             evidences.Add(evidence);
-            uploadedUrls.Add(uploaded.Url);
+            savedUrls.Add(url);
         }
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
@@ -119,9 +114,9 @@ public sealed class UploadInspectionEvidenceCommandHandler(
             .ConfigureAwait(false);
 
         logger.LogInformation(
-            "Uploaded {Count} {Category} evidence for inspection {InspectionId} (total: {Total})",
-            uploadedUrls.Count, request.Category, inspection.Id, totalCount);
+            "Saved {Count} {Category} evidence URLs for inspection {InspectionId} (total: {Total})",
+            savedUrls.Count, request.Category, inspection.Id, totalCount);
 
-        return new UploadInspectionEvidenceResponse(uploadedUrls, totalCount);
+        return new UploadInspectionEvidenceResponse(savedUrls, totalCount);
     }
 }
