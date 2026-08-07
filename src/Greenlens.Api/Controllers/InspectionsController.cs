@@ -222,62 +222,43 @@ public sealed class InspectionsController(ISender sender) : ControllerBase
     [HttpPost("{id:guid}/evidence")]
     [Authorize(Roles = "Inspector")]
     [Tags("🔍 Inspection Dashboard")]
-    [Consumes("multipart/form-data")]
+    [Consumes("application/json")]
     [SwaggerOperation(
-        Summary = "[Inspector] Upload bằng chứng checklist",
-        Description = "Upload ảnh/video/audio theo category checklist (BR-INS-033). ScenePhoto cần ≥ 2 ảnh.")]
-    [SwaggerResponse(200, "Đã upload", typeof(ApiResponse<UploadInspectionEvidenceResponse>))]
+        Summary = "[Inspector] Lưu bằng chứng checklist (JSON)",
+        Description =
+            "Persist public URLs sau khi upload trực tiếp lên R2 qua POST /v1/media/presign (purpose=InspectionEvidence). " +
+            "BR-INS-033: ScenePhoto cần ≥ 2 ảnh trước submit-field-report.")]
+    [SwaggerResponse(200, "Đã lưu evidence", typeof(ApiResponse<UploadInspectionEvidenceResponse>))]
     public async Task<IActionResult> UploadEvidenceAsync(
         [FromRoute] Guid id,
-        [FromForm] InspectionEvidenceCategory category,
-        List<IFormFile> files,
-        [FromForm] string? description = null,
-        CancellationToken ct = default)
-        => await UploadEvidenceInternalAsync(id, category, files, description, ct);
+        [FromBody] UploadInspectionEvidenceRequest request,
+        CancellationToken ct)
+        => (await sender.Send(new UploadInspectionEvidenceCommand(
+            id,
+            request.Category,
+            request.Items.Select(i => new InspectionEvidenceMediaItem(
+                i.Url, i.ContentType, i.SizeBytes, i.DurationSeconds)).ToList(),
+            request.Description), ct)).ToHttp();
 
     [HttpPost("{id:guid}/evidence-images")]
     [Authorize(Roles = "Inspector")]
     [Tags("🔍 Inspection Dashboard")]
-    [Consumes("multipart/form-data")]
+    [Consumes("application/json")]
     [Obsolete("Use POST /evidence with category=ScenePhoto")]
     [SwaggerOperation(
-        Summary = "[Inspector] Upload ảnh hiện trường (legacy route)",
-        Description = "Alias của POST /evidence?category=ScenePhoto.")]
-    [SwaggerResponse(200, "Đã upload", typeof(ApiResponse<UploadInspectionEvidenceResponse>))]
+        Summary = "[Inspector] Lưu ảnh hiện trường (legacy route)",
+        Description = "Alias JSON của POST /evidence với category=ScenePhoto.")]
+    [SwaggerResponse(200, "Đã lưu evidence", typeof(ApiResponse<UploadInspectionEvidenceResponse>))]
     public async Task<IActionResult> UploadEvidenceImagesAsync(
         [FromRoute] Guid id,
-        List<IFormFile> images,
+        [FromBody] UploadInspectionEvidenceImagesRequest request,
         CancellationToken ct)
-        => await UploadEvidenceInternalAsync(id, InspectionEvidenceCategory.ScenePhoto, images, null, ct);
-
-    private async Task<IActionResult> UploadEvidenceInternalAsync(
-        Guid id,
-        InspectionEvidenceCategory category,
-        List<IFormFile>? files,
-        string? description,
-        CancellationToken ct)
-    {
-        if (files is null || files.Count == 0)
-        {
-            return BadRequest(new ApiResponse
-            {
-                Code = "FILE_REQUIRED",
-                Message = "Vui lòng chọn ít nhất 1 file.",
-                Status = 400
-            });
-        }
-
-        var evidenceFiles = new List<InspectionEvidenceFile>();
-        foreach (var file in files)
-        {
-            using var ms = new MemoryStream();
-            await file.CopyToAsync(ms, ct);
-            evidenceFiles.Add(new InspectionEvidenceFile(ms.ToArray(), file.FileName, file.ContentType));
-        }
-
-        var command = new UploadInspectionEvidenceCommand(id, category, evidenceFiles, description);
-        return (await sender.Send(command, ct)).ToHttp();
-    }
+        => (await sender.Send(new UploadInspectionEvidenceCommand(
+            id,
+            InspectionEvidenceCategory.ScenePhoto,
+            request.Items.Select(i => new InspectionEvidenceMediaItem(
+                i.Url, i.ContentType, i.SizeBytes, i.DurationSeconds)).ToList(),
+            Description: null), ct)).ToHttp();
 
     [HttpPut("{id:guid}/issue-penalty")]
     [Authorize(Roles = "Inspector,Admin")]
@@ -525,3 +506,17 @@ public sealed record UpdateInspectionProgressRequest(
     string? Note = null);
 
 public sealed record AssignInspectionTeamRequest(Guid TeamId);
+
+public sealed record UploadInspectionEvidenceRequest(
+    InspectionEvidenceCategory Category,
+    IReadOnlyList<InspectionEvidenceItemRequest> Items,
+    string? Description = null);
+
+public sealed record UploadInspectionEvidenceImagesRequest(
+    IReadOnlyList<InspectionEvidenceItemRequest> Items);
+
+public sealed record InspectionEvidenceItemRequest(
+    string Url,
+    string ContentType,
+    long SizeBytes,
+    int? DurationSeconds = null);

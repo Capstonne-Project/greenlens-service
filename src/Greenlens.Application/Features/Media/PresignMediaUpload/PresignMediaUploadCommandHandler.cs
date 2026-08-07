@@ -1,7 +1,10 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Inspection;
+using Greenlens.Application.Features.Inspection.UploadInspectionEvidence;
 using Greenlens.Domain.Common;
+using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -16,6 +19,8 @@ namespace Greenlens.Application.Features.Media.PresignMediaUpload;
 public sealed class PresignMediaUploadCommandHandler(
     IFileStorageService fileStorage,
     IReportRepository reports,
+    IInspectionReportRepository inspections,
+    ITeamMemberRepository teamMembers,
     ICurrentUser currentUser,
     ILogger<PresignMediaUploadCommandHandler> logger)
     : IRequestHandler<PresignMediaUploadCommand, Result<PresignMediaUploadResponse>>
@@ -48,7 +53,24 @@ public sealed class PresignMediaUploadCommandHandler(
             }
         }
 
-        if (!TryResolveLimits(request.Purpose, out var folderTemplate, out var maxBytes, out var requireImageMime))
+        if (request.Purpose is MediaUploadPurpose.InspectionEvidence)
+        {
+            var inspectionGuardError = await ValidateInspectionEvidenceUploadAsync(
+                    request.InspectionId!.Value,
+                    request.EvidenceCategory!.Value,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            if (inspectionGuardError is not null)
+            {
+                logger.LogWarning(
+                    "Inspection evidence presign blocked: {ErrorCode}, InspectionId={InspectionId}",
+                    inspectionGuardError.Code,
+                    request.InspectionId);
+                return inspectionGuardError;
+            }
+        }
+
+        if (!TryResolveLimits(request, out var folderTemplate, out var maxBytes, out var requireImageMime))
         {
             logger.LogWarning("Invalid upload purpose {Purpose}", request.Purpose);
             return Errors.Media.InvalidUploadPurpose;
@@ -69,6 +91,23 @@ public sealed class PresignMediaUploadCommandHandler(
                 return Errors.Media.InvalidImageType;
             }
         }
+        else if (request.Purpose is MediaUploadPurpose.InspectionEvidence)
+        {
+            contentType = request.ContentType.Trim();
+            if (!IsAllowedInspectionEvidenceContentType(request.EvidenceCategory!.Value, safeFileName, contentType))
+            {
+                logger.LogWarning(
+                    "Invalid content type {ContentType} for inspection evidence category {Category}",
+                    contentType,
+                    request.EvidenceCategory);
+                return request.EvidenceCategory switch
+                {
+                    InspectionEvidenceCategory.Video => Errors.Media.InvalidVideoType,
+                    InspectionEvidenceCategory.Audio => Errors.Media.InvalidImageType,
+                    _ => Errors.Media.InvalidImageType
+                };
+            }
+        }
         else
         {
             contentType = request.ContentType.Trim();
@@ -80,8 +119,18 @@ public sealed class PresignMediaUploadCommandHandler(
             return Errors.Media.ImageTooLarge;
         }
 
+        var folderReportId = request.ReportId;
+        if (request.Purpose is MediaUploadPurpose.InspectionEvidence)
+        {
+            var inspection = await inspections.GetByIdAsync(request.InspectionId!.Value, cancellationToken)
+                .ConfigureAwait(false);
+            folderReportId = inspection!.ReportId;
+        }
+
         var folder = folderTemplate
-            .Replace("{reportId}", request.ReportId?.ToString("N") ?? "unknown", StringComparison.Ordinal);
+            .Replace("{reportId}", folderReportId?.ToString() ?? "unknown", StringComparison.Ordinal)
+            .Replace("{inspectionId}", request.InspectionId?.ToString() ?? "unknown", StringComparison.Ordinal)
+            .Replace("{category}", request.EvidenceCategory?.ToString().ToLowerInvariant() ?? "unknown", StringComparison.Ordinal);
 
         try
         {
@@ -118,13 +167,13 @@ public sealed class PresignMediaUploadCommandHandler(
     }
 
     private static bool TryResolveLimits(
-        MediaUploadPurpose purpose,
+        PresignMediaUploadCommand request,
         out string folderTemplate,
         out long maxBytes,
         out bool requireImageMime)
     {
         requireImageMime = true;
-        switch (purpose)
+        switch (request.Purpose)
         {
             case MediaUploadPurpose.ReportImage:
             case MediaUploadPurpose.After:
@@ -151,6 +200,12 @@ public sealed class PresignMediaUploadCommandHandler(
                 folderTemplate = "reports/{reportId}/reopen";
                 maxBytes = 10 * 1024 * 1024;
                 return true;
+            case MediaUploadPurpose.InspectionEvidence:
+                folderTemplate = "reports/{reportId}/inspection/{inspectionId}/{category}";
+                maxBytes = InspectionEvidenceUploadRules.MaxBytesFor(request.EvidenceCategory!.Value);
+                requireImageMime = request.EvidenceCategory is InspectionEvidenceCategory.ScenePhoto
+                    or InspectionEvidenceCategory.Other;
+                return true;
             default:
                 folderTemplate = string.Empty;
                 maxBytes = 0;
@@ -170,6 +225,8 @@ public sealed class PresignMediaUploadCommandHandler(
                 normalizedRole is "CLEANER" or "COMPANYSTAFF",
             MediaUploadPurpose.Progress =>
                 normalizedRole is "CLEANER" or "COMPANYSTAFF" or "INSPECTOR",
+            MediaUploadPurpose.InspectionEvidence =>
+                normalizedRole is "INSPECTOR",
             MediaUploadPurpose.ReportImage or
             MediaUploadPurpose.Comment or
             MediaUploadPurpose.Avatar or
@@ -200,5 +257,49 @@ public sealed class PresignMediaUploadCommandHandler(
         }
 
         return ReopenRequestEligibility.ValidateCitizenCanRequest(report, DateTime.UtcNow);
+    }
+
+    private async Task<Error?> ValidateInspectionEvidenceUploadAsync(
+        Guid inspectionId,
+        InspectionEvidenceCategory category,
+        CancellationToken ct)
+    {
+        if (category is InspectionEvidenceCategory.ViolationStatus)
+            return Errors.Inspections.ChecklistViolationStatusRequired;
+
+        var inspection = await inspections.GetByIdAsync(inspectionId, ct).ConfigureAwait(false);
+        if (inspection is null)
+            return Errors.Inspections.InspectionNotFound;
+
+        if (inspection.FieldInvestigationSubmittedAt.HasValue)
+            return Errors.Inspections.FieldReportAlreadySubmitted;
+
+        if (inspection.Status != InspectionStatus.InProgress)
+            return Errors.Inspections.InvalidStatusTransition;
+
+        return await InspectionTeamAuthorization.ValidateTeamMemberAsync(
+            inspection,
+            teamMembers,
+            currentUser,
+            ct).ConfigureAwait(false);
+    }
+
+    private static bool IsAllowedInspectionEvidenceContentType(
+        InspectionEvidenceCategory category,
+        string fileName,
+        string contentType)
+    {
+        return category switch
+        {
+            InspectionEvidenceCategory.ScenePhoto or InspectionEvidenceCategory.Other =>
+                ReportImageContentTypes.IsAllowed(fileName, contentType),
+            InspectionEvidenceCategory.Video =>
+                contentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(Path.GetExtension(fileName), ".mp4", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(Path.GetExtension(fileName), ".mov", StringComparison.OrdinalIgnoreCase),
+            InspectionEvidenceCategory.Audio =>
+                contentType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase),
+            _ => false
+        };
     }
 }
