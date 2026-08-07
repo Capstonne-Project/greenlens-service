@@ -16,6 +16,7 @@ internal sealed class GetMyNotificationsQueryHandler(
     ICurrentUser currentUser,
     INotificationRepository notificationRepo,
     IReportRepository reports,
+    IInspectionReportRepository inspections,
     ILogger<GetMyNotificationsQueryHandler> logger)
     : IRequestHandler<GetMyNotificationsQuery, Result<GetMyNotificationsResponse>>
 {
@@ -60,20 +61,40 @@ internal sealed class GetMyNotificationsQueryHandler(
             .ToListAsync(ct).ConfigureAwait(false);
 
         // Enrich report-linked rows with category + thumbnail (mobile list UI).
-        var reportIds = items
+        // referenceId của type "trực tiếp Report" = Report.Id; của type "Inspection-linked"
+        // (BR-INS-*) = InspectionReport.Id — cần join qua InspectionReport để lấy ReportId thật.
+        var directReportIds = items
             .Where(i => i.ReferenceId.HasValue && IsReportLinkedType(i.Type))
             .Select(i => i.ReferenceId!.Value)
-            .Distinct()
             .ToList();
 
-        if (reportIds.Count == 0)
+        var inspectionIds = items
+            .Where(i => i.ReferenceId.HasValue && IsInspectionLinkedType(i.Type))
+            .Select(i => i.ReferenceId!.Value)
+            .ToList();
+
+        if (directReportIds.Count == 0 && inspectionIds.Count == 0)
         {
             logger.LogInformation("No report IDs found");
             return new GetMyNotificationsResponse(items, totalCount, unreadCount);
         }
 
+        // Map InspectionId → ReportId thật, để tra reportMeta bên dưới.
+        var inspectionToReportId = inspectionIds.Count == 0
+            ? new Dictionary<Guid, Guid>()
+            : await inspections.QueryAsNoTracking()
+                .Where(ir => inspectionIds.Contains(ir.Id))
+                .Select(ir => new { ir.Id, ir.ReportId })
+                .ToDictionaryAsync(x => x.Id, x => x.ReportId, ct)
+                .ConfigureAwait(false);
+
+        var allReportIds = directReportIds
+            .Concat(inspectionToReportId.Values)
+            .Distinct()
+            .ToList();
+
         var reportMeta = await reports.QueryAsNoTracking()
-            .Where(r => reportIds.Contains(r.Id))
+            .Where(r => allReportIds.Contains(r.Id))
             .Select(r => new
             {
                 r.Id,
@@ -91,7 +112,15 @@ internal sealed class GetMyNotificationsQueryHandler(
 
         var enriched = items.Select(n =>
         {
-            if (!n.ReferenceId.HasValue || !reportMeta.TryGetValue(n.ReferenceId.Value, out var meta))
+            if (!n.ReferenceId.HasValue)
+                return n;
+
+            // referenceId là InspectionId → resolve về ReportId thật trước khi tra reportMeta.
+            var reportId = IsInspectionLinkedType(n.Type)
+                ? (inspectionToReportId.TryGetValue(n.ReferenceId.Value, out var mapped) ? mapped : (Guid?)null)
+                : n.ReferenceId.Value;
+
+            if (!reportId.HasValue || !reportMeta.TryGetValue(reportId.Value, out var meta))
                 return n;
 
             return n with
@@ -106,6 +135,7 @@ internal sealed class GetMyNotificationsQueryHandler(
         return new GetMyNotificationsResponse(enriched, totalCount, unreadCount);
     }
 
+    /// <summary>referenceId = Report.Id thật.</summary>
     private static bool IsReportLinkedType(NotificationType type) => type is
         NotificationType.ReportStatusChanged or
         NotificationType.NewComment or
@@ -117,12 +147,6 @@ internal sealed class GetMyNotificationsQueryHandler(
         NotificationType.SlaVerificationBreachedLeo or
         NotificationType.SlaVerificationEscalatedDeo or
         NotificationType.SlaResolutionBreached or
-        NotificationType.SlaInspectionBreached or
-        NotificationType.InspectionTaskAssigned or
-        NotificationType.InspectionTaskDeclined or
-        NotificationType.InspectionTaskAccepted or
-        NotificationType.InspectionProgressUpdated or
-        NotificationType.InspectionTaskCompleted or
         NotificationType.InspectionClosedNoViolation or
         NotificationType.PenaltyPaymentOverdue or
         NotificationType.CleanupProgressStale or
@@ -138,4 +162,14 @@ internal sealed class GetMyNotificationsQueryHandler(
         NotificationType.ReopenRequestDecided or
         NotificationType.ReportVerificationNeeded or
         NotificationType.PenaltyIssued;
+
+    /// <summary>referenceId = InspectionReport.Id — cần join qua InspectionReport để lấy ReportId thật.</summary>
+    private static bool IsInspectionLinkedType(NotificationType type) => type is
+        NotificationType.SlaInspectionBreached or
+        NotificationType.InspectionTaskAssigned or
+        NotificationType.InspectionTaskDeclined or
+        NotificationType.InspectionTaskAccepted or
+        NotificationType.InspectionProgressUpdated or
+        NotificationType.InspectionTaskCompleted or
+        NotificationType.InspectionPenaltyPaidAndClosed;
 }

@@ -177,6 +177,15 @@ internal static class NotificationPlaceholders
             ["reason"] = reason
         };
 
+    internal static Dictionary<string, string> ForInspectionPenaltyPaidAndClosed(
+        string reportCode,
+        decimal paidAmount) =>
+        new(StringComparer.Ordinal)
+        {
+            ["report_code"] = reportCode,
+            ["paid_amount"] = paidAmount.ToString("N0")
+        };
+
     internal static Dictionary<string, string> ForPenaltyPaymentOverdue(
         string reportCode,
         string decisionNumber) =>
