@@ -31,6 +31,7 @@ public sealed class GetMyCommunityCleanupsQueryHandler(
     {
         var query = participants.QueryAsNoTracking()
             .Where(p => p.UserId == currentUser.UserId)
+            .OrderByDescending(p => p.Event!.CreatedAt)
             .Select(p => new Row(
                 p.Event!,
                 p,
@@ -45,8 +46,7 @@ public sealed class GetMyCommunityCleanupsQueryHandler(
                     .Where(m => m.Type == MediaType.Image)
                     .OrderBy(m => m.UploadedAt)
                     .Select(m => m.ThumbnailUrl ?? m.Url)
-                    .FirstOrDefault()))
-            .OrderByDescending(r => r.Event.CreatedAt);
+                    .FirstOrDefault()));
 
         var totalCount = await query.CountAsync(ct).ConfigureAwait(false);
         var pagination = PaginationMeta.Create(request.Page, request.PageSize, totalCount);
