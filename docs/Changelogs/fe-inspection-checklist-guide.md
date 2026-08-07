@@ -50,7 +50,7 @@ Draft → POST /accept → InProgress
 
 ## Record payment
 
-`PUT /record-payment` — **multipart/form-data**:
+`PUT /record-payment` — **multipart/form-data**. Role: **`LEO`** (phụ trách khu vực/office của report gốc, BR-ORG-012) hoặc `Admin` — **không còn Inspector Team Leader**.
 
 - `paidAmount`, `paidAt`, `receipt` (file, required), `note` (optional)
 

@@ -2173,6 +2173,7 @@ classDiagram
         + Close(reason? string) Result
         + MarkOverdue() Result
     }
+    note for InspectionReport "RecordPayment() [LEO, BR-INS-020]:\nchỉ nhận payment.Amount == PenaltyAmount - PaidAmount\n(không partial) → Status = Paid.\nHandler gọi Close() ngay sau đó trong cùng request."
 
     class InspectionEvidence {
         <<Entity>>
@@ -2201,6 +2202,7 @@ classDiagram
         Closed
         ClosedNoViolation
     }
+    note for InspectionStatus "PartiallyPaid: giữ lại cho dữ liệu lịch sử,\nkhông còn đạt được từ RecordPayment() nữa\n(chỉ nhận full amount — BR-INS-020)."
 
     class IReportRepository {
         <<interface>>
@@ -2751,26 +2753,33 @@ classDiagram
 
 ### CD-30: Record Payment & Close Inspection (→ SD-39 ⭐)
 
-**Actor:** Team Leader (Mobile) · **BR:** BR-INS-020, BR-INS-021, BR-ADM-010
+**Actor:** LEO (Web Portal) · **BR:** BR-INS-020, BR-ORG-012, BR-ADM-010, BR-NTF-002
 
-> **Hai bước cùng SD-39:** Phase 1 — `POST .../payments` upload biên lai + ghi `PenaltyPayment` → `Paid`/`PartiallyPaid`/`Overdue`; Phase 2 — khi đủ tiền, `POST .../close` → `Closed`.
+> **Đổi từ thiết kế cũ:** không còn là Inspector Team Leader, không còn 2 bước tách rời (record-payment
+> rồi close riêng), không còn hỗ trợ nộp từng phần (`PartiallyPaid` không còn đạt được từ luồng này).
+> **`RecordPaymentHandler`** giờ là 1 handler duy nhất: xác thực LEO đúng khu vực report gốc
+> (qua `InspectionTeamAuthorization.ValidateLeoForReportAsync`, không phải `ValidateTeamLeaderAsync`),
+> bắt buộc `paidAmount` khớp đúng số còn lại, ghi `PenaltyPayment`, gọi `InspectionReport.RecordPayment()`
+> **rồi gọi luôn `InspectionReport.Close()`** trong cùng transaction, và gửi notification
+> `InspectionPenaltyPaidAndClosed` cho Inspector Team Leader (`IssuedByInspectorId`) — người ban hành QĐ
+> xử phạt không còn tự đóng hồ sơ, chỉ nhận thông báo hoàn tất.
 
 **Phân loại Relationship:**
 
 | Relationship | Loại | Lý do |
 |---|---|---|
-| InspectionReport → PenaltyPayment | **Composition** ◆ | Payment records thuộc inspection |
-| InspectionReport → InspectionStatus | **Association** → | PenaltyIssued → Paid → Closed |
-| RecordPaymentHandler ..> IFileStorageService | **Dependency** | Upload receipt (multipart) |
-| RecordPaymentHandler ..> IAuditLogger | **Dependency** | BR-ADM-010 audit (phase 1) |
-| RecordPaymentHandler ..> IUnitOfWork | **Dependency** | Commit payment |
-| RecordPaymentHandler ..> InspectionReport | **Dependency** | RecordPayment() |
+| InspectionReport → PenaltyPayment | **Composition** ◆ | Payment record thuộc inspection (tối đa 1 bản ghi full — không còn partial) |
+| InspectionReport → InspectionStatus | **Association** → | PenaltyIssued/Overdue → Paid → Closed (1 bước) |
+| RecordPaymentHandler ..> InspectionTeamAuthorization | **Dependency** | `ValidateLeoForReportAsync` — LEO đúng khu vực report gốc |
+| RecordPaymentHandler ..> ILocalOfficeRepository | **Dependency** | Tra `LocalOffice.OfficerId == currentUser` (qua AuthZ) |
+| RecordPaymentHandler ..> IReportRepository | **Dependency** | Load report gốc để lấy `AssignedOfficeId`/`Code` |
+| RecordPaymentHandler ..> IFileStorageService | **Dependency** | Upload receipt (multipart), bắt buộc |
+| RecordPaymentHandler ..> INotificationService | **Dependency** | Báo Inspector Team Leader — `InspectionPenaltyPaidAndClosed` |
+| RecordPaymentHandler ..> IAuditLogger | **Dependency** | BR-ADM-010 audit (`RecordPaymentAndClose`) |
+| RecordPaymentHandler ..> IUnitOfWork | **Dependency** | Commit payment + close cùng 1 SaveChanges |
+| RecordPaymentHandler ..> InspectionReport | **Dependency** | `RecordPayment()` rồi `Close()` liên tiếp |
 | RecordPaymentHandler ..> PenaltyPayment | **Dependency** | Tạo payment entity |
-| CloseInspectionHandler ..> InspectionReport | **Dependency** | Paid → Closed (phase 2) |
-| CloseInspectionHandler ..> IAuditLogger | **Dependency** | BR-ADM-010 audit (phase 2) |
-| CloseInspectionHandler ..> IUnitOfWork | **Dependency** | Commit close |
-| InspectionsController ..> RecordPaymentHandler | **Dependency** | POST /payments |
-| InspectionsController ..> CloseInspectionHandler | **Dependency** | POST /close |
+| InspectionsController ..> RecordPaymentHandler | **Dependency** | `PUT /record-payment` — role `LEO,Admin` |
 
 ```mermaid
 classDiagram
@@ -2791,6 +2800,7 @@ classDiagram
         + PenaltyDueDate : DateTime?
         + ClosedAt : DateTime?
         + ClosedReason : string?
+        + IssuedByInspectorId : Guid?
         + RecordPayment(payment PenaltyPayment) Result
         + Close(reason? string) Result
     }
@@ -2798,15 +2808,36 @@ classDiagram
     class InspectionStatus {
         <<enumeration>>
         PenaltyIssued
-        PartiallyPaid
         Paid
         Overdue
         Closed
     }
 
+    note for InspectionReport "RecordPayment() chỉ chấp nhận\npayment.Amount == PenaltyAmount - PaidAmount\n(khớp đúng số còn lại — BR-INS-020).\nLuôn set Status = Paid, không còn nhánh PartiallyPaid."
+
+    class InspectionTeamAuthorization {
+        <<static helper>>
+        + ValidateLeoForReportAsync(inspection, reports, localOffices, currentUser, ct)$ Task~Error?~
+    }
+
+    class ILocalOfficeRepository {
+        <<interface>>
+        + QueryAsNoTracking() IQueryable~LocalOffice~
+    }
+
+    class IReportRepository {
+        <<interface>>
+        + GetByIdAsync(id Guid, ct CancellationToken) Task~Report?~
+    }
+
     class IFileStorageService {
         <<interface>>
         + UploadAsync(stream, fileName, contentType, folder, ct) Task~UploadedFile~
+    }
+
+    class INotificationService {
+        <<interface>>
+        + SendFromTemplateAsync(recipientId, type, placeholders, referenceId?, ct) Task
     }
 
     class IAuditLogger {
@@ -2820,42 +2851,36 @@ classDiagram
     }
 
     class RecordPaymentHandler {
-        <<Handler — phase 1>>
+        <<Handler>>
+        - _reports : IReportRepository
+        - _localOffices : ILocalOfficeRepository
         - _fileStorage : IFileStorageService
+        - _notificationService : INotificationService
         - _auditLogger : IAuditLogger
         - _unitOfWork : IUnitOfWork
         + Handle(cmd RecordPaymentCommand, ct CancellationToken) Task~Result~
     }
 
-    class CloseInspectionHandler {
-        <<Handler — phase 2>>
-        - _auditLogger : IAuditLogger
-        - _unitOfWork : IUnitOfWork
-        + Handle(cmd CloseInspectionCommand, ct CancellationToken) Task~Result~
-    }
-
     class InspectionsController {
         <<Controller>>
         - _sender : ISender
-        + RecordPayment(id Guid, cmd RecordPaymentCommand) Task~IActionResult~
-        + Close(id Guid, cmd CloseInspectionCommand) Task~IActionResult~
+        + RecordPayment(id Guid, paidAmount decimal, paidAt DateTime, receipt IFormFile, note? string) Task~IActionResult~
     }
 
-    InspectionReport "1" *-- "0..*" PenaltyPayment : Composition
+    InspectionReport "1" *-- "0..1" PenaltyPayment : Composition (full payment duy nhất)
     InspectionReport --> InspectionStatus : Association
 
+    RecordPaymentHandler ..> InspectionTeamAuthorization : validates LEO scope
+    InspectionTeamAuthorization ..> ILocalOfficeRepository : queries
+    InspectionTeamAuthorization ..> IReportRepository : loads report
     RecordPaymentHandler ..> IFileStorageService : upload receipt
+    RecordPaymentHandler ..> INotificationService : notify Inspector (IssuedByInspectorId)
     RecordPaymentHandler ..> IAuditLogger : audit log
     RecordPaymentHandler ..> IUnitOfWork : uses
-    RecordPaymentHandler ..> InspectionReport : PenaltyIssued → Paid/PartiallyPaid
+    RecordPaymentHandler ..> InspectionReport : RecordPayment() then Close()
     RecordPaymentHandler ..> PenaltyPayment : creates
 
-    CloseInspectionHandler ..> InspectionReport : Paid → Closed
-    CloseInspectionHandler ..> IAuditLogger : audit log
-    CloseInspectionHandler ..> IUnitOfWork : uses
-
     InspectionsController ..> RecordPaymentHandler : dispatches via ISender
-    InspectionsController ..> CloseInspectionHandler : dispatches via ISender
 ```
 
 ---
@@ -2956,8 +2981,8 @@ classDiagram
 | `CanAcceptTask` | `Status == Draft` && `AssignedTeamId != null` |
 | `CanConfirmArrival`, `CanEditChecklist`, `CanSubmitFieldReport`, `CanEditDetails` | `InProgress` && chưa submit field report |
 | `CanIssuePenalty`, `CanCloseNoViolation` | `InProgress` && đã submit field report |
-| `CanRecordPayment` | `PenaltyIssued` / `PartiallyPaid` / `Overdue` |
-| `CanClose` | `Paid` |
+| `CanRecordPayment` | `PenaltyIssued` / `Overdue` — chỉ LEO thấy nút này (Web Portal), Inspector App không hiện |
+| `CanClose` | `Paid` — hiếm khi true, vì `RecordPayment` của LEO đã tự động `Close` |
 
 ---
 
@@ -4137,15 +4162,15 @@ stateDiagram-v2
     InProgress --> PenaltyIssued : PUT /issue-penalty [SD-32]
     InProgress --> ClosedNoViolation : PUT /close-no-violation [SD-35]
 
-    PenaltyIssued --> Paid : PUT /record-payment full [SD-39]
-    PenaltyIssued --> PartiallyPaid : partial payment [SD-39]
+    note right of PenaltyIssued
+        PUT /record-payment [SD-39] — Actor: LEO (không phải Inspector)
+        Chỉ nhận đúng số tiền còn lại (không partial).
+        Paid + Closed xảy ra trong CÙNG 1 request.
+    end note
+
+    PenaltyIssued --> Closed : LEO PUT /record-payment (full) [SD-39]\n(RecordPayment() → Paid, rồi Close() tự động)
     PenaltyIssued --> Overdue : past due date (job)
-
-    PartiallyPaid --> Paid : remaining paid [SD-39]
-    PartiallyPaid --> Overdue : past due date (job)
-    Overdue --> Paid : late payment [SD-39]
-
-    Paid --> Closed : PUT /close [SD-39]
+    Overdue --> Closed : LEO PUT /record-payment (full, trễ hạn) [SD-39]
 
     Draft --> ClosedNoViolation : ForceCloseNoViolation (SLA job)
     InProgress --> ClosedNoViolation : ForceCloseNoViolation (SLA job)
@@ -4601,7 +4626,7 @@ flowchart LR
 | CD-27 | SD-33 ⭐ | Update Checklist & Evidence | Inspector |
 | CD-28 | SD-34 ⭐ | Submit Field Investigation | Team Leader |
 | CD-29 | SD-35 ⭐ | Close No Violation | Team Leader |
-| CD-30 | SD-39 ⭐ | Record Payment & Close Inspection (phase 1 + 2) | Team Leader |
+| CD-30 | SD-39 ⭐ | Record Payment & Close Inspection (1 bước, auto-close) | LEO |
 | CD-32 | SD-41 ⭐ | GET Detail + Capability Flags | Inspector |
 | CD-16 | SD-36 ⭐ | Create Dept & LocalOffice | Admin |
 | CD-17 | SD-37 ⭐ | Create Team | LEO |
