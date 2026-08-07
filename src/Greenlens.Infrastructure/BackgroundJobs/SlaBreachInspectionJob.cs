@@ -85,7 +85,7 @@ internal sealed class SlaBreachInspectionJob(
                 inspection.CreatedByOfficerId,
                 NotificationType.SlaInspectionBreached,
                 placeholders,
-                inspection.ReportId).ConfigureAwait(false);
+                inspection.Id).ConfigureAwait(false);
         }
 
         foreach (var (reportId, reportCode, reporterId) in autoClosedReports)

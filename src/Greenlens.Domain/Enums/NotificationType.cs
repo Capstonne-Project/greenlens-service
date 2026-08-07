@@ -46,6 +46,9 @@ public enum NotificationType
     /// <summary>BR-INS-021: LEO/DEO — penalty payment deadline passed.</summary>
     PenaltyPaymentOverdue,
 
+    /// <summary>BR-INS-020: Inspector (issuer) — LEO recorded full payment and closed the dossier.</summary>
+    InspectionPenaltyPaidAndClosed,
+
     /// <summary>BR-CLN-004: LEO — cleanup team stale progress &gt; 48h.</summary>
     CleanupProgressStale,
 
