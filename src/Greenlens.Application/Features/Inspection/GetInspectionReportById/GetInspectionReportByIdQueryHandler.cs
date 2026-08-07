@@ -138,9 +138,7 @@ public sealed class GetInspectionReportByIdQueryHandler(
             CanEditDetails: inProgress && !fieldSubmitted,
             CanIssuePenalty: inProgress && fieldSubmitted,
             CanCloseNoViolation: inProgress && fieldSubmitted,
-            CanRecordPayment: ir.Status is InspectionStatus.PenaltyIssued
-                or InspectionStatus.PartiallyPaid
-                or InspectionStatus.Overdue,
+            CanRecordPayment: ir.Status is InspectionStatus.PenaltyIssued or InspectionStatus.Overdue,
             CanClose: ir.Status == InspectionStatus.Paid);
     }
 }
