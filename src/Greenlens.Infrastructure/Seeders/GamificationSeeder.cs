@@ -22,34 +22,36 @@ internal static class GamificationSeeder
         int? RequiredPoints,
         int? RequiredStreakDays = null);
 
+    private const string R2PublicBase = "https://pub-d1de759d41364ae7890b5d1273065f8c.r2.dev";
+
     private static readonly BadgeSeed[] DefaultBadges =
     [
         new("first_report", "Người Khởi Đầu", "First Reporter",
-            "Gửi báo cáo ô nhiễm đầu tiên được xác minh", "badges/icons/first_report.png", 1, null),
+            "Gửi báo cáo ô nhiễm đầu tiên được xác minh", $"{R2PublicBase}/badges/icons/first_report.png", 1, null),
         new("eco_warrior", "Chiến Binh Xanh", "Eco Warrior",
-            "Gửi 10 báo cáo ô nhiễm được xác minh", "badges/icons/eco_warrior.png", 10, null),
+            "Gửi 10 báo cáo ô nhiễm được xác minh", $"{R2PublicBase}/badges/icons/eco_warrior.png", 10, null),
         new("green_champion", "Nhà Vô Địch Xanh", "Green Champion",
-            "Gửi 50 báo cáo ô nhiễm được xác minh", "badges/icons/green_champion.png", 50, null),
+            "Gửi 50 báo cáo ô nhiễm được xác minh", $"{R2PublicBase}/badges/icons/green_champion.png", 50, null),
         new("earth_guardian", "Người Bảo Vệ Trái Đất", "Earth Guardian",
-            "Gửi 100 báo cáo ô nhiễm được xác minh", "badges/icons/earth_guardian.png", 100, null),
+            "Gửi 100 báo cáo ô nhiễm được xác minh", $"{R2PublicBase}/badges/icons/earth_guardian.png", 100, null),
         new("streak_7d", "Bền Bỉ 7 Ngày", "7-Day Streak",
-            "Gửi báo cáo 7 ngày liên tiếp", "badges/icons/streak_7d.png", null, null, RequiredStreakDays: 7),
+            "Gửi báo cáo 7 ngày liên tiếp", $"{R2PublicBase}/badges/icons/streak_7d.png", null, null, RequiredStreakDays: 7),
         new("streak_30d", "Kiên Trì 30 Ngày", "30-Day Streak",
-            "Gửi báo cáo 30 ngày liên tiếp", "badges/icons/streak_30d.png", null, null, RequiredStreakDays: 30),
+            "Gửi báo cáo 30 ngày liên tiếp", $"{R2PublicBase}/badges/icons/streak_30d.png", null, null, RequiredStreakDays: 30),
         new("hotspot_hunter", "Thợ Săn Điểm Nóng", "Hotspot Hunter",
-            "Gửi 3 báo cáo trong khu vực hotspot ô nhiễm", "badges/icons/hotspot_hunter.png", null, null),
+            "Gửi 3 báo cáo trong khu vực hotspot ô nhiễm", $"{R2PublicBase}/badges/icons/hotspot_hunter.png", null, null),
         new("duplicate_finder", "Người Phát Hiện Trùng", "Duplicate Finder",
-            "5 báo cáo được xác nhận là trùng lặp, hỗ trợ phát hiện ô nhiễm", "badges/icons/duplicate_finder.png", null, null),
+            "5 báo cáo được xác nhận là trùng lặp, hỗ trợ phát hiện ô nhiễm", $"{R2PublicBase}/badges/icons/duplicate_finder.png", null, null),
         new("community_voice", "Tiếng Nói Cộng Đồng", "Community Voice",
-            "Có báo cáo nhận ≥ 10 lượt xác nhận từ cộng đồng", "badges/icons/community_voice.png", null, null),
+            "Có báo cáo nhận ≥ 10 lượt xác nhận từ cộng đồng", $"{R2PublicBase}/badges/icons/community_voice.png", null, null),
         new("rising_star", "Ngôi Sao Đang Lên", "Rising Star",
-            "Đạt Level 2 với 100 điểm tích lũy", "badges/icons/rising_star.png", null, 100),
+            "Đạt Level 2 với 100 điểm tích lũy", $"{R2PublicBase}/badges/icons/rising_star.png", null, 100),
         new("eco_expert", "Chuyên Gia Môi Trường", "Eco Expert",
-            "Đạt Level 4 với 1.500 điểm tích lũy", "badges/icons/eco_expert.png", null, 1500),
+            "Đạt Level 4 với 1.500 điểm tích lũy", $"{R2PublicBase}/badges/icons/eco_expert.png", null, 1500),
         new("green_legend", "Huyền Thoại Xanh", "Green Legend",
-            "Đạt Level 5 với 5.000 điểm tích lũy — thành tựu cao nhất", "badges/icons/green_legend.png", null, 5000),
+            "Đạt Level 5 với 5.000 điểm tích lũy — thành tựu cao nhất", $"{R2PublicBase}/badges/icons/green_legend.png", null, 5000),
         new("cleanup_hero", "Anh Hùng Dọn Dẹp", "Cleanup Hero",
-            "Hoàn thành tham gia 2 chương trình dọn dẹp cộng đồng", "badges/icons/cleanup_hero.png", null, null),
+            "Hoàn thành tham gia 2 chương trình dọn dẹp cộng đồng", $"{R2PublicBase}/badges/icons/cleanup_hero.png", null, null),
     ];
 
     private static readonly (PointReason Action, int Points, string Description)[] DefaultConfigs =
