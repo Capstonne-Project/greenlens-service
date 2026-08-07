@@ -55,10 +55,19 @@ public sealed class PenaltyPayment : SoftDeletableEntity
         {
             InspectionReportId = inspectionReportId,
             Amount = amount,
-            PaidAt = paidAt,
+            PaidAt = NormalizeToUtc(paidAt),
             RecordedByUserId = recordedByUserId,
             EvidenceUrl = evidenceUrl,
             Note = note
         };
     }
+
+    // Npgsql throws when writing DateTime.Kind=Utc/Local into a `timestamptz` column
+    // unless normalized first — client-supplied paidAt can arrive in either kind.
+    private static DateTime NormalizeToUtc(DateTime value) => value.Kind switch
+    {
+        DateTimeKind.Utc => value,
+        DateTimeKind.Local => value.ToUniversalTime(),
+        _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+    };
 }

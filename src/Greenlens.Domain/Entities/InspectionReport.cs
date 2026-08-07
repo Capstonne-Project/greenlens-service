@@ -319,31 +319,27 @@ public sealed class InspectionReport : SoftDeletableEntity
 
     /// <summary>
     /// BR-INS-020: Record payment via PenaltyPayment entity.
-    /// PenaltyIssued/PartiallyPaid/Overdue → Paid or PartiallyPaid.
-    /// Supports partial payment (multiple PenaltyPayment records).
+    /// PenaltyIssued/Overdue → Paid. Chỉ nhận đúng 1 lần, đủ toàn bộ số tiền còn lại
+    /// (không chấp nhận nộp thiếu hoặc dư) — không còn hỗ trợ nộp từng phần.
     /// </summary>
     public Result RecordPayment(PenaltyPayment payment)
     {
-        if (Status is not (InspectionStatus.PenaltyIssued
-            or InspectionStatus.PartiallyPaid
-            or InspectionStatus.Overdue))
+        if (Status is not (InspectionStatus.PenaltyIssued or InspectionStatus.Overdue))
             return Result.Failure(new Error(
                 "INSPECTION_INVALID_STATE",
                 $"Cannot record payment from status {Status}.",
                 ErrorType.BusinessRule));
 
-        if (payment.Amount <= 0)
+        var remaining = PenaltyAmount - (PaidAmount ?? 0);
+        if (payment.Amount != remaining)
             return Result.Failure(new Error(
-                "INVALID_PAYMENT_AMOUNT",
-                "Payment amount must be greater than zero.",
+                "PAYMENT_AMOUNT_MUST_MATCH_REMAINING",
+                $"Số tiền nộp phải đúng bằng số tiền còn lại ({remaining:N0}).",
                 ErrorType.Validation));
 
         Payments.Add(payment);
         PaidAmount = (PaidAmount ?? 0) + payment.Amount;
-
-        Status = PaidAmount >= PenaltyAmount
-            ? InspectionStatus.Paid
-            : InspectionStatus.PartiallyPaid;
+        Status = InspectionStatus.Paid;
 
         UpdatedAt = DateTime.UtcNow;
         return Result.Success();
