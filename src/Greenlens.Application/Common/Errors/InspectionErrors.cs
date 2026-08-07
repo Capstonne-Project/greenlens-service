@@ -61,6 +61,12 @@ public static partial class Errors
             "Hồ sơ xử phạt không được gán cho team của bạn.",
             ErrorType.Forbidden);
 
+        /// <summary>BR-ORG-012: LEO recording payment must be the officer assigned to the underlying report's ward.</summary>
+        public static Error NotAssignedLeoForReport => new(
+            "NOT_ASSIGNED_LEO_FOR_REPORT",
+            "Bạn không phải là cán bộ phụ trách khu vực của báo cáo này.",
+            ErrorType.Forbidden);
+
         public static Error InspectionAlreadyExistsForReport => new(
             "INSPECTION_ALREADY_EXISTS",
             "Báo cáo này đã có hồ sơ xử phạt đang hoạt động.",
