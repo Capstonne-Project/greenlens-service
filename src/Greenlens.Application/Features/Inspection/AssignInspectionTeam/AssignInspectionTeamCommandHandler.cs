@@ -97,7 +97,7 @@ public sealed class AssignInspectionTeamCommandHandler(
         if (report is not null)
         {
             await taskAssignedNotifier
-                .NotifyTeamAsync(request.TeamId, report.Id, report.Code, ct)
+                .NotifyTeamAsync(request.TeamId, report.Id, inspection.Id, report.Code, ct)
                 .ConfigureAwait(false);
         }
 

@@ -54,6 +54,7 @@ public sealed class AcceptInspectionTaskCommandHandler(
                     inspection.CreatedByOfficerId,
                     teamId,
                     report.Id,
+                    inspection.Id,
                     report.Code,
                     ct).ConfigureAwait(false);
             }
