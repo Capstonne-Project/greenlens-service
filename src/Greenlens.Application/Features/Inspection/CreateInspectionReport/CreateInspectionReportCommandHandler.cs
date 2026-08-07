@@ -123,7 +123,7 @@ public sealed class CreateInspectionReportCommandHandler(
         if (request.AssignedTeamId.HasValue)
         {
             await taskAssignedNotifier
-                .NotifyTeamAsync(request.AssignedTeamId.Value, report.Id, report.Code, ct)
+                .NotifyTeamAsync(request.AssignedTeamId.Value, report.Id, inspection.Id, report.Code, ct)
                 .ConfigureAwait(false);
         }
 
