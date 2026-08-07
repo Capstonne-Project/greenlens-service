@@ -106,6 +106,7 @@ public sealed class UploadInspectionEvidenceCommandHandler(
                     inspection.CreatedByOfficerId,
                     teamId,
                     report.Id,
+                    inspection.Id,
                     report.Code,
                     InspectionActivityLabels.FormatEvidenceUpload(request.Category),
                     ct).ConfigureAwait(false);
