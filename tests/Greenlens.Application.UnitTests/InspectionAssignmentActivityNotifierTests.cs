@@ -30,11 +30,12 @@ public sealed class InspectionAssignmentActivityNotifierTests
         var leoId = Guid.NewGuid();
         var teamId = Guid.NewGuid();
         var reportId = Guid.NewGuid();
+        var inspectionId = Guid.NewGuid();
 
         _teams.GetByIdAsync(teamId, Arg.Any<CancellationToken>())
             .Returns(EnvironmentalTeam.Create("Đội Thanh tra A", Guid.NewGuid(), TeamType.Inspection));
 
-        await _sut.NotifyAcceptedAsync(leoId, teamId, reportId, "RPT-810", CancellationToken.None);
+        await _sut.NotifyAcceptedAsync(leoId, teamId, reportId, inspectionId, "RPT-810", CancellationToken.None);
 
         await _notifications.Received(1).SendFromTemplateAsync(
             leoId,
@@ -51,6 +52,7 @@ public sealed class InspectionAssignmentActivityNotifierTests
         var leoId = Guid.NewGuid();
         var teamId = Guid.NewGuid();
         var reportId = Guid.NewGuid();
+        var inspectionId = Guid.NewGuid();
 
         _teams.GetByIdAsync(teamId, Arg.Any<CancellationToken>())
             .Returns(EnvironmentalTeam.Create("Đội Thanh tra B", Guid.NewGuid(), TeamType.Inspection));
@@ -59,6 +61,7 @@ public sealed class InspectionAssignmentActivityNotifierTests
             leoId,
             teamId,
             reportId,
+            inspectionId,
             "RPT-811",
             InspectionActivityLabels.ChecklistUpdated,
             CancellationToken.None);
@@ -80,6 +83,7 @@ public sealed class InspectionAssignmentActivityNotifierTests
         var leoId = Guid.NewGuid();
         var teamId = Guid.NewGuid();
         var reportId = Guid.NewGuid();
+        var inspectionId = Guid.NewGuid();
 
         _teams.GetByIdAsync(teamId, Arg.Any<CancellationToken>())
             .Returns(EnvironmentalTeam.Create("Đội Thanh tra C", Guid.NewGuid(), TeamType.Inspection));
@@ -88,6 +92,7 @@ public sealed class InspectionAssignmentActivityNotifierTests
             leoId,
             teamId,
             reportId,
+            inspectionId,
             "RPT-812",
             InspectionActivityLabels.PenaltyIssued,
             CancellationToken.None);
