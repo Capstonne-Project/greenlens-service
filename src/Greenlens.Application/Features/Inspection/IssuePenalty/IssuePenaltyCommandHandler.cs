@@ -126,6 +126,7 @@ public sealed class IssuePenaltyCommandHandler(
                     inspection.CreatedByOfficerId,
                     teamId,
                     report.Id,
+                    inspection.Id,
                     report.Code,
                     InspectionActivityLabels.PenaltyIssued,
                     ct).ConfigureAwait(false);

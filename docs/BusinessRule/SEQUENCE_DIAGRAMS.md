@@ -1001,7 +1001,7 @@ sequenceDiagram
 
 ## Nhóm 4: Inspection & Penalty
 
-> **Luồng đầy đủ (BR-INS-033):** SD-28 → SD-29 → **SD-41** (mở detail) → SD-30 → SD-31 (optional) → SD-33 → SD-34 → SD-32 *hoặc* SD-35 → **SD-39**
+> **Luồng đầy đủ (BR-INS-033):** SD-28 → SD-29 → **SD-41** (mở detail) → SD-30 → SD-31 (optional) → SD-33 → SD-34 → SD-32 *hoặc* SD-35 → **SD-39 (LEO)**
 
 | SD | Use case | Actor |
 |----|----------|-------|
@@ -1014,7 +1014,7 @@ sequenceDiagram
 | SD-34 | Gửi biên bản hiện trường | Team Leader |
 | SD-32 | Lập quyết định xử phạt | Team Leader |
 | SD-35 | Đóng — không vi phạm | Team Leader |
-| SD-39 | Ghi nhận thanh toán + đóng biên bản | Team Leader |
+| SD-39 | Ghi nhận thanh toán đủ **& tự động đóng biên bản** (1 bước) | **LEO (Web)** — không còn Team Leader |
 
 ---
 
@@ -1186,8 +1186,8 @@ sequenceDiagram
         Hdl->>Hdl: CanAcceptTask = Draft && AssignedTeamId != null
         Hdl->>Hdl: CanConfirmArrival / CanEditChecklist /<br/>CanSubmitFieldReport / CanEditDetails<br/>= inProgress && !fieldSubmitted
         Hdl->>Hdl: CanIssuePenalty / CanCloseNoViolation<br/>= inProgress && fieldSubmitted
-        Hdl->>Hdl: CanRecordPayment = PenaltyIssued | PartiallyPaid | Overdue
-        Hdl->>Hdl: CanClose = Paid
+        Hdl->>Hdl: CanRecordPayment = PenaltyIssued | Overdue<br/>(LEO web only — không còn PartiallyPaid, không hiện ở Inspector App)
+        Hdl->>Hdl: CanClose = Paid<br/>(hiếm khi true — RecordPayment của LEO đã tự động Close)
 
         Hdl-->>-Ctrl: Result InspectionReportDetailResponse<br/>{status, checklistEvidence, payments, can*}
         Ctrl-->>-App: 200 OK
@@ -1207,8 +1207,8 @@ sequenceDiagram
 | `canSubmitFieldReport` | Gửi biên bản hiện trường → SD-34 |
 | `canIssuePenalty` | Lập quyết định xử phạt → SD-32 |
 | `canCloseNoViolation` | Đóng — không vi phạm → SD-35 |
-| `canRecordPayment` | Ghi nhận thanh toán → SD-39 (phase 1) |
-| `canClose` | Đóng biên bản → SD-39 (phase 2) |
+| `canRecordPayment` | *(Không hiện ở Inspector App)* — chỉ LEO thấy nút "Ghi nhận nộp phạt" trên Web Portal → SD-39 |
+| `canClose` | *(Legacy)* — RecordPayment của LEO nay tự động Close, endpoint `PUT /close` hiếm khi cần dùng riêng |
 
 ---
 
@@ -1557,92 +1557,85 @@ sequenceDiagram
 
 ---
 
-### SD-39 ⭐ Record Payment & Close Inspection
+### SD-39 ⭐ Record Payment & Close Inspection (LEO — 1 hành động duy nhất)
 
-**Actor:** Team Leader · **BR:** BR-INS-020, BR-INS-021, BR-ADM-010
+**Actor:** LEO (phụ trách khu vực của report gốc) · **BR:** BR-INS-020, BR-ORG-012, BR-ADM-010, BR-NTF-002
 
-> Sau SD-32 (Issue Penalty). Phase 1: ghi nhận thanh toán + biên lai. Phase 2: đóng biên bản khi `Status = Paid`.
+> Sau SD-32 (Issue Penalty, do Inspector Team Leader ban hành).
+> **Đổi từ thiết kế cũ:** người xác nhận đóng tiền và đóng biên bản không còn là Inspector Team Leader
+> mà chuyển hẳn cho **LEO** — vì LEO là người trực tiếp tiếp dân và thu tiền phạt tại trụ sở phường/xã
+> (BR-INS-020 "in-person at ward office"). Không còn hỗ trợ nộp từng phần: `paidAmount` phải khớp
+> **đúng bằng** số tiền còn lại; ghi nhận thành công sẽ **tự động đóng hồ sơ luôn** trong cùng 1 request
+> (`Paid → Closed`), không cần thao tác `PUT /close` riêng nữa. Inspector Team Leader (người đã ban hành
+> QĐ xử phạt) chỉ nhận **1 thông báo duy nhất** báo hồ sơ đã hoàn tất — không còn tự bấm đóng.
 
 ```mermaid
 sequenceDiagram
-    actor Leader as Team Leader
-    participant App as Mobile App
+    actor LEO as LEO
+    participant Web as Web Portal
     participant Ctrl as :InspectionsController
     participant PayHdl as :RecordPaymentHandler
-    participant CloseHdl as :CloseInspectionHandler
+    participant AuthZ as :InspectionTeamAuthorization
+    participant LeoOfficeRepo as :ILocalOfficeRepository
+    participant ReportRepo as :IReportRepository
     participant InspRepo as :IInspectionReportRepository
     participant Storage as :IFileStorageService
+    participant Notif as :INotificationService
     participant Audit as :IAuditLogger
     participant UoW as :IUnitOfWork
     participant DB as Database
+    actor Insp as Inspector Team Leader
 
-    rect rgb(240, 248, 255)
-        Note over Leader,DB: Phase 1 — Ghi nhận thanh toán + biên lai
-        Leader->>+App: Ghi nhận thanh toán + upload biên lai
-        App->>+Ctrl: PUT /v1/inspections/{id}/record-payment (multipart:<br/>paidAmount, paidAt, receipt, note?)
-        Ctrl->>+PayHdl: Send(RecordPaymentCommand)
+    LEO->>+Web: Xác nhận đã nộp đủ + upload biên lai (Section "Thanh toán")
+    Web->>+Ctrl: PUT /v1/inspections/{id}/record-payment (multipart:<br/>paidAmount, paidAt, receipt, note?)
+    Ctrl->>+PayHdl: Send(RecordPaymentCommand)
 
-        PayHdl->>+InspRepo: GetByIdAsync(inspectionId)
-        InspRepo-->>-PayHdl: inspection (PenaltyIssued/PartiallyPaid/Overdue)
+    PayHdl->>+InspRepo: GetByIdAsync(inspectionId)
+    InspRepo-->>-PayHdl: inspection (PenaltyIssued/Overdue)
 
-        alt User không phải Team Leader
-            PayHdl-->>Ctrl: Result.Failure(Forbidden)
-            Ctrl-->>App: 403 Forbidden
-        else Thiếu file receipt
-            PayHdl-->>Ctrl: Result.Failure(Validation:<br/>"PaymentReceiptRequired")
-            Ctrl-->>App: 400 Bad Request
-            App-->>Leader: Hiển thị "Cần upload biên lai"
-        else Status không hợp lệ
-            PayHdl-->>Ctrl: Result.Failure(BusinessRule)
-            Ctrl-->>App: 422 Unprocessable Entity
-        else Happy path — thu tiền
-            PayHdl->>+Storage: UploadAsync(receipt) → R2
-            Storage-->>-PayHdl: evidenceUrl
-            PayHdl->>PayHdl: PenaltyPayment.Create + inspection.RecordPayment(payment)
-            Note over PayHdl: Status → Paid hoặc PartiallyPaid
-            PayHdl->>+UoW: SaveChangesAsync()
-            UoW->>+DB: INSERT penalty_payments,<br/>UPDATE inspection_reports
-            DB-->>-UoW: OK
-            UoW-->>-PayHdl: OK
-            PayHdl->>+Audit: LogAsync("RecordPayment", ...)
-            Audit->>DB: INSERT audit_logs
-            Audit-->>-PayHdl: OK
-            PayHdl-->>-Ctrl: Result.Success
-            Ctrl-->>-App: 200 OK
-            App-->>Leader: Hiển thị trạng thái thanh toán
-        end
-    end
+    PayHdl->>+AuthZ: ValidateLeoForReportAsync(inspection, ...)
+    AuthZ->>+ReportRepo: GetByIdAsync(inspection.ReportId)
+    ReportRepo-->>-AuthZ: report
+    AuthZ->>+LeoOfficeRepo: QueryAsNoTracking() — OfficerId == currentUser
+    LeoOfficeRepo-->>-AuthZ: leoOffice?
+    AuthZ-->>-PayHdl: null hoặc lỗi NotAssignedLeoForReport
 
-    rect rgb(255, 248, 240)
-        Note over Leader,DB: Phase 2 — Đóng biên bản (khi đã thu đủ)
-        Leader->>+App: Xác nhận đóng biên bản
-        App->>+Ctrl: PUT /v1/inspections/{id}/close {reason?}
-        Ctrl->>+CloseHdl: Send(CloseInspectionCommand)
-
-        CloseHdl->>+InspRepo: GetByIdAsync(inspectionId)
-        InspRepo-->>-CloseHdl: inspection
-
-        alt inspection.Status ≠ Paid
-            CloseHdl-->>Ctrl: Result.Failure(BusinessRule:<br/>"Phải thu đủ tiền phạt trước")
-            Ctrl-->>App: 422 Unprocessable Entity
-            App-->>Leader: Hiển thị lỗi trạng thái
-        else User không phải Team Leader
-            CloseHdl-->>Ctrl: Result.Failure(Forbidden)
-            Ctrl-->>App: 403 Forbidden
-        else Happy path — đóng biên bản
-            CloseHdl->>CloseHdl: inspection.Close(reason)
-            Note over CloseHdl: Status: Paid → Closed
-            CloseHdl->>+UoW: SaveChangesAsync()
-            UoW->>+DB: UPDATE inspection_reports SET status, closed_at
-            DB-->>-UoW: OK
-            UoW-->>-CloseHdl: OK
-            CloseHdl->>+Audit: LogAsync("CloseInspection", ...)
-            Audit->>DB: INSERT audit_logs
-            Audit-->>-CloseHdl: OK
-            CloseHdl-->>-Ctrl: Result.Success
-            Ctrl-->>-App: 200 OK
-            App-->>-Leader: Hiển thị "Biên bản đã đóng"
-        end
+    alt LEO không phụ trách khu vực của report này
+        PayHdl-->>Ctrl: Result.Failure(Forbidden:<br/>"NOT_ASSIGNED_LEO_FOR_REPORT")
+        Ctrl-->>Web: 403 Forbidden
+    else Thiếu file receipt
+        PayHdl-->>Ctrl: Result.Failure(Validation:<br/>"PaymentReceiptRequired")
+        Ctrl-->>Web: 400 Bad Request
+        Web-->>LEO: Hiển thị "Cần upload biên lai"
+    else Status không hợp lệ (không phải PenaltyIssued/Overdue)
+        PayHdl-->>Ctrl: Result.Failure(BusinessRule:<br/>"INSPECTION_INVALID_STATE")
+        Ctrl-->>Web: 422 Unprocessable Entity
+    else paidAmount ≠ số tiền còn lại
+        PayHdl-->>Ctrl: Result.Failure(Validation:<br/>"PAYMENT_AMOUNT_MUST_MATCH_REMAINING")
+        Ctrl-->>Web: 422 Unprocessable Entity
+        Web-->>LEO: Hiển thị "Số tiền phải đúng bằng số còn lại"
+    else Happy path — thu đủ tiền & đóng hồ sơ cùng lúc
+        PayHdl->>+Storage: UploadAsync(receipt) → R2
+        Storage-->>-PayHdl: evidenceUrl
+        PayHdl->>PayHdl: PenaltyPayment.Create + inspection.RecordPayment(payment)
+        Note over PayHdl: PaidAmount == PenaltyAmount<br/>Status → Paid (không còn PartiallyPaid)
+        PayHdl->>PayHdl: inspection.Close("Đóng hồ sơ sau khi LEO ghi nhận nộp phạt đủ.")
+        Note over PayHdl: Status: Paid → Closed (tự động, cùng 1 request)
+        PayHdl->>+UoW: SaveChangesAsync()
+        UoW->>+DB: INSERT penalty_payments,<br/>UPDATE inspection_reports<br/>SET status=Closed, closed_at
+        DB-->>-UoW: OK
+        UoW-->>-PayHdl: OK
+        PayHdl->>+Audit: LogAsync("RecordPaymentAndClose", ...)
+        Audit->>DB: INSERT audit_logs
+        Audit-->>-PayHdl: OK
+        PayHdl->>+Notif: SendFromTemplateAsync(<br/>inspection.IssuedByInspectorId,<br/>InspectionPenaltyPaidAndClosed,<br/>referenceId = inspection.Id)
+        Notif->>DB: INSERT notifications
+        Notif-->>-PayHdl: OK
+        Note over Notif,Insp: Push/in-app tới Inspector Team Leader<br/>(người đã ban hành QĐ) — không cần tự bấm đóng
+        PayHdl-->>-Ctrl: Result.Success
+        Ctrl-->>-Web: 200 OK "Đã ghi nhận nộp phạt đủ và đóng hồ sơ."
+        Web-->>-LEO: Hiển thị "Đã đóng hồ sơ"
+        Insp-->>Insp: Nhận thông báo "Đã nộp phạt đủ — hồ sơ đã đóng"
     end
 ```
 
@@ -2297,7 +2290,7 @@ flowchart LR
         SD34["SD-34<br/>Submit Field Report"]
         SD32["SD-32<br/>Issue Penalty"]
         SD35["SD-35<br/>Close No Violation"]
-        SD39["SD-39<br/>Payment & Close"]
+        SD39["SD-39<br/>Payment & Close (LEO)"]
     end
 
     subgraph Org ["5️⃣ Organization"]

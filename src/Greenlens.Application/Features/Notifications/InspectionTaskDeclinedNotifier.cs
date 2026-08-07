@@ -13,6 +13,7 @@ public interface IInspectionTaskDeclinedNotifier
         Guid leoUserId,
         Guid teamId,
         Guid reportId,
+        Guid inspectionId,
         string reportCode,
         string declineReason,
         CancellationToken ct = default);
@@ -26,6 +27,7 @@ public sealed class InspectionTaskDeclinedNotifier(
         Guid leoUserId,
         Guid teamId,
         Guid reportId,
+        Guid inspectionId,
         string reportCode,
         string declineReason,
         CancellationToken ct = default)
@@ -34,6 +36,7 @@ public sealed class InspectionTaskDeclinedNotifier(
             leoUserId,
             teamId,
             reportId,
+            inspectionId,
             reportCode,
             declineReason,
             ct).ConfigureAwait(false);

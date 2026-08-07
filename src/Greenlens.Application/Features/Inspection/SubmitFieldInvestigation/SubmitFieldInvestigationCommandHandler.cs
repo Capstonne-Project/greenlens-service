@@ -56,6 +56,7 @@ public sealed class SubmitFieldInvestigationCommandHandler(
                     inspection.CreatedByOfficerId,
                     teamId,
                     report.Id,
+                    inspection.Id,
                     report.Code,
                     InspectionActivityLabels.FieldReportSubmitted,
                     ct).ConfigureAwait(false);

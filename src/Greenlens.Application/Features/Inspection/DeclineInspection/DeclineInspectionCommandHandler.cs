@@ -76,6 +76,7 @@ public sealed class DeclineInspectionCommandHandler(
                 inspection.CreatedByOfficerId,
                 teamId,
                 report.Id,
+                inspection.Id,
                 report.Code,
                 request.Reason,
                 ct).ConfigureAwait(false);

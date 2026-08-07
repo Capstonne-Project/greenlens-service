@@ -40,7 +40,7 @@ public sealed class InspectionTaskAssignedNotifierTests
         _teamRecipients.GetActiveMemberUserIdsAsync(teamId, Arg.Any<CancellationToken>())
             .Returns(new[] { member1, member2 });
 
-        await _sut.NotifyTeamAsync(teamId, reportId, "RPT-800", CancellationToken.None);
+        await _sut.NotifyTeamAsync(teamId, reportId, Guid.NewGuid(), "RPT-800", CancellationToken.None);
 
         await _notifications.Received(2).SendFromTemplateAsync(
             Arg.Any<Guid>(),
@@ -62,7 +62,7 @@ public sealed class InspectionTaskAssignedNotifierTests
         _teamRecipients.GetActiveMemberUserIdsAsync(teamId, Arg.Any<CancellationToken>())
             .Returns(Array.Empty<Guid>());
 
-        await _sut.NotifyTeamAsync(teamId, Guid.NewGuid(), "RPT-801", CancellationToken.None);
+        await _sut.NotifyTeamAsync(teamId, Guid.NewGuid(), Guid.NewGuid(), "RPT-801", CancellationToken.None);
 
         await _notifications.DidNotReceive().SendFromTemplateAsync(
             Arg.Any<Guid>(),
@@ -92,11 +92,13 @@ public sealed class InspectionTaskDeclinedNotifierTests
         var leoId = Guid.NewGuid();
         var teamId = Guid.NewGuid();
         var reportId = Guid.NewGuid();
+        var inspectionId = Guid.NewGuid();
 
         await _sut.NotifyLeoAsync(
             leoId,
             teamId,
             reportId,
+            inspectionId,
             "RPT-802",
             "Đội đang quá tải nhiệm vụ",
             CancellationToken.None);
@@ -105,6 +107,7 @@ public sealed class InspectionTaskDeclinedNotifierTests
             leoId,
             teamId,
             reportId,
+            inspectionId,
             "RPT-802",
             "Đội đang quá tải nhiệm vụ",
             Arg.Any<CancellationToken>());

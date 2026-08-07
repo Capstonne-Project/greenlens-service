@@ -59,6 +59,7 @@ public sealed class CloseNoViolationCommandHandler(
                     inspection.CreatedByOfficerId,
                     teamId,
                     report.Id,
+                    inspection.Id,
                     report.Code,
                     InspectionActivityLabels.ClosedNoViolation,
                     ct).ConfigureAwait(false);

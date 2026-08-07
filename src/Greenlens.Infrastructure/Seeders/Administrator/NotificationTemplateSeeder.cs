@@ -200,6 +200,14 @@ internal static class NotificationTemplateSeeder
             NotificationType.PenaltyPaymentOverdue),
 
         Create(
+            "inspection_penalty_paid_and_closed",
+            "Đã nộp phạt đủ — hồ sơ đã đóng",
+            "LEO đã ghi nhận báo cáo {report_code} nộp phạt đủ {paid_amount}đ và đóng hồ sơ xử phạt.",
+            "Penalty paid in full — dossier closed",
+            "LEO recorded a full payment of {paid_amount} for report {report_code} and closed the penalty dossier.",
+            NotificationType.InspectionPenaltyPaidAndClosed),
+
+        Create(
             "cleanup_progress_stale",
             "Đội chưa cập nhật tiến độ dọn dẹp",
             "Đội {team_name} chưa cập nhật tiến độ dọn dẹp hơn 48 giờ cho báo cáo {report_code} tại {ward_name}.",

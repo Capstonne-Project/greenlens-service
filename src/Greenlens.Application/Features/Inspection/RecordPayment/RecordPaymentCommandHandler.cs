@@ -2,8 +2,10 @@ using System.Text.Json;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Notifications;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
+using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -11,13 +13,16 @@ namespace Greenlens.Application.Features.Inspection.RecordPayment;
 
 /// <summary>
 /// BR-INS-020: Record in-person penalty payment at ward/commune office.
-/// Creates a PenaltyPayment record with evidence and updates InspectionReport status.
+/// Creates a PenaltyPayment record with evidence, updates InspectionReport status,
+/// and immediately closes the dossier (Paid → Closed) — LEO thực hiện cả 2 bước cùng lúc.
 /// BR-ADM-010 (audit log).
 /// </summary>
 public sealed class RecordPaymentCommandHandler(
     IInspectionReportRepository inspections,
-    ITeamMemberRepository teamMembers,
+    IReportRepository reports,
+    ILocalOfficeRepository localOffices,
     IFileStorageService fileStorage,
+    INotificationService notificationService,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     IAuditLogger auditLogger,
@@ -35,11 +40,11 @@ public sealed class RecordPaymentCommandHandler(
             return Errors.Inspections.InspectionNotFound;
         }
 
-        var authError = await InspectionTeamAuthorization.ValidateTeamLeaderAsync(
-            inspection, teamMembers, currentUser, ct).ConfigureAwait(false);
+        var authError = await InspectionTeamAuthorization.ValidateLeoForReportAsync(
+            inspection, reports, localOffices, currentUser, ct).ConfigureAwait(false);
         if (authError is not null)
         {
-            logger.LogWarning("Team leader validation failed for inspection {InspectionId}", request.InspectionId);
+            logger.LogWarning("LEO validation failed for inspection {InspectionId}", request.InspectionId);
             return authError;
         }
 
@@ -84,10 +89,19 @@ public sealed class RecordPaymentCommandHandler(
             return result;
         }
 
+        // LEO ghi nhận nộp đủ và đóng hồ sơ cùng một hành động — không chờ Inspector đóng riêng.
+        var closeResult = inspection.Close("Đóng hồ sơ sau khi LEO ghi nhận nộp phạt đủ.");
+        if (closeResult.IsFailure)
+        {
+            logger.LogWarning(
+                "Failed to auto-close inspection {InspectionId} after payment", request.InspectionId);
+            return closeResult;
+        }
+
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 
         await auditLogger.LogAsync(
-            "RecordPayment",
+            "RecordPaymentAndClose",
             "InspectionReport",
             inspection.Id.ToString(),
             oldValues: oldSnapshot,
@@ -100,9 +114,26 @@ public sealed class RecordPaymentCommandHandler(
             ct).ConfigureAwait(false);
 
         logger.LogInformation(
-            "Payment {Amount} VND recorded on InspectionReport {Id} (paid at {PaidAt}). New status: {Status}, total paid: {TotalPaid}/{Total}",
-            request.PaidAmount, inspection.Id, request.PaidAt, inspection.Status,
+            "Payment {Amount} VND recorded on InspectionReport {Id} (paid at {PaidAt}). Dossier closed. Total paid: {TotalPaid}/{Total}",
+            request.PaidAmount, inspection.Id, request.PaidAt,
             inspection.PaidAmount, inspection.PenaltyAmount);
+
+        if (inspection.IssuedByInspectorId.HasValue)
+        {
+            var report = await reports.GetByIdAsync(inspection.ReportId, ct).ConfigureAwait(false);
+            var placeholders = NotificationPlaceholders.ForInspectionPenaltyPaidAndClosed(
+                report?.Code ?? string.Empty,
+                request.PaidAmount);
+
+            // referenceId = InspectionId (không phải ReportId) — mobile Inspector route
+            // /(inspector)/inspection/{id} gọi GET /v1/inspections/{id}, cần đúng InspectionId.
+            await notificationService.SendFromTemplateAsync(
+                inspection.IssuedByInspectorId.Value,
+                NotificationType.InspectionPenaltyPaidAndClosed,
+                placeholders,
+                inspection.Id,
+                ct).ConfigureAwait(false);
+        }
 
         return Result.Success();
     }

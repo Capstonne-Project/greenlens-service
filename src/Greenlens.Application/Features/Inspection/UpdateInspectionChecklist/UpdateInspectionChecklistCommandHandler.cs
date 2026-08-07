@@ -66,6 +66,7 @@ public sealed class UpdateInspectionChecklistCommandHandler(
                     inspection.CreatedByOfficerId,
                     teamId,
                     report.Id,
+                    inspection.Id,
                     report.Code,
                     InspectionActivityLabels.ChecklistUpdated,
                     ct).ConfigureAwait(false);

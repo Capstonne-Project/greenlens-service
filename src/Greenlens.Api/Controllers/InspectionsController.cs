@@ -300,13 +300,16 @@ public sealed class InspectionsController(ISender sender) : ControllerBase
             .ToHttpNoContent("Đã đóng hồ sơ — không đủ căn cứ vi phạm.");
 
     [HttpPut("{id:guid}/record-payment")]
-    [Authorize(Roles = "Inspector,Admin")]
+    [Authorize(Roles = "LEO,Admin")]
     [Tags("🔍 Inspection Dashboard")]
     [Consumes("multipart/form-data")]
     [SwaggerOperation(
-        Summary = "[Inspector] Ghi nhận nộp phạt",
-        Description = "Inspector ghi nhận khoản nộp phạt kèm ảnh biên lai (BR-INS-020).")]
-    [SwaggerResponse(200, "Đã ghi nhận", typeof(ApiResponse))]
+        Summary = "[LEO] Ghi nhận nộp phạt và đóng hồ sơ",
+        Description = "LEO phụ trách khu vực của báo cáo gốc ghi nhận khoản nộp phạt đủ 1 lần kèm ảnh biên lai " +
+            "(BR-INS-020, BR-ORG-012). Số tiền phải khớp đúng số còn lại — không hỗ trợ nộp từng phần. " +
+            "Hồ sơ tự động chuyển Paid → Closed và Inspector ban hành QĐ được thông báo hoàn tất.")]
+    [SwaggerResponse(200, "Đã ghi nhận và đóng hồ sơ", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Số tiền không khớp số còn lại hoặc trạng thái không hợp lệ", typeof(ApiResponse))]
     public async Task<IActionResult> RecordPaymentAsync(
         [FromRoute] Guid id,
         [FromForm] decimal paidAmount,
@@ -336,7 +339,7 @@ public sealed class InspectionsController(ISender sender) : ControllerBase
             ReceiptBytes: ms.ToArray(),
             ReceiptFileName: receipt.FileName,
             ReceiptContentType: receipt.ContentType), ct))
-            .ToHttpNoContent("Đã ghi nhận nộp phạt.");
+            .ToHttpNoContent("Đã ghi nhận nộp phạt đủ và đóng hồ sơ.");
     }
 
     [HttpGet("{id:guid}/payments")]

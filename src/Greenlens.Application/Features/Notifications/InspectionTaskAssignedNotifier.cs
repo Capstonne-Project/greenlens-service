@@ -9,7 +9,17 @@ namespace Greenlens.Application.Features.Notifications;
 /// <remarks>Implements: BR-INS-001, BR-NTF-002.</remarks>
 public interface IInspectionTaskAssignedNotifier
 {
-    Task NotifyTeamAsync(Guid teamId, Guid reportId, string reportCode, CancellationToken ct = default);
+    /// <param name="reportId">Dùng để enrich địa danh (ward) — không dùng làm referenceId.</param>
+    /// <param name="inspectionId">
+    /// referenceId thật gửi cho client — mobile Inspector route cần InspectionId,
+    /// không phải ReportId, để gọi đúng GET /v1/inspections/{id}.
+    /// </param>
+    Task NotifyTeamAsync(
+        Guid teamId,
+        Guid reportId,
+        Guid inspectionId,
+        string reportCode,
+        CancellationToken ct = default);
 }
 
 public sealed class InspectionTaskAssignedNotifier(
@@ -22,6 +32,7 @@ public sealed class InspectionTaskAssignedNotifier(
     public async Task NotifyTeamAsync(
         Guid teamId,
         Guid reportId,
+        Guid inspectionId,
         string reportCode,
         CancellationToken ct = default)
     {
@@ -55,7 +66,7 @@ public sealed class InspectionTaskAssignedNotifier(
                 memberId,
                 NotificationType.InspectionTaskAssigned,
                 placeholders,
-                reportId,
+                inspectionId,
                 ct).ConfigureAwait(false);
         }
 

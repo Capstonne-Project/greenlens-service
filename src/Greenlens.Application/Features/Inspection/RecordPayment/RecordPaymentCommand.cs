@@ -5,7 +5,8 @@ namespace Greenlens.Application.Features.Inspection.RecordPayment;
 
 /// <summary>
 /// BR-INS-020: Record penalty payment (in-person at ward office).
-/// Supports partial payment (multiple records). Evidence = ảnh biên lai.
+/// Chỉ chấp nhận nộp đúng 1 lần, đủ toàn bộ số tiền còn lại — không hỗ trợ nộp từng phần.
+/// Evidence = ảnh biên lai. Ghi nhận thành công sẽ tự động đóng hồ sơ (Paid → Closed).
 /// </summary>
 public sealed record RecordPaymentCommand(
     Guid InspectionId,

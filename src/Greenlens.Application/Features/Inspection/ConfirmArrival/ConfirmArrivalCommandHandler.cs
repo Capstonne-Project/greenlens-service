@@ -64,6 +64,7 @@ public sealed class ConfirmArrivalCommandHandler(
                 inspection.CreatedByOfficerId,
                 teamId,
                 report.Id,
+                inspection.Id,
                 report.Code,
                 InspectionActivityLabels.ArrivalConfirmed,
                 ct).ConfigureAwait(false);

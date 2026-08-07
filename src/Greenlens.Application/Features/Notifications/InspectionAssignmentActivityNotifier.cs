@@ -14,10 +14,15 @@ namespace Greenlens.Application.Features.Notifications;
 /// </remarks>
 public interface IInspectionAssignmentActivityNotifier
 {
+    /// <param name="reportId">Dùng để enrich địa danh (ward) — không dùng làm referenceId.</param>
+    /// <param name="inspectionId">
+    /// referenceId thật gửi cho client — mobile Inspector route cần InspectionId.
+    /// </param>
     Task NotifyAcceptedAsync(
         Guid leoUserId,
         Guid teamId,
         Guid reportId,
+        Guid inspectionId,
         string reportCode,
         CancellationToken ct = default);
 
@@ -25,6 +30,7 @@ public interface IInspectionAssignmentActivityNotifier
         Guid leoUserId,
         Guid teamId,
         Guid reportId,
+        Guid inspectionId,
         string reportCode,
         string declineReason,
         CancellationToken ct = default);
@@ -33,6 +39,7 @@ public interface IInspectionAssignmentActivityNotifier
         Guid leoUserId,
         Guid teamId,
         Guid reportId,
+        Guid inspectionId,
         string reportCode,
         string activitySummary,
         CancellationToken ct = default);
@@ -41,6 +48,7 @@ public interface IInspectionAssignmentActivityNotifier
         Guid leoUserId,
         Guid teamId,
         Guid reportId,
+        Guid inspectionId,
         string reportCode,
         string outcomeSummary,
         CancellationToken ct = default);
@@ -56,12 +64,14 @@ public sealed class InspectionAssignmentActivityNotifier(
         Guid leoUserId,
         Guid teamId,
         Guid reportId,
+        Guid inspectionId,
         string reportCode,
         CancellationToken ct = default) =>
         SendAsync(
             leoUserId,
             teamId,
             reportId,
+            inspectionId,
             reportCode,
             NotificationType.InspectionTaskAccepted,
             teamName => NotificationPlaceholders.ForInspectionTaskAccepted(reportCode, teamName),
@@ -72,6 +82,7 @@ public sealed class InspectionAssignmentActivityNotifier(
         Guid leoUserId,
         Guid teamId,
         Guid reportId,
+        Guid inspectionId,
         string reportCode,
         string declineReason,
         CancellationToken ct = default) =>
@@ -79,6 +90,7 @@ public sealed class InspectionAssignmentActivityNotifier(
             leoUserId,
             teamId,
             reportId,
+            inspectionId,
             reportCode,
             NotificationType.InspectionTaskDeclined,
             teamName => NotificationPlaceholders.ForInspectionTaskDeclined(
@@ -92,6 +104,7 @@ public sealed class InspectionAssignmentActivityNotifier(
         Guid leoUserId,
         Guid teamId,
         Guid reportId,
+        Guid inspectionId,
         string reportCode,
         string activitySummary,
         CancellationToken ct = default) =>
@@ -99,6 +112,7 @@ public sealed class InspectionAssignmentActivityNotifier(
             leoUserId,
             teamId,
             reportId,
+            inspectionId,
             reportCode,
             NotificationType.InspectionProgressUpdated,
             teamName => NotificationPlaceholders.ForInspectionProgressUpdated(
@@ -112,6 +126,7 @@ public sealed class InspectionAssignmentActivityNotifier(
         Guid leoUserId,
         Guid teamId,
         Guid reportId,
+        Guid inspectionId,
         string reportCode,
         string outcomeSummary,
         CancellationToken ct = default) =>
@@ -119,6 +134,7 @@ public sealed class InspectionAssignmentActivityNotifier(
             leoUserId,
             teamId,
             reportId,
+            inspectionId,
             reportCode,
             NotificationType.InspectionTaskCompleted,
             teamName => NotificationPlaceholders.ForInspectionTaskCompleted(
@@ -132,6 +148,7 @@ public sealed class InspectionAssignmentActivityNotifier(
         Guid leoUserId,
         Guid teamId,
         Guid reportId,
+        Guid inspectionId,
         string reportCode,
         NotificationType type,
         Func<string, Dictionary<string, string>> buildPlaceholders,
@@ -148,7 +165,7 @@ public sealed class InspectionAssignmentActivityNotifier(
             leoUserId,
             type,
             placeholders,
-            reportId,
+            inspectionId,
             ct).ConfigureAwait(false);
 
         logger.LogInformation(
