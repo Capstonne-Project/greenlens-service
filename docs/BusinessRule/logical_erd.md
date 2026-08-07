@@ -1099,45 +1099,45 @@ flowchart TB
         EnvironmentalTeam["EnvironmentalTeam"]
     end
 
-    %% ── User → Report ──
-    User -- "1..* submits" --> Report
-    User -- "0..* saves" --> ReportDraft
+    %% ── User - Report ──
+    User -->|"1 submits N"| Report
+    User -->|"0..N saves"| ReportDraft
 
-    %% ── Catalog → Report ──
-    PollutionCategory -- "1 categorizes 0..*" --> Report
-    WasteTag -- "0..* tagged via" --> ReportWasteTag
-    Report -- "0..* tagged with" --> ReportWasteTag
+    %% ── Catalog - Report ──
+    PollutionCategory -->|"1 categorizes N"| Report
+    WasteTag -->|"N tagged via"| ReportWasteTag
+    Report -->|"N tagged with"| ReportWasteTag
 
     %% ── Report children ──
-    Report -- "1 → 0..*" --> ReportMedia
-    Report -- "1 → 0..*" --> ReportStatusHistory
-    Report -- "1 → 0..*" --> ReportFlag
-    Report -- "1 → 0..1" --> ReportSatisfaction
-    Report -- "1 → 0..*" --> ReportReopenRequest
-    Report -- "0..1 duplicate of" -.-> Report
+    Report -->|"1 to N"| ReportMedia
+    Report -->|"1 to N"| ReportStatusHistory
+    Report -->|"1 to N"| ReportFlag
+    Report -->|"1 to 0..1"| ReportSatisfaction
+    Report -->|"1 to N"| ReportReopenRequest
+    Report -.->|"0..1 duplicate of"| Report
 
     %% ── Cleanup branch ──
-    Report -- "1 → 0..* cleanup" --> ReportAssignment
-    EnvironmentalTeam -- "1 works on 0..*" --> ReportAssignment
+    Report -->|"1 to N cleanup"| ReportAssignment
+    EnvironmentalTeam -->|"1 works on N"| ReportAssignment
 
     %% ── Community Cleanup branch ──
-    Report -- "1 → 0..*" --> CommunityCleanupEvent
-    CommunityCleanupEvent -- "1 → 0..*" --> CommunityCleanupParticipant
-    User -- "0..* joins" --> CommunityCleanupParticipant
+    Report -->|"1 to N"| CommunityCleanupEvent
+    CommunityCleanupEvent -->|"1 to N"| CommunityCleanupParticipant
+    User -->|"N joins"| CommunityCleanupParticipant
 
     %% ── Inspection branch ──
-    Report -- "1 → 0..* penalty" --> InspectionReport
-    InspectionReport -- "1 → 0..*" --> InspectionEvidence
-    InspectionReport -- "1 → 0..*" --> PenaltyPayment
-    ViolatingEntity -- "1 → 0..*" --> InspectionReport
-    EnvironmentalTeam -- "0..1 assigned to" --> InspectionReport
+    Report -->|"1 to N penalty"| InspectionReport
+    InspectionReport -->|"1 to N"| InspectionEvidence
+    InspectionReport -->|"1 to N"| PenaltyPayment
+    ViolatingEntity -->|"1 to N"| InspectionReport
+    EnvironmentalTeam -->|"0..1 assigned to"| InspectionReport
 
     %% ── Comment branch ──
-    Report -- "1 → 0..*" --> Comment
-    User -- "1 writes 0..*" --> Comment
-    Comment -- "1 → 0..2" --> CommentMedia
-    Comment -- "1 → 0..*" --> CommentLike
-    Comment -- "0..1 reply to" -.-> Comment
+    Report -->|"1 to N"| Comment
+    User -->|"1 writes N"| Comment
+    Comment -->|"1 to 0..2"| CommentMedia
+    Comment -->|"1 to N"| CommentLike
+    Comment -.->|"0..1 reply to"| Comment
 
     style REPORT_CORE fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
     style CLEANUP fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
@@ -1186,41 +1186,41 @@ flowchart TB
     end
 
     %% ── Location hierarchy ──
-    AdministrativeRegion -- "1 → 1..* " --> Province
-    AdministrativeUnit -- "1 classifies 0..*" --> Province
-    AdministrativeUnit -- "1 classifies 0..*" --> Ward
-    Province -- "1 → 1..*" --> Ward
+    AdministrativeRegion -->|"1 to N"| Province
+    AdministrativeUnit -->|"1 classifies N"| Province
+    AdministrativeUnit -->|"1 classifies N"| Ward
+    Province -->|"1 to N"| Ward
 
     %% ── Organization hierarchy ──
-    Province -- "1 → 0..1" --> Department
-    Department -- "1 → 1..*" --> LocalOffice
-    Ward -- "1 → 0..1" --> LocalOffice
-    LocalOffice -- "0..1 officer" --> User
+    Province -->|"1 to 0..1"| Department
+    Department -->|"1 to N"| LocalOffice
+    Ward -->|"1 to 0..1"| LocalOffice
+    LocalOffice -->|"0..1 officer"| User
 
     %% ── Team ──
-    LocalOffice -- "1 → 0..* community teams" --> EnvironmentalTeam
-    ESC -- "1 → 0..* company teams" --> EnvironmentalTeam
-    EnvironmentalTeam -- "1 → 1..*" --> TeamMember
-    User -- "1 member of 0..*" --> TeamMember
+    LocalOffice -->|"1 to N community teams"| EnvironmentalTeam
+    ESC -->|"1 to N company teams"| EnvironmentalTeam
+    EnvironmentalTeam -->|"1 to N"| TeamMember
+    User -->|"1 member of N"| TeamMember
 
     %% ── Invitation ──
-    User -- "1 invites (LEO)" --> StaffInvitation
-    User -- "1 invited (Citizen)" --> StaffInvitation
-    LocalOffice -- "1 target office" --> StaffInvitation
-    EnvironmentalTeam -. "0..1 target team" .-> StaffInvitation
+    User -->|"1 invites as LEO"| StaffInvitation
+    User -->|"1 invited as Citizen"| StaffInvitation
+    LocalOffice -->|"1 target office"| StaffInvitation
+    EnvironmentalTeam -.->|"0..1 target team"| StaffInvitation
 
     %% ── Company ──
-    Department -- "1 oversees 0..*" --> ESC
-    ESC -- "1 employs 0..*" --> CompanyStaff
-    User -- "1 works as" --> CompanyStaff
-    ESC -- "0..* covers (N:N)" --> CompanyServiceArea
-    Ward -- "0..* serviced by (N:N)" --> CompanyServiceArea
-    ESC -- "1 → 0..* contract periods" --> ContractPeriod
-    User -- "1 renewed by" --> ContractPeriod
+    Department -->|"1 oversees N"| ESC
+    ESC -->|"1 employs N"| CompanyStaff
+    User -->|"1 works as"| CompanyStaff
+    ESC -->|"N covers N:N"| CompanyServiceArea
+    Ward -->|"N serviced by N:N"| CompanyServiceArea
+    ESC -->|"1 to N contract periods"| ContractPeriod
+    User -->|"1 renewed by"| ContractPeriod
 
     %% ── User assignment ──
-    User -. "0..1 assigned to" .-> Department
-    User -. "0..1 assigned to" .-> LocalOffice
+    User -.->|"0..1 assigned to"| Department
+    User -.->|"0..1 assigned to"| LocalOffice
 
     style LOCATION fill:#e8eaf6,stroke:#283593,stroke-width:2px
     style ORGANIZATION fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
@@ -1268,23 +1268,23 @@ flowchart TB
     end
 
     %% ── Identity ──
-    User -- "1 → 0..*" --> RefreshToken
-    User -- "1 → 0..*" --> OtpCode
-    User -- "1 → 0..*" --> PasswordHistory
+    User -->|"1 to N"| RefreshToken
+    User -->|"1 to N"| OtpCode
+    User -->|"1 to N"| PasswordHistory
 
     %% ── Gamification ──
-    User -- "1 → 0..1" --> UserPoints
-    UserPoints -- "1 → 0..*" --> PointTransaction
-    User -- "0..* earns" --> UserBadge
-    Badge -- "1 awarded as 0..*" --> UserBadge
+    User -->|"1 to 0..1"| UserPoints
+    UserPoints -->|"1 to N"| PointTransaction
+    User -->|"N earns"| UserBadge
+    Badge -->|"1 awarded as N"| UserBadge
 
     %% ── Notification ──
-    User -- "1 receives 0..*" --> Notification
-    User -- "1 configures 0..*" --> NotificationPreference
+    User -->|"1 receives N"| Notification
+    User -->|"1 configures N"| NotificationPreference
 
     %% ── Admin ──
-    User -- "0..* performed by" --> AuditLog
-    PollutionCategory -- "1 applies to 0..*" --> PenaltyFramework
+    User -->|"N performed by"| AuditLog
+    PollutionCategory -->|"1 applies to N"| PenaltyFramework
 
     style IDENTITY fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px
     style GAMIFICATION fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
@@ -1550,7 +1550,7 @@ erDiagram
 erDiagram
     UserPoints {
         GUID Id PK
-        GUID UserId FK_UK
+        GUID UserId FK "UK"
         int TotalPoints
         boolean IsLocked
         datetime LockedUntil

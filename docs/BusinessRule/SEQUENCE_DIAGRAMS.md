@@ -390,7 +390,7 @@ sequenceDiagram
     Repo-->>-Hdl: report
 
     Hdl->>Hdl: report.Reject(reason)<br/>[state: Submitted → Rejected]
-    Note over Hdl: Rejected là trạng thái cuối;<br/>lưu rejected_reason, không re-queue DEO
+    Note over Hdl: Rejected là trạng thái cuối. Lưu rejected_reason, không re-queue DEO
     Hdl->>Hdl: ReportStatusHistory.Create(Submitted → Rejected)
 
     Hdl->>+PtsRepo: Get reporter's UserPoints
@@ -654,7 +654,7 @@ sequenceDiagram
     loop Comments on duplicate report
         Hdl->>Hdl: comment.ReassignToReport(primary.Id)
     end
-    Note over Hdl: report_media KHÔNG đổi report_id<br/>[ảnh giữ trên báo cáo duplicate]
+    Note over Hdl: report_media KHÔNG đổi report_id (ảnh giữ trên báo cáo duplicate)
 
     Hdl->>Hdl: report.MarkDuplicate(primaryReportId)<br/>[state: → Duplicate]
     Hdl->>Hdl: primaryReport.IncrementReporterCount()
@@ -1415,7 +1415,7 @@ sequenceDiagram
         end
     else Happy path
         Hdl->>Hdl: inspection.SubmitFieldInvestigation(leaderId)
-        Note over Hdl: field_investigation_submitted_at set<br/>Status vẫn InProgress<br/>canIssuePenalty / canCloseNoViolation = true
+        Note over Hdl: field_investigation_submitted_at set — Status vẫn InProgress — canIssuePenalty / canCloseNoViolation = true
         Hdl->>+UoW: SaveChangesAsync()
         UoW->>+DB: UPDATE inspection_reports
         DB-->>-UoW: OK
@@ -1618,7 +1618,7 @@ sequenceDiagram
         PayHdl->>+Storage: UploadAsync(receipt) → R2
         Storage-->>-PayHdl: evidenceUrl
         PayHdl->>PayHdl: PenaltyPayment.Create + inspection.RecordPayment(payment)
-        Note over PayHdl: PaidAmount == PenaltyAmount<br/>Status → Paid (không còn PartiallyPaid)
+        Note over PayHdl: PaidAmount == PenaltyAmount → Status = Paid (không còn PartiallyPaid)
         PayHdl->>PayHdl: inspection.Close("Đóng hồ sơ sau khi LEO ghi nhận nộp phạt đủ.")
         Note over PayHdl: Status: Paid → Closed (tự động, cùng 1 request)
         PayHdl->>+UoW: SaveChangesAsync()
@@ -1631,7 +1631,7 @@ sequenceDiagram
         PayHdl->>+Notif: SendFromTemplateAsync(<br/>inspection.IssuedByInspectorId,<br/>InspectionPenaltyPaidAndClosed,<br/>referenceId = inspection.Id)
         Notif->>DB: INSERT notifications
         Notif-->>-PayHdl: OK
-        Note over Notif,Insp: Push/in-app tới Inspector Team Leader<br/>(người đã ban hành QĐ) — không cần tự bấm đóng
+        Note over Notif,Insp: Push/in-app tới Inspector Team Leader (người đã ban hành QĐ) — không cần tự bấm đóng
         PayHdl-->>-Ctrl: Result.Success
         Ctrl-->>-Web: 200 OK "Đã ghi nhận nộp phạt đủ và đóng hồ sơ."
         Web-->>-LEO: Hiển thị "Đã đóng hồ sơ"
