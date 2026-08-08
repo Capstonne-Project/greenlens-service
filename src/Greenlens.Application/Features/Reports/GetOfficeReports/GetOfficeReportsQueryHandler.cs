@@ -25,6 +25,8 @@ public sealed class GetOfficeReportsQueryHandler(
         GetOfficeReportsQuery request,
         CancellationToken ct)
     {
+        logger.LogInformation("Getting office reports for user {UserId}", currentUser.UserId);
+
         // 1. Resolve LEO's local office
         var officeInfo = await users.QueryAsNoTracking()
             .Where(u => u.Id == currentUser.UserId)
@@ -40,7 +42,10 @@ public sealed class GetOfficeReportsQueryHandler(
             .ConfigureAwait(false);
 
         if (officeInfo is null || officeInfo.LocalOfficeId == Guid.Empty)
+        {
+            logger.LogWarning("Office not found for user {UserId}", currentUser.UserId);
             return Errors.Organization.OfficeNotFound;
+        }
 
         // 2. Base query — all reports assigned to this office
         var baseQuery = reports.QueryAsNoTracking()
@@ -49,6 +54,7 @@ public sealed class GetOfficeReportsQueryHandler(
         // 3. Apply search (code, description, address)
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
+            logger.LogInformation("Searching by report code, description, or address: {Search}", request.Search);
             var keyword = request.Search.Trim().ToLower();
             baseQuery = baseQuery.Where(r =>
                 r.Code.ToLower().Contains(keyword) ||
@@ -69,6 +75,18 @@ public sealed class GetOfficeReportsQueryHandler(
         {
             baseQuery = baseQuery.Where(r =>
                 r.Assignments.Any(a => a.Status == request.AssignmentStatus.Value));
+        }
+
+        if (request.FromDate.HasValue)
+        {
+            var from = DateTime.SpecifyKind(request.FromDate.Value.Date, DateTimeKind.Utc);
+            baseQuery = baseQuery.Where(r => r.CreatedAt >= from);
+        }
+
+        if (request.ToDate.HasValue)
+        {
+            var toExclusive = DateTime.SpecifyKind(request.ToDate.Value.Date.AddDays(1), DateTimeKind.Utc);
+            baseQuery = baseQuery.Where(r => r.CreatedAt < toExclusive);
         }
 
         // 5. Count total

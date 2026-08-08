@@ -25,8 +25,14 @@ public sealed class GetAuditLogsQueryHandler(IApplicationDbContext db)
         if (request.UserId.HasValue)
             query = query.Where(a => a.UserId == request.UserId.Value);
 
+        if (request.ActorRole.HasValue)
+            query = query.Where(a => a.User != null && a.User.Role == request.ActorRole.Value);
+
         if (!string.IsNullOrWhiteSpace(request.EntityType))
             query = query.Where(a => a.EntityType == request.EntityType);
+
+        if (!string.IsNullOrWhiteSpace(request.EntityId))
+            query = query.Where(a => a.EntityId == request.EntityId);
 
         if (!string.IsNullOrWhiteSpace(request.Action))
             query = query.Where(a => a.Action.Contains(request.Action));
@@ -48,6 +54,7 @@ public sealed class GetAuditLogsQueryHandler(IApplicationDbContext db)
                 a.Id,
                 a.UserId,
                 a.User != null ? a.User.Email : null,
+                a.User != null ? a.User.Role : null,
                 a.Action,
                 a.EntityType,
                 a.EntityId,
@@ -58,7 +65,6 @@ public sealed class GetAuditLogsQueryHandler(IApplicationDbContext db)
             .ConfigureAwait(false);
 
         var pagination = PaginationMeta.Create(request.Page, request.PageSize, totalCount);
-
         return new GetAuditLogsResponse(items, pagination);
     }
 }

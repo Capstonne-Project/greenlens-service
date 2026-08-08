@@ -14,13 +14,20 @@ namespace Greenlens.Infrastructure.Notifications;
 /// 1. Preference check (BR-NTF-001)
 /// 2. Anti-spam guard — max 20/type/day (BR-NTF-003)
 /// 3. Persistence (store Notification entity)
-/// 4. Channel dispatch (push via FCM, email via SMTP)
+/// 4. SignalR (sync, in-request)
+/// 5. FCM + SMTP via Hangfire background job (BR-SYS-001)
 /// </summary>
+/// <remarks>
+/// Performance — async channel dispatch (no longer blocks HTTP on FCM/SMTP):
+/// POST /v1/reports, PUT verify/reject/resolve, POST assign, dispatch-to-company,
+/// assign-company-team, reassign, confirm-duplicate, flag, reopen-requests/*,
+/// POST comments, community-cleanups, issue-penalty, recruit staff, invitations,
+/// company suspend/terminate, and all domain-event handlers calling this service.
+/// </remarks>
 internal sealed class NotificationService(
     ApplicationDbContext db,
     IChangeTrackerCleaner changeTrackerCleaner,
-    IPushNotificationSender pushSender,
-    IEmailSender emailSender,
+    INotificationDispatchScheduler dispatchScheduler,
     IHubContext<NotificationHub, INotificationClient> hubContext,
     ILogger<NotificationService> logger) : INotificationService
 {
@@ -135,43 +142,7 @@ internal sealed class NotificationService(
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
         changeTrackerCleaner.ClearTrackedEntities();
 
-        // 6. Dispatch to channels (fire-and-forget style, errors logged but not thrown)
-        if (pushEnabled && !string.IsNullOrEmpty(recipient.FcmDeviceToken))
-        {
-            try
-            {
-                // Mobile deep-link + mark-read: notificationId required; referenceId optional.
-                var data = new Dictionary<string, string>
-                {
-                    ["notificationId"] = notification.Id.ToString(),
-                    ["type"] = type.ToString(),
-                };
-                if (referenceId.HasValue)
-                    data["referenceId"] = referenceId.Value.ToString();
-
-                await pushSender.SendPushAsync(recipient.FcmDeviceToken, title, message, data, ct)
-                    .ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "FCM push failed for user {UserId}", recipientId);
-            }
-        }
-
-        if (emailEnabled)
-        {
-            try
-            {
-                await emailSender.SendNotificationEmailAsync(recipient.Email, title, message, ct)
-                    .ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Email notification failed for user {UserId}", recipientId);
-            }
-        }
-
-        // Web Dashboard Real-Time Push (SignalR)
+        // 6. Web Dashboard Real-Time Push (SignalR) — sync, fast
         try
         {
             var payload = new RealTimeNotificationPayload(
@@ -189,8 +160,11 @@ internal sealed class NotificationService(
             logger.LogError(ex, "SignalR notification failed for user {UserId}", recipientId);
         }
 
+        // 7. Enqueue FCM + SMTP (background — do not block HTTP)
+        dispatchScheduler.Enqueue(notification.Id);
+
         logger.LogInformation(
-            "Notification sent: {Type} to user {UserId} via {Channel} and SignalR",
+            "Notification persisted: {Type} to user {UserId} via {Channel}; channel dispatch enqueued",
             type, recipientId, channel);
     }
 }

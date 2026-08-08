@@ -20,5 +20,10 @@ public static partial class Errors
             "GAMIFICATION_ALREADY_LOCKED",
             "Gamification của người dùng này đã bị khóa.",
             ErrorType.Conflict);
+
+        public static Error BadgeNotOwned => new(
+            "BADGE_NOT_OWNED",
+            "Bạn chưa đạt được huy hiệu này nên không thể chọn để hiển thị.",
+            ErrorType.BusinessRule);
     }
 }

@@ -34,7 +34,10 @@ public sealed class ExportMyDataQueryHandler(
             .ConfigureAwait(false);
 
         if (user is null)
+        {
+            logger.LogWarning("User not found for ID {UserId}", currentUser.UserId);
             return Errors.Auth.UserNotFound;
+        }
 
         // ── Gather personal data ─────────────────────────────────────────────
         var myReports = await reports.QueryAsNoTracking()

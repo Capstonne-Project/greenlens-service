@@ -41,6 +41,11 @@ public static partial class Errors
             "Không tìm thấy đội môi trường.",
             ErrorType.NotFound);
 
+        public static Error TeamHasNoMembers => new(
+            "TEAM_HAS_NO_MEMBERS",
+            "Không thể phân công task cho đội chưa có thành viên.",
+            ErrorType.BusinessRule);
+
         public static Error MemberAlreadyInTeam => new(
             "MEMBER_ALREADY_IN_TEAM",
             "Người dùng đã là thành viên của đội này.",
@@ -202,6 +207,26 @@ public static partial class Errors
             "Chỉ có thể kích hoạt lại công ty đang bị tạm ngưng.",
             ErrorType.BusinessRule);
 
+        public static Error CompanyAlreadyDeleted => new(
+            "COMPANY_ALREADY_DELETED",
+            "Công ty đã được xóa trước đó.",
+            ErrorType.Conflict);
+
+        public static Error CompanyMustTerminateFirst => new(
+            "COMPANY_MUST_TERMINATE_FIRST",
+            "Phải chấm dứt hợp đồng (Terminate) trước khi xóa công ty.",
+            ErrorType.BusinessRule);
+
+        public static Error TeamAlreadyDeleted => new(
+            "TEAM_ALREADY_DELETED",
+            "Team đã được xóa trước đó.",
+            ErrorType.Conflict);
+
+        public static Error TeamHasActiveAssignments => new(
+            "TEAM_HAS_ACTIVE_ASSIGNMENTS",
+            "Không thể xóa team đang có nhiệm vụ đang xử lý.",
+            ErrorType.BusinessRule);
+
         // ── Contract Renewal (BR-CMP-006) ──
 
         public static Error SubsidiaryCannotRenew => new(
@@ -220,5 +245,11 @@ public static partial class Errors
             "CROSS_COMPANY_ACCESS",
             "Bạn không có quyền truy cập dữ liệu của công ty khác.",
             ErrorType.Forbidden);
+
+        /// <summary>BR-CMP-020: DEO/Admin phải truyền CompanyId khi xem KPI.</summary>
+        public static Error CompanyIdRequired => new(
+            "COMPANY_ID_REQUIRED",
+            "CompanyId là bắt buộc cho DEO/Admin.",
+            ErrorType.Validation);
     }
 }

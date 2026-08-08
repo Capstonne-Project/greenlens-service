@@ -2,6 +2,7 @@ using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
+using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -12,7 +13,7 @@ namespace Greenlens.Application.Features.Gamification.CheckBadges;
 /// Checks all active badges and awards any that the user qualifies for but hasn't earned yet.
 /// Typically triggered after AwardPoints.
 /// </summary>
-/// <remarks>Implements: BR-GAM-004.</remarks>
+/// <remarks>Implements: BR-GAM-004, BR-NTF-002 (BadgeEarned notification).</remarks>
 public sealed record CheckBadgesCommand(Guid UserId) : IRequest<Result<CheckBadgesResponse>>, INoTransaction;
 
 public sealed record CheckBadgesResponse(IReadOnlyList<string> NewlyAwarded);
@@ -22,6 +23,8 @@ public sealed class CheckBadgesCommandHandler(
     IBadgeRepository badgeRepo,
     IUserBadgeRepository userBadgeRepo,
     IReportRepository reportRepo,
+    IApplicationDbContext db,
+    INotificationService notificationService,
     IUnitOfWork unitOfWork,
     IChangeTrackerCleaner changeTrackerCleaner,
     ILogger<CheckBadgesCommandHandler> logger)
@@ -30,19 +33,12 @@ public sealed class CheckBadgesCommandHandler(
     public async Task<Result<CheckBadgesResponse>> Handle(
         CheckBadgesCommand request, CancellationToken ct)
     {
+        logger.LogInformation("Getting check badges");
+
         changeTrackerCleaner.ClearTrackedEntities();
 
-        var userPoints = await userPointsRepo
-            .GetByUserIdAsync(request.UserId, ct)
-            .ConfigureAwait(false);
-
-        var totalPoints = userPoints?.TotalPoints ?? 0;
-
-        // Count verified reports by this user
-        var verifiedReportCount = await reportRepo.QueryAsNoTracking()
-            .CountAsync(r => r.ReporterId == request.UserId
-                && r.Status != Domain.Enums.ReportStatus.Rejected
-                && r.Status != Domain.Enums.ReportStatus.Submitted, ct)
+        var (totalPoints, metrics) = await BadgeMetricsProvider
+            .LoadAsync(request.UserId, userPointsRepo, reportRepo, db, ct)
             .ConfigureAwait(false);
 
         var allBadges = await badgeRepo.GetAllActiveAsync(ct).ConfigureAwait(false);
@@ -52,45 +48,78 @@ public sealed class CheckBadgesCommandHandler(
             .Select(ub => ub.BadgeId)
             .ToHashSet();
 
-        var newlyAwarded = new List<string>();
+        var newlyAwardedCodes = new List<string>();
+        var newlyAwardedBadges = new List<Badge>();
+        var nearProgressBadges = new List<Badge>();
 
         foreach (var badge in allBadges)
         {
             if (earnedBadgeIds.Contains(badge.Id))
+            {
+                logger.LogDebug("Badge {BadgeId} already awarded to user {UserId}", badge.Id, request.UserId);
                 continue;
+            }
 
-            if (!IsEligible(badge, totalPoints, verifiedReportCount))
+            if (!BadgeEligibilityEvaluator.IsEligible(badge, totalPoints, metrics))
+            {
+                logger.LogDebug("Badge {BadgeCode} not eligible for user {UserId}", badge.Code, request.UserId);
+
+                var current = BadgeEligibilityEvaluator.GetCurrentProgressValue(badge, totalPoints, metrics);
+                var target = BadgeEligibilityEvaluator.GetTargetValue(badge);
+                if (current.HasValue && target.HasValue && target.Value > 1 && current.Value == target.Value - 1)
+                    nearProgressBadges.Add(badge);
+
                 continue;
+            }
 
             var userBadge = UserBadge.Create(request.UserId, badge.Id);
             userBadgeRepo.Add(userBadge);
-            newlyAwarded.Add(badge.Code);
+            newlyAwardedCodes.Add(badge.Code);
+            newlyAwardedBadges.Add(badge);
 
             logger.LogInformation(
                 "Badge '{BadgeCode}' awarded to user {UserId}",
                 badge.Code, request.UserId);
         }
 
-        if (newlyAwarded.Count > 0)
+        if (newlyAwardedBadges.Count > 0)
         {
             await unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
+
+            foreach (var badge in newlyAwardedBadges)
+            {
+                await notificationService.SendFromTemplateAsync(
+                    request.UserId,
+                    NotificationType.BadgeEarned,
+                    GamificationNotificationPlaceholders.ForBadgeEarned(badge),
+                    referenceId: badge.Id,
+                    ct).ConfigureAwait(false);
+            }
         }
 
-        return new CheckBadgesResponse(newlyAwarded);
-    }
-
-    private static bool IsEligible(Badge badge, int totalPoints, int reportCount)
-    {
-        return badge.Code switch
+        foreach (var badge in nearProgressBadges)
         {
-            "first_report" => reportCount >= 1,
-            "eco_warrior" => reportCount >= 10,
-            // "hotspot_hunter" — TODO: enable when BR-MAP-010 hotspot detection is implemented
-            "hotspot_hunter" => false,
-            "streak_7d" => false, // TODO: need consecutive-day tracking
-            // Point-threshold badges
-            _ => badge.RequiredPoints.HasValue && totalPoints >= badge.RequiredPoints.Value
-                || badge.RequiredReportCount.HasValue && reportCount >= badge.RequiredReportCount.Value
-        };
+            var alreadyNotified = await db.Set<Notification>()
+                .AsNoTracking()
+                .AnyAsync(n => n.RecipientId == request.UserId
+                               && n.Type == NotificationType.BadgeProgressNear
+                               && n.ReferenceId == badge.Id, ct)
+                .ConfigureAwait(false);
+            if (alreadyNotified)
+                continue;
+
+            var target = BadgeEligibilityEvaluator.GetTargetValue(badge)!.Value;
+
+            await notificationService.SendFromTemplateAsync(
+                request.UserId,
+                NotificationType.BadgeProgressNear,
+                GamificationNotificationPlaceholders.ForBadgeProgressNear(badge, target - 1, target),
+                referenceId: badge.Id,
+                ct).ConfigureAwait(false);
+        }
+
+        logger.LogInformation("Check badges completed: {NewlyAwarded}", newlyAwardedCodes);
+
+        return new CheckBadgesResponse(newlyAwardedCodes);
     }
 }

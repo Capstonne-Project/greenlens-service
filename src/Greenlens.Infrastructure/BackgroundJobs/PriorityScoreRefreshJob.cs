@@ -31,6 +31,7 @@ internal sealed class PriorityScoreRefreshJob(
             var reports = await db.Reports
                 .Where(r => r.Status == ReportStatus.Submitted
                          || r.Status == ReportStatus.Verified
+                         || r.Status == ReportStatus.Reopened
                          || r.Status == ReportStatus.InProgress)
                 .Where(r => r.Id.CompareTo(lastId) > 0)
                 .OrderBy(r => r.Id)

@@ -71,7 +71,7 @@ public sealed class ViolatingEntitiesController(ISender sender) : ControllerBase
         Description = "Tạo đối tượng vi phạm mới (BR-INS-010). " +
             "Doanh nghiệp bắt buộc MST. Cá nhân nên có CMND/CCCD. " +
             "Kiểm tra trùng MST / CMND/CCCD trước khi tạo.")]
-    [SwaggerResponse(201, "Đã tạo", typeof(ApiResponse<Guid>))]
+    [SwaggerResponse(200, "Đã tạo", typeof(ApiResponse<Guid>))]
     [SwaggerResponse(409, "MST hoặc CMND/CCCD đã tồn tại", typeof(ApiResponse))]
     public async Task<IActionResult> CreateAsync(
         [FromBody] CreateViolatingEntityRequest request,
@@ -83,7 +83,7 @@ public sealed class ViolatingEntitiesController(ISender sender) : ControllerBase
             request.TaxCode,
             request.IdentityNumber,
             request.PhoneNumber), ct))
-            .ToHttpCreated();
+            .ToHttp("Đã tạo đối tượng vi phạm thành công.");
 
     // ═══════════════════════════════════════════
     // ██  UPDATE (PATCH)

@@ -5,6 +5,7 @@ using Greenlens.Application.Features.Auth.Login;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Auth.GoogleLogin;
@@ -23,7 +24,6 @@ public sealed class GoogleLoginCommandHandler(
         GoogleLoginCommand request,
         CancellationToken cancellationToken)
     {
-        // Verify Google ID token with Firebase
         var googleUser = await googleAuth.VerifyIdTokenAsync(request.IdToken, cancellationToken)
             .ConfigureAwait(false);
 
@@ -33,7 +33,6 @@ public sealed class GoogleLoginCommandHandler(
             return Errors.Auth.GoogleAuthFailed;
         }
 
-        // Try find existing user by Google ID or email
         var user = await users.GetByGoogleIdAsync(googleUser.GoogleId, cancellationToken)
             .ConfigureAwait(false);
 
@@ -42,25 +41,27 @@ public sealed class GoogleLoginCommandHandler(
 
         if (user is null)
         {
-            // Auto-register new user from Google profile
+            var deleted = await users.GetDeletedByEmailAsync(googleUser.Email, cancellationToken)
+                .ConfigureAwait(false);
+            if (deleted is not null)
+                return Errors.Auth.EmailDeletedRestoreAvailable;
+
             user = User.CreateFromGoogle(
                 googleUser.Email,
                 googleUser.FullName,
                 googleUser.GoogleId,
                 googleUser.AvatarUrl);
             users.Add(user);
-            logger.LogInformation("Auto-registered new user from Google {Email}", googleUser.Email);
+            logger.LogInformation("Auto-registered new user from Google");
         }
         else if (user.GoogleId is null)
         {
-            // Link Google account to existing user
             user.LinkGoogleAccount(googleUser.GoogleId);
             if (!user.IsEmailVerified)
                 user.VerifyEmail();
             logger.LogInformation("Linked Google account to existing user {UserId}", user.Id);
         }
 
-        // Generate JWT access token and refresh token
         var accessToken = jwtService.GenerateAccessToken(user);
         var rawRefreshToken = jwtService.GenerateRefreshToken();
         var refreshTokenHash = jwtService.HashToken(rawRefreshToken);
@@ -68,9 +69,19 @@ public sealed class GoogleLoginCommandHandler(
         var refreshToken = Domain.Entities.RefreshToken.Create(user.Id, refreshTokenHash);
         refreshTokens.Add(refreshToken);
 
-        await uow.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await uow.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (DbUpdateException ex)
+        {
+            var mapped = PostgresUniqueViolationMapper.TryMap(ex);
+            if (mapped is not null)
+                return mapped;
+            throw;
+        }
 
-        logger.LogInformation("User {UserId} logged in via Google", user.Id);
+        logger.LogInformation("User {UserId} logged in via Google successfully", user.Id);
 
         return new LoginResponse(
             accessToken,

@@ -12,6 +12,14 @@ public sealed class ReportMedia : SoftDeletableEntity
     private ReportMedia() { }
 
     public Guid ReportId { get; private set; }
+
+    /// <summary>
+    /// Original report this media belonged to before a duplicate merge reassign.
+    /// Null when media was uploaded directly to the current ReportId.
+    /// </summary>
+    /// <remarks>Used for BR-REP-032 thumbnail projection on merged (Duplicate) reports.</remarks>
+    public Guid? SourceReportId { get; private set; }
+
     public MediaType Type { get; private set; }
     public string Url { get; private set; } = default!;
     public string? ThumbnailUrl { get; private set; }
@@ -25,9 +33,11 @@ public sealed class ReportMedia : SoftDeletableEntity
     public string? ExifData { get; private set; }
     public Guid? UploadedBy { get; private set; }
     public DateTime UploadedAt { get; private set; }
+    public Guid? ReopenRequestId { get; private set; }
 
     // ── Navigation ──
     public Report Report { get; private set; } = default!;
+    public ReportReopenRequest? ReopenRequest { get; private set; }
     public User? Uploader { get; private set; }
 
     public static ReportMedia Create(
@@ -42,7 +52,8 @@ public sealed class ReportMedia : SoftDeletableEntity
         int? height = null,
         int? durationSeconds = null,
         string? pHash = null,
-        string? exifData = null)
+        string? exifData = null,
+        Guid? reopenRequestId = null)
     {
         return new ReportMedia
         {
@@ -58,9 +69,12 @@ public sealed class ReportMedia : SoftDeletableEntity
             PHash = pHash,
             ExifData = exifData,
             UploadedBy = uploadedBy,
-            UploadedAt = DateTime.UtcNow
+            UploadedAt = DateTime.UtcNow,
+            ReopenRequestId = reopenRequestId
         };
     }
+
+    public void LinkToReopenRequest(Guid reopenRequestId) => ReopenRequestId = reopenRequestId;
 
     public void SetThumbnail(string thumbnailUrl) => ThumbnailUrl = thumbnailUrl;
 
@@ -79,6 +93,7 @@ public sealed class ReportMedia : SoftDeletableEntity
 
     /// <summary>
     /// Reassign this media row to another report (used when merging a duplicate into its primary).
+    /// Preserves SourceReportId (first origin) so FE can still show per-child thumbnails.
     /// </summary>
     /// <remarks>Implements: BR-REP-032 (merge images into primary).</remarks>
     public void ReassignToReport(Guid primaryReportId)
@@ -86,6 +101,8 @@ public sealed class ReportMedia : SoftDeletableEntity
         if (primaryReportId == Guid.Empty)
             throw new ArgumentException("Primary report id is required.", nameof(primaryReportId));
 
+        // Keep the first origin if media is reassigned more than once.
+        SourceReportId ??= ReportId;
         ReportId = primaryReportId;
     }
 }

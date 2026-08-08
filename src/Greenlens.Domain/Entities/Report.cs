@@ -12,15 +12,16 @@ namespace Greenlens.Domain.Entities;
 /// LEO direct verification model (v3.0):
 ///   Submit:   SUBMITTED (auto-routed to LocalOffice by GPS, fallback Department queue)
 ///   LEO:      SUBMITTED → VERIFIED → IN_PROGRESS → RESOLVED → CLOSED
-///   Reject:   SUBMITTED → REJECTED (LEO, reason ≥ 20 chars)
+///   Reject:   SUBMITTED → REJECTED (LEO, reason ≥ 20 chars, BR-REP-022)
 ///   Duplicate: SUBMITTED/VERIFIED → DUPLICATE
-///   Reopen:   RESOLVED → IN_PROGRESS (max 2 times)
+///   Reopen:   RESOLVED → [pending request] → REOPENED (LEO approve) → IN_PROGRESS (assign)
 ///
 /// InspectionReport runs as a parallel sub-process (BR-INS-001).
 /// </remarks>
 public sealed class Report : SoftDeletableEntity
 {
-    private Report() { }
+    /// <summary>BR-REP-015: max approved reopens per report.</summary>
+    public const int MaxApprovedReopens = 1;
 
     // ── Identity ──
     public string Code { get; private set; } = default!;
@@ -74,10 +75,16 @@ public sealed class Report : SoftDeletableEntity
     public bool IsPossibleDuplicate { get; private set; }
     /// <summary>The oldest candidate report this one likely duplicates.</summary>
     public Guid? PossibleDuplicateOfReportId { get; private set; }
-    /// <summary>How the duplicate was detected: "geo_time" (Tier 1) or "geo_time_ai" (Tier 2 CLIP/DINOv2).</summary>
+    /// <summary>How the duplicate was detected: "geo_category" (Tier 1) or "geo_category_ai" (Tier 2).</summary>
     public string? DuplicateDetectionSource { get; private set; }
     /// <summary>Image similarity score 0.0–1.0 from the AI compare service (Tier 2 only).</summary>
     public decimal? AiSimilarityScore { get; private set; }
+
+    // ── Violation recurrence suspicion (BR-REP-034) ──
+    /// <summary>Near a recently Closed report (same category, ≤25m, within 30 days) — LEO may open Inspection.</summary>
+    public bool IsSuspectedViolationRecurrence { get; private set; }
+    /// <summary>The most recently Closed report this one may recur from.</summary>
+    public Guid? SuspectedRecurrenceOfReportId { get; private set; }
 
     // ── AI Analysis ──
     public bool IsSuspicious { get; private set; }
@@ -97,6 +104,9 @@ public sealed class Report : SoftDeletableEntity
     public DateTime? ResolvedAt { get; private set; }
     public DateTime? ClosedAt { get; private set; }
     public int ReopenedCount { get; private set; }
+
+    /// <summary>True while a citizen reopen request awaits LEO review (BR-REP-015).</summary>
+    public bool HasPendingReopenRequest { get; private set; }
 
     // ── SLA ──
     public DateTime? SlaVerifyDueAt { get; private set; }
@@ -131,6 +141,7 @@ public sealed class Report : SoftDeletableEntity
     public ICollection<ReportAssignment> Assignments { get; private set; } = [];
     public ICollection<ReportWasteTag> WasteTags { get; private set; } = [];
     public ICollection<Comment> Comments { get; private set; } = [];
+    public ICollection<ReportReopenRequest> ReopenRequests { get; private set; } = [];
 
     // ── AI-suggested waste tags (set by AI service, officer can override) ──
     /// <summary>Comma-separated tag codes suggested by AI, e.g. "HOUSEHOLD,MEDICAL,ANIMAL_CARCASS".</summary>
@@ -194,6 +205,10 @@ public sealed class Report : SoftDeletableEntity
         // AssignedOfficeId stays null — DEO will handle manually
     }
 
+    /// <summary>BR-OFF-002: Notify assigned LEO/DEO that a new report awaits verification.</summary>
+    public void RaiseSubmittedForVerification() =>
+        AddDomainEvent(new ReportSubmittedEvent(Id));
+
     // ────────────────────────────────────────────────────
     // State machine transitions
     // ────────────────────────────────────────────────────
@@ -223,8 +238,7 @@ public sealed class Report : SoftDeletableEntity
     }
 
     /// <summary>
-    /// BR-ORG-015: LEO rejects the report. Report stays Submitted and is re-queued
-    /// to the Department Common Queue for DEO to re-assign.
+    /// LEO rejects the report as invalid. Submitted → Rejected.
     /// BR-REP-022: reason ≥ 20 chars.
     /// </summary>
     public void Reject(string reason)
@@ -232,51 +246,66 @@ public sealed class Report : SoftDeletableEntity
         EnsureStatus(ReportStatus.Submitted);
 
         RejectedReason = reason;
-        // Status stays Submitted — report goes back to Department queue
-        // Clear office assignment so DEO sees it in the common queue
-        AssignedOfficeId = null;
-        // AssignedDepartmentId is kept — DEO of the same province handles it
+        Status = ReportStatus.Rejected;
 
         if (ReporterId.HasValue)
-            AddDomainEvent(new ReportRejectedEvent(Id, ReporterId.Value));
+            AddDomainEvent(new ReportRejectedEvent(Id, ReporterId.Value, reason));
     }
 
-    /// <summary>LEO assigns community team(s). Verified → InProgress. BR-OFF-011.</summary>
+    /// <summary>LEO assigns community team(s). Verified/Reopened → InProgress. BR-OFF-011.</summary>
     public void Assign(Guid leoId)
+    {
+        EnsureAssignableForCleanup();
+
+        Status = ReportStatus.InProgress;
+        AssignedByOfficerId = leoId;
+        // StartedAt is set when the first team accepts (not at assign time)
+        AddDomainEvent(new ReportInProgressEvent(Id, ReporterId));
+    }
+
+    /// <summary>
+    /// LEO dispatches report to a company for cleanup. Verified/Reopened → InProgress.
+    /// CompanyManager assigns specific company teams later (status stays InProgress).
+    /// </summary>
+    public void DispatchToCompany(Guid companyId, Guid leoId)
+    {
+        EnsureAssignableForCleanup();
+
+        AssignedCompanyId = companyId;
+        DispatchedToCompanyAt = DateTime.UtcNow;
+        Status = ReportStatus.InProgress;
+        AssignedByOfficerId = leoId;
+        UpdatedAt = DateTime.UtcNow;
+        AddDomainEvent(new ReportInProgressEvent(Id, ReporterId));
+    }
+
+    /// <summary>
+    /// CompanyManager assigns company team(s). Report must already be InProgress from dispatch.
+    /// Only valid when report was dispatched to a company (AssignedCompanyId set).
+    /// </summary>
+    public void AssignByCompanyManager(Guid companyManagerId)
+    {
+        EnsureStatus(ReportStatus.InProgress);
+
+        if (!AssignedCompanyId.HasValue)
+            throw new InvalidOperationException("Report must be dispatched to a company before CM can assign teams.");
+
+        AssignedByOfficerId = companyManagerId;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// LEO opens a Community Cleanup program. Verified → InProgress.
+    /// Replaces Assign()/DispatchToCompany() for this report while the event is active.
+    /// </summary>
+    /// <remarks>Draft rule BR-CMU-001 (docs/community-cleanup-feature-spec.md).</remarks>
+    public void StartCommunityCleanup(Guid leoId)
     {
         EnsureStatus(ReportStatus.Verified);
 
         Status = ReportStatus.InProgress;
         AssignedByOfficerId = leoId;
-        // StartedAt is set when the first team accepts (not at assign time)
-    }
-
-    /// <summary>
-    /// LEO dispatches report to a company for cleanup. Report stays Verified.
-    /// CompanyManager will assign specific company teams later.
-    /// </summary>
-    public void DispatchToCompany(Guid companyId, Guid leoId)
-    {
-        EnsureStatus(ReportStatus.Verified);
-
-        AssignedCompanyId = companyId;
-        DispatchedToCompanyAt = DateTime.UtcNow;
-        // Status stays Verified — transitions to InProgress when CM assigns team
-    }
-
-    /// <summary>
-    /// CompanyManager assigns company team(s). Verified → InProgress.
-    /// Only valid when report was dispatched to a company (AssignedCompanyId set).
-    /// </summary>
-    public void AssignByCompanyManager(Guid companyManagerId)
-    {
-        EnsureStatus(ReportStatus.Verified);
-
-        if (!AssignedCompanyId.HasValue)
-            throw new InvalidOperationException("Report must be dispatched to a company before CM can assign teams.");
-
-        Status = ReportStatus.InProgress;
-        AssignedByOfficerId = companyManagerId;
+        UpdatedAt = DateTime.UtcNow;
     }
 
     /// <summary>Set StartedAt when first team accepts the assignment.</summary>
@@ -306,13 +335,51 @@ public sealed class Report : SoftDeletableEntity
         ClosedAt = DateTime.UtcNow;
     }
 
-    /// <summary>Citizen not satisfied — reopen. Max 2 times, within 7 days. Resolved → InProgress. BR-REP-015.</summary>
-    public bool TryReopen()
+    /// <summary>
+    /// Citizen requests reopen while Resolved. Report stays Resolved until LEO approves.
+    /// BR-REP-015: max 1 approved reopen, within 7 days of ResolvedAt, reason + ≥1 image required.
+    /// </summary>
+    public bool CanRequestReopen(DateTime utcNow)
     {
-        if (Status != ReportStatus.Resolved || ReopenedCount >= 2)
+        if (Status != ReportStatus.Resolved || HasPendingReopenRequest || ReopenedCount >= MaxApprovedReopens)
             return false;
 
-        // BR-REP-015: only reopen within 7 days of Resolved
+        if (ResolvedAt.HasValue && utcNow - ResolvedAt.Value > TimeSpan.FromDays(7))
+            return false;
+
+        return true;
+    }
+
+    public void MarkPendingReopenRequest() => HasPendingReopenRequest = true;
+
+    public void ClearPendingReopenRequest() => HasPendingReopenRequest = false;
+
+    /// <summary>LEO approves reopen. Resolved → Reopened. BR-REP-015.</summary>
+    public bool ApproveReopen(Guid leoId)
+    {
+        if (Status != ReportStatus.Resolved || ReopenedCount >= MaxApprovedReopens)
+            return false;
+
+        Status = ReportStatus.Reopened;
+        ReopenedCount++;
+        ResolvedAt = null;
+        HasPendingReopenRequest = false;
+        SlaResolveDueAt = ComputeSlaResolveDue(Severity);
+        AssignedByOfficerId = null;
+        AssignedCompanyId = null;
+        DispatchedToCompanyAt = null;
+        UpdatedAt = DateTime.UtcNow;
+        _ = leoId;
+
+        return true;
+    }
+
+    [Obsolete("Use citizen reopen request + LEO ApproveReopen flow (BR-REP-015 v1.2).")]
+    public bool TryReopen()
+    {
+        if (Status != ReportStatus.Resolved || ReopenedCount >= MaxApprovedReopens)
+            return false;
+
         if (ResolvedAt.HasValue && DateTime.UtcNow - ResolvedAt.Value > TimeSpan.FromDays(7))
             return false;
 
@@ -325,7 +392,8 @@ public sealed class Report : SoftDeletableEntity
     /// <summary>Mark as duplicate of another report. BR-REP-030, BR-REP-032.</summary>
     public void MarkDuplicate(Guid primaryReportId)
     {
-        if (Status is ReportStatus.Submitted or ReportStatus.Duplicate or ReportStatus.Rejected)
+        if (Status is ReportStatus.Duplicate or ReportStatus.Rejected
+            or ReportStatus.InProgress or ReportStatus.Resolved or ReportStatus.Closed)
             throw new InvalidOperationException($"Cannot mark as duplicate from status {Status}.");
 
         Status = ReportStatus.Duplicate;
@@ -342,7 +410,7 @@ public sealed class Report : SoftDeletableEntity
     // ── Duplicate detection (BR-REP-030/031) ──
 
     /// <summary>
-    /// Tier 1 flag: same category + within 50m + within 24h of an existing report.
+    /// Tier 1 flag: same category + within 25m of an existing report.
     /// Raises an event so Tier 2 (AI image compare) can run in the background.
     /// </summary>
     /// <remarks>Implements: BR-REP-030 (definition), BR-REP-031 (possible_duplicate flag).</remarks>
@@ -352,6 +420,8 @@ public sealed class Report : SoftDeletableEntity
         PossibleDuplicateOfReportId = candidateReportId;
         DuplicateDetectionSource = source;
         AiSimilarityScore = aiScore;
+        IsSuspectedViolationRecurrence = false;
+        SuspectedRecurrenceOfReportId = null;
 
         AddDomainEvent(new ReportPossibleDuplicateFlaggedEvent(Id, candidateReportId));
     }
@@ -367,7 +437,8 @@ public sealed class Report : SoftDeletableEntity
 
     /// <summary>
     /// Tier 2 result from the AI image compare service (BR-AI-002).
-    /// Same scene → upgrade source to "geo_time_ai" and record score; different scene → dismiss.
+    /// Same scene → upgrade source to Tier2Ai and record score.
+    /// Different scene → keep Tier 1 flag for LEO review (BR-REP-031); store AI score only.
     /// </summary>
     public void ApplyDuplicateAiResult(bool isSameScene, decimal confidence)
     {
@@ -380,12 +451,36 @@ public sealed class Report : SoftDeletableEntity
 
         if (!isSameScene)
         {
-            DismissDuplicate();
+            AiSimilarityScore = confidence;
             return;
         }
 
-        DuplicateDetectionSource = "geo_time_ai";
+        DuplicateDetectionSource = DuplicateDetectionSources.Tier2Ai;
         AiSimilarityScore = confidence;
+    }
+
+    // ── Violation recurrence (BR-REP-034) ──
+
+    /// <summary>
+    /// Flags a new report near a recently Closed report (same category, ≤25m, Closed within 30 days).
+    /// Mutually exclusive with <see cref="IsPossibleDuplicate"/>.
+    /// Raises an event so LEO is notified to compare and decide on InspectionReport.
+    /// </summary>
+    public void MarkSuspectedViolationRecurrence(Guid priorClosedReportId)
+    {
+        if (IsPossibleDuplicate)
+            return;
+
+        IsSuspectedViolationRecurrence = true;
+        SuspectedRecurrenceOfReportId = priorClosedReportId;
+        AddDomainEvent(new ReportViolationRecurrenceSuspectedEvent(Id, priorClosedReportId));
+    }
+
+    /// <summary>LEO dismisses the recurrence suspicion (ordinary repeat pollution, not a violator case).</summary>
+    public void DismissViolationRecurrence()
+    {
+        IsSuspectedViolationRecurrence = false;
+        SuspectedRecurrenceOfReportId = null;
     }
 
     // ────────────────────────────────────────────────────
@@ -462,6 +557,13 @@ public sealed class Report : SoftDeletableEntity
                 $"Invalid state transition: expected {expected} but current is {Status}.");
     }
 
+    private void EnsureAssignableForCleanup()
+    {
+        if (Status is not (ReportStatus.Verified or ReportStatus.Reopened))
+            throw new InvalidOperationException(
+                $"Cannot assign cleanup from status {Status}. Must be Verified or Reopened.");
+    }
+
     private static DateTime ComputeSlaResolveDue(Severity severity) => severity switch
     {
         Severity.Critical => DateTime.UtcNow.AddDays(3),
@@ -500,5 +602,13 @@ public sealed class Report : SoftDeletableEntity
         HiddenAt = null;
         HiddenBy = null;
         HiddenReason = null;
+    }
+
+    /// <summary>BR-AUTH-021/022: Detach reporter identity; report data is retained.</summary>
+    public void AnonymizeReporter()
+    {
+        ReporterId = null;
+        HideReporterName = true;
+        UpdatedAt = DateTime.UtcNow;
     }
 }

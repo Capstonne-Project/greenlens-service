@@ -16,7 +16,10 @@ public sealed class UpdateDepartmentCommandHandler(
     {
         var dept = await departments.GetByIdAsync(request.Id, ct).ConfigureAwait(false);
         if (dept is null)
+        {
+            logger.LogWarning("Department not found for ID {Id}", request.Id);
             return Errors.Organization.DepartmentNotFound;
+        }
 
         // Update department name
         dept.Update(request.Name);

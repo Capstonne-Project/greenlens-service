@@ -9,12 +9,16 @@ using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Auth.ForgotPassword;
 
-/// <summary>Send password reset OTP to email.</summary>
+/// <summary>Enqueue password reset OTP email (anti-enumeration — always success when user exists).</summary>
+/// <remarks>
+/// BR-SYS-001: SMTP via Hangfire. Always returns generic success message (anti-enumeration),
+/// even when enqueue or background delivery fails.
+/// </remarks>
 public sealed class ForgotPasswordCommandHandler(
     IUserRepository users,
     IOtpRepository otps,
     IUnitOfWork uow,
-    IEmailSender emailSender,
+    IAuthEmailScheduler authEmailScheduler,
     IPasswordHasher passwordHasher,
     ILogger<ForgotPasswordCommandHandler> logger)
     : IRequestHandler<ForgotPasswordCommand, Result<ForgotPasswordResponse>>
@@ -23,22 +27,18 @@ public sealed class ForgotPasswordCommandHandler(
         ForgotPasswordCommand request,
         CancellationToken cancellationToken)
     {
-        // Find user by email
         var user = await users.GetByEmailAsync(request.Email, cancellationToken)
             .ConfigureAwait(false);
 
-        // Always return success to prevent email enumeration
         if (user is null)
         {
             logger.LogInformation("Forgot password requested for non-existent email {Email}", request.Email);
             return new ForgotPasswordResponse("Nếu email tồn tại, mã OTP sẽ được gửi.");
         }
 
-        // Invalidate all previous password reset OTPs
         await otps.InvalidateAllAsync(request.Email, OtpPurpose.PasswordReset, cancellationToken)
             .ConfigureAwait(false);
 
-        // Generate 6-digit OTP and hash for storage
         var otpCode = RandomNumberGenerator.GetInt32(100000, 999999).ToString();
         var codeHash = passwordHasher.Hash(otpCode);
 
@@ -47,11 +47,14 @@ public sealed class ForgotPasswordCommandHandler(
 
         await uow.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-        // Send password reset email
-        await emailSender.SendPasswordResetAsync(request.Email, otpCode, cancellationToken)
-            .ConfigureAwait(false);
+        if (!authEmailScheduler.TryEnqueuePasswordResetEmail(request.Email, otpCode))
+        {
+            logger.LogError(
+                "Password reset OTP persisted but email job enqueue failed for user {UserId}",
+                user.Id);
+        }
 
-        logger.LogInformation("Password reset OTP sent to {Email}", request.Email);
+        logger.LogInformation("Password reset OTP enqueued for user {UserId}", user.Id);
 
         return new ForgotPasswordResponse("Nếu email tồn tại, mã OTP sẽ được gửi.");
     }

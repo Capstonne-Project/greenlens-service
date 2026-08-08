@@ -31,6 +31,9 @@ internal sealed class InspectionReportConfiguration : IEntityTypeConfiguration<I
         // ── Close ──
         builder.Property(ir => ir.ClosedReason).HasMaxLength(2000);
 
+        builder.Property(ir => ir.ArrivalNote).HasMaxLength(500);
+        builder.Property(ir => ir.CheckedInNote).HasMaxLength(500);
+
         // ── Relationships ──
         builder.HasOne(ir => ir.Report)
             .WithMany()

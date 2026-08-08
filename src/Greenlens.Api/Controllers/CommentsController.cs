@@ -1,3 +1,4 @@
+using Greenlens.Api.Attributes;
 using Greenlens.Api.Extensions;
 using Greenlens.Application.Common.Models;
 using Greenlens.Application.Features.Comments.AddComment;
@@ -35,11 +36,12 @@ public sealed class CommentsController(ISender sender) : ControllerBase
         => (await sender.Send(new GetReportCommentsQuery(reportId, page, pageSize), ct)).ToHttp();
 
     [HttpPost("reports/{reportId:guid}/comments")]
+    [SupportsIdempotency]
     [SwaggerOperation(
         Summary = "[Auth] Thêm bình luận / trả lời",
         Description = "1–500 ký tự, tối đa 2 ảnh. parentCommentId = trả lời (TikTok-style, 1 cấp). " +
             "Báo cáo ẩn danh: đội xử lý / LEO / người gửi được comment.")]
-    [SwaggerResponse(201, "Đã tạo bình luận", typeof(ApiResponse<AddCommentResponse>))]
+    [SwaggerResponse(200, "Đã tạo bình luận", typeof(ApiResponse<AddCommentResponse>))]
     [SwaggerResponse(403, "Không được bình luận / chưa đăng nhập", typeof(ApiResponse))]
     [SwaggerResponse(422, "Nội dung không phù hợp hoặc bị khóa bình luận", typeof(ApiResponse))]
     public async Task<IActionResult> AddCommentAsync(
@@ -48,7 +50,7 @@ public sealed class CommentsController(ISender sender) : ControllerBase
         CancellationToken ct)
     {
         var command = new AddCommentCommand(reportId, body.Content, body.Images, body.ParentCommentId);
-        return (await sender.Send(command, ct)).ToHttpCreated();
+        return (await sender.Send(command, ct)).ToHttp("Đã thêm bình luận thành công.");
     }
 
     [HttpPost("comments/{commentId:guid}/like")]

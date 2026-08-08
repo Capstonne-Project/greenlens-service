@@ -1,4 +1,5 @@
 using Greenlens.Domain.Entities;
+using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 
 namespace Greenlens.Domain.UnitTests;
@@ -105,8 +106,7 @@ public sealed class ReportTests
 
         report.Reject("Ảnh không phản ánh ô nhiễm thực tế");
 
-        // BR-ORG-015: Status stays Submitted — re-queued to Department
-        Assert.Equal(ReportStatus.Submitted, report.Status);
+        Assert.Equal(ReportStatus.Rejected, report.Status);
         Assert.Equal("Ảnh không phản ánh ô nhiễm thực tế", report.RejectedReason);
     }
 
@@ -132,6 +132,8 @@ public sealed class ReportTests
 
         Assert.Equal(ReportStatus.InProgress, report.Status);
         Assert.Equal(officerId, report.AssignedByOfficerId);
+        var inProgressEvt = Assert.Single(report.DomainEvents.OfType<ReportInProgressEvent>());
+        Assert.Equal(report.Id, inProgressEvt.ReportId);
     }
 
     [Fact]
@@ -140,6 +142,50 @@ public sealed class ReportTests
         var report = CreateTestReport();
 
         Assert.Throws<InvalidOperationException>(() => report.Assign(Guid.NewGuid()));
+    }
+
+    // ── Company dispatch ──
+
+    [Fact]
+    public void DispatchToCompany_FromVerified_ShouldMoveToInProgress()
+    {
+        var report = CreateTestReport();
+        report.Verify(Guid.NewGuid());
+        var leoId = Guid.NewGuid();
+        var companyId = Guid.NewGuid();
+
+        report.DispatchToCompany(companyId, leoId);
+
+        Assert.Equal(ReportStatus.InProgress, report.Status);
+        Assert.Equal(companyId, report.AssignedCompanyId);
+        Assert.Equal(leoId, report.AssignedByOfficerId);
+        Assert.NotNull(report.DispatchedToCompanyAt);
+        Assert.Contains(report.DomainEvents, e => e is ReportInProgressEvent);
+    }
+
+    [Fact]
+    public void AssignByCompanyManager_FromInProgress_ShouldKeepInProgress()
+    {
+        var report = CreateTestReport();
+        report.Verify(Guid.NewGuid());
+        var leoId = Guid.NewGuid();
+        var cmId = Guid.NewGuid();
+        report.DispatchToCompany(Guid.NewGuid(), leoId);
+
+        report.AssignByCompanyManager(cmId);
+
+        Assert.Equal(ReportStatus.InProgress, report.Status);
+        Assert.Equal(cmId, report.AssignedByOfficerId);
+    }
+
+    [Fact]
+    public void AssignByCompanyManager_WithoutDispatch_ShouldThrow()
+    {
+        var report = CreateTestReport();
+        report.Verify(Guid.NewGuid());
+        report.Assign(Guid.NewGuid());
+
+        Assert.Throws<InvalidOperationException>(() => report.AssignByCompanyManager(Guid.NewGuid()));
     }
 
     // ── Resolve ──
@@ -182,52 +228,87 @@ public sealed class ReportTests
         Assert.NotNull(report.ClosedAt);
     }
 
-    // ── Reopen ──
+    // ── Reopen (BR-REP-015 v1.2: citizen request + LEO approve) ──
 
     [Fact]
-    public void TryReopen_FromResolved_ShouldSucceed()
+    public void CanRequestReopen_FromResolved_ShouldReturnTrue_BR_REP_015()
     {
         var report = CreateTestReport();
         report.Verify(Guid.NewGuid());
         report.Assign(Guid.NewGuid());
         report.Resolve();
 
-        var result = report.TryReopen();
+        Assert.True(report.CanRequestReopen(DateTime.UtcNow));
+    }
+
+    [Fact]
+    public void ApproveReopen_FromResolved_ChangesToReopened_BR_REP_015()
+    {
+        var report = CreateTestReport();
+        report.Verify(Guid.NewGuid());
+        report.Assign(Guid.NewGuid());
+        report.Resolve();
+        report.MarkPendingReopenRequest();
+
+        var result = report.ApproveReopen(Guid.NewGuid());
 
         Assert.True(result);
-        Assert.Equal(ReportStatus.InProgress, report.Status);
+        Assert.Equal(ReportStatus.Reopened, report.Status);
         Assert.Equal(1, report.ReopenedCount);
+        Assert.False(report.HasPendingReopenRequest);
         Assert.Null(report.ResolvedAt);
     }
 
     [Fact]
-    public void TryReopen_ThirdTime_ShouldFail()
+    public void ApproveReopen_SecondTime_ShouldFail_BR_REP_015()
     {
         var report = CreateTestReport();
         report.Verify(Guid.NewGuid());
         report.Assign(Guid.NewGuid());
-
-        // Reopen 1
         report.Resolve();
-        report.TryReopen();
-
-        // Reopen 2
+        report.ApproveReopen(Guid.NewGuid());
+        report.Assign(Guid.NewGuid());
         report.Resolve();
-        report.TryReopen();
 
-        // Reopen 3 → should fail (max 2)
-        report.Resolve();
-        var result = report.TryReopen();
+        var result = report.ApproveReopen(Guid.NewGuid());
 
         Assert.False(result);
         Assert.Equal(ReportStatus.Resolved, report.Status);
-        Assert.Equal(2, report.ReopenedCount);
+        Assert.Equal(1, report.ReopenedCount);
+    }
+
+    [Fact]
+    public void CanRequestReopen_AfterOneApprove_ShouldReturnFalse_BR_REP_015()
+    {
+        var report = CreateTestReport();
+        report.Verify(Guid.NewGuid());
+        report.Assign(Guid.NewGuid());
+        report.Resolve();
+        report.ApproveReopen(Guid.NewGuid());
+        report.Assign(Guid.NewGuid());
+        report.Resolve();
+
+        Assert.False(report.CanRequestReopen(DateTime.UtcNow));
+    }
+
+    [Fact]
+    public void Assign_FromReopened_MovesToInProgress_BR_OFF_011()
+    {
+        var report = CreateTestReport();
+        report.Verify(Guid.NewGuid());
+        report.Assign(Guid.NewGuid());
+        report.Resolve();
+        report.ApproveReopen(Guid.NewGuid());
+
+        report.Assign(Guid.NewGuid());
+
+        Assert.Equal(ReportStatus.InProgress, report.Status);
     }
 
     // ── Duplicate ──
 
     [Fact]
-    public void MarkDuplicate_FromSubmitted_ShouldSucceed()
+    public void MarkDuplicate_FromSubmitted_ShouldSucceed_BR_REP_032()
     {
         var report = CreateTestReport();
         var primaryId = Guid.NewGuid();
@@ -239,7 +320,18 @@ public sealed class ReportTests
     }
 
     [Fact]
-    public void MarkDuplicate_FromInProgress_ShouldThrow()
+    public void MarkDuplicate_FromVerified_ShouldSucceed_BR_REP_032()
+    {
+        var report = CreateTestReport();
+        report.Verify(Guid.NewGuid());
+
+        report.MarkDuplicate(Guid.NewGuid());
+
+        Assert.Equal(ReportStatus.Duplicate, report.Status);
+    }
+
+    [Fact]
+    public void MarkDuplicate_FromInProgress_ShouldThrow_BR_REP_032()
     {
         var report = CreateTestReport();
         report.Verify(Guid.NewGuid());
@@ -266,11 +358,11 @@ public sealed class ReportTests
         var report = CreateTestReport();
         var candidateId = Guid.NewGuid();
 
-        report.MarkPossibleDuplicate(candidateId, "geo_time");
+        report.MarkPossibleDuplicate(candidateId, DuplicateDetectionSources.Tier1);
 
         Assert.True(report.IsPossibleDuplicate);
         Assert.Equal(candidateId, report.PossibleDuplicateOfReportId);
-        Assert.Equal("geo_time", report.DuplicateDetectionSource);
+        Assert.Equal(DuplicateDetectionSources.Tier1, report.DuplicateDetectionSource);
         Assert.Null(report.AiSimilarityScore);
     }
 
@@ -280,7 +372,7 @@ public sealed class ReportTests
         var report = CreateTestReport();
         var candidateId = Guid.NewGuid();
 
-        report.MarkPossibleDuplicate(candidateId, "geo_time");
+        report.MarkPossibleDuplicate(candidateId, DuplicateDetectionSources.Tier1);
 
         var evt = Assert.Single(report.DomainEvents.OfType<ReportPossibleDuplicateFlaggedEvent>());
         Assert.Equal(report.Id, evt.ReportId);
@@ -291,7 +383,7 @@ public sealed class ReportTests
     public void DismissDuplicate_ClearsFlag_BR_REP_031()
     {
         var report = CreateTestReport();
-        report.MarkPossibleDuplicate(Guid.NewGuid(), "geo_time");
+        report.MarkPossibleDuplicate(Guid.NewGuid(), DuplicateDetectionSources.Tier1);
 
         report.DismissDuplicate();
 
@@ -305,26 +397,26 @@ public sealed class ReportTests
     public void ApplyDuplicateAiResult_SameScene_UpgradesSourceAndScore_BR_AI_002()
     {
         var report = CreateTestReport();
-        report.MarkPossibleDuplicate(Guid.NewGuid(), "geo_time");
+        report.MarkPossibleDuplicate(Guid.NewGuid(), DuplicateDetectionSources.Tier1);
 
         report.ApplyDuplicateAiResult(isSameScene: true, confidence: 0.87m);
 
         Assert.True(report.IsPossibleDuplicate);
-        Assert.Equal("geo_time_ai", report.DuplicateDetectionSource);
+        Assert.Equal(DuplicateDetectionSources.Tier2Ai, report.DuplicateDetectionSource);
         Assert.Equal(0.87m, report.AiSimilarityScore);
     }
 
     [Fact]
-    public void ApplyDuplicateAiResult_DifferentScene_DismissesFlag_BR_AI_002()
+    public void ApplyDuplicateAiResult_DifferentScene_KeepsTier1FlagForLeoReview_BR_REP_031()
     {
         var report = CreateTestReport();
-        report.MarkPossibleDuplicate(Guid.NewGuid(), "geo_time");
+        report.MarkPossibleDuplicate(Guid.NewGuid(), DuplicateDetectionSources.Tier1);
 
         report.ApplyDuplicateAiResult(isSameScene: false, confidence: 0.20m);
 
-        Assert.False(report.IsPossibleDuplicate);
-        Assert.Null(report.PossibleDuplicateOfReportId);
-        Assert.Null(report.DuplicateDetectionSource);
+        Assert.True(report.IsPossibleDuplicate);
+        Assert.Equal(DuplicateDetectionSources.Tier1, report.DuplicateDetectionSource);
+        Assert.Equal(0.20m, report.AiSimilarityScore);
     }
 
     [Fact]
@@ -343,14 +435,14 @@ public sealed class ReportTests
     public void ApplyDuplicateAiResult_WhenAlreadyDuplicate_IsNoOp_BR_REP_031()
     {
         var report = CreateTestReport();
-        report.MarkPossibleDuplicate(Guid.NewGuid(), "geo_time");
+        report.MarkPossibleDuplicate(Guid.NewGuid(), DuplicateDetectionSources.Tier1);
         report.MarkDuplicate(Guid.NewGuid());
 
         report.ApplyDuplicateAiResult(isSameScene: true, confidence: 0.99m);
 
         Assert.Equal(ReportStatus.Duplicate, report.Status);
         Assert.False(report.IsPossibleDuplicate);
-        Assert.Equal("geo_time", report.DuplicateDetectionSource);
+        Assert.Equal(DuplicateDetectionSources.Tier1, report.DuplicateDetectionSource);
         Assert.Null(report.AiSimilarityScore);
     }
 
@@ -358,7 +450,7 @@ public sealed class ReportTests
     public void MarkDuplicate_ClearsPossibleDuplicateFlag_BR_REP_032()
     {
         var report = CreateTestReport();
-        report.MarkPossibleDuplicate(Guid.NewGuid(), "geo_time");
+        report.MarkPossibleDuplicate(Guid.NewGuid(), DuplicateDetectionSources.Tier1);
 
         report.MarkDuplicate(Guid.NewGuid());
 
@@ -449,5 +541,81 @@ public sealed class ReportTests
         report.Close();
         Assert.Equal(ReportStatus.Closed, report.Status);
         Assert.NotNull(report.ClosedAt);
+    }
+
+    [Fact]
+    public void AnonymizeReporter_ShouldClearReporterIdAndHideName_BR_AUTH_021()
+    {
+        var reporterId = Guid.NewGuid();
+        var report = Report.Create(
+            code: "RPT-2026-000099",
+            reporterId: reporterId,
+            categoryId: Guid.NewGuid(),
+            severity: Severity.Medium,
+            description: "Test",
+            latitude: 10.7626m,
+            longitude: 106.6602m,
+            address: "123 ABC",
+            wardCode: "00001",
+            provinceCode: "79");
+
+        report.AnonymizeReporter();
+
+        Assert.Null(report.ReporterId);
+        Assert.True(report.HideReporterName);
+    }
+
+    [Fact]
+    public void MarkSuspectedViolationRecurrence_SkippedWhenPossibleDuplicate_BR_REP_034()
+    {
+        var report = CreateTestReport();
+        var primaryId = Guid.NewGuid();
+        var priorId = Guid.NewGuid();
+
+        report.MarkPossibleDuplicate(primaryId, "geo_category");
+        report.MarkSuspectedViolationRecurrence(priorId);
+
+        Assert.True(report.IsPossibleDuplicate);
+        Assert.False(report.IsSuspectedViolationRecurrence);
+        Assert.Null(report.SuspectedRecurrenceOfReportId);
+    }
+
+    [Fact]
+    public void MarkPossibleDuplicate_ClearsRecurrenceFlag_BR_REP_034()
+    {
+        var report = CreateTestReport();
+        report.MarkSuspectedViolationRecurrence(Guid.NewGuid());
+
+        report.MarkPossibleDuplicate(Guid.NewGuid(), "geo_category");
+
+        Assert.True(report.IsPossibleDuplicate);
+        Assert.False(report.IsSuspectedViolationRecurrence);
+        Assert.Null(report.SuspectedRecurrenceOfReportId);
+    }
+
+    [Fact]
+    public void MarkSuspectedViolationRecurrence_SetsFlagAndEvent_BR_REP_034()
+    {
+        var report = CreateTestReport();
+        var priorId = Guid.NewGuid();
+
+        report.MarkSuspectedViolationRecurrence(priorId);
+
+        Assert.True(report.IsSuspectedViolationRecurrence);
+        Assert.Equal(priorId, report.SuspectedRecurrenceOfReportId);
+        var evt = Assert.Single(report.DomainEvents.OfType<ReportViolationRecurrenceSuspectedEvent>());
+        Assert.Equal(priorId, evt.PriorClosedReportId);
+    }
+
+    [Fact]
+    public void DismissViolationRecurrence_ClearsFlag_BR_REP_034()
+    {
+        var report = CreateTestReport();
+        report.MarkSuspectedViolationRecurrence(Guid.NewGuid());
+
+        report.DismissViolationRecurrence();
+
+        Assert.False(report.IsSuspectedViolationRecurrence);
+        Assert.Null(report.SuspectedRecurrenceOfReportId);
     }
 }

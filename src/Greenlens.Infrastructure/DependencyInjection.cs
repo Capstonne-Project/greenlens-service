@@ -15,7 +15,9 @@ using Greenlens.Infrastructure.Persistence.Repositories.Location;
 using Greenlens.Infrastructure.BackgroundJobs;
 using Greenlens.Infrastructure.DomainEvents;
 using Greenlens.Infrastructure.Moderation;
+using Greenlens.Application.Features.Notifications;
 using Greenlens.Infrastructure.Notifications;
+using Greenlens.Infrastructure.Options;
 using Greenlens.Infrastructure.Services;
 using Hangfire;
 using Hangfire.PostgreSql;
@@ -69,6 +71,8 @@ public static class DependencyInjection
         services.AddScoped<IEnvironmentalTeamRepository, EnvironmentalTeamRepository>();
         services.AddScoped<ITeamMemberRepository, TeamMemberRepository>();
         services.AddScoped<IReportAssignmentRepository, ReportAssignmentRepository>();
+        services.AddScoped<ICommunityCleanupEventRepository, CommunityCleanupEventRepository>();
+        services.AddScoped<ICommunityCleanupParticipantRepository, CommunityCleanupParticipantRepository>();
 
         // ── Company module (v1.3) ──
         services.AddScoped<IEnvironmentalServiceCompanyRepository, EnvironmentalServiceCompanyRepository>();
@@ -77,6 +81,7 @@ public static class DependencyInjection
 
         // ── Inspection module (v3.0) ──
         services.AddScoped<IInspectionReportRepository, InspectionReportRepository>();
+        services.AddScoped<IInspectionEvidenceRepository, InspectionEvidenceRepository>();
         services.AddScoped<IViolatingEntityRepository, ViolatingEntityRepository>();
 
         // ── Gamification module (v1.2) ──
@@ -113,11 +118,31 @@ public static class DependencyInjection
         services.AddScoped<IGoogleAuthService, GoogleAuthService>();
 
         // ── Email ────────────────────────────────────────────
-        services.AddScoped<IEmailSender, SmtpEmailSender>();
+        services.AddOptions<SmtpOptions>()
+            .Bind(configuration.GetSection("Smtp"))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        var smtpEnabled = configuration.GetValue("Smtp:Enabled", true);
+        if (smtpEnabled)
+            services.AddScoped<IEmailSender, SmtpEmailSender>();
+        else
+            services.AddScoped<IEmailSender, NoOpEmailSender>();
 
         // ── Notifications (BR-NTF-001..004) ───────────────
         services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<INotificationDispatchScheduler, NotificationDispatchScheduler>();
+        services.AddScoped<IAuthEmailScheduler, AuthEmailScheduler>();
         services.AddScoped<IPushNotificationSender, FcmPushNotificationSender>();
+        services.AddScoped<IOfficerRecipientQuery, OfficerRecipientQuery>();
+        services.AddScoped<ITeamMemberRecipientQuery, TeamMemberRecipientQuery>();
+        services.AddScoped<ICleanupTaskAssignedNotifier, CleanupTaskAssignedNotifier>();
+        services.AddScoped<ICleanupAssignmentActivityNotifier, CleanupAssignmentActivityNotifier>();
+        services.AddScoped<IInspectionTaskAssignedNotifier, InspectionTaskAssignedNotifier>();
+        services.AddScoped<IInspectionAssignmentActivityNotifier, InspectionAssignmentActivityNotifier>();
+        services.AddScoped<IInspectionTaskDeclinedNotifier, InspectionTaskDeclinedNotifier>();
+        services.AddScoped<IInspectionClosedNoViolationNotifier, InspectionClosedNoViolationNotifier>();
+        services.AddScoped<ICompanyManagerRecipientQuery, CompanyManagerRecipientQuery>();
 
         // ── Firebase Phone Auth ──────────────────────────
         services.AddScoped<IFirebasePhoneAuthService, FirebasePhoneAuthService>();
@@ -133,6 +158,7 @@ public static class DependencyInjection
 
         // ── Geo / PostGIS (BR-CLN-002, BR-INS-004) ──
         services.AddScoped<IGeoDistanceService, Geo.PostGisDistanceService>();
+        services.AddScoped<INearbyCitizenQuery, Geo.NearbyCitizenQuery>();
 
         // ── AI Classification ─────────────────────────
         services.AddOptions<AiOptions>()
@@ -157,18 +183,37 @@ public static class DependencyInjection
         services.AddSingleton<IImageExifAnalyzer, Imaging.MetadataExtractorImageExifAnalyzer>();
         services.AddScoped<IImageBytesFetcher, Imaging.HttpImageBytesFetcher>();
 
-        // ── Report submit rate limit (BR-REP-010) ──
+        // ── Redis + report submit rate limit (BR-REP-010, P0-3) ──
+        services.AddOptions<RedisInfrastructureOptions>()
+            .Bind(configuration.GetSection(RedisInfrastructureOptions.SectionName))
+            .ValidateOnStart();
+
+        var redisOptions = configuration
+            .GetSection(RedisInfrastructureOptions.SectionName)
+            .Get<RedisInfrastructureOptions>() ?? new RedisInfrastructureOptions();
+
         var redisConnection = configuration.GetConnectionString("Redis");
+        if (redisOptions.Required && string.IsNullOrWhiteSpace(redisConnection))
+        {
+            throw new InvalidOperationException(
+                "ConnectionStrings:Redis is required when Redis:Required is true (staging/production). " +
+                "Set the connection string via environment variable or secrets manager.");
+        }
+
         if (!string.IsNullOrWhiteSpace(redisConnection))
         {
             services.AddSingleton<IConnectionMultiplexer>(_ =>
                 ConnectionMultiplexer.Connect(redisConnection));
             services.AddSingleton<IReportSubmissionRateLimiter, RateLimiting.RedisReportSubmissionRateLimiter>();
+            services.AddSingleton<IIdempotencyStore, Idempotency.RedisIdempotencyStore>();
         }
         else
         {
             services.AddSingleton<IReportSubmissionRateLimiter, RateLimiting.InMemoryReportSubmissionRateLimiter>();
+            services.AddSingleton<IIdempotencyStore, Idempotency.InMemoryIdempotencyStore>();
         }
+
+        services.AddScoped<IIdempotencyContext, Idempotency.IdempotencyContext>();
 
         // ── Comment moderation (BR-CMT-003 phase 1, BR-REP-004) ──
         services.AddSingleton<BlockedWordCache>();
@@ -341,7 +386,7 @@ public static class DependencyInjection
             job => job.ExecuteAsync(),
             "5 0 * * *"); // 00:05 UTC daily
 
-        // BR-REP-016: Auto-close reports Resolved > 7 days
+        // BR-REP-016: Auto-close reports Resolved > 2 days
         RecurringJob.AddOrUpdate<AutoCloseResolvedReportJob>(
             "auto-close-resolved-reports",
             job => job.ExecuteAsync(),
@@ -383,7 +428,7 @@ public static class DependencyInjection
             job => job.ExecuteAsync(),
             "*/30 * * * *"); // every 30 minutes
 
-        // BR-DAT-002: Data retention — delete expired media files (>2y) and audit logs (>12m)
+        // BR-DAT-002: Data retention — delete expired media files (>2y), audit_logs (>12m), report status history (>12m)
         RecurringJob.AddOrUpdate<DataRetentionJob>(
             "data-retention",
             job => job.ExecuteAsync(),
@@ -401,11 +446,23 @@ public static class DependencyInjection
             job => job.ExecuteAsync(),
             "*/30 * * * *"); // every 30 minutes
 
+        // BR-INS-021: Mark penalty payment overdue and notify LEO/DEO
+        RecurringJob.AddOrUpdate<PenaltyPaymentOverdueJob>(
+            "penalty-payment-overdue",
+            job => job.ExecuteAsync(),
+            "0 * * * *"); // every hour
+
         // BR-CLN-004: Flag stale cleanup progress (>24h / >48h)
         RecurringJob.AddOrUpdate<CleanupProgressSlaJob>(
             "cleanup-progress-sla",
             job => job.ExecuteAsync(),
             "0 * * * *"); // every hour
+
+        // Draft BR-CMU-*: Remind Community Cleanup participants ~15 min before StartsAt to check in
+        RecurringJob.AddOrUpdate<CommunityCleanupCheckInReminderJob>(
+            "community-cleanup-checkin-reminder",
+            job => job.ExecuteAsync(),
+            "*/5 * * * *"); // every 5 minutes
 
         // Classification is an opt-in pre-submit UX feature. Remove the legacy
         // recurring registration from persistent Hangfire storage after rollout.

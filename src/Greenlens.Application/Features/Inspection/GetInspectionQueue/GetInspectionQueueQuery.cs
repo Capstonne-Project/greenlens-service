@@ -28,4 +28,7 @@ public sealed record InspectionQueueItemDto(
     decimal? PenaltyAmount,
     bool IsRepeatOffender,
     DateTime? SlaInspectionDueAt,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    /// <summary>Toạ độ hiện trường (từ Report) — cho Inspector map view.</summary>
+    decimal Latitude,
+    decimal Longitude);

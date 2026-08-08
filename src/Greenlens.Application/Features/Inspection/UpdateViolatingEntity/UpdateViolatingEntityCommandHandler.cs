@@ -19,26 +19,45 @@ public sealed class UpdateViolatingEntityCommandHandler(
 {
     public async Task<Result> Handle(UpdateViolatingEntityCommand request, CancellationToken ct)
     {
+        logger.LogInformation("Getting update violating entity");
+
         var entity = await violatingEntities.GetByIdAsync(request.Id, ct).ConfigureAwait(false);
         if (entity is null)
+        {
+            logger.LogWarning("Violating entity not found for id {Id}", request.Id);
             return Errors.Inspections.ViolatingEntityNotFound;
+        }
 
-        // Check TaxCode uniqueness if changing
+        if (entity.IsDeleted)
+        {
+            logger.LogWarning("Violating entity {Id} already deleted", request.Id);
+            return Errors.Inspections.ViolatingEntityAlreadyDeleted;
+        }
+
+        // Check TaxCode uniqueness if changing (include soft-deleted rows)
         if (request.TaxCode is not null && request.TaxCode != entity.TaxCode)
         {
-            var existing = await violatingEntities
-                .FindByTaxCodeAsync(request.TaxCode, ct).ConfigureAwait(false);
-            if (existing is not null && existing.Id != entity.Id)
+            var taxExists = await violatingEntities
+                .TaxCodeExistsAsync(request.TaxCode, entity.Id, ct)
+                .ConfigureAwait(false);
+            if (taxExists)
+            {
+                logger.LogWarning("Tax code {TaxCode} already exists", request.TaxCode);
                 return Errors.Inspections.ViolatingEntityDuplicateTaxCode;
+            }
         }
 
         // Check IdentityNumber uniqueness if changing
         if (request.IdentityNumber is not null && request.IdentityNumber != entity.IdentityNumber)
         {
-            var existing = await violatingEntities
-                .FindByIdentityNumberAsync(request.IdentityNumber, ct).ConfigureAwait(false);
-            if (existing is not null && existing.Id != entity.Id)
+            var identityExists = await violatingEntities
+                .IdentityNumberExistsAsync(request.IdentityNumber, entity.Id, ct)
+                .ConfigureAwait(false);
+            if (identityExists)
+            {
+                logger.LogWarning("Identity number {IdentityNumber} already exists", request.IdentityNumber);
                 return Errors.Inspections.ViolatingEntityDuplicateIdentityNumber;
+            }
         }
 
         entity.Update(

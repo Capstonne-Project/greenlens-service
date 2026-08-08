@@ -3,7 +3,7 @@ using Greenlens.Application.Common.Models;
 using Greenlens.Domain.Common;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-
+using Microsoft.Extensions.Logging;
 namespace Greenlens.Application.Features.Admin.GetAdminPollutionCategories;
 
 /// <summary>
@@ -11,19 +11,22 @@ namespace Greenlens.Application.Features.Admin.GetAdminPollutionCategories;
 /// search, filter (isActive), sort, and pagination for Admin Dashboard.
 /// </summary>
 /// <remarks>Implements: BR-ADM-003 (CRUD Category management).</remarks>
-public sealed class GetAdminPollutionCategoriesQueryHandler(IPollutionCategoryRepository categories)
+public sealed class GetAdminPollutionCategoriesQueryHandler(IPollutionCategoryRepository categories, ILogger<GetAdminPollutionCategoriesQueryHandler> logger)
     : IRequestHandler<GetAdminPollutionCategoriesQuery, Result<GetAdminPollutionCategoriesResponse>>
 {
     public async Task<Result<GetAdminPollutionCategoriesResponse>> Handle(
         GetAdminPollutionCategoriesQuery request,
         CancellationToken ct)
     {
+        logger.LogInformation("Getting admin pollution categories");
+
         // 1. Base query — include inactive categories for admin
         var baseQuery = categories.QueryAsNoTracking();
 
         // 2. Apply search (code, nameVi, nameEn)
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
+            logger.LogInformation("Search: {Search}", request.Search);
             var keyword = request.Search.Trim().ToLower();
             baseQuery = baseQuery.Where(c =>
                 c.Code.ToLower().Contains(keyword) ||
@@ -35,14 +38,17 @@ public sealed class GetAdminPollutionCategoriesQueryHandler(IPollutionCategoryRe
         if (request.IsActive.HasValue)
         {
             baseQuery = baseQuery.Where(c => c.IsActive == request.IsActive.Value);
+            logger.LogInformation("Is active: {IsActive}", request.IsActive.Value);
         }
 
         // 4. Count total
         var totalItems = await baseQuery.CountAsync(ct).ConfigureAwait(false);
+        logger.LogInformation("Total items: {TotalItems}", totalItems);
         var pagination = PaginationMeta.Create(request.Page, request.PageSize, totalItems);
 
         // 5. Apply sorting
         var sortBy = request.SortBy?.Trim().ToLowerInvariant();
+        logger.LogInformation("Sort by: {SortBy}", sortBy);
         var orderedQuery = sortBy switch
         {
             "code" => request.SortDesc
@@ -81,6 +87,8 @@ public sealed class GetAdminPollutionCategoriesQueryHandler(IPollutionCategoryRe
                 c.CreatedAt))
             .ToListAsync(ct)
             .ConfigureAwait(false);
+
+        logger.LogInformation("Admin pollution categories retrieved successfully");
 
         return new GetAdminPollutionCategoriesResponse(items, pagination);
     }

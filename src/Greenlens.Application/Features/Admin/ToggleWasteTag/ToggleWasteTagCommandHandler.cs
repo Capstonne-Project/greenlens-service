@@ -15,10 +15,16 @@ public sealed class ToggleWasteTagCommandHandler(
     {
         var tag = await wasteTags.GetByIdAsync(request.Id, ct).ConfigureAwait(false);
         if (tag is null)
+        {
+            logger.LogWarning("Waste tag not found: {Id}", request.Id);
             return Errors.Reports.WasteTagNotFound;
+        }
 
         if (request.IsActive)
+        {
+            logger.LogInformation("Activating waste tag: {Id}", request.Id);
             tag.Activate();
+        }
         else
             tag.Deactivate();
 

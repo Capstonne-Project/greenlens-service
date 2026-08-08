@@ -2,6 +2,8 @@ using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
+using Greenlens.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Infrastructure.Services;
@@ -11,10 +13,12 @@ namespace Greenlens.Infrastructure.Services;
 /// auto-decline all active assignments from the company's teams, revert orphaned reports
 /// to Verified, and notify LEO for reassignment.
 /// </summary>
+/// <remarks>Implements: BR-CMP-013, BR-NTF-002.</remarks>
 internal sealed class CompanyCascadeService(
     IReportAssignmentRepository assignments,
     IReportRepository reports,
-    INotificationRepository notifications,
+    ApplicationDbContext db,
+    INotificationService notificationService,
     ILogger<CompanyCascadeService> logger) : ICompanyCascadeService
 {
     public async Task CascadeDeactivationAsync(Guid companyId, string reason, CancellationToken ct)
@@ -31,23 +35,16 @@ internal sealed class CompanyCascadeService(
 
         var affectedReportIds = activeAssignments.Select(a => a.ReportId).Distinct().ToList();
 
-        // Decline/cancel all assignments:
-        // - Assigned → use domain Decline() method
-        // - InProgress → use ForceDecline() since domain method only allows from Assigned
         foreach (var assignment in activeAssignments)
         {
             if (assignment.Status == AssignmentStatus.Assigned)
-            {
                 assignment.Decline(reason);
-            }
             else if (assignment.Status == AssignmentStatus.InProgress)
-            {
-                // BR-CMP-013: system-level cancellation of in-progress work
                 assignment.ForceDecline(reason);
-            }
         }
 
-        // For each affected report: revert InProgress reports to Verified
+        var notifyTargets = new List<(Guid RecipientId, Guid ReportId, string ReportCode)>();
+
         foreach (var reportId in affectedReportIds)
         {
             var report = await reports.GetByIdAsync(reportId, ct).ConfigureAwait(false);
@@ -56,20 +53,55 @@ internal sealed class CompanyCascadeService(
 
             report.RevertToVerified();
 
-            // Notify LEO responsible for this report's area
-            if (report.AssignedOfficeId.HasValue)
-            {
-                notifications.Add(Notification.Create(
-                    report.AssignedOfficeId.Value,
-                    NotificationType.ReportStatusChanged,
-                    "Công ty bị ngưng — cần tái điều phối",
-                    $"Báo cáo {report.Code} đã quay về Verified do công ty bị ngưng/chấm dứt. Vui lòng gán đội khác.",
-                    referenceId: report.Id));
-            }
+            var leoId = await ResolveOfficerIdAsync(report, ct).ConfigureAwait(false);
+            if (leoId.HasValue)
+                notifyTargets.Add((leoId.Value, report.Id, report.Code));
+        }
+
+        foreach (var (recipientId, reportId, reportCode) in notifyTargets)
+        {
+            await notificationService.SendRawAsync(
+                recipientId,
+                NotificationType.ReportStatusChanged,
+                "Công ty bị ngưng — cần tái điều phối",
+                $"Báo cáo {reportCode} đã quay về Verified do công ty bị ngưng/chấm dứt. Vui lòng gán đội khác.",
+                reportId,
+                ct).ConfigureAwait(false);
         }
 
         logger.LogWarning(
-            "CompanyCascade: Declined {AssignmentCount} assignments, reverted {ReportCount} reports for company {CompanyId}",
-            activeAssignments.Count, affectedReportIds.Count, companyId);
+            "CompanyCascade: Declined {AssignmentCount} assignments, reverted {ReportCount} reports, notified {NotifyCount} officer(s) for company {CompanyId}",
+            activeAssignments.Count, affectedReportIds.Count, notifyTargets.Count, companyId);
+    }
+
+    private async Task<Guid?> ResolveOfficerIdAsync(Report report, CancellationToken ct)
+    {
+        if (report.AssignedOfficeId.HasValue)
+        {
+            var leoId = await db.Users
+                .AsNoTracking()
+                .Where(u => u.LocalOfficeId == report.AssignedOfficeId && !u.IsBanned)
+                .Select(u => u.Id)
+                .FirstOrDefaultAsync(ct)
+                .ConfigureAwait(false);
+
+            if (leoId != Guid.Empty)
+                return leoId;
+        }
+
+        if (report.AssignedDepartmentId.HasValue)
+        {
+            var deoId = await db.Users
+                .AsNoTracking()
+                .Where(u => u.DepartmentId == report.AssignedDepartmentId && !u.IsBanned)
+                .Select(u => u.Id)
+                .FirstOrDefaultAsync(ct)
+                .ConfigureAwait(false);
+
+            if (deoId != Guid.Empty)
+                return deoId;
+        }
+
+        return null;
     }
 }

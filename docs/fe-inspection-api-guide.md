@@ -184,6 +184,9 @@
 
 ## 6. Ghi nhận nộp phạt — `PUT /v1/inspections/{id}/record-payment`
 
+**Auth:** Bearer · Role `LEO` (LEO phụ trách khu vực/office của report gốc, BR-ORG-012) hoặc `Admin`.
+> Không còn cho Inspector Team Leader gọi — quyền xác nhận đóng tiền chuyển hẳn về LEO.
+
 **Body:**
 
 ```json

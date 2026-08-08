@@ -35,5 +35,10 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Greenlens.Application.IntegrationTests" />
+    <InternalsVisibleTo Include="Greenlens.Application.UnitTests" />
+  </ItemGroup>
+
 
 </Project>

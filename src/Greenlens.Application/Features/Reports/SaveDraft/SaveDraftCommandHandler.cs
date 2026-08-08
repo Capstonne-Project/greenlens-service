@@ -5,6 +5,7 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.SaveDraft;
 
@@ -15,7 +16,8 @@ namespace Greenlens.Application.Features.Reports.SaveDraft;
 public sealed class SaveDraftCommandHandler(
     IReportDraftRepository drafts,
     ICurrentUser currentUser,
-    IUnitOfWork uow)
+    IUnitOfWork uow,
+    ILogger<SaveDraftCommandHandler> logger)
     : IRequestHandler<SaveDraftCommand, Result<SaveDraftResponse>>
 {
     private const int MaxDrafts = 3;
@@ -24,14 +26,20 @@ public sealed class SaveDraftCommandHandler(
         SaveDraftCommand request,
         CancellationToken cancellationToken)
     {
+        logger.LogInformation("Saving draft for user {UserId}", currentUser.UserId);
+
         // Update existing draft
         if (request.DraftId.HasValue)
         {
+            logger.LogInformation("Updating existing draft for user {UserId}", currentUser.UserId);
             var existing = await drafts.GetByIdAsync(request.DraftId.Value, cancellationToken)
                 .ConfigureAwait(false);
 
             if (existing is null || existing.UserId != currentUser.UserId)
+            {
+                logger.LogWarning("Draft not found for ID {DraftId}", request.DraftId.Value);
                 return Errors.Reports.DraftNotFound;
+            }
 
             existing.UpdatePayload(request.Payload);
             await uow.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -45,11 +53,16 @@ public sealed class SaveDraftCommandHandler(
             .ConfigureAwait(false);
 
         if (count >= MaxDrafts)
+        {
+            logger.LogWarning("Draft limit reached for user {UserId}", currentUser.UserId);
             return Errors.Reports.DraftLimitReached;
+        }
 
         var draft = ReportDraft.Create(currentUser.UserId, request.Payload);
         drafts.Add(draft);
         await uow.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        logger.LogInformation("Draft saved for user {UserId}", currentUser.UserId);
 
         return new SaveDraftResponse(draft.Id);
     }

@@ -5,13 +5,14 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-
+using Microsoft.Extensions.Logging;
 namespace Greenlens.Application.Features.Analytics.GetAdminReportTrend;
 
 /// <summary>Daily/weekly/monthly created-vs-resolved report trend for the admin dashboard chart.</summary>
 public sealed class GetAdminReportTrendQueryHandler(
     IReportRepository reports,
-    IDateTimeProvider clock)
+    IDateTimeProvider clock,
+    ILogger<GetAdminReportTrendQueryHandler> logger)
     : IRequestHandler<GetAdminReportTrendQuery, Result<List<ReportTrendItem>>>
 {
     private static readonly ReportStatus[] ResolvedStatuses =
@@ -20,6 +21,8 @@ public sealed class GetAdminReportTrendQueryHandler(
     public async Task<Result<List<ReportTrendItem>>> Handle(
         GetAdminReportTrendQuery request, CancellationToken ct)
     {
+        logger.LogInformation("Getting admin report trend");
+
         var (from, to) = DateRangeDefaults.Resolve(request.From, request.To, clock.UtcNow);
 
         var created = await reports.QueryAsNoTracking()
@@ -28,6 +31,8 @@ public sealed class GetAdminReportTrendQueryHandler(
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
+        logger.LogInformation("Created: {Created}", created);
+
         var resolved = await reports.QueryAsNoTracking()
             .Where(r => ResolvedStatuses.Contains(r.Status)
                         && r.ResolvedAt != null
@@ -35,6 +40,8 @@ public sealed class GetAdminReportTrendQueryHandler(
             .Select(r => r.ResolvedAt!.Value.Date)
             .ToListAsync(ct)
             .ConfigureAwait(false);
+
+        logger.LogInformation("Resolved: {Resolved}", resolved);
 
         var bucketedCreated = Bucket(created, request.GroupBy);
         var bucketedResolved = Bucket(resolved, request.GroupBy);
@@ -47,6 +54,8 @@ public sealed class GetAdminReportTrendQueryHandler(
                 bucketedCreated.GetValueOrDefault(date),
                 bucketedResolved.GetValueOrDefault(date)))
             .ToList();
+
+        logger.LogInformation("Admin report trend retrieved successfully");
 
         return result;
     }

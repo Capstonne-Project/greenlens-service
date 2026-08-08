@@ -4,7 +4,7 @@ using Greenlens.Application.Features.Analytics.Common;
 using Greenlens.Domain.Common;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-
+using Microsoft.Extensions.Logging;
 namespace Greenlens.Application.Features.Analytics.GetAdminOfficerPerformance;
 
 /// <summary>
@@ -14,7 +14,8 @@ namespace Greenlens.Application.Features.Analytics.GetAdminOfficerPerformance;
 public sealed class GetAdminOfficerPerformanceQueryHandler(
     IReportRepository reports,
     IUserRepository users,
-    IDateTimeProvider clock)
+    IDateTimeProvider clock,
+    ILogger<GetAdminOfficerPerformanceQueryHandler> logger)
     : IRequestHandler<GetAdminOfficerPerformanceQuery, Result<List<OfficerPerformanceItem>>>
 {
     private const decimal SlaVerifyHours = 24m;
@@ -22,6 +23,8 @@ public sealed class GetAdminOfficerPerformanceQueryHandler(
     public async Task<Result<List<OfficerPerformanceItem>>> Handle(
         GetAdminOfficerPerformanceQuery request, CancellationToken ct)
     {
+        logger.LogInformation("Getting admin officer performance");
+
         var (from, to) = DateRangeDefaults.Resolve(request.From, request.To, clock.UtcNow);
 
         var verified = await reports.QueryAsNoTracking()
@@ -29,6 +32,8 @@ public sealed class GetAdminOfficerPerformanceQueryHandler(
             .Select(r => new { OfficerId = r.VerifiedBy!.Value, r.CreatedAt, r.VerifiedAt, r.SlaVerifyBreached })
             .ToListAsync(ct)
             .ConfigureAwait(false);
+
+        logger.LogInformation("Verified: {Verified}", verified);
 
         var officerIds = verified.Select(r => r.OfficerId).Distinct().ToList();
         var officerNames = await users.QueryAsNoTracking()
@@ -58,6 +63,8 @@ public sealed class GetAdminOfficerPerformanceQueryHandler(
             })
             .OrderByDescending(i => i.Score)
             .ToList();
+
+        logger.LogInformation("Admin officer performance retrieved successfully");
 
         return result;
     }

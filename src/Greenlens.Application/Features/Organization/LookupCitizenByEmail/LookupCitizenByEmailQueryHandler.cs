@@ -5,6 +5,7 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Organization.LookupCitizenByEmail;
 
@@ -15,17 +16,23 @@ namespace Greenlens.Application.Features.Organization.LookupCitizenByEmail;
 public sealed class LookupCitizenByEmailQueryHandler(
     ICurrentUser currentUser,
     IUserRepository users,
-    ILocalOfficeRepository offices) : IRequestHandler<LookupCitizenByEmailQuery, Result<CitizenLookupResponse>>
+    ILocalOfficeRepository offices,
+    ILogger<LookupCitizenByEmailQueryHandler> logger) : IRequestHandler<LookupCitizenByEmailQuery, Result<CitizenLookupResponse>>
 {
     public async Task<Result<CitizenLookupResponse>> Handle(
         LookupCitizenByEmailQuery request,
         CancellationToken ct)
     {
+        logger.LogInformation("Looking up citizen by email {Email}", request.Email);
+
         var user = await users.GetByEmailAsync(request.Email.Trim().ToLowerInvariant(), ct)
             .ConfigureAwait(false);
 
         if (user is null)
+        {
+            logger.LogWarning("User not found for email {Email}", request.Email);
             return Errors.Users.UserNotFound;
+        }
 
         // Resolve LEO's office to compare wards
         var leoOffice = await offices.QueryAsNoTracking()

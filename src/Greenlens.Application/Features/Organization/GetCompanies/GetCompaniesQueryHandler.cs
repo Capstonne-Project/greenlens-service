@@ -1,3 +1,4 @@
+using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Common.Models;
@@ -5,6 +6,7 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Organization.GetCompanies;
 
@@ -17,35 +19,42 @@ namespace Greenlens.Application.Features.Organization.GetCompanies;
 public sealed class GetCompaniesQueryHandler(
     IEnvironmentalServiceCompanyRepository companies,
     ICurrentUser currentUser,
-    IUserRepository users)
+    IUserRepository users,
+    ILogger<GetCompaniesQueryHandler> logger)
     : IRequestHandler<GetCompaniesQuery, Result<GetCompaniesResponse>>
 {
     public async Task<Result<GetCompaniesResponse>> Handle(
         GetCompaniesQuery request,
         CancellationToken ct)
     {
+        logger.LogInformation("Getting companies for user {UserId}", currentUser.UserId);
+
         var query = companies.QueryAsNoTracking()
             .Include(c => c.ServiceAreas)
             .Include(c => c.Staff)
             .AsQueryable();
 
-        // ── BR-ADM-012: DEO scope by province ──
+        // ── BR-ADM-012: DEO scope by department ──
         var user = await users.GetByIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
-        if (user is not null && user.Role == UserRole.DEO && user.DepartmentId.HasValue)
+        if (user is null)
         {
-            // Resolve province code through the user's department
-            var userWithDept = await users.QueryAsNoTracking()
-                .Include(u => u.Department)
-                .FirstOrDefaultAsync(u => u.Id == currentUser.UserId, ct)
-                .ConfigureAwait(false);
+            logger.LogWarning("User not found for companies list: {UserId}", currentUser.UserId);
+            return Errors.Users.UserNotFound;
+        }
 
-            var provinceCode = userWithDept?.Department?.ProvinceCode;
-            if (!string.IsNullOrEmpty(provinceCode))
+        if (user.Role == UserRole.DEO)
+        {
+            if (!user.DepartmentId.HasValue)
             {
-                // Only companies that have at least one ServiceArea in DEO's province
-                query = query.Where(c =>
-                    c.ServiceAreas.Any(sa => sa.Ward != null && sa.Ward.ProvinceCode == provinceCode));
+                logger.LogWarning("DEO {UserId} has no department", currentUser.UserId);
+                return Errors.Organization.DepartmentNotFound;
             }
+
+            logger.LogInformation(
+                "DEO {UserId} listing companies for department {DepartmentId}",
+                currentUser.UserId, user.DepartmentId.Value);
+
+            query = query.Where(c => c.DepartmentId == user.DepartmentId.Value);
         }
 
         // ── Filter ──
@@ -93,6 +102,8 @@ public sealed class GetCompaniesQueryHandler(
             .ConfigureAwait(false);
 
         var pagination = PaginationMeta.Create(request.Page, request.PageSize, totalCount);
+
+        logger.LogInformation("Companies found: {TotalCount}", totalCount);
 
         return new GetCompaniesResponse(items, pagination);
     }

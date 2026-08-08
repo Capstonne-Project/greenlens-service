@@ -3,6 +3,7 @@ using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Notifications.UpdateDeviceToken;
 
@@ -16,18 +17,26 @@ public sealed record UpdateDeviceTokenCommand(string? DeviceToken) : IRequest<Re
 internal sealed class UpdateDeviceTokenCommandHandler(
     ICurrentUser currentUser,
     IUserRepository userRepo,
-    IUnitOfWork unitOfWork)
+    IUnitOfWork unitOfWork,
+    ILogger<UpdateDeviceTokenCommandHandler> logger)
     : IRequestHandler<UpdateDeviceTokenCommand, Result>
 {
     public async Task<Result> Handle(UpdateDeviceTokenCommand request, CancellationToken ct)
     {
+        logger.LogInformation("Updating device token");
+
         var user = await userRepo.GetByIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
 
         if (user is null)
+        {
+            logger.LogWarning("User not found for user ID {UserId}", currentUser.UserId);
             return Errors.Users.UserNotFound;
+        }
 
         user.UpdateFcmToken(request.DeviceToken);
         await unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        logger.LogInformation("Device token updated for user ID {UserId}", currentUser.UserId);
 
         return Result.Success();
     }

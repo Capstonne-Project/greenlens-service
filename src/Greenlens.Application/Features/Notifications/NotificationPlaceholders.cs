@@ -1,0 +1,216 @@
+using System.Globalization;
+using Greenlens.Domain.Enums;
+
+namespace Greenlens.Application.Features.Notifications;
+
+internal static class NotificationPlaceholders
+{
+    internal static Dictionary<string, string> ForNearbyReport(string reportCode, string categoryName) =>
+        new(StringComparer.Ordinal)
+        {
+            ["report_code"] = reportCode,
+            ["category_name"] = categoryName
+        };
+
+    internal static Dictionary<string, string> ForPenaltyIssued(
+        string reportCode,
+        decimal penaltyAmount,
+        string decisionNumber) =>
+        new(StringComparer.Ordinal)
+        {
+            ["report_code"] = reportCode,
+            ["penalty_amount"] = penaltyAmount.ToString("N0", CultureInfo.InvariantCulture),
+            ["decision_number"] = decisionNumber
+        };
+
+    internal static Dictionary<string, string> ForReopenReview(string reportCode) =>
+        new(StringComparer.Ordinal)
+        {
+            ["report_code"] = reportCode
+        };
+
+    internal static Dictionary<string, string> ForReopenDecided(
+        string reportCode,
+        bool approved,
+        string? reason = null) =>
+        new(StringComparer.Ordinal)
+        {
+            ["report_code"] = reportCode,
+            ["decision"] = approved ? "chấp nhận" : "từ chối",
+            ["reason"] = approved
+                ? "Báo cáo sẽ được phân công dọn dẹp lại."
+                : $"Lý do: {reason?.Trim() ?? "Không có lý do."}"
+        };
+
+    internal static Dictionary<string, string> ForDuplicateReview(string reportCode, string detectionSummary) =>
+        new(StringComparer.Ordinal)
+        {
+            ["report_code"] = reportCode,
+            ["detection_summary"] = detectionSummary
+        };
+
+    internal static Dictionary<string, string> ForDuplicateReviewFromFlags(
+        string reportCode,
+        FlagType flagType,
+        int flagCount) =>
+        ForDuplicateReview(
+            reportCode,
+            $"{flagCount} cờ {NotificationVietnameseLabels.FormatFlagType(flagType)} từ công dân");
+
+    internal static Dictionary<string, string> ForDuplicateReviewFromAi(
+        string reportCode,
+        string primaryReportCode,
+        decimal confidence) =>
+        ForDuplicateReview(
+            reportCode,
+            $"hệ thống xác nhận trùng với {primaryReportCode}, độ tin cậy {confidence:P0}");
+
+    internal static Dictionary<string, string> ForDuplicateReviewFromTier1Geo(
+        string reportCode,
+        string primaryReportCode) =>
+        ForDuplicateReview(
+            reportCode,
+            $"cùng loại và trong bán kính ~25m với báo cáo {primaryReportCode}");
+
+    internal static Dictionary<string, string> ForCleanupTaskAssigned(string reportCode, string teamName) =>
+        new(StringComparer.Ordinal)
+        {
+            ["report_code"] = reportCode,
+            ["team_name"] = teamName
+        };
+
+    internal static Dictionary<string, string> ForCleanupTaskAccepted(string reportCode, string teamName) =>
+        new(StringComparer.Ordinal)
+        {
+            ["report_code"] = reportCode,
+            ["team_name"] = teamName
+        };
+
+    internal static Dictionary<string, string> ForCleanupTaskDeclined(
+        string reportCode,
+        string teamName,
+        string declineReason) =>
+        new(StringComparer.Ordinal)
+        {
+            ["report_code"] = reportCode,
+            ["team_name"] = teamName,
+            ["decline_reason"] = declineReason.Trim()
+        };
+
+    internal static Dictionary<string, string> ForCleanupProgressUpdated(
+        string reportCode,
+        string teamName,
+        int progressPercent) =>
+        new(StringComparer.Ordinal)
+        {
+            ["report_code"] = reportCode,
+            ["team_name"] = teamName,
+            ["progress_percent"] = progressPercent.ToString(CultureInfo.InvariantCulture)
+        };
+
+    internal static Dictionary<string, string> ForCleanupTaskCompleted(
+        string reportCode,
+        string teamName,
+        bool reportFullyResolved) =>
+        new(StringComparer.Ordinal)
+        {
+            ["report_code"] = reportCode,
+            ["team_name"] = teamName,
+            ["resolution_note"] = reportFullyResolved
+                ? " Báo cáo đã chuyển sang trạng thái Đã xử lý."
+                : string.Empty
+        };
+
+    internal static Dictionary<string, string> ForInspectionTaskAssigned(string reportCode, string teamName) =>
+        new(StringComparer.Ordinal)
+        {
+            ["report_code"] = reportCode,
+            ["team_name"] = teamName
+        };
+
+    internal static Dictionary<string, string> ForInspectionTaskAccepted(string reportCode, string teamName) =>
+        new(StringComparer.Ordinal)
+        {
+            ["report_code"] = reportCode,
+            ["team_name"] = teamName
+        };
+
+    internal static Dictionary<string, string> ForInspectionTaskDeclined(
+        string reportCode,
+        string teamName,
+        string declineReason) =>
+        new(StringComparer.Ordinal)
+        {
+            ["report_code"] = reportCode,
+            ["team_name"] = teamName,
+            ["decline_reason"] = declineReason.Trim()
+        };
+
+    internal static Dictionary<string, string> ForInspectionProgressUpdated(
+        string reportCode,
+        string teamName,
+        string activitySummary) =>
+        new(StringComparer.Ordinal)
+        {
+            ["report_code"] = reportCode,
+            ["team_name"] = teamName,
+            ["activity_summary"] = activitySummary.Trim()
+        };
+
+    internal static Dictionary<string, string> ForInspectionTaskCompleted(
+        string reportCode,
+        string teamName,
+        string outcomeSummary) =>
+        new(StringComparer.Ordinal)
+        {
+            ["report_code"] = reportCode,
+            ["team_name"] = teamName,
+            ["outcome_summary"] = outcomeSummary.Trim()
+        };
+
+    internal static Dictionary<string, string> ForInspectionClosedNoViolation(
+        string reportCode,
+        string reason) =>
+        new(StringComparer.Ordinal)
+        {
+            ["report_code"] = reportCode,
+            ["reason"] = reason
+        };
+
+    internal static Dictionary<string, string> ForInspectionPenaltyPaidAndClosed(
+        string reportCode,
+        decimal paidAmount) =>
+        new(StringComparer.Ordinal)
+        {
+            ["report_code"] = reportCode,
+            ["paid_amount"] = paidAmount.ToString("N0")
+        };
+
+    internal static Dictionary<string, string> ForPenaltyPaymentOverdue(
+        string reportCode,
+        string decisionNumber) =>
+        new(StringComparer.Ordinal)
+        {
+            ["report_code"] = reportCode,
+            ["decision_number"] = decisionNumber
+        };
+
+    internal static Dictionary<string, string> ForReportStatus(string reportCode, ReportStatus status) =>
+        ForReportStatus(reportCode, NotificationVietnameseLabels.FormatReportStatus(status));
+
+    internal static Dictionary<string, string> ForReportStatus(string reportCode, string status) =>
+        new(StringComparer.Ordinal)
+        {
+            ["report_code"] = reportCode,
+            ["status"] = NotificationVietnameseLabels.FormatReportStatus(status)
+        };
+
+    internal static Dictionary<string, string> ForCompanyReportDispatched(
+        string reportCode,
+        string companyName) =>
+        new(StringComparer.Ordinal)
+        {
+            ["report_code"] = reportCode,
+            ["company_name"] = companyName
+        };
+}

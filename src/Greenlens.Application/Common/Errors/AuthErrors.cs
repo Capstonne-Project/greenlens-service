@@ -26,6 +26,12 @@ public static partial class Errors
             "Email đã được sử dụng.",
             ErrorType.Conflict);
 
+        /// <summary>BR-AUTH-021: Email thuộc tài khoản đã xóa — gợi ý khôi phục.</summary>
+        public static Error EmailDeletedRestoreAvailable => new(
+            "EMAIL_DELETED_RESTORE_AVAILABLE",
+            "Email này thuộc tài khoản đã xóa. Vui lòng khôi phục tài khoản thay vì đăng ký mới.",
+            ErrorType.Conflict);
+
         public static Error OtpExpired => new(
             "OTP_EXPIRED",
             "Mã OTP đã hết hạn. Vui lòng yêu cầu mã mới.",
@@ -106,5 +112,11 @@ public static partial class Errors
             "FORBIDDEN",
             "Bạn không có quyền thực hiện hành động này.",
             ErrorType.Forbidden);
+
+        /// <summary>Hangfire enqueue failed after user/OTP persisted — client should call request-otp.</summary>
+        public static Error EmailDispatchUnavailable => new(
+            "EMAIL_DISPATCH_UNAVAILABLE",
+            "Tạm thời không thể gửi email. Vui lòng thử 'Gửi lại mã OTP' sau vài phút.",
+            ErrorType.Unexpected);
     }
 }

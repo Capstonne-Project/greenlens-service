@@ -12,7 +12,7 @@ namespace Greenlens.Application.Features.Auth.Login;
 
 /// <summary>Login with email and password.</summary>
 /// <remarks>
-/// Implements: BR-AUTH-013 (login), BR-AUTH-014 (lockout), BR-AUTH-015 (block banned/expired),
+/// Implements: BR-AUTH-013 (login), BR-AUTH-011 (lockout), BR-AUTH-015 (block banned/expired),
 /// BR-AUTH-016 (JWT + refresh).
 /// </remarks>
 public sealed class LoginCommandHandler(
@@ -29,7 +29,6 @@ public sealed class LoginCommandHandler(
         LoginCommand request,
         CancellationToken cancellationToken)
     {
-        // Find user by email
         var user = await users.GetByEmailAsync(
             request.Email.ToLowerInvariant(), cancellationToken)
             .ConfigureAwait(false);
@@ -37,38 +36,32 @@ public sealed class LoginCommandHandler(
         if (user is null)
             return Errors.Auth.InvalidCredentials;
 
-        // BR-AUTH-015: Block banned accounts
         if (user.IsBanned)
         {
-            logger.LogWarning("Login attempt on banned account {Email}", request.Email);
+            logger.LogWarning("Login attempt on banned account {UserId}", user.Id);
             return Errors.Auth.AccountBanned;
         }
 
-        // BR-AUTH-015: Block soft-deleted accounts
         if (user.IsDeleted)
             return Errors.Auth.AccountDeactivated;
 
-        // Check account lockout status
         if (user.IsLockedOut())
         {
-            logger.LogWarning("Login attempt on locked account {Email}", request.Email);
+            logger.LogWarning("Login attempt on locked account {UserId}", user.Id);
             return Errors.Auth.AccountLocked;
         }
 
-        // Verify email is confirmed
         if (!user.IsEmailVerified)
             return Errors.Auth.EmailNotVerified;
 
-        // Verify password — record failed attempt on mismatch
         if (!passwordHasher.Verify(request.Password, user.PasswordHash))
         {
             user.RecordFailedLogin();
             await uow.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-            logger.LogWarning("Failed login attempt for {Email}", request.Email);
+            logger.LogWarning("Failed login attempt for user {UserId}", user.Id);
             return Errors.Auth.InvalidCredentials;
         }
 
-        // BR-AUTH-015: Block expired company staff/manager
         if (user.Role is UserRole.CompanyManager or UserRole.CompanyStaff)
         {
             var staff = await companyStaff.QueryAsNoTracking()
@@ -78,15 +71,13 @@ public sealed class LoginCommandHandler(
 
             if (staff?.Company?.Status == CompanyStatus.Expired)
             {
-                logger.LogWarning("Login blocked for {Email}: company expired", request.Email);
+                logger.LogWarning("Login blocked for user {UserId}: company expired", user.Id);
                 return Errors.Auth.CompanyExpired;
             }
         }
 
-        // Reset failed attempts on successful login
         user.ResetFailedLoginAttempts();
 
-        // Generate JWT access token and refresh token
         var accessToken = jwtService.GenerateAccessToken(user);
         var rawRefreshToken = jwtService.GenerateRefreshToken();
         var refreshTokenHash = jwtService.HashToken(rawRefreshToken);

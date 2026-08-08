@@ -1,6 +1,8 @@
+using System.Text.Json;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Notifications;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
@@ -13,36 +15,61 @@ namespace Greenlens.Application.Features.Inspection.AssignInspectionTeam;
 /// LEO assigns an Inspector Team to an existing InspectionReport.
 /// If the parent Report is still Verified, transitions it to InProgress.
 /// </summary>
-/// <remarks>Implements: BR-INS-001, BR-OFF-005.</remarks>
+/// <remarks>Implements: BR-INS-001, BR-OFF-005, BR-ADM-010.</remarks>
 public sealed class AssignInspectionTeamCommandHandler(
     IInspectionReportRepository inspections,
     IReportRepository reports,
     IEnvironmentalTeamRepository teams,
+    ITeamMemberRepository teamMembers,
     IReportStatusHistoryRepository statusHistory,
     ICurrentUser currentUser,
     IUnitOfWork uow,
+    IAuditLogger auditLogger,
+    IInspectionTaskAssignedNotifier taskAssignedNotifier,
     ILogger<AssignInspectionTeamCommandHandler> logger)
     : IRequestHandler<AssignInspectionTeamCommand, Result>
 {
     public async Task<Result> Handle(AssignInspectionTeamCommand request, CancellationToken ct)
     {
+        logger.LogInformation("Getting assign inspection team");
+
         // 1. Validate inspection exists
         var inspection = await inspections.GetByIdAsync(request.InspectionId, ct).ConfigureAwait(false);
         if (inspection is null)
+        {
+            logger.LogWarning("Inspection not found for inspection {InspectionId}", request.InspectionId);
             return Errors.Inspections.InspectionNotFound;
+        }
 
         // 2. Validate team exists and is of type Inspection
         var team = await teams.GetByIdAsync(request.TeamId, ct).ConfigureAwait(false);
         if (team is null)
+        {
+            logger.LogWarning("Team not found for team {TeamId}", request.TeamId);
             return Errors.Inspections.TeamNotFound;
+        }
 
         if (team.TeamType != TeamType.Inspection)
+        {
+            logger.LogWarning("Team {TeamId} is not of type Inspection", request.TeamId);
             return Errors.Inspections.TeamNotInspectionType;
+        }
+
+        if (!await teamMembers.HasMembersAsync(request.TeamId, ct).ConfigureAwait(false))
+        {
+            logger.LogWarning("Team {TeamId} has no members", request.TeamId);
+            return Errors.Organization.TeamHasNoMembers;
+        }
+
+        var oldTeamId = inspection.AssignedTeamId;
 
         // 3. Assign team via domain method (validates status = Draft or InProgress)
         var assignResult = inspection.AssignTeam(request.TeamId);
         if (!assignResult.IsSuccess)
+        {
+            logger.LogWarning("Failed to assign team {TeamId} to inspection {InspectionId}", request.TeamId, request.InspectionId);
             return assignResult;
+        }
 
         // 4. Transition parent Report: Verified → InProgress (if still Verified)
         var report = await reports.GetByIdAsync(inspection.ReportId, ct).ConfigureAwait(false);
@@ -62,9 +89,24 @@ public sealed class AssignInspectionTeamCommandHandler(
         // 5. Persist
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 
+        await auditLogger.LogAsync(
+            "AssignInspectionTeam",
+            "InspectionReport",
+            inspection.Id.ToString(),
+            oldValues: JsonSerializer.Serialize(new { assignedTeamId = oldTeamId }),
+            newValues: JsonSerializer.Serialize(new { assignedTeamId = request.TeamId }),
+            ct).ConfigureAwait(false);
+
         logger.LogInformation(
             "InspectionReport {InspectionId} assigned to Inspector Team {TeamId} by LEO {UserId}",
             request.InspectionId, request.TeamId, currentUser.UserId);
+
+        if (report is not null)
+        {
+            await taskAssignedNotifier
+                .NotifyTeamAsync(request.TeamId, report.Id, inspection.Id, report.Code, ct)
+                .ConfigureAwait(false);
+        }
 
         return Result.Success();
     }

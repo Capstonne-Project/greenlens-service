@@ -1,5 +1,6 @@
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
+using Greenlens.Domain.Exceptions;
 
 namespace Greenlens.Domain.Entities;
 
@@ -198,6 +199,26 @@ public sealed class EnvironmentalServiceCompany : SoftDeletableEntity
         if (address is not null) Address = address;
         if (phone is not null) Phone = phone;
         if (email is not null) Email = email;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// BR-CMP-004: Archive (soft-delete) only after contract terminated,
+    /// or while still a staff-less pending draft.
+    /// </summary>
+    public void Archive(string? deletedBy = null, bool hasStaff = false)
+    {
+        if (IsDeleted)
+            throw new DomainException("Company is already archived.");
+
+        var canArchive = Status == CompanyStatus.Terminated
+            || (Status == CompanyStatus.PendingActivation && !hasStaff);
+
+        if (!canArchive)
+            throw new DomainException(
+                "Company must be terminated before archiving, or pending activation with no staff.");
+
+        SoftDelete(deletedBy);
         UpdatedAt = DateTime.UtcNow;
     }
 }

@@ -16,12 +16,21 @@ public sealed class ArchiveCategoryCommandHandler(
     {
         var category = await categories.GetByIdAsync(request.Id, ct).ConfigureAwait(false);
         if (category is null)
+        {
+            logger.LogWarning("Category not found: {Id}", request.Id);
             return Errors.Reports.CategoryNotFound;
+        }
 
         if (request.Archive)
+        {
+            logger.LogInformation("Deactivating category: {Id}", request.Id);
             category.Deactivate();
+        }
         else
+        {
+            logger.LogInformation("Activating category: {Id}", request.Id);
             category.Activate();
+        }
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 

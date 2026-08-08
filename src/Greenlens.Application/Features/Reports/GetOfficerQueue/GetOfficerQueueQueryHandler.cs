@@ -26,28 +26,51 @@ public sealed class GetOfficerQueueQueryHandler(
         GetOfficerQueueQuery request,
         CancellationToken ct)
     {
+        logger.LogInformation("Getting officer queue for user {UserId}", currentUser.UserId);
+
         var user = await users.GetByIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
         if (user is null)
+        {
+            logger.LogError("User not found");
             return Errors.Users.UserNotFound;
+        }
 
         var query = reports.QueryAsNoTracking()
             .Include(r => r.Category)
             .AsQueryable();
 
         // ── Role-based scope filtering ──
-        if (user.Role == UserRole.DEO && user.DepartmentId.HasValue)
+        if (user.Role == UserRole.Admin)
         {
-            // DEO sees reports that fell into department queue (no LocalOffice assigned)
+            // Admin sees all reports in queue filters
+        }
+        else if (user.Role == UserRole.DEO)
+        {
+            if (!user.DepartmentId.HasValue)
+            {
+                logger.LogWarning("DEO {UserId} has no department", currentUser.UserId);
+                return Errors.Organization.DepartmentNotFound;
+            }
+
+            logger.LogInformation("DEO sees reports that fell into department queue (no LocalOffice assigned)");
             query = query.Where(r =>
                 r.AssignedDepartmentId == user.DepartmentId.Value &&
                 r.AssignedOfficeId == null);
         }
-        else if (user.Role == UserRole.LEO && user.LocalOfficeId.HasValue)
+        else if (user.Role == UserRole.LEO)
         {
-            // LEO sees Submitted (needs verify) + Verified (needs team assignment) in their office
+            if (!user.LocalOfficeId.HasValue)
+            {
+                logger.LogWarning("LEO {UserId} has no office", currentUser.UserId);
+                return Errors.Organization.OfficerNoOffice;
+            }
+
+            logger.LogInformation("LEO sees Submitted (needs verify) + Verified (needs team assignment) in their office");
             query = query.Where(r =>
                 r.AssignedOfficeId == user.LocalOfficeId.Value &&
-                (r.Status == ReportStatus.Submitted || r.Status == ReportStatus.Verified));
+                (r.Status == ReportStatus.Submitted
+                 || r.Status == ReportStatus.Verified
+                 || r.Status == ReportStatus.Reopened));
         }
 
         // ── Filters ──
@@ -77,8 +100,14 @@ public sealed class GetOfficerQueueQueryHandler(
                 (r.SlaResolveDueAt.HasValue && r.SlaResolveDueAt < now));
         }
 
+        if (request.HasPendingReopenRequest == true)
+            query = query.Where(r => r.HasPendingReopenRequest);
+
         if (request.IsPossibleDuplicate.HasValue)
             query = query.Where(r => r.IsPossibleDuplicate == request.IsPossibleDuplicate.Value);
+
+        if (request.IsSuspectedViolationRecurrence.HasValue)
+            query = query.Where(r => r.IsSuspectedViolationRecurrence == request.IsSuspectedViolationRecurrence.Value);
 
         // ── Search (keyword on Code, Address, Category name) ──
         if (!string.IsNullOrWhiteSpace(request.Search))
@@ -133,7 +162,15 @@ public sealed class GetOfficerQueueQueryHandler(
                 r.DuplicateDetectionSource,
                 r.AiSimilarityScore,
                 reports.QueryAsNoTracking()
-                    .Count(d => d.IsPossibleDuplicate && d.PossibleDuplicateOfReportId == r.Id)))
+                    .Count(d => d.IsPossibleDuplicate && d.PossibleDuplicateOfReportId == r.Id),
+                r.IsSuspectedViolationRecurrence,
+                r.SuspectedRecurrenceOfReportId,
+                r.SuspectedRecurrenceOfReportId.HasValue
+                    ? reports.QueryAsNoTracking()
+                        .Where(p => p.Id == r.SuspectedRecurrenceOfReportId!.Value)
+                        .Select(p => p.Code)
+                        .FirstOrDefault()
+                    : null))
             .ToListAsync(ct)
             .ConfigureAwait(false);
 

@@ -1,9 +1,11 @@
 using Greenlens.Api.Extensions;
 using Greenlens.Application.Common.Models;
+using Greenlens.Application.Features.Reports.GetUserPublicReports;
 using Greenlens.Application.Features.Users;
 using Greenlens.Application.Features.Users.AcceptDataConsent;
 using Greenlens.Application.Features.Users.ExportMyData;
 using Greenlens.Application.Features.Users.GetProfile;
+using Greenlens.Application.Features.Users.GetPublicUserProfile;
 using Greenlens.Application.Features.Users.UpdateUserProfile;
 using Greenlens.Application.Features.Users.UploadUserAvatar;
 using Greenlens.Application.Features.Users.VerifyPhoneFirebase;
@@ -25,7 +27,7 @@ public sealed class UsersController(ISender sender) : ControllerBase
     [SwaggerOperation(
         Summary = "Get My Profile",
         Description = "Get the authenticated user's own profile. Uses JWT token — no userId needed.")]
-    [SwaggerResponse(200, "User profile", typeof(ApiResponse<UserDetailDto>))]
+    [SwaggerResponse(200, "User profile", typeof(ApiResponse<UserProfileDto>))]
     [SwaggerResponse(401, "Unauthorized", typeof(ApiResponse))]
     [SwaggerResponse(404, "User not found", typeof(ApiResponse))]
     public async Task<IActionResult> GetProfileAsync(CancellationToken ct)
@@ -76,6 +78,39 @@ public sealed class UsersController(ISender sender) : ControllerBase
 
         return (await sender.Send(command, ct)).ToHttp();
     }
+
+    // ── Public Profile ────────────────────────────────
+
+    /// <summary>Xem hồ sơ công khai của người dùng khác.</summary>
+    [HttpGet("{userId:guid}/public-profile")]
+    [SwaggerOperation(
+        Summary = "Get Public User Profile",
+        Description = "Hồ sơ công khai của người dùng khác — mở khi bấm vào tên/avatar " +
+            "người gửi báo cáo hoặc tác giả bình luận. KHÔNG trả email/số điện thoại. " +
+            "Tài khoản đã xóa hoặc bị ban trả về 404.")]
+    [SwaggerResponse(200, "Public profile", typeof(ApiResponse<PublicUserProfileDto>))]
+    [SwaggerResponse(401, "Unauthorized", typeof(ApiResponse))]
+    [SwaggerResponse(404, "User not found", typeof(ApiResponse))]
+    public async Task<IActionResult> GetPublicProfileAsync(Guid userId, CancellationToken ct)
+        => (await sender.Send(new GetPublicUserProfileQuery(userId), ct)).ToHttp();
+
+    /// <summary>Danh sách báo cáo công khai của người dùng khác.</summary>
+    [HttpGet("{userId:guid}/reports")]
+    [SwaggerOperation(
+        Summary = "Get User Public Reports",
+        Description = "Báo cáo công khai của người dùng khác — hiển thị dạng lưới trên hồ sơ. " +
+            "Bỏ báo cáo ẩn danh và báo cáo bị ẩn. Không trả địa chỉ chi tiết.")]
+    [SwaggerResponse(200, "Public reports", typeof(ApiResponse<GetUserPublicReportsResponse>))]
+    [SwaggerResponse(401, "Unauthorized", typeof(ApiResponse))]
+    [SwaggerResponse(404, "User not found", typeof(ApiResponse))]
+    public async Task<IActionResult> GetPublicReportsAsync(
+        Guid userId,
+        [FromQuery] int page,
+        [FromQuery] int pageSize,
+        CancellationToken ct)
+        => (await sender.Send(
+            new GetUserPublicReportsQuery(userId, page <= 0 ? 1 : page, pageSize <= 0 ? 20 : pageSize),
+            ct)).ToHttp();
 
     // ── Phone Verification (Firebase Phone Auth) ──────
 

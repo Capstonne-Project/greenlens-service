@@ -1,3 +1,4 @@
+using Greenlens.Api.Attributes;
 using Greenlens.Api.Extensions;
 using Greenlens.Application.Common.Models;
 using Greenlens.Application.Features.Reports.AnalyzeReportImage;
@@ -14,8 +15,10 @@ using Greenlens.Application.Features.Reports.ConfirmDuplicate;
 using Greenlens.Application.Features.Reports.DeleteDraft;
 using Greenlens.Application.Features.Reports.DeleteReport;
 using Greenlens.Application.Features.Reports.DismissDuplicate;
+using Greenlens.Application.Features.Reports.DismissViolationRecurrence;
 using Greenlens.Application.Features.Reports.ExportReports;
 using Greenlens.Application.Features.Reports.FlagReport;
+using Greenlens.Application.Features.Reports.GetDuplicateCandidateDetail;
 using Greenlens.Application.Features.Reports.GetDuplicateCandidates;
 using Greenlens.Application.Features.Reports.GetMyDrafts;
 using Greenlens.Application.Features.Reports.GetMyReports;
@@ -23,6 +26,8 @@ using Greenlens.Application.Features.Reports.GetOfficerKpi;
 using Greenlens.Application.Features.Reports.GetOfficerQueue;
 using Greenlens.Application.Features.Reports.GetReportProgress;
 using Greenlens.Application.Features.Reports.GetReportProgressBoard;
+using Greenlens.Application.Features.Reports.GetViolationRecurrenceCandidates;
+using Greenlens.Application.Features.Reports.GetViolationRecurrenceComparison;
 using Greenlens.Application.Features.Reports.GetReportById;
 using Greenlens.Application.Features.Reports.GetReportHistory;
 using Greenlens.Application.Features.Reports.GetReports;
@@ -30,7 +35,12 @@ using Greenlens.Application.Features.Reports.GetWasteTags;
 using Greenlens.Application.Features.Reports.ReassignTeam;
 using Greenlens.Application.Features.Reports.RejectReport;
 using Greenlens.Application.Features.Reports.RateReport;
+using Greenlens.Application.Features.Reports.ApproveReopenRequest;
+using Greenlens.Application.Features.Reports.RejectReopenRequest;
+using Greenlens.Application.Features.Reports.GetReopenRequests;
+using Greenlens.Application.Features.Reports.RequestReopenReport;
 using Greenlens.Application.Features.Reports.ReopenReport;
+using Greenlens.Domain.Enums;
 using Greenlens.Application.Features.Reports.ResolveReport;
 using Greenlens.Application.Features.Reports.SaveDraft;
 using Greenlens.Application.Features.Reports.SubmitPollutionReport;
@@ -40,7 +50,6 @@ using Greenlens.Application.Features.Reports.UploadBeforeImages;
 using Greenlens.Application.Features.Reports.VerifyReport;
 using Greenlens.Application.Features.Inspection.CreateInspectionReport;
 using Greenlens.Application.Features.Inspection.GetInspectionsByReport;
-using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -133,6 +142,7 @@ public sealed class ReportsController(
     // ═══════════════════════════════════════════
 
     [HttpPost]
+    [SupportsIdempotency]
     [Authorize(Roles = "Citizen")]
     [Tags("📋 Reports — Citizen Flow")]
     [SwaggerOperation(
@@ -140,29 +150,35 @@ public sealed class ReportsController(
         Description = "Tạo báo cáo mới. " +
             "Hệ thống tự động gán SLA 24h và route báo cáo theo wardCode đến LocalOffice hoặc Department queue. " +
             "Có thể đính kèm wasteTagIds (optional) để citizen tự gắn loại rác — DEO có thể bổ sung/sửa sau.")]
-    [SwaggerResponse(201, "Đã tạo", typeof(ApiResponse<SubmitPollutionReportResponse>))]
+    [SwaggerResponse(200, "Đã tạo", typeof(ApiResponse<SubmitPollutionReportResponse>))]
     [SwaggerResponse(400, "Thiếu thông tin xác thực hoặc ward/province không hợp lệ", typeof(ApiResponse))]
     [SwaggerResponse(404, "Danh mục không tồn tại", typeof(ApiResponse))]
     public async Task<IActionResult> SubmitAsync(
         [FromBody] SubmitPollutionReportCommand command, CancellationToken ct)
-        => (await sender.Send(command, ct)).ToHttpCreated();
+        => (await sender.Send(command, ct)).ToHttp("Đã gửi báo cáo thành công.");
 
     [HttpGet]
     [Authorize]
     [Tags("📋 Reports — Citizen Flow")]
-    [SwaggerOperation(Summary = "[Auth] Danh sách báo cáo", Description = "Trả về danh sách báo cáo ô nhiễm. Hỗ trợ lọc theo status, category, ward, severity.")]
+    [SwaggerOperation(Summary = "[Auth] Danh sách báo cáo", Description = "Trả về danh sách báo cáo ô nhiễm. Hỗ trợ lọc theo status, category, ward, severity, và tìm kiếm theo keyword (mã / mô tả / địa chỉ).")]
     [SwaggerResponse(200, "Danh sách báo cáo", typeof(ApiResponse<GetReportsResponse>))]
     public async Task<IActionResult> GetAllAsync(
         [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
         [FromQuery] ReportStatus? status = null, [FromQuery] Guid? categoryId = null,
         [FromQuery] string? wardCode = null, [FromQuery] Severity? severity = null,
+        [FromQuery] string? keyword = null,
         CancellationToken ct = default)
-        => (await sender.Send(new GetReportsQuery(page, pageSize, status, categoryId, wardCode, severity), ct)).ToHttp();
+        => (await sender.Send(
+            new GetReportsQuery(page, pageSize, status, categoryId, wardCode, severity, keyword),
+            ct)).ToHttp();
 
     [HttpGet("{id:guid}")]
     [Authorize]
     [Tags("📋 Reports — Citizen Flow")]
-    [SwaggerOperation(Summary = "[Auth] Chi tiết báo cáo", Description = "Trả về full thông tin báo cáo kèm media, assignments, lịch sử status.")]
+    [SwaggerOperation(
+        Summary = "[Auth] Chi tiết báo cáo",
+        Description = "Trả về full thông tin báo cáo kèm media, assignments, lịch sử status. " +
+            "LEO/DEO/Admin: thêm `isSuspicious` + `suspiciousReasons` (BR-REP-011, message tiếng Việt — chỉ tham khảo).")]
     [SwaggerResponse(200, "Chi tiết báo cáo", typeof(ApiResponse<ReportDetailResponse>))]
     [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
     public async Task<IActionResult> GetByIdAsync([FromRoute] Guid id, CancellationToken ct)
@@ -191,6 +207,7 @@ public sealed class ReportsController(
     // ═══════════════════════════════════════════
 
     [HttpPut("{id:guid}/verify")]
+    [SupportsIdempotency]
     [Authorize(Roles = "LEO,Admin")]
     [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(Summary = "[LEO] Xác minh báo cáo", Description = "LEO kiểm tra thông tin và xác minh báo cáo. Có thể override severity và category nếu cần. Chuyển status Submitted → Verified.")]
@@ -213,6 +230,7 @@ public sealed class ReportsController(
         => (await sender.Send(new RejectReportCommand(id, request.Reason), ct)).ToHttpNoContent("Đã từ chối báo cáo.");
 
     [HttpPost("{id:guid}/assign")]
+    [SupportsIdempotency]
     [Authorize(Roles = "LEO,Admin")]
     [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(Summary = "[LEO] Phân công team xử lý", Description = "LEO phân công 1 hoặc nhiều team cùng xử lý. Dispatch theo nhu cầu (không ràng buộc team type). Chuyển status Verified → InProgress.")]
@@ -258,11 +276,12 @@ public sealed class ReportsController(
     // ═══════════════════════════════════════════
 
     [HttpPost("{id:guid}/dispatch-to-company")]
+    [SupportsIdempotency]
     [Authorize(Roles = "LEO,Admin")]
     [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(
         Summary = "[LEO] Điều phối task đến công ty",
-        Description = "LEO điều phối báo cáo đã xác minh đến công ty dịch vụ môi trường. Báo cáo giữ trạng thái Verified, CompanyManager sẽ phân công team sau.")]
+        Description = "LEO điều phối báo cáo đã xác minh đến công ty dịch vụ môi trường. Chuyển Verified → InProgress; CompanyManager phân công team sau.")]
     [SwaggerResponse(204, "Đã điều phối")]
     [SwaggerResponse(422, "Công ty không hoạt động hoặc hết hợp đồng", typeof(ApiResponse))]
     public async Task<IActionResult> DispatchToCompanyAsync(
@@ -271,11 +290,12 @@ public sealed class ReportsController(
             .ToHttpNoContent("Đã điều phối task đến công ty thành công.");
 
     [HttpPost("{id:guid}/assign-company-team")]
+    [SupportsIdempotency]
     [Authorize(Roles = "CompanyManager,Admin")]
     [Tags("🏢 Company Dashboard")]
     [SwaggerOperation(
         Summary = "[CompanyManager] Phân công team công ty",
-        Description = "CompanyManager phân công team của công ty mình cho báo cáo đã được LEO điều phối. Chuyển status Verified → InProgress.")]
+        Description = "CompanyManager phân công team của công ty mình cho báo cáo đã được LEO điều phối (status InProgress).")]
     [SwaggerResponse(204, "Đã phân công team")]
     [SwaggerResponse(422, "Team không thuộc công ty hoặc workload vượt quá", typeof(ApiResponse))]
     public async Task<IActionResult> AssignCompanyTeamAsync(
@@ -291,7 +311,7 @@ public sealed class ReportsController(
     [Tags("🏢 Company Dashboard")]
     [SwaggerOperation(
         Summary = "[CompanyManager] Danh sách task chờ phân công",
-        Description = "CompanyManager xem các báo cáo đã được LEO điều phối đến công ty (Status == Verified + AssignedCompanyId).")]
+        Description = "CompanyManager xem các báo cáo đã được LEO điều phối, chờ phân công team (InProgress + AssignedCompanyId, chưa có assignment).")]
     [SwaggerResponse(200, "Danh sách task", typeof(ApiResponse<GetCompanyQueueResponse>))]
     public async Task<IActionResult> GetCompanyQueueAsync(
         [FromQuery] int page = 1,
@@ -307,7 +327,7 @@ public sealed class ReportsController(
         Summary = "[CompanyManager] Theo dõi task đã phân công",
         Description = "Xem toàn bộ task đã phân công cho team của công ty: team nào → báo cáo nào, " +
             "tiến độ (%), trạng thái assignment (Assigned/InProgress/Completed/Declined), " +
-            "SLA deadline, và thông tin người phân công. " +
+            "SLA deadline, thông tin người phân công, và ảnh đại diện báo cáo (report.media[] — tối đa 1 ảnh đầu). " +
             "Lọc theo: assignmentStatus, reportStatus, search (mã báo cáo, địa chỉ, tên team).")]
     [SwaggerResponse(200, "Danh sách assignment", typeof(ApiResponse<GetCompanyAssignmentsResponse>))]
     public async Task<IActionResult> GetCompanyAssignmentsAsync(
@@ -337,7 +357,7 @@ public sealed class ReportsController(
     [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(
         Summary = "[LEO] Board tổng quan các báo cáo đang xử lý",
-        Description = "Trả về danh sách card báo cáo InProgress trong office của LEO, " +
+        Description = "Trả về danh sách card báo cáo InProgress trong office của LEO đang đăng nhập, " +
             "mỗi card gồm: SLA countdown, tiến độ tổng thể, avatar top-3 team leader. " +
             "Dùng cho trang dashboard dạng grid. " +
             "hoursRemaining âm = đã breach SLA. " +
@@ -357,8 +377,8 @@ public sealed class ReportsController(
     [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(
         Summary = "[LEO] Tiến trình xử lý báo cáo",
-        Description = "Trả về toàn bộ thông tin tiến trình của một báo cáo đang InProgress: " +
-            "trạng thái từng team, % hoàn thành, ảnh tiến trình/nghiệm thu, SLA còn lại, và lịch sử status. " +
+        Description = "Trả về toàn bộ thông tin tiến trình của một báo cáo đang InProgress trong phạm vi office LEO đăng nhập: " +
+            "trạng thái từng team, người gán team (assignedById/assignedByName), % hoàn thành, ảnh tiến trình/nghiệm thu, SLA còn lại, và lịch sử status. " +
             "overallProgressPercent là trung bình của các assignment đang active (Completed = 100%). " +
             "sla.hoursRemaining âm = đã breach. " +
             "media.progressImages gom tất cả ảnh tiến trình từ mọi team.")]
@@ -372,8 +392,8 @@ public sealed class ReportsController(
     [Tags("🔍 DEO Dashboard")]
     [SwaggerOperation(
         Summary = "[LEO/DEO] Xem hàng đợi báo cáo",
-        Description = "Trả về danh sách báo cáo trong phạm vi quản lý. " +
-            "Hỗ trợ search (code, address, category), filter (status, severity, category, ward, date range, SLA breached, isPossibleDuplicate), " +
+        Description = "Trả về danh sách báo cáo trong phạm vi officer đăng nhập: DEO → hàng đợi fallback department (chưa gán office), LEO → Submitted/Verified/Reopened trong office. " +
+            "Hỗ trợ search (code, address, category), filter (status, severity, category, ward, date range, SLA breached, isPossibleDuplicate, isSuspectedViolationRecurrence), " +
             "và sort (priorityScore, createdAt, severity, slaVerifyDueAt, slaResolveDueAt — asc/desc). " +
             "Default sort: priorityScore desc.")]
     [SwaggerResponse(200, "Hàng đợi", typeof(ApiResponse<GetOfficerQueueResponse>))]
@@ -389,6 +409,8 @@ public sealed class ReportsController(
         [FromQuery] DateTime? toDate = null,
         [FromQuery] bool? slaBreached = null,
         [FromQuery] bool? isPossibleDuplicate = null,
+        [FromQuery] bool? isSuspectedViolationRecurrence = null,
+        [FromQuery] bool? hasPendingReopenRequest = null,
         // Search
         [FromQuery] string? search = null,
         // Sort
@@ -397,7 +419,7 @@ public sealed class ReportsController(
         CancellationToken ct = default)
         => (await sender.Send(new GetOfficerQueueQuery(
             page, pageSize, status, severity, categoryId, wardCode,
-            fromDate, toDate, slaBreached, isPossibleDuplicate, search, sortBy, sortDir), ct)).ToHttp();
+            fromDate, toDate, slaBreached, isPossibleDuplicate, isSuspectedViolationRecurrence, hasPendingReopenRequest, search, sortBy, sortDir), ct)).ToHttp();
 
     // ═══════════════════════════════════════════
     // ██  TEAM WORKFLOW
@@ -424,6 +446,7 @@ public sealed class ReportsController(
             request.ImageUrls ?? []), ct)).ToHttp();
 
     [HttpPut("{id:guid}/resolve")]
+    [SupportsIdempotency]
     [Authorize(Roles = "Cleaner,CompanyStaff,Admin")]
     [Tags("🧹 Cleaner Dashboard")]
     [SwaggerOperation(Summary = "[Cleaner/CompanyStaff] Hoàn thành phần việc của team", Description = "Cleanup / company team leader đánh dấu phần việc đã hoàn thành. Yêu cầu ≥ 2 ảnh after. Khi tất cả team đều completed → report chuyển InProgress → Resolved.")]
@@ -473,20 +496,62 @@ public sealed class ReportsController(
     [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(
         Summary = "[LEO/DEO] Danh sách báo cáo nghi ngờ trùng lặp",
-        Description = "BR-REP-031: Trả về các báo cáo bị gắn cờ possible_duplicate (Tier 1 geo/time hoặc Tier 2 AI) " +
-            "kèm thông tin báo cáo gốc để LEO so sánh và quyết định gộp/bác bỏ.")]
+        Description = "BR-REP-031: Trả về các báo cáo bị gắn cờ possible_duplicate trong phạm vi LEO (office) / DEO (department). " +
+            "Tier 1 geo/category hoặc Tier 2 AI — kèm thông tin báo cáo gốc và ảnh thumbnail đầu tiên (media[] tối đa 1 phần tử). " +
+            "Hỗ trợ search (code, address, category), filter (status, severity, categoryId, wardCode, fromDate, toDate, duplicateDetectionSource, minAiSimilarityScore), sort.")]
     [SwaggerResponse(200, "Danh sách nghi ngờ trùng lặp", typeof(ApiResponse<GetDuplicateCandidatesResponse>))]
     public async Task<IActionResult> GetDuplicateCandidatesAsync(
-        [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
-        => (await sender.Send(new GetDuplicateCandidatesQuery(page, pageSize), ct)).ToHttp();
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] ReportStatus? status = null,
+        [FromQuery] Severity? severity = null,
+        [FromQuery] Guid? categoryId = null,
+        [FromQuery] string? wardCode = null,
+        [FromQuery] DateTime? fromDate = null,
+        [FromQuery] DateTime? toDate = null,
+        [FromQuery] string? search = null,
+        [FromQuery] string? duplicateDetectionSource = null,
+        [FromQuery] decimal? minAiSimilarityScore = null,
+        [FromQuery] DuplicateCandidateSortBy sortBy = DuplicateCandidateSortBy.CreatedAt,
+        [FromQuery] SortDirection sortDir = SortDirection.Desc,
+        CancellationToken ct = default)
+        => (await sender.Send(new GetDuplicateCandidatesQuery(
+            page,
+            pageSize,
+            status,
+            severity,
+            categoryId,
+            wardCode,
+            fromDate,
+            toDate,
+            search,
+            duplicateDetectionSource,
+            minAiSimilarityScore,
+            sortBy,
+            sortDir), ct)).ToHttp();
+
+    [HttpGet("{id:guid}/duplicate-candidate-detail")]
+    [Authorize(Roles = "LEO,DEO,Admin")]
+    [Tags("📌 LEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO/DEO] Chi tiết so sánh báo cáo nghi ngờ trùng lặp",
+        Description = "BR-REP-031/BR-REP-032: Side-by-side chi tiết báo cáo hiện tại và báo cáo gốc trong phạm vi officer đăng nhập. " +
+            "(kèm toàn bộ media, khoảng cách, chênh lệch thời gian) để LEO quyết định gộp/bác bỏ.")]
+    [SwaggerResponse(200, "Chi tiết so sánh", typeof(ApiResponse<DuplicateCandidateDetailResponse>))]
+    [SwaggerResponse(404, "Không tìm thấy báo cáo hoặc báo cáo gốc", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Báo cáo không có cờ nghi ngờ trùng lặp", typeof(ApiResponse))]
+    public async Task<IActionResult> GetDuplicateCandidateDetailAsync(
+        [FromRoute] Guid id, CancellationToken ct)
+        => (await sender.Send(new GetDuplicateCandidateDetailQuery(id), ct)).ToHttp();
 
     [HttpPost("{id:guid}/confirm-duplicate")]
     [Authorize(Roles = "LEO,DEO,Admin")]
     [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(
-        Summary = "[LEO/DEO] Xác nhận & gộp báo cáo trùng lặp",
+        Summary = "[LEO/DEO] Xác nhận báo cáo trùng lặp",
         Description = "BR-REP-032: LEO xác nhận báo cáo là trùng lặp của một báo cáo gốc. " +
-            "Báo cáo chuyển sang Duplicate, tăng reporter count của báo cáo gốc, và cộng điểm cho người gửi.")]
+            "Báo cáo gốc phải đã Verified (hoặc InProgress); báo cáo trùng có thể đang Submitted. " +
+            "Báo cáo trùng chuyển sang Duplicate, giữ nguyên ảnh trên bản ghi trùng, tăng reporter count của báo cáo gốc, và cộng điểm cho người gửi.")]
     [SwaggerResponse(200, "Đã gộp báo cáo trùng", typeof(ApiResponse))]
     [SwaggerResponse(404, "Không tìm thấy báo cáo hoặc báo cáo gốc", typeof(ApiResponse))]
     [SwaggerResponse(422, "Trạng thái không hợp lệ hoặc gộp vào chính nó", typeof(ApiResponse))]
@@ -507,6 +572,73 @@ public sealed class ReportsController(
     public async Task<IActionResult> DismissDuplicateAsync(
         [FromRoute] Guid id, CancellationToken ct)
         => (await sender.Send(new DismissDuplicateCommand(id), ct)).ToHttpNoContent("Đã bác bỏ cờ nghi ngờ trùng lặp.");
+
+    [HttpGet("violation-recurrence-candidates")]
+    [Authorize(Roles = "LEO,DEO,Admin")]
+    [Tags("📌 LEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO/DEO] Danh sách báo cáo nghi ngờ tái phạm vi phạm",
+        Description = "BR-REP-034: Trả về các báo cáo bị gắn cờ isSuspectedViolationRecurrence trong phạm vi LEO/DEO đăng nhập " +
+            "(cùng category, ≤25m, báo cáo trước đã Closed trong 30 ngày) kèm báo cáo Closed trước đó " +
+            "và ảnh thumbnail đầu tiên (media[] / priorClosedReport.media[] tối đa 1 phần tử). " +
+            "Hỗ trợ search, filter (status, severity, categoryId, wardCode, fromDate, toDate, minDaysSincePriorClosed, maxDaysSincePriorClosed), sort.")]
+    [SwaggerResponse(200, "Danh sách nghi ngờ tái phạm", typeof(ApiResponse<GetViolationRecurrenceCandidatesResponse>))]
+    public async Task<IActionResult> GetViolationRecurrenceCandidatesAsync(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] ReportStatus? status = null,
+        [FromQuery] Severity? severity = null,
+        [FromQuery] Guid? categoryId = null,
+        [FromQuery] string? wardCode = null,
+        [FromQuery] DateTime? fromDate = null,
+        [FromQuery] DateTime? toDate = null,
+        [FromQuery] string? search = null,
+        [FromQuery] int? minDaysSincePriorClosed = null,
+        [FromQuery] int? maxDaysSincePriorClosed = null,
+        [FromQuery] ViolationRecurrenceCandidateSortBy sortBy = ViolationRecurrenceCandidateSortBy.CreatedAt,
+        [FromQuery] SortDirection sortDir = SortDirection.Desc,
+        CancellationToken ct = default)
+        => (await sender.Send(new GetViolationRecurrenceCandidatesQuery(
+            page,
+            pageSize,
+            status,
+            severity,
+            categoryId,
+            wardCode,
+            fromDate,
+            toDate,
+            search,
+            minDaysSincePriorClosed,
+            maxDaysSincePriorClosed,
+            sortBy,
+            sortDir), ct)).ToHttp();
+
+    [HttpGet("{id:guid}/violation-recurrence-comparison")]
+    [Authorize(Roles = "LEO,DEO,Admin")]
+    [Tags("📌 LEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO/DEO] So sánh báo cáo với case Closed trước đó",
+        Description = "BR-REP-034: Side-by-side current report vs prior Closed report trong phạm vi officer đăng nhập.")]
+    [SwaggerResponse(200, "So sánh", typeof(ApiResponse<ViolationRecurrenceComparisonResponse>))]
+    [SwaggerResponse(404, "Không tìm thấy báo cáo", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Báo cáo không có cờ nghi ngờ vi phạm tái phát", typeof(ApiResponse))]
+    public async Task<IActionResult> GetViolationRecurrenceComparisonAsync(
+        [FromRoute] Guid id, CancellationToken ct)
+        => (await sender.Send(new GetViolationRecurrenceComparisonQuery(id), ct)).ToHttp();
+
+    [HttpPost("{id:guid}/dismiss-violation-recurrence")]
+    [Authorize(Roles = "LEO,DEO,Admin")]
+    [Tags("📌 LEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO/DEO] Bác bỏ cờ nghi ngờ vi phạm tái phát",
+        Description = "BR-REP-034: LEO xác định đây chỉ là rác tái phát thông thường, không cần mở hồ sơ thanh tra.")]
+    [SwaggerResponse(200, "Đã bác bỏ", typeof(ApiResponse))]
+    [SwaggerResponse(404, "Không tìm thấy báo cáo", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Báo cáo không có cờ nghi ngờ vi phạm tái phát", typeof(ApiResponse))]
+    public async Task<IActionResult> DismissViolationRecurrenceAsync(
+        [FromRoute] Guid id, CancellationToken ct)
+        => (await sender.Send(new DismissViolationRecurrenceCommand(id), ct))
+            .ToHttpNoContent("Đã bác bỏ cờ nghi ngờ vi phạm tái phát.");
 
     [HttpPost("{id:guid}/flag")]
     [Authorize]
@@ -529,20 +661,83 @@ public sealed class ReportsController(
     // ═══════════════════════════════════════════
 
     [HttpPut("{id:guid}/close")]
+    [SupportsIdempotency]
     [Authorize]
     [Tags("📋 Reports — Citizen Flow")]
-    [SwaggerOperation(Summary = "[Citizen/Auto] Đóng báo cáo", Description = "Citizen xác nhận hài lòng hoặc hệ thống tự động đóng sau 7 ngày. Chuyển status Resolved → Closed.")]
+    [SwaggerOperation(Summary = "[Citizen/Auto] Đóng báo cáo", Description = "Citizen xác nhận hài lòng hoặc hệ thống tự động đóng sau 2 ngày. Chuyển status Resolved → Closed.")]
     [SwaggerResponse(200, "Đã đóng", typeof(ApiResponse))]
     [SwaggerResponse(422, "Status không hợp lệ", typeof(ApiResponse))]
     public async Task<IActionResult> CloseAsync([FromRoute] Guid id, CancellationToken ct)
         => (await sender.Send(new CloseReportCommand(id), ct)).ToHttpNoContent("Đã đóng báo cáo.");
 
+    [HttpPost("{id:guid}/reopen-requests")]
+    [SupportsIdempotency]
+    [Authorize]
+    [Tags("📋 Reports — Citizen Flow")]
+    [SwaggerOperation(
+        Summary = "[Citizen] Gửi yêu cầu mở lại báo cáo",
+        Description = "Citizen gửi yêu cầu mở lại khi chưa hài lòng. Bắt buộc lý do ≥ 20 ký tự và ≥ 1 ảnh; video tùy chọn. " +
+            "Report giữ Resolved cho đến khi LEO duyệt. Không bắt buộc đánh giá trước (BR-REP-015, BR-REP-018).")]
+    [SwaggerResponse(200, "Đã gửi yêu cầu", typeof(ApiResponse<Guid>))]
+    [SwaggerResponse(422, "Hết lượt, quá 7 ngày, hoặc thiếu minh chứng", typeof(ApiResponse))]
+    public async Task<IActionResult> RequestReopenAsync(
+        [FromRoute] Guid id,
+        [FromBody] RequestReopenReportRequest request,
+        CancellationToken ct)
+        => (await sender.Send(new RequestReopenReportCommand(
+            id, request.Reason, request.ImageUrls ?? [], request.VideoUrl), ct))
+            .ToHttp();
+
+    [HttpGet("reopen-requests")]
+    [Authorize(Roles = "LEO,Admin")]
+    [Tags("📌 LEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO] Danh sách yêu cầu mở lại",
+        Description = "Queue các yêu cầu reopen của citizen trong phạm vi office LEO.")]
+    [SwaggerResponse(200, "Danh sách yêu cầu", typeof(ApiResponse<GetReopenRequestsResponse>))]
+    public async Task<IActionResult> GetReopenRequestsAsync(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] ReopenRequestStatus? status = ReopenRequestStatus.Pending,
+        CancellationToken ct = default)
+        => (await sender.Send(new GetReopenRequestsQuery(page, pageSize, status), ct)).ToHttp();
+
+    [HttpPost("{id:guid}/reopen-requests/{requestId:guid}/approve")]
+    [Authorize(Roles = "LEO,Admin")]
+    [Tags("📌 LEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO] Duyệt yêu cầu mở lại",
+        Description = "LEO xác nhận yêu cầu hợp lý. Chuyển Resolved → Reopened để phân công dọn lại.")]
+    [SwaggerResponse(200, "Đã duyệt", typeof(ApiResponse))]
+    public async Task<IActionResult> ApproveReopenRequestAsync(
+        [FromRoute] Guid id,
+        [FromRoute] Guid requestId,
+        CancellationToken ct)
+        => (await sender.Send(new ApproveReopenRequestCommand(id, requestId), ct))
+            .ToHttpNoContent("Đã duyệt yêu cầu mở lại.");
+
+    [HttpPost("{id:guid}/reopen-requests/{requestId:guid}/reject")]
+    [Authorize(Roles = "LEO,Admin")]
+    [Tags("📌 LEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO] Từ chối yêu cầu mở lại",
+        Description = "LEO từ chối yêu cầu không hợp lý. Report vẫn Resolved. Lý do ≥ 20 ký tự (BR-REP-022).")]
+    [SwaggerResponse(200, "Đã từ chối", typeof(ApiResponse))]
+    public async Task<IActionResult> RejectReopenRequestAsync(
+        [FromRoute] Guid id,
+        [FromRoute] Guid requestId,
+        [FromBody] RejectReopenRequestRequest request,
+        CancellationToken ct)
+        => (await sender.Send(new RejectReopenRequestCommand(id, requestId, request.Reason), ct))
+            .ToHttpNoContent("Đã từ chối yêu cầu mở lại.");
+
     [HttpPut("{id:guid}/reopen")]
     [Authorize]
     [Tags("📋 Reports — Citizen Flow")]
-    [SwaggerOperation(Summary = "[Citizen] Mở lại báo cáo", Description = "Citizen mở lại báo cáo nếu chưa hài lòng. Tối đa 2 lần reopen, trong vòng 7 ngày từ Resolved. Chuyển status Resolved → InProgress.")]
-    [SwaggerResponse(200, "Đã mở lại", typeof(ApiResponse))]
-    [SwaggerResponse(422, "Hết lượt reopen, quá 7 ngày, hoặc status không hợp lệ", typeof(ApiResponse))]
+    [SwaggerOperation(
+        Summary = "[Deprecated] Mở lại báo cáo trực tiếp",
+        Description = "Đã thay bằng POST /reopen-requests. Endpoint này trả lỗi hướng dẫn dùng API mới.")]
+    [SwaggerResponse(422, "Dùng POST reopen-requests", typeof(ApiResponse))]
     public async Task<IActionResult> ReopenAsync([FromRoute] Guid id, CancellationToken ct)
         => (await sender.Send(new ReopenReportCommand(id), ct)).ToHttpNoContent("Đã mở lại báo cáo.");
 
@@ -582,13 +777,14 @@ public sealed class ReportsController(
     // ═══════════════════════════════════════════
 
     [HttpPost("{id:guid}/inspections")]
+    [SupportsIdempotency]
     [Authorize(Roles = "LEO,Admin")]
     [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(
         Summary = "[LEO] Lập hồ sơ xử phạt cho báo cáo",
         Description = "LEO lập InspectionReport (Draft) liên kết với Report đã Verified (BR-INS-001, BR-OFF-005). " +
             "Có thể gán Inspection Team ngay hoặc gán sau.")]
-    [SwaggerResponse(201, "Đã tạo hồ sơ xử phạt", typeof(ApiResponse<Guid>))]
+    [SwaggerResponse(200, "Đã tạo hồ sơ xử phạt", typeof(ApiResponse<Guid>))]
     [SwaggerResponse(404, "Không tìm thấy báo cáo", typeof(ApiResponse))]
     [SwaggerResponse(409, "Đã có hồ sơ xử phạt đang hoạt động", typeof(ApiResponse))]
     [SwaggerResponse(422, "Báo cáo chưa Verified hoặc team không hợp lệ", typeof(ApiResponse))]
@@ -603,7 +799,7 @@ public sealed class ReportsController(
             request.ViolatorName,
             request.ViolatorAddress,
             request.ViolatorIdentity), ct))
-            .ToHttpCreated();
+            .ToHttp("Đã lập hồ sơ xử phạt thành công.");
 
     [HttpGet("{id:guid}/inspections")]
     [Authorize(Roles = "LEO,Inspector,Admin")]
@@ -622,6 +818,7 @@ public sealed class ReportsController(
     // ═══════════════════════════════════════════
 
     [HttpPost("{id:guid}/rate")]
+    [SupportsIdempotency]
     [Authorize]
     [Tags("📋 Reports — Citizen Flow")]
     [SwaggerOperation(
@@ -710,18 +907,25 @@ public sealed class ReportsController(
     [Tags("📊 Officer Dashboard")]
     [SwaggerOperation(
         Summary = "[LEO/DEO/Admin] Export báo cáo",
-        Description = "LEO export xã/phường; DEO export toàn tỉnh; Admin export all. PII chỉ Admin thấy.")]
+        Description = "LEO export xã/phường; DEO export toàn tỉnh; Admin export all. PII chỉ Admin thấy. " +
+            "Hỗ trợ lọc status/severity/categoryId/wardCode/from/to/isPossibleDuplicate/isSuspectedViolationRecurrence. " +
+            "File gồm cột duplicate + violation recurrence.")]
     [SwaggerResponse(200, "File download")]
     public async Task<IActionResult> ExportAsync(
         [FromQuery] ReportStatus? status,
         [FromQuery] Severity? severity,
+        [FromQuery] Guid? categoryId,
+        [FromQuery] string? wardCode,
         [FromQuery] DateTime? from,
         [FromQuery] DateTime? to,
+        [FromQuery] bool? isPossibleDuplicate,
+        [FromQuery] bool? isSuspectedViolationRecurrence,
         [FromQuery] ExportFormat format,
         CancellationToken ct)
     {
         var result = await sender.Send(
-            new ExportReportsQuery(status, severity, from, to, format), ct);
+            new ExportReportsQuery(status, severity, categoryId, wardCode, from, to,
+                isPossibleDuplicate, isSuspectedViolationRecurrence, format), ct);
 
         if (!result.IsSuccess)
             return result.ToHttp();
@@ -744,6 +948,8 @@ public sealed record DeclineAssignmentRequest(Guid TeamId, string Reason);
 public sealed record TagWasteRequest(List<Guid> WasteTagIds);
 public sealed record DispatchToCompanyRequest(Guid CompanyId, string? Note);
 public sealed record AssignCompanyTeamRequest(List<AssignTeamItemRequest> Teams);
+public sealed record RequestReopenReportRequest(string Reason, List<string>? ImageUrls, string? VideoUrl = null);
+public sealed record RejectReopenRequestRequest(string Reason);
 
 public sealed record CreateInspectionRequest(
     Guid? AssignedTeamId,

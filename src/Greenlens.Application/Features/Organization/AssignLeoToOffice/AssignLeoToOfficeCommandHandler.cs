@@ -21,20 +21,31 @@ public sealed class AssignLeoToOfficeCommandHandler(
         AssignLeoToOfficeCommand request,
         CancellationToken cancellationToken)
     {
+        logger.LogInformation("Assigning LEO {UserId} to office {LocalOfficeId}", request.UserId, request.LocalOfficeId);
+
         var office = await localOffices.GetByIdAsync(request.LocalOfficeId, cancellationToken)
             .ConfigureAwait(false);
 
         if (office is null)
+        {
+            logger.LogWarning("Local office {LocalOfficeId} not found", request.LocalOfficeId);
             return Errors.Organization.LocalOfficeNotFound;
+        }
 
         var user = await users.GetByIdAsync(request.UserId, cancellationToken)
             .ConfigureAwait(false);
 
         if (user is null)
+        {
+            logger.LogWarning("User {UserId} not found", request.UserId);
             return Errors.Users.UserNotFound;
+        }
 
         if (user.Role != UserRole.LEO)
+        {
+            logger.LogWarning("User {UserId} is not a LEO", request.UserId);
             return Errors.Organization.InvalidRoleForOfficer;
+        }
 
         office.AssignOfficer(request.UserId);
         user.AssignToLocalOffice(request.LocalOfficeId);

@@ -1,3 +1,4 @@
+using Greenlens.Api.Attributes;
 using Greenlens.Api.Extensions;
 using Greenlens.Application.Common.Models;
 using Greenlens.Application.Features.Auth.ChangePassword;
@@ -24,9 +25,10 @@ public sealed class AuthController(ISender sender) : ControllerBase
 {
     [HttpPost("register")]
     [AllowAnonymous]
+    [SupportsIdempotency(TtlHours = 1)]
     [SwaggerOperation(
         Summary = "Register",
-        Description = "Register a new citizen account with email and password. An OTP will be sent for email verification.")]
+        Description = "Register a new citizen account. Requires email, password, fullName, and acceptTerms. Returns 409 EMAIL_TAKEN or EMAIL_DELETED_RESTORE_AVAILABLE.")]
     [SwaggerResponse(200, "Registration successful", typeof(ApiResponse<RegisterResponse>))]
     [SwaggerResponse(409, "Email already taken", typeof(ApiResponse))]
     [SwaggerResponse(422, "Validation error", typeof(ApiResponse))]
@@ -39,7 +41,7 @@ public sealed class AuthController(ISender sender) : ControllerBase
     [AllowAnonymous]
     [SwaggerOperation(
         Summary = "Login",
-        Description = "Login with email and password. Returns accessToken and refreshToken in response data.")]
+        Description = "Login with email and password. Returns accessToken and refreshToken.")]
     [SwaggerResponse(200, "Login successful", typeof(ApiResponse<LoginResponse>))]
     [SwaggerResponse(422, "Invalid credentials", typeof(ApiResponse))]
     [SwaggerResponse(422, "Email not verified", typeof(ApiResponse))]
@@ -51,6 +53,7 @@ public sealed class AuthController(ISender sender) : ControllerBase
 
     [HttpPost("request-otp")]
     [AllowAnonymous]
+    [SupportsIdempotency(TtlHours = 1)]
     [SwaggerOperation(
         Summary = "Request OTP",
         Description = "Send a 6-digit OTP code to the specified email. Valid for 10 minutes. Supports EmailVerification and PasswordReset purposes.")]
@@ -127,6 +130,7 @@ public sealed class AuthController(ISender sender) : ControllerBase
 
     [HttpPost("google-login")]
     [AllowAnonymous]
+    [SupportsIdempotency(TtlHours = 1)]
     [SwaggerOperation(
         Summary = "Login with Google",
         Description = "Login or register using a Firebase Google ID token. Auto-creates account if not exists.")]

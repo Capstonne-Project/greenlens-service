@@ -29,17 +29,24 @@ public sealed class AssignDeoToDepartmentCommandHandler(
             .ConfigureAwait(false);
 
         if (department is null)
+        {
+            logger.LogWarning("Department {DepartmentId} not found", request.DepartmentId);
             return Errors.Organization.DepartmentNotFound;
+        }
 
         var user = await users.GetByIdAsync(request.UserId, cancellationToken)
             .ConfigureAwait(false);
 
         if (user is null)
+        {
+            logger.LogWarning("User {UserId} not found", request.UserId);
             return Errors.Users.UserNotFound;
-
+        }
         if (user.Role != UserRole.DEO)
+        {
+            logger.LogWarning("User {UserId} is not a DEO", request.UserId);
             return Errors.Organization.InvalidRoleForDeo;
-
+        }
         user.AssignToDepartment(request.DepartmentId);
 
         await uow.SaveChangesAsync(cancellationToken).ConfigureAwait(false);

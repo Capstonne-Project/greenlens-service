@@ -22,4 +22,8 @@ public sealed record PublicMapReportPinDto(
     /// <summary>First report image URL (thumbnail when available).</summary>
     string? ImageUrl,
     ReportStatus Status,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    /// <summary>True when the report has an active (not Completed/Cancelled) Community Cleanup program — renders as a distinct "Cộng đồng" marker on the map.</summary>
+    bool HasActiveCommunityCleanup,
+    /// <summary>Id of the active Community Cleanup event, when <see cref="HasActiveCommunityCleanup"/> is true — used to deep-link into the program detail.</summary>
+    Guid? CommunityCleanupEventId);

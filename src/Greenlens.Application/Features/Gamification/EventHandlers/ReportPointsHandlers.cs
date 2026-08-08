@@ -1,11 +1,8 @@
-using Greenlens.Application.Features.Gamification.AwardPoints;
-using Greenlens.Application.Features.Gamification.CheckBadges;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.Extensions.Logging;
-using Microsoft.EntityFrameworkCore;
 
 namespace Greenlens.Application.Features.Gamification.EventHandlers;
 
@@ -23,30 +20,23 @@ public sealed class ReportVerifiedPointsHandler(
 {
     public async Task Handle(ReportVerifiedEvent notification, CancellationToken ct)
     {
-        var points = await GetConfiguredPointsAsync(PointReason.ReportVerified, 10, ct)
-            .ConfigureAwait(false);
-        if (points == 0) return; // BR-ADM-005: action disabled
-
-        logger.LogDebug("Gamification: ReportVerified → {Points} points for user {UserId}",
-            points, notification.ReporterId);
-
-        await sender.Send(new AwardPointsCommand(
-            notification.ReporterId, points, PointReason.ReportVerified, notification.ReportId), ct)
+        var points = await GamificationPointAwarder
+            .GetConfiguredPointsAsync(db, PointReason.ReportVerified, 10, ct)
             .ConfigureAwait(false);
 
-        // Check badges after awarding points
-        await sender.Send(new CheckBadgesCommand(notification.ReporterId), ct)
-            .ConfigureAwait(false);
-    }
+        if (points == 0)
+            return;
 
-    private async Task<int> GetConfiguredPointsAsync(PointReason reason, int fallback, CancellationToken ct)
-    {
-        var config = await db.Set<GamificationConfig>()
-            .AsNoTracking()
-            .FirstOrDefaultAsync(c => c.ActionType == reason, ct)
-            .ConfigureAwait(false);
-        if (config is null) return fallback;
-        return config.IsActive ? config.Points : 0;
+        await GamificationPointAwarder.TryAwardAsync(
+            sender,
+            logger,
+            notification.ReporterId,
+            points,
+            PointReason.ReportVerified,
+            notification.ReportId,
+            "ReportVerified",
+            checkBadges: true,
+            ct).ConfigureAwait(false);
     }
 }
 
@@ -58,29 +48,23 @@ public sealed class ReportResolvedPointsHandler(
 {
     public async Task Handle(ReportResolvedEvent notification, CancellationToken ct)
     {
-        var points = await GetConfiguredPointsAsync(PointReason.ReportResolved, 20, ct)
-            .ConfigureAwait(false);
-        if (points == 0) return;
-
-        logger.LogDebug("Gamification: ReportResolved → {Points} points for user {UserId}",
-            points, notification.ReporterId);
-
-        await sender.Send(new AwardPointsCommand(
-            notification.ReporterId, points, PointReason.ReportResolved, notification.ReportId), ct)
+        var points = await GamificationPointAwarder
+            .GetConfiguredPointsAsync(db, PointReason.ReportResolved, 20, ct)
             .ConfigureAwait(false);
 
-        await sender.Send(new CheckBadgesCommand(notification.ReporterId), ct)
-            .ConfigureAwait(false);
-    }
+        if (points == 0)
+            return;
 
-    private async Task<int> GetConfiguredPointsAsync(PointReason reason, int fallback, CancellationToken ct)
-    {
-        var config = await db.Set<GamificationConfig>()
-            .AsNoTracking()
-            .FirstOrDefaultAsync(c => c.ActionType == reason, ct)
-            .ConfigureAwait(false);
-        if (config is null) return fallback;
-        return config.IsActive ? config.Points : 0;
+        await GamificationPointAwarder.TryAwardAsync(
+            sender,
+            logger,
+            notification.ReporterId,
+            points,
+            PointReason.ReportResolved,
+            notification.ReportId,
+            "ReportResolved",
+            checkBadges: true,
+            ct).ConfigureAwait(false);
     }
 }
 
@@ -92,25 +76,22 @@ public sealed class ReportRejectedPointsHandler(
 {
     public async Task Handle(ReportRejectedEvent notification, CancellationToken ct)
     {
-        var points = await GetConfiguredPointsAsync(PointReason.ReportRejected, -5, ct)
+        var points = await GamificationPointAwarder
+            .GetConfiguredPointsAsync(db, PointReason.ReportRejected, -5, ct)
             .ConfigureAwait(false);
-        if (points == 0) return;
 
-        logger.LogDebug("Gamification: ReportRejected → {Points} points for user {UserId}",
-            points, notification.ReporterId);
+        if (points == 0)
+            return;
 
-        await sender.Send(new AwardPointsCommand(
-            notification.ReporterId, points, PointReason.ReportRejected, notification.ReportId), ct)
-            .ConfigureAwait(false);
-    }
-
-    private async Task<int> GetConfiguredPointsAsync(PointReason reason, int fallback, CancellationToken ct)
-    {
-        var config = await db.Set<GamificationConfig>()
-            .AsNoTracking()
-            .FirstOrDefaultAsync(c => c.ActionType == reason, ct)
-            .ConfigureAwait(false);
-        if (config is null) return fallback;
-        return config.IsActive ? config.Points : 0;
+        await GamificationPointAwarder.TryAwardAsync(
+            sender,
+            logger,
+            notification.ReporterId,
+            points,
+            PointReason.ReportRejected,
+            notification.ReportId,
+            "ReportRejected",
+            checkBadges: false,
+            ct).ConfigureAwait(false);
     }
 }

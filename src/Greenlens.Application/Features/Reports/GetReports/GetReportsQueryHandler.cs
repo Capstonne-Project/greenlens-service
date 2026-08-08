@@ -15,6 +15,7 @@ public sealed class GetReportsQueryHandler(
     public async Task<Result<GetReportsResponse>> Handle(
         GetReportsQuery request, CancellationToken ct)
     {
+        
         var query = reports.QueryAsNoTracking()
             .Include(r => r.Category)
             .Where(r => !r.IsHidden) // BR-ADM-006: hide moderated reports from public
@@ -28,6 +29,16 @@ public sealed class GetReportsQueryHandler(
             query = query.Where(r => r.WardCode == request.WardCode);
         if (request.Severity.HasValue)
             query = query.Where(r => r.Severity == request.Severity.Value);
+
+        // Tìm theo mã / mô tả / địa chỉ — ToLower() để Postgres so sánh không phân biệt hoa thường.
+        if (!string.IsNullOrWhiteSpace(request.Keyword))
+        {
+            var keyword = request.Keyword.Trim().ToLower();
+            query = query.Where(r =>
+                r.Code.ToLower().Contains(keyword)
+                || (r.Description != null && r.Description.ToLower().Contains(keyword))
+                || (r.Address != null && r.Address.ToLower().Contains(keyword)));
+        }
 
         var totalCount = await query.CountAsync(ct).ConfigureAwait(false);
 

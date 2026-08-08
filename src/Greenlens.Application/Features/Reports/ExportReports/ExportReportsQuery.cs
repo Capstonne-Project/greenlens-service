@@ -12,8 +12,12 @@ namespace Greenlens.Application.Features.Reports.ExportReports;
 public sealed record ExportReportsQuery(
     ReportStatus? Status = null,
     Severity? Severity = null,
+    Guid? CategoryId = null,
+    string? WardCode = null,
     DateTime? From = null,
     DateTime? To = null,
+    bool? IsPossibleDuplicate = null,
+    bool? IsSuspectedViolationRecurrence = null,
     ExportFormat Format = ExportFormat.Csv) : IRequest<Result<ExportReportsResponse>>;
 
 public enum ExportFormat

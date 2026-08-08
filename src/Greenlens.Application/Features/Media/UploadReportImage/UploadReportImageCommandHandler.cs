@@ -30,7 +30,10 @@ public sealed class UploadReportImageCommandHandler(
         }
 
         if (request.FileSize > MaxFileSizeBytes)
+        {
+            logger.LogWarning("Report image too large {Size} bytes", request.FileSize);
             return Errors.Media.ImageTooLarge;
+        }
 
         // ── Upload to R2 ──
         FileUploadResult uploadResult;
@@ -48,6 +51,8 @@ public sealed class UploadReportImageCommandHandler(
             logger.LogError(ex, "Failed to upload report image to R2");
             return Errors.Users.StorageUploadFailed;
         }
+
+        logger.LogInformation("Uploaded report image {FileName} to R2", request.FileName);
 
         return new UploadReportImageResponse(
             uploadResult.Url,

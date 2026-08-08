@@ -1,5 +1,7 @@
 using Greenlens.Application.Common;
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Reports.Common;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -14,9 +16,12 @@ namespace Greenlens.Application.Features.Reports.GetReportProgress;
 /// </summary>
 /// <remarks>
 /// Implements: BR-OFF-020 (SLA countdown), BR-OFF-011 (multi-team tracking).
+/// Scope: LEO → assigned office; Admin → all.
 /// </remarks>
 public sealed class GetReportProgressQueryHandler(
     IReportRepository reports,
+    IUserRepository users,
+    ICurrentUser currentUser,
     ILogger<GetReportProgressQueryHandler> logger)
     : IRequestHandler<GetReportProgressQuery, Result<ReportProgressResponse>>
 {
@@ -31,9 +36,20 @@ public sealed class GetReportProgressQueryHandler(
     public async Task<Result<ReportProgressResponse>> Handle(
         GetReportProgressQuery request, CancellationToken ct)
     {
+        logger.LogInformation("Getting report progress for report {ReportId}", request.ReportId);
+
+        var user = await users.GetByIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
+        if (user is null)
+        {
+            logger.LogWarning("User not found for report progress: {UserId}", currentUser.UserId);
+            return Errors.Users.UserNotFound;
+        }
+
         var report = await reports.QueryAsNoTracking()
             .Include(x => x.Category)
             .Include(x => x.Media)
+            .Include(x => x.Assignments)
+                .ThenInclude(a => a.AssignedByUser)
             .Include(x => x.Assignments)
                 .ThenInclude(a => a.Team)
                     .ThenInclude(t => t!.Members)
@@ -44,7 +60,20 @@ public sealed class GetReportProgressQueryHandler(
             .ConfigureAwait(false);
 
         if (report is null)
+        {
+            logger.LogWarning("Report not found for ID {ReportId}", request.ReportId);
             return Errors.Reports.ReportNotFound;
+        }
+
+        var accessError = ReportReviewCandidateFilters.ValidateLeoReportAccess(
+            report, user, currentUser.Role);
+        if (accessError is not null)
+        {
+            logger.LogWarning(
+                "User {UserId} denied progress for report {ReportId}: {ErrorCode}",
+                currentUser.UserId, request.ReportId, accessError.Code);
+            return accessError;
+        }
 
         // ── SLA countdown ──────────────────────────────────────────
         int? hoursRemaining = report.SlaResolveDueAt.HasValue
@@ -69,6 +98,8 @@ public sealed class GetReportProgressQueryHandler(
                     a.Team?.Name ?? string.Empty,
                     a.Team?.TeamType.ToString() ?? string.Empty,
                     leader?.User?.FullName,
+                    a.AssignedById,
+                    a.AssignedByUser?.FullName ?? "Unknown",
                     a.Status.ToString(),
                     a.AssignedAt,
                     a.StartedAt,
@@ -103,7 +134,7 @@ public sealed class GetReportProgressQueryHandler(
 
         // ── Media grouped by phase ─────────────────────────────────
         var beforeImages = report.Media
-            .Where(m => m.Type is MediaType.Before or MediaType.Image)
+            .Where(m => m.Type == MediaType.Before)
             .OrderBy(m => m.UploadedAt)
             .Select(m => new MediaItemDto(m.Url, m.UploadedAt))
             .ToList();
@@ -133,7 +164,7 @@ public sealed class GetReportProgressQueryHandler(
                 sh.Reason))
             .ToList();
 
-        logger.LogInformation("LEO fetched progress for report {ReportId}", report.Id);
+        logger.LogInformation("Progress fetched successfully for report {ReportId}", report.Id);
 
         return new ReportProgressResponse(
             report.Id,

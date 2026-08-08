@@ -11,7 +11,7 @@ public interface IAiImageCompareService
 {
     /// <summary>
     /// Compare two publicly-readable image URLs. Returns null when the AI service is
-    /// unavailable / timed out / non-success — the caller falls back to Tier 1 (geo_time).
+    /// unavailable / timed out / non-success — the caller falls back to Tier 1 (geo_category).
     /// </summary>
     Task<ImageCompareResult?> CompareAsync(
         string imageUrlA,

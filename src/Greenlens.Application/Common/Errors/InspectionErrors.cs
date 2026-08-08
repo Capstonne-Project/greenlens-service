@@ -61,6 +61,12 @@ public static partial class Errors
             "Hồ sơ xử phạt không được gán cho team của bạn.",
             ErrorType.Forbidden);
 
+        /// <summary>BR-ORG-012: LEO recording payment must be the officer assigned to the underlying report's ward.</summary>
+        public static Error NotAssignedLeoForReport => new(
+            "NOT_ASSIGNED_LEO_FOR_REPORT",
+            "Bạn không phải là cán bộ phụ trách khu vực của báo cáo này.",
+            ErrorType.Forbidden);
+
         public static Error InspectionAlreadyExistsForReport => new(
             "INSPECTION_ALREADY_EXISTS",
             "Báo cáo này đã có hồ sơ xử phạt đang hoạt động.",
@@ -106,6 +112,16 @@ public static partial class Errors
             "Số CMND/CCCD đã tồn tại trong hệ thống.",
             ErrorType.Conflict);
 
+        public static Error ViolatingEntityAlreadyDeleted => new(
+            "VIOLATING_ENTITY_ALREADY_DELETED",
+            "Đối tượng vi phạm đã được xóa trước đó.",
+            ErrorType.Conflict);
+
+        public static Error ViolatingEntityInUse => new(
+            "VIOLATING_ENTITY_IN_USE",
+            "Không thể xóa đối tượng vi phạm đang có biên bản kiểm tra liên quan.",
+            ErrorType.BusinessRule);
+
         public static Error EvidenceImagesRequired => new(
             "EVIDENCE_IMAGES_REQUIRED",
             "Vui lòng upload ít nhất 1 ảnh hiện trường.",
@@ -117,9 +133,44 @@ public static partial class Errors
             "Biên bản cần ít nhất 2 ảnh hiện trường trước khi ra quyết định xử phạt (BR-INS-010).",
             ErrorType.BusinessRule);
 
+        public static Error ChecklistViolationStatusRequired => new(
+            "CHECKLIST_VIOLATION_STATUS_REQUIRED",
+            "Phải mô tả tình trạng vi phạm trên checklist (BR-INS-033).",
+            ErrorType.Validation);
+
+        public static Error FieldReportRequired => new(
+            "INSPECTION_FIELD_REPORT_REQUIRED",
+            "Phải nộp biên bản điều tra hiện trường trước khi kết luận (BR-INS-033).",
+            ErrorType.BusinessRule);
+
+        public static Error FieldReportAlreadySubmitted => new(
+            "INSPECTION_FIELD_REPORT_ALREADY_SUBMITTED",
+            "Biên bản điều tra hiện trường đã được nộp.",
+            ErrorType.BusinessRule);
+
+        public static Error ArrivalNoteRequiredWhenFar => new(
+            "INSPECTION_ARRIVAL_NOTE_REQUIRED",
+            "Vị trí cách hiện trường hơn 200m — cần ghi chú giải trình (BR-INS-033).",
+            ErrorType.Validation);
+
+        public static Error EndpointDeprecated => new(
+            "ENDPOINT_DEPRECATED",
+            "API này đã ngừng hỗ trợ. Vui lòng dùng luồng checklist mới (accept + confirm-arrival).",
+            ErrorType.BusinessRule);
+
+        public static Error PaymentReceiptRequired => new(
+            "PAYMENT_RECEIPT_REQUIRED",
+            "Vui lòng upload ảnh biên lai nộp phạt (BR-INS-020).",
+            ErrorType.Validation);
+
         public static Error PaymentNotFound => new(
             "PAYMENT_NOT_FOUND",
             "Không tìm thấy khoản thanh toán.",
             ErrorType.NotFound);
+
+        public static Error PaymentAlreadyDeleted => new(
+            "PAYMENT_ALREADY_DELETED",
+            "Khoản thanh toán đã được xóa trước đó.",
+            ErrorType.Conflict);
     }
 }

@@ -23,16 +23,24 @@ public sealed class RestoreAccountCommandHandler(
         RestoreAccountCommand request,
         CancellationToken cancellationToken)
     {
+        logger.LogInformation("Getting account restoration");
+
         // Find the soft-deleted user (bypasses global query filter)
         var user = await users.GetDeletedByEmailAsync(request.Email, cancellationToken)
             .ConfigureAwait(false);
 
         if (user is null)
+        {
+            logger.LogWarning("User not found for email {Email}", request.Email);
             return Errors.Auth.UserNotFound;
+        }
 
         // Verify password
         if (!passwordHasher.Verify(request.Password, user.PasswordHash))
+        {
+            logger.LogWarning("Invalid password for email {Email}", request.Email);
             return Errors.Auth.InvalidCredentials;
+        }
 
         // Restore the account
         user.Restore();

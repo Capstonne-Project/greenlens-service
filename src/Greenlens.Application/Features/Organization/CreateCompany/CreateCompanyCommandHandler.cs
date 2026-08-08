@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
@@ -14,7 +15,7 @@ namespace Greenlens.Application.Features.Organization.CreateCompany;
 /// Optionally creates a CM account and/or assigns ward service areas at the same time.
 /// Company starts as PendingActivation. If CM is created, they must change password on first login → company auto-activates.
 /// </summary>
-/// <remarks>Implements: BR-CMP-001, BR-CMP-002.</remarks>
+/// <remarks>Implements: BR-CMP-001, BR-CMP-002, BR-ADM-010.</remarks>
 public sealed class CreateCompanyCommandHandler(
     IEnvironmentalServiceCompanyRepository companies,
     IDepartmentRepository departments,
@@ -25,6 +26,7 @@ public sealed class CreateCompanyCommandHandler(
     IUnitOfWork uow,
     IPasswordHasher passwordHasher,
     ICurrentUser currentUser,
+    IAuditLogger auditLogger,
     ILogger<CreateCompanyCommandHandler> logger)
     : IRequestHandler<CreateCompanyCommand, Result<CreateCompanyResponse>>
 {
@@ -32,30 +34,40 @@ public sealed class CreateCompanyCommandHandler(
         CreateCompanyCommand request,
         CancellationToken ct)
     {
+        logger.LogInformation("Creating company {Name} for department {DepartmentId}", request.Name, request.DepartmentId);
+
         // ── 1. Verify department exists ──
         var department = await departments.GetByIdAsync(request.DepartmentId, ct)
             .ConfigureAwait(false);
 
         if (department is null)
+        {
+            logger.LogWarning("Department {DepartmentId} not found", request.DepartmentId);
             return Errors.Organization.DepartmentNotFound;
+        }
 
-        // ── 2. Check contract number uniqueness ──
-        var contractExists = await companies.ExistsAsync(
-            c => c.ContractNumber == request.ContractNumber, ct)
+        // ── 2. Check contract number uniqueness (include soft-deleted — DB unique index is not filtered) ──
+        var contractNumber = request.ContractNumber.Trim();
+        var contractExists = await companies.ContractNumberExistsAsync(contractNumber, ct: ct)
             .ConfigureAwait(false);
 
         if (contractExists)
+        {
+            logger.LogWarning("Contract number {ContractNumber} already exists", contractNumber);
             return Errors.Organization.CompanyContractNumberExists;
+        }
 
         // ── 3. Check manager email uniqueness (only if CM is being created) ──
         if (!string.IsNullOrEmpty(request.ManagerEmail))
         {
-            var emailExists = await users.ExistsAsync(
-                u => u.Email == request.ManagerEmail.ToLowerInvariant(), ct)
+            var emailError = await UserRegistrationGuard
+                .ValidateNewEmailForProvisioningAsync(users, request.ManagerEmail, ct)
                 .ConfigureAwait(false);
-
-            if (emailExists)
-                return Errors.Organization.ManagerEmailAlreadyExists;
+            if (emailError is not null)
+            {
+                logger.LogWarning("Email {Email} is already in use", request.ManagerEmail);
+                return emailError;
+            }
         }
 
         // ── 4. Validate ward codes (only if WardCodes is provided) ──
@@ -66,14 +78,17 @@ public sealed class CreateCompanyCommandHandler(
                 .ConfigureAwait(false);
 
             if (existingWardCount != request.WardCodes.Count)
+            {
+                logger.LogWarning("Ward codes {WardCodes} not found", request.WardCodes);
                 return Errors.Organization.WardNotFound;
+            }
         }
 
         // ── 5. Create company entity ──
         var company = EnvironmentalServiceCompany.Create(
             request.Name,
             request.DepartmentId,
-            request.ContractNumber,
+            contractNumber,
             request.ContractStartDate,
             request.ContractEndDate,
             request.ContractType,
@@ -125,12 +140,42 @@ public sealed class CreateCompanyCommandHandler(
             companyStaff.Add(staffLink);
         }
 
-        await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+        try
+        {
+            await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+            logger.LogInformation("Company {CompanyId} created", company.Id);
+        }
+        catch (DbUpdateException ex)
+        {
+            var mapped = PostgresUniqueViolationMapper.TryMap(ex);
+            if (mapped is not null)
+            {
+                logger.LogWarning("Failed to save changes for company {CompanyId}", company.Id);
+                return mapped;
+            }
+            throw;
+        }
 
         logger.LogInformation(
             "Company {CompanyId} '{Name}' created under department {DeptId}. CM: {HasCM}. Wards: {WardCount}",
             company.Id, company.Name, company.DepartmentId,
             managerUser is not null, request.WardCodes?.Count ?? 0);
+
+        await auditLogger.LogAsync(
+            "CreateCompany",
+            "Company",
+            company.Id.ToString(),
+            oldValues: null,
+            newValues: JsonSerializer.Serialize(new
+            {
+                company.Name,
+                company.DepartmentId,
+                company.ContractNumber,
+                ContractType = company.ContractType.ToString(),
+                Status = company.Status.ToString(),
+                ManagerUserId = managerUser?.Id
+            }),
+            ct).ConfigureAwait(false);
 
         return new CreateCompanyResponse(
             company.Id,

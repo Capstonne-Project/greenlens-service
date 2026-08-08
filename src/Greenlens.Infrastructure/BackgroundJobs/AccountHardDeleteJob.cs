@@ -1,3 +1,4 @@
+using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -8,9 +9,10 @@ namespace Greenlens.Infrastructure.BackgroundJobs;
 /// Permanently deletes user accounts that have been soft-deleted for over 90 days.
 /// Runs daily via Hangfire.
 /// </summary>
-/// <remarks>Implements: BR-AUTH-021 (hard delete after 90 days retention).</remarks>
+/// <remarks>Implements: BR-AUTH-021 (hard delete after 90 days retention, anonymize reports).</remarks>
 internal sealed class AccountHardDeleteJob(
     ApplicationDbContext dbContext,
+    IReportRepository reports,
     ILogger<AccountHardDeleteJob> logger)
 {
     private const int RetentionDays = 90;
@@ -35,8 +37,13 @@ internal sealed class AccountHardDeleteJob(
 
         foreach (var user in usersToDelete)
         {
-            logger.LogInformation("Hard-deleting user {UserId} (email={Email}, deleted at {DeletedAt})",
-                user.Id, user.Email, user.DeletedAt);
+            var anonymizedCount = await reports
+                .AnonymizeReporterAsync(user.Id)
+                .ConfigureAwait(false);
+
+            logger.LogInformation(
+                "Hard-deleting user {UserId} (deleted at {DeletedAt}); {ReportCount} reports anonymized",
+                user.Id, user.DeletedAt, anonymizedCount);
 
             dbContext.Users.Remove(user);
         }

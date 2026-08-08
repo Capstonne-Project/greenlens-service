@@ -8,6 +8,10 @@ public sealed record GetReportByIdQuery(Guid Id) : IRequest<Result<ReportDetailR
 
 public sealed record ReportDetailResponse(
     Guid Id, string Code, Guid? ReporterId,
+    /// <summary>Tên người gửi. Null khi báo cáo ẩn danh hoặc reporter đã xóa tài khoản (BR-REP-012, BR-AUTH-022).</summary>
+    string? ReporterName,
+    /// <summary>Avatar người gửi. Null khi ẩn danh, chưa đặt avatar, hoặc đã xóa tài khoản.</summary>
+    string? ReporterAvatarUrl,
     Guid CategoryId, string CategoryCode, string CategoryName,
     Severity Severity, SeveritySource SeveritySetBy,
     ReportStatus Status, string? Description,
@@ -24,7 +28,41 @@ public sealed record ReportDetailResponse(
     DateTime? ResolvedAt, DateTime? ClosedAt,
     DateTime? SlaVerifyDueAt, DateTime? SlaResolveDueAt,
     ReportSatisfactionInfo? Satisfaction,
-    bool HasCurrentUserRated);
+    bool HasCurrentUserRated,
+    bool HasPendingReopenRequest,
+    PendingReopenRequestInfo? PendingReopenRequest,
+    /// <summary>When this report is Duplicate — primary it was merged into (BR-REP-032).</summary>
+    Guid? MergedIntoPrimaryReportId = null,
+    string? MergedIntoPrimaryReportCode = null,
+    /// <summary>
+    /// Reports merged into this primary. imageUrl is projected from primary media
+    /// where SourceReportId = child id (BR-REP-032).
+    /// </summary>
+    IReadOnlyList<MergedReportItem>? MergedReports = null,
+    /// <summary>BR-REP-034: suspected violator recurrence near a recently Closed report.</summary>
+    bool IsSuspectedViolationRecurrence = false,
+    Guid? SuspectedRecurrenceOfReportId = null,
+    PriorClosedReportSummary? PriorClosedReport = null,
+    /// <summary>
+    /// BR-REP-011: EXIF data-quality warnings for officers (LEO/DEO/Admin). Null for other roles.
+    /// Human-readable messages (vi-VN), not internal codes. Advisory only.
+    /// </summary>
+    bool? IsSuspicious = null,
+    IReadOnlyList<string>? SuspiciousReasons = null);
+
+public sealed record PendingReopenRequestInfo(
+    Guid RequestId,
+    string Reason,
+    DateTime RequestedAt,
+    IReadOnlyList<ReportMediaItem> EvidenceMedia);
+
+/// <summary>Child report that was confirmed as duplicate of the primary (BR-REP-032).</summary>
+public sealed record MergedReportItem(
+    Guid Id,
+    string Code,
+    string? ImageUrl,
+    DateTime CreatedAt,
+    ReportStatus Status);
 
 public sealed record ReportMediaItem(
     Guid Id, string MediaType, string Url, string MimeType, long SizeBytes);
@@ -41,3 +79,11 @@ public sealed record ReportWasteTagItem(
 /// <summary>Satisfaction feedback left by the reporter (BR-REP-018).</summary>
 public sealed record ReportSatisfactionInfo(
     bool IsSatisfied, int? Rating, string? Comment, DateTime RatedAt);
+
+/// <summary>Summary of the prior Closed report linked by BR-REP-034 recurrence flag.</summary>
+public sealed record PriorClosedReportSummary(
+    Guid Id,
+    string Code,
+    DateTime? ClosedAt,
+    string CategoryCode,
+    bool HadPriorInspection);

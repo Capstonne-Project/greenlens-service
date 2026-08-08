@@ -21,18 +21,30 @@ public sealed class UpdateInspectionProgressCommandHandler(
 {
     public async Task<Result> Handle(UpdateInspectionProgressCommand request, CancellationToken ct)
     {
+        logger.LogInformation("Getting update inspection progress");
+
         var inspection = await inspections.GetByIdAsync(request.InspectionId, ct).ConfigureAwait(false);
         if (inspection is null)
+        {
+            logger.LogWarning("Inspection not found for inspection {InspectionId}", request.InspectionId);
             return Errors.Inspections.InspectionNotFound;
+        }
 
         // Must be team member
         var authError = await InspectionTeamAuthorization.ValidateTeamMemberAsync(
             inspection, teamMembers, currentUser, ct).ConfigureAwait(false);
         if (authError is not null)
+        {
+            logger.LogWarning("Team member validation failed for inspection {InspectionId}", request.InspectionId);
             return authError;
+        }
 
         var result = inspection.UpdateProgress(request.Percent, request.Note);
-        if (result.IsFailure) return result;
+        if (result.IsFailure)
+        {
+            logger.LogWarning("Failed to update inspection progress for inspection {InspectionId}", request.InspectionId);
+            return result;
+        }
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 

@@ -6,6 +6,7 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Comments.GetReportComments;
 
@@ -13,18 +14,23 @@ namespace Greenlens.Application.Features.Comments.GetReportComments;
 public sealed class GetReportCommentsQueryHandler(
     IReportRepository reports,
     IApplicationDbContext db,
-    ICurrentUser currentUser)
+    ICurrentUser currentUser,
+    ILogger<GetReportCommentsQueryHandler> logger)
     : IRequestHandler<GetReportCommentsQuery, Result<GetReportCommentsResponse>>
 {
     public async Task<Result<GetReportCommentsResponse>> Handle(
         GetReportCommentsQuery request,
         CancellationToken ct)
     {
+        logger.LogInformation("Getting report comments");
+
         var reportExists = await reports.ExistsAsync(r => r.Id == request.ReportId, ct)
             .ConfigureAwait(false);
         if (!reportExists)
+        {
+            logger.LogWarning("Report not found for report {ReportId}", request.ReportId);
             return Errors.Reports.ReportNotFound;
-
+        }
         var isPrivileged = currentUser.IsAuthenticated && CommentAccess.IsPrivilegedRole(currentUser.Role);
         var userId = currentUser.IsAuthenticated ? currentUser.UserId : Guid.Empty;
 
@@ -32,7 +38,10 @@ public sealed class GetReportCommentsQueryHandler(
             .Where(c => c.ReportId == request.ReportId);
 
         if (!isPrivileged)
+        {
+            logger.LogWarning("Comments not hidden for privileged user {UserId}", currentUser.UserId);
             query = query.Where(c => !c.IsHidden);
+        }
 
         var total = await query.CountAsync(ct).ConfigureAwait(false);
 
@@ -47,6 +56,7 @@ public sealed class GetReportCommentsQueryHandler(
                 c.AuthorId,
                 AuthorFullName = c.Author.FullName,
                 AuthorRole = c.Author.Role.ToString(),
+                AuthorAvatarUrl = c.Author.AvatarUrl,
                 c.CreatedAt,
                 c.UpdatedAt,
                 c.IsHidden,
@@ -63,8 +73,10 @@ public sealed class GetReportCommentsQueryHandler(
             var isAuthor = currentUser.IsAuthenticated && r.AuthorId == currentUser.UserId;
             var withinWindow = DateTime.UtcNow - r.CreatedAt <= TimeSpan.FromMinutes(15);
             var authorName = CommentAccess.ResolveAuthorDisplayName(r.AuthorRole, r.AuthorFullName);
+            // BR-CMT-001: đội xử lý hiện nhãn chung → không lộ avatar cá nhân.
+            var authorAvatarUrl = CommentAccess.IsCleanupTeamRole(r.AuthorRole) ? null : r.AuthorAvatarUrl;
             return new CommentListItem(
-                r.Id, r.Content, authorName, r.AuthorId,
+                r.Id, r.Content, authorName, r.AuthorId, authorAvatarUrl,
                 r.CreatedAt, r.UpdatedAt, r.IsHidden,
                 isAuthor && withinWindow && !r.IsHidden,
                 isAuthor && withinWindow,
@@ -73,6 +85,8 @@ public sealed class GetReportCommentsQueryHandler(
                 r.LikedByMe,
                 r.Images);
         }).ToList();
+
+        logger.LogInformation("Report comments: {Items}", items);
 
         return new GetReportCommentsResponse(
             items,

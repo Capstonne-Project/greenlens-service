@@ -6,7 +6,7 @@ namespace Greenlens.Application.Features.Admin.NotificationTemplates.UpdateNotif
 /// <summary>
 /// Update a notification template.
 /// </summary>
-/// <remarks>Implements: BR-ADM-004.</remarks>
+/// <remarks>Implements: BR-ADM-004, BR-ADM-010.</remarks>
 public sealed record UpdateNotificationTemplateCommand(
     Guid Id,
     string TitleVi,

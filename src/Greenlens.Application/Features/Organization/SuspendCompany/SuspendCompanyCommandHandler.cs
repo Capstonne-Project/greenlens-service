@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
@@ -17,16 +18,27 @@ public sealed class SuspendCompanyCommandHandler(
     IEnvironmentalServiceCompanyRepository companies,
     ICompanyCascadeService cascadeService,
     IUnitOfWork uow,
+    IAuditLogger auditLogger,
     ILogger<SuspendCompanyCommandHandler> logger) : IRequestHandler<SuspendCompanyCommand, Result>
 {
     public async Task<Result> Handle(SuspendCompanyCommand request, CancellationToken ct)
     {
+        logger.LogInformation("Suspending company {CompanyId}", request.CompanyId);
+
         var company = await companies.GetByIdAsync(request.CompanyId, ct).ConfigureAwait(false);
         if (company is null)
+        {
+            logger.LogWarning("Company {CompanyId} not found", request.CompanyId);
             return Errors.Organization.CompanyNotFound;
+        }
 
         if (company.Status != CompanyStatus.Active)
+        {
+            logger.LogWarning("Company {CompanyId} is not active", request.CompanyId);
             return Errors.Organization.CompanyNotActive;
+        }
+
+        var oldSnapshot = JsonSerializer.Serialize(new { status = company.Status.ToString() });
 
         // BR-CMP-004: Active → Suspended
         company.Suspend();
@@ -38,6 +50,18 @@ public sealed class SuspendCompanyCommandHandler(
             ct).ConfigureAwait(false);
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        await auditLogger.LogAsync(
+            "SuspendCompany",
+            "Company",
+            company.Id.ToString(),
+            oldValues: oldSnapshot,
+            newValues: JsonSerializer.Serialize(new
+            {
+                status = company.Status.ToString(),
+                reasonLength = request.Reason.Length
+            }),
+            ct).ConfigureAwait(false);
 
         logger.LogWarning("Company {CompanyId} ({CompanyName}) suspended. Reason: {Reason}",
             company.Id, company.Name, request.Reason);

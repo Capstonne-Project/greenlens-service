@@ -341,6 +341,6 @@ Notifications được trigger bởi Domain Events, cùng pattern với Gamifica
 
 - [ ] **BR-NTF-003 Digest:** Anti-spam hiện drop notification khi vượt 20/day. Cần digest job gộp cuối ngày (P2)
 - [ ] **BR-NTF-004 i18n:** Template vi-VN hardcode. Cần resource files + Admin template management (P2)
-- [ ] **More event types:** Hiện chỉ trigger cho Report status changes. Cần thêm handlers cho: NewComment, BadgeEarned, LevelUp, SlaBreachWarning, NearbyReport, PenaltyIssued, ContractExpiry
+- [ ] **More event types:** Cần thêm handlers cho: SlaBreachWarning, NearbyReport, PenaltyIssued, ContractExpiry (`BadgeEarned`, `LevelUp`, `NewComment` đã có handler)
 - [ ] **FCM token cleanup:** Khi Firebase trả `Unregistered` error → cần clear token khỏi User entity (hiện chỉ log warning)
 - [ ] **Batch push:** Khi có nhiều notifications → dùng `FirebaseMessaging.SendEachAsync()` thay vì gửi từng cái

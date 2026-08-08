@@ -1,10 +1,14 @@
+using Greenlens.Application.Common;
+using Greenlens.Api.Attributes;
 using Greenlens.Api.Extensions;
 using Greenlens.Application.Common.Models;
+using Greenlens.Application.Features.Inspection.AcceptInspectionTask;
 using Greenlens.Application.Features.Inspection.AssignInspectionTeam;
 using Greenlens.Application.Features.Inspection.CloseInspection;
 using Greenlens.Application.Features.Inspection.CloseNoViolation;
-using Greenlens.Application.Features.Inspection.CheckInInspection;
+using Greenlens.Application.Features.Inspection.ConfirmArrival;
 using Greenlens.Application.Features.Inspection.DeclineInspection;
+using Greenlens.Application.Features.Inspection.GetOfficerInspectionQueue;
 using Greenlens.Application.Features.Inspection.GetInspectionQueue;
 using Greenlens.Application.Features.Inspection.GetInspectionReportById;
 using Greenlens.Application.Features.Inspection.GetInspectionTeamKpi;
@@ -12,10 +16,12 @@ using Greenlens.Application.Features.Inspection.DeletePenaltyPayment;
 using Greenlens.Application.Features.Inspection.GetPaymentHistory;
 using Greenlens.Application.Features.Inspection.IssuePenalty;
 using Greenlens.Application.Features.Inspection.RecordPayment;
+using Greenlens.Application.Features.Inspection.SubmitFieldInvestigation;
+using Greenlens.Application.Features.Inspection.UpdateInspectionChecklist;
 using Greenlens.Application.Features.Inspection.UpdateInspectionDetails;
-using Greenlens.Application.Features.Inspection.UpdateInspectionProgress;
 using Greenlens.Application.Features.Inspection.UploadInspectionEvidence;
 using Greenlens.Application.Features.Reports.GetOfficerKpi;
+using Greenlens.Application.Features.Reports.GetOfficerQueue;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -49,6 +55,41 @@ public sealed class InspectionsController(ISender sender) : ControllerBase
         CancellationToken ct = default)
         => (await sender.Send(new GetInspectionQueueQuery(page, pageSize, status), ct)).ToHttp();
 
+    [HttpGet("officer-queue")]
+    [Authorize(Roles = "LEO,DEO,Admin")]
+    [Tags("📌 LEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO/DEO] Hàng đợi hồ sơ xử phạt",
+        Description = "Danh sách InspectionReport trong phạm vi phường (LEO) hoặc sở (DEO). " +
+            "Hỗ trợ lọc status, team, chưa gán team, SLA breach, khoảng ngày, tìm kiếm (mã báo cáo, địa chỉ, tên đối tượng). " +
+            "Sắp xếp mặc định: createdAt desc.")]
+    [SwaggerResponse(200, "Danh sách hồ sơ xử phạt", typeof(ApiResponse<GetOfficerInspectionQueueResponse>))]
+    public async Task<IActionResult> GetOfficerQueueAsync(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] InspectionStatus? status = null,
+        [FromQuery] Guid? assignedTeamId = null,
+        [FromQuery] bool? unassignedOnly = null,
+        [FromQuery] bool? slaBreached = null,
+        [FromQuery] DateTime? fromDate = null,
+        [FromQuery] DateTime? toDate = null,
+        [FromQuery] string? search = null,
+        [FromQuery] OfficerInspectionQueueSortBy sortBy = OfficerInspectionQueueSortBy.CreatedAt,
+        [FromQuery] SortDirection sortDir = SortDirection.Desc,
+        CancellationToken ct = default)
+        => (await sender.Send(new GetOfficerInspectionQueueQuery(
+            page,
+            pageSize,
+            status,
+            assignedTeamId,
+            unassignedOnly,
+            slaBreached,
+            fromDate,
+            toDate,
+            search,
+            sortBy,
+            sortDir), ct)).ToHttp();
+
     // ═══════════════════════════════════════════
     // ██  INSPECTION DETAIL
     // ═══════════════════════════════════════════
@@ -58,7 +99,8 @@ public sealed class InspectionsController(ISender sender) : ControllerBase
     [Tags("🔍 Inspection Dashboard")]
     [SwaggerOperation(
         Summary = "[Inspector/LEO] Chi tiết hồ sơ xử phạt",
-        Description = "Xem toàn bộ thông tin InspectionReport: vi phạm, mức phạt, SLA, trạng thái nộp phạt.")]
+        Description = "Xem toàn bộ thông tin InspectionReport: vi phạm, mức phạt, SLA, trạng thái nộp phạt, " +
+            "tọa độ GPS báo cáo gốc (latitude/longitude).")]
     [SwaggerResponse(200, "Chi tiết hồ sơ", typeof(ApiResponse<InspectionReportDetailResponse>))]
     [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
     public async Task<IActionResult> GetByIdAsync(
@@ -113,51 +155,110 @@ public sealed class InspectionsController(ISender sender) : ControllerBase
             .ToHttpNoContent("Đã cập nhật biên bản hiện trường.");
 
     // ═══════════════════════════════════════════
-    // ██  BR-INS-010: UPLOAD EVIDENCE PHOTOS
+    // ██  BR-INS-033: CHECKLIST WORKFLOW
     // ═══════════════════════════════════════════
+
+    [HttpPost("{id:guid}/accept")]
+    [SupportsIdempotency]
+    [Authorize(Roles = "Inspector")]
+    [Tags("🔍 Inspection Dashboard")]
+    [SwaggerOperation(
+        Summary = "[Inspector] Nhận task điều tra",
+        Description = "Inspector Team nhận hồ sơ được gán. Draft → InProgress (BR-INS-033).")]
+    [SwaggerResponse(200, "Đã nhận task", typeof(ApiResponse))]
+    public async Task<IActionResult> AcceptTaskAsync(
+        [FromRoute] Guid id, CancellationToken ct)
+        => (await sender.Send(new AcceptInspectionTaskCommand(id), ct))
+            .ToHttpNoContent("Đã nhận task điều tra.");
+
+    [HttpPost("{id:guid}/confirm-arrival")]
+    [SupportsIdempotency]
+    [Authorize(Roles = "Inspector")]
+    [Tags("🔍 Inspection Dashboard")]
+    [SwaggerOperation(
+        Summary = "[Inspector] Xác nhận có mặt hiện trường",
+        Description = "GPS mềm: ≤200m OK; >200m cần ghi chú giải trình (BR-INS-033).")]
+    [SwaggerResponse(200, "Đã xác nhận", typeof(ApiResponse))]
+    public async Task<IActionResult> ConfirmArrivalAsync(
+        [FromRoute] Guid id,
+        [FromBody] ConfirmArrivalRequest request,
+        CancellationToken ct)
+        => (await sender.Send(new ConfirmArrivalCommand(
+            id, request.Latitude, request.Longitude, request.Note), ct))
+            .ToHttpNoContent("Đã xác nhận có mặt hiện trường.");
+
+    [HttpPut("{id:guid}/checklist")]
+    [Authorize(Roles = "Inspector")]
+    [Tags("🔍 Inspection Dashboard")]
+    [SwaggerOperation(
+        Summary = "[Inspector] Cập nhật checklist text",
+        Description = "Cập nhật mô tả tình trạng vi phạm và ghi chú khác trên checklist (BR-INS-033).")]
+    [SwaggerResponse(200, "Đã cập nhật checklist", typeof(ApiResponse))]
+    public async Task<IActionResult> UpdateChecklistAsync(
+        [FromRoute] Guid id,
+        [FromBody] UpdateInspectionChecklistRequest request,
+        CancellationToken ct)
+        => (await sender.Send(new UpdateInspectionChecklistCommand(
+            id, request.ViolationStatusText, request.OtherDescription), ct))
+            .ToHttpNoContent("Đã cập nhật checklist.");
+
+    [HttpPut("{id:guid}/submit-field-report")]
+    [SupportsIdempotency]
+    [Authorize(Roles = "Inspector")]
+    [Tags("🔍 Inspection Dashboard")]
+    [SwaggerOperation(
+        Summary = "[Inspector Team Leader] Nộp biên bản điều tra",
+        Description = "Team Leader khóa checklist và mở các hành động kết luận (BR-INS-033).")]
+    [SwaggerResponse(200, "Đã nộp biên bản", typeof(ApiResponse))]
+    public async Task<IActionResult> SubmitFieldReportAsync(
+        [FromRoute] Guid id, CancellationToken ct)
+        => (await sender.Send(new SubmitFieldInvestigationCommand(id), ct))
+            .ToHttpNoContent("Đã nộp biên bản điều tra hiện trường.");
+
+    // ═══════════════════════════════════════════
+    // ██  BR-INS-033: UPLOAD CHECKLIST EVIDENCE
+    // ═══════════════════════════════════════════
+
+    [HttpPost("{id:guid}/evidence")]
+    [Authorize(Roles = "Inspector")]
+    [Tags("🔍 Inspection Dashboard")]
+    [Consumes("application/json")]
+    [SwaggerOperation(
+        Summary = "[Inspector] Lưu bằng chứng checklist (JSON)",
+        Description =
+            "Persist public URLs sau khi upload trực tiếp lên R2 qua POST /v1/media/presign (purpose=InspectionEvidence). " +
+            "BR-INS-033: ScenePhoto cần ≥ 2 ảnh trước submit-field-report.")]
+    [SwaggerResponse(200, "Đã lưu evidence", typeof(ApiResponse<UploadInspectionEvidenceResponse>))]
+    public async Task<IActionResult> UploadEvidenceAsync(
+        [FromRoute] Guid id,
+        [FromBody] UploadInspectionEvidenceRequest request,
+        CancellationToken ct)
+        => (await sender.Send(new UploadInspectionEvidenceCommand(
+            id,
+            request.Category,
+            request.Items.Select(i => new InspectionEvidenceMediaItem(
+                i.Url, i.ContentType, i.SizeBytes, i.DurationSeconds)).ToList(),
+            request.Description), ct)).ToHttp();
 
     [HttpPost("{id:guid}/evidence-images")]
     [Authorize(Roles = "Inspector")]
     [Tags("🔍 Inspection Dashboard")]
-    [Consumes("multipart/form-data")]
+    [Consumes("application/json")]
+    [Obsolete("Use POST /evidence with category=ScenePhoto")]
     [SwaggerOperation(
-        Summary = "[Inspector] Upload ảnh hiện trường biên bản",
-        Description = "Inspector upload ảnh hiện trường cho biên bản (BR-INS-010). " +
-            "Cần ít nhất 2 ảnh trước khi ban hành QĐ xử phạt. Tối đa 5 ảnh, mỗi ảnh ≤ 20MB.")]
-    [SwaggerResponse(200, "Đã upload", typeof(ApiResponse<UploadInspectionEvidenceResponse>))]
-    [SwaggerResponse(422, "Status không hợp lệ hoặc không thuộc team", typeof(ApiResponse))]
+        Summary = "[Inspector] Lưu ảnh hiện trường (legacy route)",
+        Description = "Alias JSON của POST /evidence với category=ScenePhoto.")]
+    [SwaggerResponse(200, "Đã lưu evidence", typeof(ApiResponse<UploadInspectionEvidenceResponse>))]
     public async Task<IActionResult> UploadEvidenceImagesAsync(
         [FromRoute] Guid id,
-        [FromForm] List<IFormFile> images,
+        [FromBody] UploadInspectionEvidenceImagesRequest request,
         CancellationToken ct)
-    {
-        if (images is null || images.Count == 0)
-            return BadRequest(new ApiResponse
-            {
-                Code = "FILE_REQUIRED",
-                Message = "Vui lòng chọn ít nhất 1 ảnh.",
-                Status = 400
-            });
-
-        var imageFiles = new List<InspectionEvidenceFile>();
-        foreach (var img in images)
-        {
-            if (img.Length > 20 * 1024 * 1024)
-                return StatusCode(413, new ApiResponse
-                {
-                    Code = "FILE_TOO_LARGE",
-                    Message = $"File '{img.FileName}' vượt quá 20MB.",
-                    Status = 413
-                });
-
-            using var ms = new MemoryStream();
-            await img.CopyToAsync(ms, ct);
-            imageFiles.Add(new InspectionEvidenceFile(ms.ToArray(), img.FileName, img.ContentType));
-        }
-
-        var command = new UploadInspectionEvidenceCommand(id, imageFiles);
-        return (await sender.Send(command, ct)).ToHttp();
-    }
+        => (await sender.Send(new UploadInspectionEvidenceCommand(
+            id,
+            InspectionEvidenceCategory.ScenePhoto,
+            request.Items.Select(i => new InspectionEvidenceMediaItem(
+                i.Url, i.ContentType, i.SizeBytes, i.DurationSeconds)).ToList(),
+            Description: null), ct)).ToHttp();
 
     [HttpPut("{id:guid}/issue-penalty")]
     [Authorize(Roles = "Inspector,Admin")]
@@ -199,21 +300,47 @@ public sealed class InspectionsController(ISender sender) : ControllerBase
             .ToHttpNoContent("Đã đóng hồ sơ — không đủ căn cứ vi phạm.");
 
     [HttpPut("{id:guid}/record-payment")]
-    [Authorize(Roles = "Inspector,Admin")]
+    [Authorize(Roles = "LEO,Admin")]
     [Tags("🔍 Inspection Dashboard")]
+    [Consumes("multipart/form-data")]
     [SwaggerOperation(
-        Summary = "[Inspector] Ghi nhận nộp phạt",
-        Description = "Inspector ghi nhận khoản nộp phạt (BR-INS-020). " +
-            "Hệ thống tự tính Paid vs PartiallyPaid dựa trên tổng đã nộp.")]
-    [SwaggerResponse(200, "Đã ghi nhận", typeof(ApiResponse))]
-    [SwaggerResponse(422, "Status không hợp lệ hoặc số tiền <= 0", typeof(ApiResponse))]
+        Summary = "[LEO] Ghi nhận nộp phạt và đóng hồ sơ",
+        Description = "LEO phụ trách khu vực của báo cáo gốc ghi nhận khoản nộp phạt đủ 1 lần kèm ảnh biên lai " +
+            "(BR-INS-020, BR-ORG-012). Số tiền phải khớp đúng số còn lại — không hỗ trợ nộp từng phần. " +
+            "Hồ sơ tự động chuyển Paid → Closed và Inspector ban hành QĐ được thông báo hoàn tất.")]
+    [SwaggerResponse(200, "Đã ghi nhận và đóng hồ sơ", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Số tiền không khớp số còn lại hoặc trạng thái không hợp lệ", typeof(ApiResponse))]
     public async Task<IActionResult> RecordPaymentAsync(
         [FromRoute] Guid id,
-        [FromBody] RecordPaymentRequest request,
-        CancellationToken ct)
-        => (await sender.Send(new RecordPaymentCommand(
-                id, request.PaidAmount, request.PaidAt, request.EvidenceUrl, request.Note), ct))
-            .ToHttpNoContent("Đã ghi nhận nộp phạt.");
+        [FromForm] decimal paidAmount,
+        [FromForm] DateTime paidAt,
+        IFormFile receipt,
+        [FromForm] string? note = null,
+        CancellationToken ct = default)
+    {
+        if (receipt is null || receipt.Length == 0)
+        {
+            return BadRequest(new ApiResponse
+            {
+                Code = "PAYMENT_RECEIPT_REQUIRED",
+                Message = "Vui lòng upload ảnh biên lai nộp phạt.",
+                Status = 400
+            });
+        }
+
+        using var ms = new MemoryStream();
+        await receipt.CopyToAsync(ms, ct);
+
+        return (await sender.Send(new RecordPaymentCommand(
+            id,
+            paidAmount,
+            paidAt,
+            Note: note,
+            ReceiptBytes: ms.ToArray(),
+            ReceiptFileName: receipt.FileName,
+            ReceiptContentType: receipt.ContentType), ct))
+            .ToHttpNoContent("Đã ghi nhận nộp phạt đủ và đóng hồ sơ.");
+    }
 
     [HttpGet("{id:guid}/payments")]
     [Authorize(Roles = "Inspector,LEO,Admin")]
@@ -282,39 +409,35 @@ public sealed class InspectionsController(ISender sender) : ControllerBase
     [HttpPost("{id:guid}/check-in")]
     [Authorize(Roles = "Inspector")]
     [Tags("🔍 Inspection Dashboard")]
-    [SwaggerOperation(
-        Summary = "[Inspector] Check-in hiện trường",
-        Description = "Check-in tại hiện trường ≤ 200m (PostGIS, BR-INS-004). " +
-            "Chuyển Draft → InProgress.")]
-    [SwaggerResponse(200, "Đã check-in", typeof(ApiResponse))]
-    [SwaggerResponse(422, "Quá xa hoặc status không hợp lệ", typeof(ApiResponse))]
-    public async Task<IActionResult> CheckInAsync(
-        [FromRoute] Guid id,
-        [FromBody] CheckInInspectionRequest request,
-        CancellationToken ct)
-        => (await sender.Send(new CheckInInspectionCommand(
-            id, request.Latitude, request.Longitude, request.Note), ct))
-            .ToHttpNoContent("Đã check-in hiện trường.");
-
-    // ═══════════════════════════════════════════
-    // ██  BR-INS-031: UPDATE PROGRESS
-    // ═══════════════════════════════════════════
+    [Obsolete("Deprecated — use POST /accept + POST /confirm-arrival")]
+    [SwaggerOperation(Summary = "[Deprecated] Check-in hiện trường")]
+    [SwaggerResponse(410, "Endpoint deprecated")]
+    public IActionResult CheckInAsync([FromRoute] Guid id, [FromBody] CheckInInspectionRequest request)
+        => DeprecatedInspectionEndpoint();
 
     [HttpPut("{id:guid}/progress")]
     [Authorize(Roles = "Inspector")]
     [Tags("🔍 Inspection Dashboard")]
-    [SwaggerOperation(
-        Summary = "[Inspector] Cập nhật tiến độ",
-        Description = "Cập nhật tiến độ xử phạt (BR-INS-031). Yêu cầu ≥ 1 lần/ngày khi InProgress.")]
-    [SwaggerResponse(200, "Đã cập nhật", typeof(ApiResponse))]
-    [SwaggerResponse(422, "Status không phải InProgress", typeof(ApiResponse))]
-    public async Task<IActionResult> UpdateProgressAsync(
+    [Obsolete("Deprecated — use checklist workflow (BR-INS-033)")]
+    [SwaggerOperation(Summary = "[Deprecated] Cập nhật tiến độ %")]
+    [SwaggerResponse(410, "Endpoint deprecated")]
+    public IActionResult UpdateProgressAsync(
         [FromRoute] Guid id,
-        [FromBody] UpdateInspectionProgressRequest request,
-        CancellationToken ct)
-        => (await sender.Send(new UpdateInspectionProgressCommand(
-            id, request.Percent, request.Note), ct))
-            .ToHttpNoContent("Đã cập nhật tiến độ.");
+        [FromBody] UpdateInspectionProgressRequest request)
+        => DeprecatedInspectionEndpoint();
+
+    private static ObjectResult DeprecatedInspectionEndpoint()
+    {
+        var error = Errors.Inspections.EndpointDeprecated;
+        return new ObjectResult(new ApiResponse
+        {
+            Code = error.Code,
+            Message = error.Message,
+            Status = 410,
+            Data = null
+        })
+        { StatusCode = 410 };
+    }
 
     // ═══════════════════════════════════════════
     // ██  BR-INS-032: KPI INSPECTION TEAM
@@ -364,6 +487,15 @@ public sealed record CloseInspectionRequest(string? Reason);
 
 public sealed record DeclineInspectionRequest(string Reason);
 
+public sealed record ConfirmArrivalRequest(
+    decimal Latitude,
+    decimal Longitude,
+    string? Note = null);
+
+public sealed record UpdateInspectionChecklistRequest(
+    string ViolationStatusText,
+    string? OtherDescription = null);
+
 public sealed record CheckInInspectionRequest(
     decimal Latitude,
     decimal Longitude,
@@ -374,3 +506,17 @@ public sealed record UpdateInspectionProgressRequest(
     string? Note = null);
 
 public sealed record AssignInspectionTeamRequest(Guid TeamId);
+
+public sealed record UploadInspectionEvidenceRequest(
+    InspectionEvidenceCategory Category,
+    IReadOnlyList<InspectionEvidenceItemRequest> Items,
+    string? Description = null);
+
+public sealed record UploadInspectionEvidenceImagesRequest(
+    IReadOnlyList<InspectionEvidenceItemRequest> Items);
+
+public sealed record InspectionEvidenceItemRequest(
+    string Url,
+    string ContentType,
+    long SizeBytes,
+    int? DurationSeconds = null);

@@ -5,13 +5,14 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-
+using Microsoft.Extensions.Logging;
 namespace Greenlens.Application.Features.Analytics.GetAdminResolutionDistribution;
 
 /// <summary>Histogram of resolution time (VerifiedAt → ResolvedAt) for reports resolved in the range.</summary>
 public sealed class GetAdminResolutionDistributionQueryHandler(
     IReportRepository reports,
-    IDateTimeProvider clock)
+    IDateTimeProvider clock,
+    ILogger<GetAdminResolutionDistributionQueryHandler> logger)
     : IRequestHandler<GetAdminResolutionDistributionQuery, Result<List<ResolutionDistributionBucket>>>
 {
     private static readonly ReportStatus[] ResolvedStatuses =
@@ -20,6 +21,8 @@ public sealed class GetAdminResolutionDistributionQueryHandler(
     public async Task<Result<List<ResolutionDistributionBucket>>> Handle(
         GetAdminResolutionDistributionQuery request, CancellationToken ct)
     {
+        logger.LogInformation("Getting admin resolution distribution");
+
         var (from, to) = DateRangeDefaults.Resolve(request.From, request.To, clock.UtcNow);
 
         var samples = await reports.QueryAsNoTracking()
@@ -30,9 +33,13 @@ public sealed class GetAdminResolutionDistributionQueryHandler(
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
+        logger.LogInformation("Samples: {Samples}", samples);
+
         var hours = samples
             .Select(s => (s.ResolvedAt!.Value - s.VerifiedAt!.Value).TotalHours)
             .ToList();
+
+        logger.LogInformation("Hours: {Hours}", hours);
 
         var buckets = new (string Range, Func<double, bool> Match)[]
         {
@@ -46,6 +53,8 @@ public sealed class GetAdminResolutionDistributionQueryHandler(
         var result = buckets
             .Select(b => new ResolutionDistributionBucket(b.Range, hours.Count(h => b.Match(h))))
             .ToList();
+
+        logger.LogInformation("Admin resolution distribution retrieved successfully");
 
         return result;
     }

@@ -1,6 +1,8 @@
+using System.Text.Json;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Notifications;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
@@ -13,6 +15,7 @@ namespace Greenlens.Application.Features.Inspection.CreateInspectionReport;
 /// BR-INS-001: LEO creates InspectionReport (Draft) for a verified Report.
 /// BR-OFF-005: Triage decision at verification — LEO identifies violator.
 /// When a team is assigned, Report transitions Verified → InProgress.
+/// BR-ADM-010 (audit log).
 /// </summary>
 public sealed class CreateInspectionReportCommandHandler(
     IReportRepository reports,
@@ -21,35 +24,54 @@ public sealed class CreateInspectionReportCommandHandler(
     IReportStatusHistoryRepository statusHistory,
     ICurrentUser currentUser,
     IUnitOfWork uow,
+    IAuditLogger auditLogger,
+    IInspectionTaskAssignedNotifier taskAssignedNotifier,
     ILogger<CreateInspectionReportCommandHandler> logger)
     : IRequestHandler<CreateInspectionReportCommand, Result<Guid>>
 {
     public async Task<Result<Guid>> Handle(CreateInspectionReportCommand request, CancellationToken ct)
     {
+        logger.LogInformation("Getting create inspection report");
+
         // 1. Validate report exists and is Verified
         var report = await reports.GetByIdAsync(request.ReportId, ct).ConfigureAwait(false);
         if (report is null)
+        {
+            logger.LogWarning("Report not found for report {ReportId}", request.ReportId);
             return Errors.Reports.ReportNotFound;
+        }
 
         if (report.Status != ReportStatus.Verified && report.Status != ReportStatus.InProgress)
+        {
+            logger.LogWarning("Report {ReportId} is not verified or in progress", request.ReportId);
             return Errors.Inspections.ReportNotVerified;
+        }
 
         // 2. Check for existing active inspection on same report
         var existing = await inspections.GetByReportIdAsync(request.ReportId, ct).ConfigureAwait(false);
         var hasActive = existing.Any(ir =>
             ir.Status is not (InspectionStatus.Closed or InspectionStatus.ClosedNoViolation));
         if (hasActive)
+        {
+            logger.LogWarning("Inspection already exists for report {ReportId}", request.ReportId);
             return Errors.Inspections.InspectionAlreadyExistsForReport;
+        }
 
         // 3. Validate team if provided
         if (request.AssignedTeamId.HasValue)
         {
             var team = await teams.GetByIdAsync(request.AssignedTeamId.Value, ct).ConfigureAwait(false);
             if (team is null)
+            {
+                logger.LogWarning("Team not found for team {TeamId}", request.AssignedTeamId.Value);
                 return Errors.Inspections.TeamNotFound;
+            }
 
             if (team.TeamType != TeamType.Inspection)
+            {
+                logger.LogWarning("Team {TeamId} is not of type Inspection", request.AssignedTeamId.Value);
                 return Errors.Inspections.TeamNotInspectionType;
+            }
         }
 
         // 4. Create inspection report
@@ -81,9 +103,29 @@ public sealed class CreateInspectionReportCommandHandler(
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 
+        await auditLogger.LogAsync(
+            "CreateInspectionReport",
+            "InspectionReport",
+            inspection.Id.ToString(),
+            oldValues: null,
+            newValues: JsonSerializer.Serialize(new
+            {
+                reportId = request.ReportId,
+                assignedTeamId = request.AssignedTeamId,
+                status = inspection.Status.ToString()
+            }),
+            ct).ConfigureAwait(false);
+
         logger.LogInformation(
             "InspectionReport {InspectionId} created for Report {ReportId} by LEO {UserId}",
             inspection.Id, request.ReportId, currentUser.UserId);
+
+        if (request.AssignedTeamId.HasValue)
+        {
+            await taskAssignedNotifier
+                .NotifyTeamAsync(request.AssignedTeamId.Value, report.Id, inspection.Id, report.Code, ct)
+                .ConfigureAwait(false);
+        }
 
         return inspection.Id;
     }

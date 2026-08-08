@@ -1,6 +1,8 @@
 using Greenlens.Api.Extensions;
 using Greenlens.Application.Common.Models;
 using Greenlens.Application.Features.Admin.ArchiveCategory;
+using Greenlens.Application.Features.Admin.AuditLogs.ExportAuditLogs;
+using Greenlens.Application.Features.Admin.AuditLogs.GetAuditLogStats;
 using Greenlens.Application.Features.Admin.AuditLogs.GetAuditLogById;
 using Greenlens.Application.Features.Admin.AuditLogs.GetAuditLogs;
 using Greenlens.Application.Features.Admin.CreateCategory;
@@ -15,6 +17,7 @@ using Greenlens.Application.Features.Admin.PenaltyFrameworks.CreatePenaltyFramew
 using Greenlens.Application.Features.Admin.PenaltyFrameworks.DeactivatePenaltyFramework;
 using Greenlens.Application.Features.Admin.PenaltyFrameworks.GetPenaltyFrameworks;
 using Greenlens.Application.Features.Admin.PenaltyFrameworks.UpdatePenaltyFramework;
+using Greenlens.Application.Features.Admin.ToggleBanUser;
 using Greenlens.Application.Features.Admin.ToggleWasteTag;
 using Greenlens.Application.Features.Admin.UpdateCategory;
 using Greenlens.Application.Features.Admin.UpdateWasteTag;
@@ -65,11 +68,11 @@ public sealed class AdminController(ISender sender) : ControllerBase
 
     [HttpPost("users")]
     [SwaggerOperation(Summary = "[Admin] Tạo tài khoản", Description = "Tạo tài khoản mới (Officer, Cleaner, Inspector, Citizen). Email tự động xác minh.")]
-    [SwaggerResponse(201, "Đã tạo", typeof(ApiResponse<CreateAccountResponse>))]
+    [SwaggerResponse(200, "Đã tạo", typeof(ApiResponse<CreateAccountResponse>))]
     [SwaggerResponse(409, "Email đã tồn tại", typeof(ApiResponse))]
     public async Task<IActionResult> CreateAccountAsync(
         [FromBody] CreateAccountCommand command, CancellationToken ct)
-        => (await sender.Send(command, ct)).ToHttpCreated();
+        => (await sender.Send(command, ct)).ToHttp("Đã tạo tài khoản thành công.");
 
     [HttpGet("users/all")]
     [SwaggerOperation(Summary = "[Admin] Toàn bộ users (không phân trang)", Description = "Trả về danh sách tất cả user không phân trang. Dùng cho dropdown/autocomplete.")]
@@ -118,6 +121,14 @@ public sealed class AdminController(ISender sender) : ControllerBase
     public async Task<IActionResult> UpdateUserRoleAsync(
         [FromRoute] Guid id, [FromBody] UpdateUserRoleRequest request, CancellationToken ct)
         => (await sender.Send(new UpdateUserRoleCommand(id, request.NewRole), ct)).ToHttpNoContent("Đã đổi role thành công.");
+
+    [HttpPut("users/{id:guid}/ban")]
+    [SwaggerOperation(Summary = "[Admin] Cấm/bỏ cấm user", Description = "Toggle trạng thái ban tài khoản. Không thể tự cấm chính mình. Ghi audit log.")]
+    [SwaggerResponse(200, "Đã cập nhật trạng thái ban", typeof(ApiResponse<ToggleBanUserResponse>))]
+    [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Không thể cấm chính mình", typeof(ApiResponse))]
+    public async Task<IActionResult> ToggleBanUserAsync([FromRoute] Guid id, CancellationToken ct)
+        => (await sender.Send(new ToggleBanUserCommand(id), ct)).ToHttp();
 
     // ═══════════════════════════════════════════
     // ██  REPORTS
@@ -171,10 +182,10 @@ public sealed class AdminController(ISender sender) : ControllerBase
 
     [HttpPost("pollution-categories")]
     [SwaggerOperation(Summary = "[Admin] Tạo danh mục ô nhiễm", Description = "Tạo loại ô nhiễm mới (code, tên VN, tên EN, icon URL).")]
-    [SwaggerResponse(201, "Đã tạo", typeof(ApiResponse<CreateCategoryResponse>))]
+    [SwaggerResponse(200, "Đã tạo", typeof(ApiResponse<CreateCategoryResponse>))]
     public async Task<IActionResult> CreateCategoryAsync(
         [FromBody] CreateCategoryCommand command, CancellationToken ct)
-        => (await sender.Send(command, ct)).ToHttpCreated();
+        => (await sender.Send(command, ct)).ToHttp("Đã tạo danh mục ô nhiễm thành công.");
 
     [HttpPut("pollution-categories/{id:guid}")]
     [SwaggerOperation(Summary = "[Admin] Cập nhật danh mục ô nhiễm", Description = "Cập nhật tên VN, tên EN, icon URL của danh mục.")]
@@ -255,11 +266,11 @@ public sealed class AdminController(ISender sender) : ControllerBase
 
     [HttpPost("waste-tags")]
     [SwaggerOperation(Summary = "[Admin] Tạo tag loại rác mới", Description = "Tạo waste tag mới. Code phải viết HOA (UPPER_SNAKE_CASE), duy nhất.")]
-    [SwaggerResponse(201, "Đã tạo", typeof(ApiResponse<CreateWasteTagResponse>))]
+    [SwaggerResponse(200, "Đã tạo", typeof(ApiResponse<CreateWasteTagResponse>))]
     [SwaggerResponse(409, "Code đã tồn tại", typeof(ApiResponse))]
     public async Task<IActionResult> CreateWasteTagAsync(
         [FromBody] CreateWasteTagCommand command, CancellationToken ct)
-        => (await sender.Send(command, ct)).ToHttpCreated();
+        => (await sender.Send(command, ct)).ToHttp("Đã tạo tag loại rác thành công.");
 
     [HttpPut("waste-tags/{id:guid}")]
     [SwaggerOperation(Summary = "[Admin] Sửa tag loại rác", Description = "Cập nhật tên, icon, mô tả, thứ tự hiển thị. Không thể đổi Code.")]
@@ -304,11 +315,11 @@ public sealed class AdminController(ISender sender) : ControllerBase
 
     [HttpPost("penalty-frameworks")]
     [SwaggerOperation(Summary = "[Admin] Tạo khung tiền phạt", Description = "Tạo khung mức phạt mới cho 1 loại ô nhiễm + cấp vi phạm. MinAmount ≤ MaxAmount.")]
-    [SwaggerResponse(201, "Đã tạo", typeof(ApiResponse<CreatePenaltyFrameworkResponse>))]
+    [SwaggerResponse(200, "Đã tạo", typeof(ApiResponse<CreatePenaltyFrameworkResponse>))]
     [SwaggerResponse(409, "Đã tồn tại active entry cho category + level này", typeof(ApiResponse))]
     public async Task<IActionResult> CreatePenaltyFrameworkAsync(
         [FromBody] CreatePenaltyFrameworkCommand command, CancellationToken ct)
-        => (await sender.Send(command, ct)).ToHttpCreated();
+        => (await sender.Send(command, ct)).ToHttp("Đã tạo khung tiền phạt thành công.");
 
     [HttpPut("penalty-frameworks/{id:guid}")]
     [SwaggerOperation(Summary = "[Admin] Cập nhật khung tiền phạt", Description = "Cập nhật mức min/max và ngày hiệu lực. Không ảnh hưởng quyết định đã ban hành.")]
@@ -334,16 +345,49 @@ public sealed class AdminController(ISender sender) : ControllerBase
     // ═══════════════════════════════════════════
 
     [HttpGet("audit-logs")]
-    [SwaggerOperation(Summary = "[Admin] Danh sách audit log", Description = "Danh sách hành động nhạy cảm được ghi log. Lọc theo userId, entityType, action, ngày.")]
+    [SwaggerOperation(Summary = "[Admin] Danh sách audit log", Description = "Danh sách hành động nhạy cảm được ghi log. Lọc theo userId, actorRole, entityType, action, ngày.")]
     [SwaggerResponse(200, "Danh sách audit log", typeof(ApiResponse<GetAuditLogsResponse>))]
     public async Task<IActionResult> GetAuditLogsAsync(
         [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
-        [FromQuery] Guid? userId = null, [FromQuery] string? entityType = null,
+        [FromQuery] Guid? userId = null, [FromQuery] UserRole? actorRole = null,
+        [FromQuery] string? entityType = null,
+        [FromQuery] string? entityId = null,
         [FromQuery] string? action = null,
         [FromQuery] DateTime? fromDate = null, [FromQuery] DateTime? toDate = null,
         CancellationToken ct = default)
         => (await sender.Send(
-            new GetAuditLogsQuery(page, pageSize, userId, entityType, action, fromDate, toDate), ct)).ToHttp();
+            new GetAuditLogsQuery(page, pageSize, userId, actorRole, entityType, entityId, action, fromDate, toDate), ct)).ToHttp();
+
+    [HttpGet("audit-logs/export")]
+    [SwaggerOperation(Summary = "[Admin] Export audit log CSV", Description = "Export audit log trong khoảng ngày (bắt buộc fromDate/toDate, tối đa 90 ngày). Không export PII nhạy cảm.")]
+    [SwaggerResponse(200, "File CSV")]
+    public async Task<IActionResult> ExportAuditLogsAsync(
+        [FromQuery] DateTime fromDate,
+        [FromQuery] DateTime toDate,
+        [FromQuery] Guid? userId = null,
+        [FromQuery] UserRole? actorRole = null,
+        [FromQuery] string? entityType = null,
+        [FromQuery] string? action = null,
+        CancellationToken ct = default)
+    {
+        var result = await sender.Send(
+            new ExportAuditLogsQuery(fromDate, toDate, userId, actorRole, entityType, action), ct);
+
+        if (!result.IsSuccess)
+            return result.ToHttp();
+
+        var data = result.Value!;
+        return File(data.Content, data.ContentType, data.FileName);
+    }
+
+    [HttpGet("audit-logs/stats")]
+    [SwaggerOperation(Summary = "[Admin] Thống kê audit log", Description = "Tổng số, top 10 action, phân bổ theo ngày trong khoảng (tối đa 90 ngày).")]
+    [SwaggerResponse(200, "Thống kê audit log", typeof(ApiResponse<GetAuditLogStatsResponse>))]
+    public async Task<IActionResult> GetAuditLogStatsAsync(
+        [FromQuery] DateTime fromDate,
+        [FromQuery] DateTime toDate,
+        CancellationToken ct = default)
+        => (await sender.Send(new GetAuditLogStatsQuery(fromDate, toDate), ct)).ToHttp();
 
     [HttpGet("audit-logs/{id:guid}")]
     [SwaggerOperation(Summary = "[Admin] Chi tiết audit log", Description = "Xem 1 bản ghi audit kèm OldValues/NewValues JSON.")]
@@ -424,11 +468,11 @@ public sealed class AdminController(ISender sender) : ControllerBase
 
     [HttpPost("notification-templates")]
     [SwaggerOperation(Summary = "[Admin] Tạo template thông báo", Description = "Tạo template mới (draft). Cần publish trước khi hệ thống sử dụng.")]
-    [SwaggerResponse(201, "Đã tạo", typeof(ApiResponse<CreateNotificationTemplateResponse>))]
+    [SwaggerResponse(200, "Đã tạo", typeof(ApiResponse<CreateNotificationTemplateResponse>))]
     [SwaggerResponse(409, "Đã tồn tại", typeof(ApiResponse))]
     public async Task<IActionResult> CreateNotificationTemplateAsync(
         [FromBody] CreateNotificationTemplateCommand command, CancellationToken ct)
-        => (await sender.Send(command, ct)).ToHttpCreated();
+        => (await sender.Send(command, ct)).ToHttp("Đã tạo template thông báo thành công.");
 
     [HttpPatch("notification-templates/{id:guid}/publish")]
     [SwaggerOperation(Summary = "[Admin] Publish/Unpublish template", Description = "Publish template để hệ thống dùng, hoặc unpublish để tạm tắt.")]
@@ -491,12 +535,12 @@ public sealed class AdminController(ISender sender) : ControllerBase
 
     [HttpPost("blocked-words")]
     [SwaggerOperation(Summary = "[Admin] Thêm từ bị chặn", Description = "Thêm từ/cụm từ vào bộ lọc. Áp dụng ngay sau khi lưu.")]
-    [SwaggerResponse(201, "Đã tạo", typeof(ApiResponse<CreateBlockedWordResponse>))]
+    [SwaggerResponse(200, "Đã tạo", typeof(ApiResponse<CreateBlockedWordResponse>))]
     [SwaggerResponse(409, "Từ đã tồn tại", typeof(ApiResponse))]
     public async Task<IActionResult> CreateBlockedWordAsync(
         [FromBody] CreateBlockedWordRequest request,
         CancellationToken ct)
-        => (await sender.Send(new CreateBlockedWordCommand(request.Word, request.Note), ct)).ToHttpCreated();
+        => (await sender.Send(new CreateBlockedWordCommand(request.Word, request.Note), ct)).ToHttp("Đã thêm từ bị chặn thành công.");
 
     [HttpPut("blocked-words/{id:guid}")]
     [SwaggerOperation(Summary = "[Admin] Cập nhật từ bị chặn", Description = "Sửa nội dung từ, ghi chú, hoặc bật/tắt.")]

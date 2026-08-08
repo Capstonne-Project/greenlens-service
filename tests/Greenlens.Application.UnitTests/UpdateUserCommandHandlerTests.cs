@@ -1,3 +1,4 @@
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Features.Users.UpdateUser;
 using Greenlens.Domain.Entities;
@@ -11,11 +12,13 @@ public sealed class UpdateUserCommandHandlerTests
 {
     private readonly IUserRepository _users = Substitute.For<IUserRepository>();
     private readonly IUnitOfWork _uow = Substitute.For<IUnitOfWork>();
+    private readonly IAuditLogger _auditLogger = Substitute.For<IAuditLogger>();
     private readonly UpdateUserCommandHandler _sut;
 
     public UpdateUserCommandHandlerTests()
     {
-        _sut = new UpdateUserCommandHandler(_users, _uow, NullLogger<UpdateUserCommandHandler>.Instance);
+        _sut = new UpdateUserCommandHandler(
+            _users, _uow, _auditLogger, NullLogger<UpdateUserCommandHandler>.Instance);
     }
 
     [Fact]
@@ -24,6 +27,8 @@ public sealed class UpdateUserCommandHandlerTests
         var userId = Guid.NewGuid();
         var user = User.Create("test@test.com", "hash", "Old Name");
         _users.GetByIdAsync(userId, Arg.Any<CancellationToken>()).Returns(user);
+        _users.PhoneExistsIncludingDeletedAsync(Arg.Any<string>(), userId, Arg.Any<CancellationToken>())
+            .Returns(false);
 
         var result = await _sut.Handle(
             new UpdateUserCommand(userId, "New Name", "0901234567", UserRole.LEO, true),
@@ -31,7 +36,7 @@ public sealed class UpdateUserCommandHandlerTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal("New Name", user.FullName);
-        Assert.Equal("0901234567", user.PhoneNumber);
+        Assert.Equal("84901234567", user.PhoneNumber);
         Assert.Equal(UserRole.LEO, user.Role);
         Assert.True(user.IsEmailVerified);
         await _uow.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());

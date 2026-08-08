@@ -79,7 +79,7 @@ public static partial class Errors
 
         public static Error ReopenLimitReached => new(
             "REOPEN_LIMIT_REACHED",
-            "Đã hết số lần mở lại báo cáo (tối đa 2 lần).",
+            "Đã hết số lần mở lại báo cáo (tối đa 1 lần).",
             ErrorType.BusinessRule);
 
         public static Error DeclineWindowExpired => new(
@@ -142,6 +142,26 @@ public static partial class Errors
             "Mã tag loại rác đã tồn tại.",
             ErrorType.Conflict);
 
+        public static Error CategoryAlreadyDeleted => new(
+            "CATEGORY_ALREADY_DELETED",
+            "Danh mục ô nhiễm đã được xóa trước đó.",
+            ErrorType.Conflict);
+
+        public static Error CategoryInUse => new(
+            "CATEGORY_IN_USE",
+            "Không thể xóa danh mục đang được sử dụng bởi báo cáo.",
+            ErrorType.BusinessRule);
+
+        public static Error WasteTagAlreadyDeleted => new(
+            "WASTE_TAG_ALREADY_DELETED",
+            "Tag loại rác đã được xóa trước đó.",
+            ErrorType.Conflict);
+
+        public static Error WasteTagInUse => new(
+            "WASTE_TAG_IN_USE",
+            "Không thể xóa tag loại rác đang được gắn với báo cáo.",
+            ErrorType.BusinessRule);
+
         public static Error DispatchOutsideProvince => new(
             "DISPATCH_OUTSIDE_PROVINCE",
             "Chỉ có thể điều phối task đến xã/phường trong phạm vi tỉnh của bạn.",
@@ -189,6 +209,21 @@ public static partial class Errors
             "Báo cáo đã được xác nhận hoặc đang xử lý, không thể xóa.",
             ErrorType.BusinessRule);
 
+        public static Error ReportAlreadyDeleted => new(
+            "REPORT_ALREADY_DELETED",
+            "Báo cáo đã được xóa trước đó.",
+            ErrorType.Conflict);
+
+        public static Error CategoryCodeExists => new(
+            "CATEGORY_CODE_EXISTS",
+            "Mã danh mục ô nhiễm đã tồn tại trong hệ thống.",
+            ErrorType.Conflict);
+
+        public static Error ReportCodeConflict => new(
+            "REPORT_CODE_CONFLICT",
+            "Không thể tạo mã báo cáo duy nhất. Vui lòng thử lại.",
+            ErrorType.Conflict);
+
         /// <summary>BR-REP-014: Missing before images on resolve.</summary>
         public static Error MissingBeforeImages => new(
             "MISSING_BEFORE_IMAGES",
@@ -231,6 +266,12 @@ public static partial class Errors
             "Báo cáo không ở trạng thái nghi ngờ trùng lặp.",
             ErrorType.BusinessRule);
 
+        /// <summary>BR-REP-034: Report is not flagged as suspected violation recurrence.</summary>
+        public static Error NotSuspectedViolationRecurrence => new(
+            "NOT_SUSPECTED_VIOLATION_RECURRENCE",
+            "Báo cáo không ở trạng thái nghi ngờ vi phạm tái phát.",
+            ErrorType.BusinessRule);
+
         /// <summary>BR-REP-032: A report cannot be marked as a duplicate of itself.</summary>
         public static Error CannotMergeIntoSelf => new(
             "CANNOT_MERGE_INTO_SELF",
@@ -266,5 +307,59 @@ public static partial class Errors
             "RATE_LIMIT_EXCEEDED",
             $"Bạn đã đạt giới hạn gửi báo cáo. Thử lại sau {retryAfterMinutes} phút.",
             ErrorType.RateLimited);
+
+        /// <summary>BR-REP-015: A pending reopen request already exists for this report.</summary>
+        public static Error PendingReopenRequestExists => new(
+            "PENDING_REOPEN_REQUEST_EXISTS",
+            "Đã có yêu cầu mở lại đang chờ LEO xử lý.",
+            ErrorType.Conflict);
+
+        /// <summary>BR-REP-015: Reopen request requires at least one image.</summary>
+        public static Error ReopenEvidenceRequired => new(
+            "REOPEN_EVIDENCE_REQUIRED",
+            "Cần ít nhất 1 ảnh minh chứng khi yêu cầu mở lại.",
+            ErrorType.Validation);
+
+        /// <summary>BR-REP-015: Reopen request not found.</summary>
+        public static Error ReopenRequestNotFound => new(
+            "REOPEN_REQUEST_NOT_FOUND",
+            "Không tìm thấy yêu cầu mở lại.",
+            ErrorType.NotFound);
+
+        /// <summary>BR-REP-015: Deprecated PUT /reopen — use POST reopen-requests.</summary>
+        public static Error ReopenUseRequestEndpoint => new(
+            "REOPEN_USE_REQUEST_ENDPOINT",
+            "Vui lòng gửi yêu cầu mở lại kèm lý do và ảnh minh chứng qua POST /v1/reports/{id}/reopen-requests.",
+            ErrorType.BusinessRule);
+
+        /// <summary>BR-REP-015: Reopen request is not pending review.</summary>
+        public static Error ReopenRequestNotPending => new(
+            "REOPEN_REQUEST_NOT_PENDING",
+            "Yêu cầu mở lại không ở trạng thái chờ duyệt.",
+            ErrorType.BusinessRule);
+
+        /// <summary>BR-REP-015: Report is Closed — reopen requests are not allowed.</summary>
+        public static Error CannotReopenFromClosed => new(
+            "CANNOT_REOPEN_FROM_CLOSED",
+            "Không thể yêu cầu mở lại báo cáo đã đóng.",
+            ErrorType.BusinessRule);
+
+        /// <summary>BR-REP-015: Report must be Resolved to request or presign reopen evidence.</summary>
+        public static Error CannotReopenNotResolved => new(
+            "CANNOT_REOPEN_NOT_RESOLVED",
+            "Chỉ có thể yêu cầu mở lại khi báo cáo đang ở trạng thái Resolved.",
+            ErrorType.BusinessRule);
+
+        /// <summary>BR-REP-015: LEO approve attempted while report is no longer Resolved.</summary>
+        public static Error ReportNotResolvedForReopenApproval => new(
+            "REPORT_NOT_RESOLVED_FOR_REOPEN_APPROVAL",
+            "Báo cáo không còn ở trạng thái Resolved, không thể duyệt yêu cầu mở lại.",
+            ErrorType.BusinessRule);
+
+        /// <summary>BR-REP-015: Only LEO/Admin may review reopen requests.</summary>
+        public static Error ReopenReviewForbidden => new(
+            "REOPEN_REVIEW_FORBIDDEN",
+            "Bạn không có quyền xử lý yêu cầu mở lại báo cáo.",
+            ErrorType.Forbidden);
     }
 }

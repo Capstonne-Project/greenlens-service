@@ -21,6 +21,8 @@ public sealed class AwardPointsCommandHandler(
     public async Task<Result<AwardPointsResponse>> Handle(
         AwardPointsCommand request, CancellationToken ct)
     {
+        logger.LogInformation("Getting award points");
+
         changeTrackerCleaner.ClearTrackedEntities();
 
         var userPoints = await userPointsRepo

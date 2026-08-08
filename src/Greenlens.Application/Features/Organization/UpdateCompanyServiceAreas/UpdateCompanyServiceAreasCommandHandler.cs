@@ -1,4 +1,6 @@
+using System.Text.Json;
 using Greenlens.Application.Common;
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
@@ -17,15 +19,21 @@ public sealed class UpdateCompanyServiceAreasCommandHandler(
     ICompanyServiceAreaRepository serviceAreas,
     IWardRepository wards,
     IUnitOfWork uow,
+    IAuditLogger auditLogger,
     ILogger<UpdateCompanyServiceAreasCommandHandler> logger)
     : IRequestHandler<UpdateCompanyServiceAreasCommand, Result>
 {
     public async Task<Result> Handle(UpdateCompanyServiceAreasCommand request, CancellationToken ct)
     {
+        logger.LogInformation("Updating company service areas for company {CompanyId}", request.CompanyId);
+
         // ── 1. Verify company exists ──
         var company = await companies.GetByIdAsync(request.CompanyId, ct).ConfigureAwait(false);
         if (company is null)
+        {
+            logger.LogWarning("Company not found for ID {CompanyId}", request.CompanyId);
             return Errors.Organization.CompanyNotFound;
+        }
 
         // ── 2. Validate all ward codes exist ──
         if (request.WardCodes.Count > 0)
@@ -35,7 +43,10 @@ public sealed class UpdateCompanyServiceAreasCommandHandler(
                 .ConfigureAwait(false);
 
             if (existingWardCount != request.WardCodes.Count)
+            {
+                logger.LogWarning("Ward not found for codes {WardCodes}", request.WardCodes);
                 return Errors.Organization.WardNotFound;
+            }
         }
 
         // ── 3. Load current service areas for this company ──
@@ -51,17 +62,30 @@ public sealed class UpdateCompanyServiceAreasCommandHandler(
         var toAdd = desiredWardCodes.Except(currentWardCodes).ToList();
         var toRemove = currentAreas.Where(sa => !desiredWardCodes.Contains(sa.WardCode)).ToList();
 
+        var oldSnapshot = JsonSerializer.Serialize(new { wardCodes = currentWardCodes.Order().ToList() });
+
         // ── 5. Apply changes ──
         if (toRemove.Count > 0)
+        {
+            logger.LogWarning("Removing service areas for codes {WardCodes}", toRemove.Select(sa => sa.WardCode));
             serviceAreas.RemoveRange(toRemove);
-
+        }
         if (toAdd.Count > 0)
         {
+            logger.LogWarning("Adding new service areas for codes {WardCodes}", toAdd);
             var newAreas = toAdd.Select(wc => CompanyServiceArea.Create(request.CompanyId, wc));
             serviceAreas.AddRange(newAreas);
         }
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        await auditLogger.LogAsync(
+            "UpdateCompanyServiceAreas",
+            "Company",
+            request.CompanyId.ToString(),
+            oldValues: oldSnapshot,
+            newValues: JsonSerializer.Serialize(new { wardCodes = desiredWardCodes.Order().ToList() }),
+            ct).ConfigureAwait(false);
 
         logger.LogInformation(
             "Company {CompanyId} service areas updated: +{Added} -{Removed} (total desired: {Total})",

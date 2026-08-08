@@ -1,9 +1,11 @@
 using Greenlens.Api.Extensions;
 using Greenlens.Application.Common.Models;
+using Greenlens.Application.Features.Gamification.GetBadgeCatalog;
 using Greenlens.Application.Features.Gamification.GetLeaderboard;
 using Greenlens.Application.Features.Gamification.GetMyBadges;
 using Greenlens.Application.Features.Gamification.GetMyPoints;
 using Greenlens.Application.Features.Gamification.LockGamification;
+using Greenlens.Application.Features.Gamification.SetFeaturedBadge;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -22,7 +24,7 @@ public sealed class GamificationController(ISender sender) : ControllerBase
     /// <summary>View my gamification points, level, and recent transactions.</summary>
     [HttpGet("my-points")]
     [Authorize]
-    [SwaggerOperation(Summary = "Get my points & level (BR-GAM-001/003)")]
+    [SwaggerOperation(Summary = "Get my points & level")]
     [SwaggerResponse(200, "Points data", typeof(ApiResponse<MyPointsResponse>))]
     public async Task<IActionResult> GetMyPoints(
         [FromQuery] int page = 1,
@@ -36,7 +38,7 @@ public sealed class GamificationController(ISender sender) : ControllerBase
     /// <summary>View my earned badges.</summary>
     [HttpGet("my-badges")]
     [Authorize]
-    [SwaggerOperation(Summary = "Get my badges (BR-GAM-004)")]
+    [SwaggerOperation(Summary = "Get my badges")]
     [SwaggerResponse(200, "Badge list", typeof(ApiResponse<IReadOnlyList<BadgeItem>>))]
     public async Task<IActionResult> GetMyBadges(CancellationToken ct)
     {
@@ -44,23 +46,49 @@ public sealed class GamificationController(ISender sender) : ControllerBase
         return (await sender.Send(new GetMyBadgesQuery(userId), ct)).ToHttp();
     }
 
+    /// <summary>Full badge catalog — earned + locked, to motivate progress.</summary>
+    [HttpGet("badges")]
+    [Authorize]
+    [SwaggerOperation(Summary = "Get full badge catalog (earned + locked)")]
+    [SwaggerResponse(200, "Badge catalog", typeof(ApiResponse<IReadOnlyList<BadgeCatalogItem>>))]
+    public async Task<IActionResult> GetBadgeCatalog(CancellationToken ct)
+    {
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        return (await sender.Send(new GetBadgeCatalogQuery(userId), ct)).ToHttp();
+    }
+
+    /// <summary>Chọn (hoặc bỏ) huy hiệu hiển thị nổi bật trên hồ sơ. Truyền badgeId = null để bỏ.</summary>
+    [HttpPut("featured-badge")]
+    [Authorize]
+    [SwaggerOperation(Summary = "Set featured badge shown on profile")]
+    [SwaggerResponse(200, "Featured badge updated", typeof(ApiResponse<SetFeaturedBadgeResponse>))]
+    public async Task<IActionResult> SetFeaturedBadge(
+        [FromBody] SetFeaturedBadgeRequest request,
+        CancellationToken ct)
+    {
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        return (await sender.Send(new SetFeaturedBadgeCommand(userId, request.BadgeId), ct)).ToHttp();
+    }
+
     /// <summary>Public leaderboard — top users by period.</summary>
     [HttpGet("leaderboard")]
     [AllowAnonymous]
-    [SwaggerOperation(Summary = "Get leaderboard (BR-GAM-005)")]
+    [SwaggerOperation(Summary = "Get leaderboard")]
     [SwaggerResponse(200, "Leaderboard", typeof(ApiResponse<LeaderboardResponse>))]
     public async Task<IActionResult> GetLeaderboard(
-        [FromQuery] LeaderboardPeriod period = LeaderboardPeriod.Monthly,
+        [FromQuery] LeaderboardPeriod period = LeaderboardPeriod.AllTime,
         [FromQuery] int top = 10,
+        [FromQuery] int? year = null,
+        [FromQuery] int? month = null,
         CancellationToken ct = default)
     {
-        return (await sender.Send(new GetLeaderboardQuery(period, top), ct)).ToHttp();
+        return (await sender.Send(new GetLeaderboardQuery(period, top, year, month), ct)).ToHttp();
     }
 
     /// <summary>Admin: Lock a user's gamification for fraud (BR-GAM-006).</summary>
     [HttpPost("{userId:guid}/lock")]
     [Authorize(Roles = "Admin")]
-    [SwaggerOperation(Summary = "Lock gamification — fraud penalty (BR-GAM-006)")]
+    [SwaggerOperation(Summary = "[Admin] Lock gamification — fraud penalty")]
     [SwaggerResponse(200, "Lock result", typeof(ApiResponse<LockGamificationResponse>))]
     public async Task<IActionResult> LockGamification(
         Guid userId,
@@ -73,3 +101,5 @@ public sealed class GamificationController(ISender sender) : ControllerBase
 }
 
 public sealed record LockGamificationRequest(string Reason, int LockDays = 30);
+
+public sealed record SetFeaturedBadgeRequest(Guid? BadgeId);

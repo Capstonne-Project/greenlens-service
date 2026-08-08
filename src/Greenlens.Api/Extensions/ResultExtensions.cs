@@ -7,14 +7,14 @@ namespace Greenlens.Api.Extensions;
 public static class ResultExtensions
 {
     /// <summary>Returns 200 OK with standard ApiResponse envelope.</summary>
-    public static IActionResult ToHttp<T>(this Result<T> result)
+    public static IActionResult ToHttp<T>(this Result<T> result, string message = "OK")
     {
         if (result.IsSuccess)
         {
             return new OkObjectResult(new ApiResponse<T>
             {
                 Code = "SUCCESS",
-                Message = "OK",
+                Message = message,
                 Status = 200,
                 Data = result.Value
             });
@@ -72,7 +72,7 @@ public static class ResultExtensions
             ErrorType.Forbidden    => (403, error.Code),
             ErrorType.BusinessRule => (422, error.Code),
             ErrorType.RateLimited  => (429, error.Code),
-            ErrorType.Unexpected   => (500, error.Code),
+            ErrorType.Unexpected   => error.Code == "EMAIL_DISPATCH_UNAVAILABLE" ? (503, error.Code) : (500, error.Code),
             _ => (500, "INTERNAL_ERROR"),
         };
 

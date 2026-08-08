@@ -1,6 +1,7 @@
 using System.Text.Json;
 using FluentValidation;
 using Greenlens.Application.Common.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace Greenlens.Api.Middlewares;
 
@@ -38,6 +39,13 @@ public sealed class ExceptionHandlingMiddleware(
         {
             await HandleValidationExceptionAsync(context, ex);
         }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            logger.LogWarning(
+                ex,
+                "Concurrency conflict — resource modified by another request between load and save.");
+            await HandleConcurrencyExceptionAsync(context);
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Unhandled exception: {Message}", ex.Message);
@@ -64,6 +72,25 @@ public sealed class ExceptionHandlingMiddleware(
         };
 
         context.Response.StatusCode = 422;
+        context.Response.ContentType = "application/json";
+        await context.Response.WriteAsync(JsonSerializer.Serialize(response, JsonOptions));
+    }
+
+    /// <summary>
+    /// Optimistic concurrency conflict — record was changed by another request/job
+    /// between load and save (e.g. duplicate submit, or a background job raced in).
+    /// </summary>
+    private static async Task HandleConcurrencyExceptionAsync(HttpContext context)
+    {
+        var response = new ApiResponse
+        {
+            Code = "CONCURRENCY_CONFLICT",
+            Message = "Dữ liệu vừa được cập nhật bởi một yêu cầu khác. Vui lòng tải lại trang và thử lại.",
+            Status = 409,
+            Data = null
+        };
+
+        context.Response.StatusCode = 409;
         context.Response.ContentType = "application/json";
         await context.Response.WriteAsync(JsonSerializer.Serialize(response, JsonOptions));
     }

@@ -22,17 +22,28 @@ public sealed class ToggleBanUserCommandHandler(
         ToggleBanUserCommand request,
         CancellationToken cancellationToken)
     {
+        logger.LogInformation("Toggling ban user");
+
         if (request.UserId == currentUser.UserId)
-            return Errors.Users.CannotDeleteSelf; // can't ban yourself
+        {
+            logger.LogWarning("Cannot ban yourself: {UserId}", request.UserId);
+            return Errors.Users.CannotBanSelf;
+        }
+
+        logger.LogInformation("Getting user: {UserId}", request.UserId);
 
         var user = await users.GetByIdAsync(request.UserId, cancellationToken)
             .ConfigureAwait(false);
 
         if (user is null)
+        {
+            logger.LogWarning("User not found: {UserId}", request.UserId);
             return Errors.Users.UserNotFound;
+        }
 
         user.ToggleBan();
         await uow.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        logger.LogInformation("User {UserId} banned successfully", request.UserId);
 
         var action = user.IsBanned ? "cấm" : "bỏ cấm";
         logger.LogWarning("User {TargetUserId} {Action} by admin {AdminId}",

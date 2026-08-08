@@ -6,6 +6,7 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Organization.GetCompanyKpi;
 
@@ -18,14 +19,18 @@ public sealed class GetCompanyKpiQueryHandler(
     IEnvironmentalTeamRepository teams,
     IEnvironmentalServiceCompanyRepository companies,
     ICompanyStaffRepository companyStaff,
+    IUserRepository users,
     IReportRepository reports,
-    ICurrentUser currentUser)
+    ICurrentUser currentUser,
+    ILogger<GetCompanyKpiQueryHandler> logger)
     : IRequestHandler<GetCompanyKpiQuery, Result<CompanyKpiResponse>>
 {
     public async Task<Result<CompanyKpiResponse>> Handle(
         GetCompanyKpiQuery request,
         CancellationToken cancellationToken)
     {
+        logger.LogInformation("Getting company KPI for user {UserId}", currentUser.UserId);
+
         // ── Resolve companyId ──
         Guid companyId;
 
@@ -37,21 +42,28 @@ public sealed class GetCompanyKpiQueryHandler(
                 .ConfigureAwait(false);
 
             if (staff is null)
+            {
+                logger.LogWarning("Company manager not found for user ID {UserId}", currentUser.UserId);
                 return Errors.Organization.NotCompanyManager;
+            }
 
             companyId = staff.CompanyId;
 
             // If CompanyId is provided, ensure it matches
             if (request.CompanyId.HasValue && request.CompanyId.Value != companyId)
+            {
+                logger.LogWarning("Company ID {CompanyId} does not match user's company ID {CompanyId}", request.CompanyId.Value, companyId);
                 return Errors.Organization.CrossCompanyAccess;
+            }
         }
         else
         {
             // DEO/Admin must specify
             if (!request.CompanyId.HasValue)
-                return new Error("COMPANY_ID_REQUIRED",
-                    "CompanyId là bắt buộc cho DEO/Admin.",
-                    ErrorType.Validation);
+            {
+                logger.LogWarning("Company ID is required");
+                return Errors.Organization.CompanyIdRequired;
+            }
 
             companyId = request.CompanyId.Value;
         }
@@ -61,7 +73,29 @@ public sealed class GetCompanyKpiQueryHandler(
             .ConfigureAwait(false);
 
         if (company is null)
+        {
+            logger.LogWarning("Company {CompanyId} not found", companyId);
             return Errors.Organization.CompanyNotFound;
+        }
+
+        if (currentUser.Role == UserRole.DEO.ToString())
+        {
+            var deo = await users.GetByIdAsync(currentUser.UserId, cancellationToken).ConfigureAwait(false);
+            if (deo is null)
+            {
+                logger.LogWarning("User not found for company KPI: {UserId}", currentUser.UserId);
+                return Errors.Users.UserNotFound;
+            }
+
+            var accessError = CompanyAccessAuthorization.ValidateViewAccess(company, deo);
+            if (accessError is not null)
+            {
+                logger.LogWarning(
+                    "User {UserId} denied KPI for company {CompanyId}: {ErrorCode}",
+                    currentUser.UserId, companyId, accessError.Code);
+                return accessError;
+            }
+        }
 
         // ── Resolve period ──
         var (from, to) = ResolvePeriod(request);
@@ -75,10 +109,11 @@ public sealed class GetCompanyKpiQueryHandler(
 
         if (companyTeamIds.Count == 0)
         {
-            return new CompanyKpiResponse(
-                companyId, company.Name, from, to,
-                0, 0, 0, 0, 0m, 0m);
+            logger.LogWarning("No teams found for company {CompanyId}", companyId);
+            return new CompanyKpiResponse(companyId, company.Name, from, to, 0, 0, 0, 0, 0m, 0m);
         }
+
+        logger.LogInformation("Company {CompanyId} has {CompanyTeamIds} teams", companyId, companyTeamIds.Count);
 
         // ── Query assignments for these teams in period ──
         var assignmentQuery = assignments.QueryAsNoTracking()
@@ -117,9 +152,13 @@ public sealed class GetCompanyKpiQueryHandler(
         var completedOnTime = totalCompleted - slaBreachedCount;
         if (completedOnTime < 0) completedOnTime = 0;
 
+        logger.LogInformation("Completed on time: {CompletedOnTime}", completedOnTime);
+
         var slaComplianceRate = totalCompleted > 0
             ? Math.Round((decimal)completedOnTime / totalCompleted * 100, 1)
             : 0m;
+
+        logger.LogInformation("SLA compliance rate: {SlaComplianceRate}", slaComplianceRate);
 
         // ── Avg resolution time (hours): CompletedAt - AssignedAt ──
         var avgResolutionHours = 0m;
@@ -138,6 +177,11 @@ public sealed class GetCompanyKpiQueryHandler(
                 avgResolutionHours = Math.Round((decimal)totalHours / completedWithDates.Count, 1);
             }
         }
+
+        logger.LogInformation("Average resolution hours: {AvgResolutionHours}", avgResolutionHours);
+
+        logger.LogInformation("Company KPI response: {CompanyId}, {Name}, {From}, {To}, {TotalAssigned}, {TotalCompleted}, {TotalDeclined}, {CompletedOnTime}, {SlaComplianceRate}, {AvgResolutionHours}",
+            companyId, company.Name, from, to, totalAssigned, totalCompleted, totalDeclined, completedOnTime, slaComplianceRate, avgResolutionHours);
 
         return new CompanyKpiResponse(
             companyId,

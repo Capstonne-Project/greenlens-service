@@ -23,6 +23,37 @@ internal sealed class ViolatingEntityRepository(ApplicationDbContext context)
             .ConfigureAwait(false);
 
     /// <inheritdoc />
+    public Task<bool> TaxCodeExistsAsync(string taxCode, Guid? excludeEntityId = null, CancellationToken ct = default)
+    {
+        var normalized = taxCode.Trim();
+        var query = Context.ViolatingEntities
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(ve => ve.TaxCode == normalized);
+
+        if (excludeEntityId.HasValue)
+            query = query.Where(ve => ve.Id != excludeEntityId.Value);
+
+        return query.AnyAsync(ct);
+    }
+
+    /// <inheritdoc />
+    public Task<bool> IdentityNumberExistsAsync(
+        string identityNumber, Guid? excludeEntityId = null, CancellationToken ct = default)
+    {
+        var normalized = identityNumber.Trim();
+        var query = Context.ViolatingEntities
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(ve => ve.IdentityNumber == normalized);
+
+        if (excludeEntityId.HasValue)
+            query = query.Where(ve => ve.Id != excludeEntityId.Value);
+
+        return query.AnyAsync(ct);
+    }
+
+    /// <inheritdoc />
     public async Task<List<ViolatingEntity>> SearchByNameAsync(
         string name, int maxResults = 20, CancellationToken ct = default)
         => await DbSet
@@ -44,4 +75,10 @@ internal sealed class ViolatingEntityRepository(ApplicationDbContext context)
                 && ir.CreatedAt >= cutoff, ct)
             .ConfigureAwait(false);
     }
+
+    /// <inheritdoc />
+    public Task<bool> HasAnyInspectionReportsAsync(Guid violatingEntityId, CancellationToken ct = default) =>
+        Context.InspectionReports
+            .AsNoTracking()
+            .AnyAsync(ir => ir.ViolatingEntityId == violatingEntityId, ct);
 }

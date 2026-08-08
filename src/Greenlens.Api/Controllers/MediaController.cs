@@ -1,6 +1,7 @@
 using Greenlens.Api.Extensions;
 using Greenlens.Application.Common.Models;
 using Greenlens.Application.Features.Media.PresignMediaUpload;
+using Greenlens.Domain.Enums;
 using Greenlens.Application.Features.Media.UploadCommentImage;
 using Greenlens.Application.Features.Media.UploadReportImage;
 using Greenlens.Application.Features.Media.UploadReportVideo;
@@ -27,7 +28,8 @@ public sealed class MediaController(ISender sender) : ControllerBase
         Description =
             "Returns a short-lived PUT URL so the client uploads the file directly to Cloudflare R2. " +
             "Flow: 1) POST /media/presign 2) PUT binary to uploadUrl with requiredHeaders 3) send publicUrl to report APIs. " +
-            "Purpose: ReportImage|Before|Progress|After|Comment|Avatar. Before/Progress require reportId.")]
+            "Purpose: ReportImage|Before|Progress|After|Comment|Avatar|InspectionEvidence. " +
+            "Before/Progress/ReopenEvidence require reportId. InspectionEvidence requires inspectionId + evidenceCategory.")]
     [SwaggerResponse(200, "Presigned URL created", typeof(ApiResponse<PresignMediaUploadResponse>))]
     [SwaggerResponse(400, "Invalid MIME / purpose / filename", typeof(ApiResponse))]
     [SwaggerResponse(401, "Unauthorized", typeof(ApiResponse))]
@@ -40,6 +42,8 @@ public sealed class MediaController(ISender sender) : ControllerBase
             body.ContentType,
             body.Purpose,
             body.ReportId,
+            body.InspectionId,
+            body.EvidenceCategory,
             body.FileSizeBytes), ct)).ToHttp();
 
     [HttpPost("reports/images")]
@@ -168,5 +172,7 @@ public sealed record PresignMediaRequest(
     string ContentType,
     MediaUploadPurpose Purpose,
     Guid? ReportId = null,
+    Guid? InspectionId = null,
+    InspectionEvidenceCategory? EvidenceCategory = null,
     long? FileSizeBytes = null);
 

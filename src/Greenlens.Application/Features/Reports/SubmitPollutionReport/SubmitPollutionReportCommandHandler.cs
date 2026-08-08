@@ -1,4 +1,3 @@
-using Greenlens.Application.Features.Reports;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
@@ -46,6 +45,7 @@ public sealed class SubmitPollutionReportCommandHandler(
     IFileStorageService fileStorage,
     IProfanityFilter profanityFilter,
     IReportSubmissionRateLimiter rateLimiter,
+    IIdempotencyContext idempotencyContext,
     IImageExifAnalyzer exifAnalyzer,
     IImageBytesFetcher imageBytesFetcher,
     IDateTimeProvider clock,
@@ -56,8 +56,13 @@ public sealed class SubmitPollutionReportCommandHandler(
         SubmitPollutionReportCommand request,
         CancellationToken cancellationToken)
     {
+        var swTotal = System.Diagnostics.Stopwatch.StartNew();
+
         if (!currentUser.IsAuthenticated)
+        {
+            logger.LogWarning("User is not authenticated");
             return Errors.Reports.LoginRequired;
+        }
 
         if (request.Images is { Count: > 0 })
         {
@@ -67,32 +72,50 @@ public sealed class SubmitPollutionReportCommandHandler(
                     ? fileStorage.IsOwnedPublicUrl(image.Url)
                     : fileStorage.IsOwnedPublicUrl(image.Url, image.Key);
                 if (!owned)
+                {
+                    logger.LogWarning("Invalid storage URL for image {Url}", image.Url);
                     return Errors.Media.InvalidStorageUrl;
+                }
             }
         }
 
         // ── BR-REP-010: sliding-window submit quota (5/h, 20/24h) ─────────
-        var rateLimit = await rateLimiter.TryAcquireAsync(currentUser.UserId, cancellationToken)
-            .ConfigureAwait(false);
-        if (!rateLimit.IsAllowed)
-            return Errors.Reports.RateLimitExceeded(rateLimit.RetryAfterMinutes);
+        if (!idempotencyContext.IsReplay)
+        {
+            var rateLimit = await rateLimiter.TryAcquireAsync(currentUser.UserId, cancellationToken)
+                .ConfigureAwait(false);
+            if (!rateLimit.IsAllowed)
+            {
+                logger.LogWarning("Rate limit exceeded for user {UserId}", currentUser.UserId);
+                return Errors.Reports.RateLimitExceeded(rateLimit.RetryAfterMinutes);
+            }
+        }
 
         // ── BR-REP-004: profanity filter when description provided ─────────
         if (!string.IsNullOrWhiteSpace(request.Description)
             && profanityFilter.ContainsProfanity(request.Description))
+        {
+            logger.LogWarning("Inappropriate description for report {Description}", request.Description);
             return Errors.Reports.InappropriateDescription;
+        }
 
         // ── BR-DAT-005: Consent check ────────────────────────────────────────
         var submitter = await users.GetByIdAsync(currentUser.UserId, cancellationToken)
             .ConfigureAwait(false);
         if (submitter is not null && !submitter.HasDataConsent)
+        {
+            logger.LogWarning("User {UserId} does not have data consent", currentUser.UserId);
             return Errors.Users.DataConsentRequired;
+        }
 
         // ── Validate category ───────────────────────────────────────────────
         var category = await categories.GetByIdAsync(request.CategoryId, cancellationToken)
             .ConfigureAwait(false);
         if (category is null || !category.IsActive)
+        {
+            logger.LogWarning("Category not found for ID {CategoryId}", request.CategoryId);
             return Errors.Reports.CategoryNotFound;
+        }
 
         // ── Validate ward/province pair ─────────────────────────────────────
         var provinceCode = request.ProvinceCode?.Trim();
@@ -103,7 +126,10 @@ public sealed class SubmitPollutionReportCommandHandler(
                     w => w.Code == wardCode && w.ProvinceCode == provinceCode, cancellationToken)
                 .ConfigureAwait(false);
             if (!wardOk)
+            {
+                logger.LogWarning("Invalid ward/province pair for report {WardCode} and {ProvinceCode}", wardCode, provinceCode);
                 return Errors.Reports.InvalidWardProvincePair;
+            }
         }
 
         var reporterId = currentUser.UserId;
@@ -118,10 +144,16 @@ public sealed class SubmitPollutionReportCommandHandler(
             var tempEntry = await tempStore.GetAsync(request.TempImageId, cancellationToken)
                 .ConfigureAwait(false);
             if (tempEntry is null)
+            {
+                logger.LogWarning("Temp image not found for ID {TempImageId}", request.TempImageId);
                 return Errors.Ai.TempImageNotFound;
+            }
 
             if (tempEntry.AiResult?.Decision == AiDecision.IrrelevantOrSuspectedAbusive)
+            {
+                logger.LogWarning("Image rejected by AI for report {TempImageId}", request.TempImageId);
                 return Errors.Ai.ImageRejectedByAi;
+            }
 
             if (request.Images is { Count: > 0 })
             {
@@ -131,13 +163,23 @@ public sealed class SubmitPollutionReportCommandHandler(
                         tempEntry.PublicUrl,
                         first.Url.Trim(),
                         StringComparison.Ordinal))
-                    return Errors.Media.UploadMetadataMismatch;
+                    {
+                        logger.LogWarning(
+                            "Upload metadata mismatch (URL) for tempImageId={TempImageId} | tempUrl={TempUrl} submitUrl={SubmitUrl}",
+                            request.TempImageId, tempEntry.PublicUrl, first.Url.Trim());
+                        return Errors.Media.UploadMetadataMismatch;
+                    }
                 if (tempEntry.StorageKey is not null
                     && !string.Equals(
                         tempEntry.StorageKey,
                         first.Key?.Trim(),
                         StringComparison.Ordinal))
-                    return Errors.Media.UploadMetadataMismatch;
+                    {
+                        logger.LogWarning(
+                            "Upload metadata mismatch (Key) for tempImageId={TempImageId} | tempKey={TempKey} submitKey={SubmitKey}",
+                            request.TempImageId, tempEntry.StorageKey, first.Key?.Trim());
+                        return Errors.Media.UploadMetadataMismatch;
+                    }
 
                 resolvedImage = new ResolvedImage(
                     Url: first.Url.Trim(),
@@ -160,6 +202,7 @@ public sealed class SubmitPollutionReportCommandHandler(
                 }
                 catch
                 {
+                    logger.LogWarning("Storage upload failed for image {Url}", tempEntry.FileName);
                     return Errors.Users.StorageUploadFailed;
                 }
 
@@ -178,6 +221,7 @@ public sealed class SubmitPollutionReportCommandHandler(
             // Manual flow persists the uploaded image without scheduling AI classification.
             var first = request.Images![0];
             byte[]? manualBytes;
+            var swDownload = System.Diagnostics.Stopwatch.StartNew();
             if (!string.IsNullOrWhiteSpace(first.Key))
             {
                 var stored = await fileStorage.DownloadAsync(
@@ -185,8 +229,13 @@ public sealed class SubmitPollutionReportCommandHandler(
                         10 * 1024 * 1024,
                         cancellationToken)
                     .ConfigureAwait(false);
-                if (stored is null || stored.SizeBytes != first.SizeBytes)
+                if (stored is null || !IsSizeWithinTolerance(stored.SizeBytes, first.SizeBytes))
+                {
+                    logger.LogWarning(
+                        "Upload metadata mismatch for image {Url} (stored={StoredSize}, declared={DeclaredSize})",
+                        first.Url, stored?.SizeBytes, first.SizeBytes);
                     return Errors.Media.UploadMetadataMismatch;
+                }
                 manualBytes = stored.Bytes;
             }
             else
@@ -195,6 +244,10 @@ public sealed class SubmitPollutionReportCommandHandler(
                     .TryFetchAsync(first.Url.Trim(), cancellationToken)
                     .ConfigureAwait(false);
             }
+            swDownload.Stop();
+            logger.LogWarning(
+                "[TIMING] Re-download image from storage took {ElapsedMs}ms (size={Size} bytes)",
+                swDownload.ElapsedMilliseconds, manualBytes?.LongLength ?? 0);
             resolvedImage = new ResolvedImage(
                 Url: first.Url.Trim(),
                 MimeType: first.MimeType.Trim(),
@@ -206,6 +259,7 @@ public sealed class SubmitPollutionReportCommandHandler(
         }
 
         // ── Create Report ───────────────────────────────────────────────────
+        logger.LogInformation("Creating report for user {UserId}", currentUser.UserId);
         var code = await GenerateUniqueCodeAsync(cancellationToken).ConfigureAwait(false);
 
         var report = Report.Create(
@@ -223,6 +277,7 @@ public sealed class SubmitPollutionReportCommandHandler(
                 AiSeverityMapper.Parse(analyzed.Classify.Severity));
         }
 
+        logger.LogInformation("Adding report {ReportCode} to database", report.Code);
         reports.Add(report);
 
         // ── Auto-routing: report goes directly to LocalOffice by WardCode ──
@@ -235,6 +290,7 @@ public sealed class SubmitPollutionReportCommandHandler(
 
             if (office is not null)
             {
+                logger.LogInformation("Routing report {ReportCode} to LocalOffice {OfficeId}", report.Code, office.Id);
                 report.RouteToLocalOffice(office.Id, office.DepartmentId);
             }
         }
@@ -248,7 +304,10 @@ public sealed class SubmitPollutionReportCommandHandler(
                 .ConfigureAwait(false);
 
             if (dept is not null)
+            {
+                logger.LogInformation("Routing report {ReportCode} to Department {DepartmentId}", report.Code, dept.Id);
                 report.RouteToDepartment(dept.Id);
+            }
         }
 
         // ── Persist primary image ───────────────────────────────────────────
@@ -262,19 +321,26 @@ public sealed class SubmitPollutionReportCommandHandler(
         string? exifWarning = null;
         if (resolvedImage.ImageBytes is { Length: > 0 } bytes)
         {
+            var swExif = System.Diagnostics.Stopwatch.StartNew();
             var submittedAtUtc = clock.UtcNow;
-            var exif = exifAnalyzer.Analyze(bytes, submittedAtUtc);
+            var exif = exifAnalyzer.Analyze(
+                bytes,
+                submittedAtUtc,
+                request.Latitude,
+                request.Longitude);
+            swExif.Stop();
+            logger.LogWarning("[TIMING] EXIF analyze took {ElapsedMs}ms", swExif.ElapsedMilliseconds);
 
             if (!string.IsNullOrEmpty(exif.ExifJson))
                 primaryMedia.SetExifData(exif.ExifJson);
 
-            if (exif.IsSuspicious && exif.SuspiciousReasonCode is not null)
+            if (exif.IsSuspicious)
             {
-                report.FlagSuspicious(JsonSerializer.Serialize(new[] { exif.SuspiciousReasonCode }));
+                report.FlagSuspicious(JsonSerializer.Serialize(exif.SuspiciousReasons));
                 exifWarning = ExifSuspicionEvaluator.StaleWarningMessage;
                 logger.LogWarning(
-                    "Report {ReportCode} flagged suspicious: {Reason}",
-                    report.Code, exif.SuspiciousReasonCode);
+                    "Report {ReportCode} flagged suspicious: {Reasons}",
+                    report.Code, string.Join(", ", exif.SuspiciousReasons));
             }
         }
 
@@ -306,11 +372,17 @@ public sealed class SubmitPollutionReportCommandHandler(
                 .ConfigureAwait(false);
 
             if (tags.Count != request.WasteTagIds.Count)
+            {
+                logger.LogWarning("Waste tag not found for IDs {WasteTagIds}", request.WasteTagIds);
                 return Errors.Reports.WasteTagNotFound;
+            }
 
             var inactiveTags = tags.Where(t => !t.IsActive).ToList();
             if (inactiveTags.Count > 0)
+            {
+                logger.LogWarning("Waste tag inactive for IDs {WasteTagIds}", request.WasteTagIds);
                 return Errors.Reports.WasteTagInactive;
+            }
 
             var newTags = request.WasteTagIds
                 .Select(tagId => ReportWasteTag.Create(report.Id, tagId, reporterId))
@@ -318,16 +390,38 @@ public sealed class SubmitPollutionReportCommandHandler(
             reportWasteTags.AddRange(newTags);
         }
 
-        // ── Tier 1 duplicate detection (BR-REP-030): same category + within 50m + within 24h ──
+        // ── Tier 1 duplicate detection (BR-REP-030): same category + within 25m ──
         // Runs inline (fast, free). Tier 2 (AI image compare) is triggered out-of-band via a
         // background job (see ReportPossibleDuplicateFlaggedEvent) to keep submit under p95<2s (BR-SYS-001).
         await FlagPossibleDuplicateAsync(report, cancellationToken).ConfigureAwait(false);
 
-        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        // ── BR-REP-034: suspected violation recurrence — mutually exclusive with duplicate flag ──
+        if (!report.IsPossibleDuplicate)
+            await FlagSuspectedViolationRecurrenceAsync(report, cancellationToken).ConfigureAwait(false);
+
+        report.RaiseSubmittedForVerification();
+
+        var swSave = System.Diagnostics.Stopwatch.StartNew();
+        try
+        {
+            await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (DbUpdateException ex)
+        {
+            var mapped = PostgresUniqueViolationMapper.TryMap(ex);
+            if (mapped is not null)
+                return mapped;
+            throw;
+        }
+        swSave.Stop();
+        logger.LogWarning("[TIMING] SaveChangesAsync took {ElapsedMs}ms", swSave.ElapsedMilliseconds);
 
         logger.LogInformation(
             "Report {ReportCode} submitted by {ReporterId}, routed to office {OfficeId} / department {DepartmentId}",
             report.Code, reporterId, report.AssignedOfficeId, report.AssignedDepartmentId);
+
+        swTotal.Stop();
+        logger.LogWarning("[TIMING] Total SubmitPollutionReport handler took {ElapsedMs}ms", swTotal.ElapsedMilliseconds);
 
         // ── Cleanup temp after successful save (AI flow only) ───────────────
         if (resolvedImage.IsAiFlow)
@@ -350,43 +444,113 @@ public sealed class SubmitPollutionReportCommandHandler(
             report.Status, report.CreatedAt, report.SlaVerifyDueAt,
             report.AiPending, imageInfos,
             report.IsPossibleDuplicate, report.PossibleDuplicateOfReportId,
+            report.IsSuspectedViolationRecurrence, report.SuspectedRecurrenceOfReportId,
             report.IsSuspicious, exifWarning);
     }
 
     /// <summary>
-    /// BR-REP-030: Tier 1 duplicate check — find the oldest active report with the same
-    /// category within ~50m and 24h, then flag this report as a possible duplicate.
-    /// Uses a decimal bounding box (reports store lat/lng, not a PostGIS geometry column),
-    /// refined with an exact Haversine distance to reject bounding-box corners.
+    /// BR-REP-030: Tier 1 duplicate check — find the canonical primary (Verified/InProgress first,
+    /// else oldest) with the same category within ~25m, then flag this report as a possible duplicate.
+    /// Closed reports (BR-REP-016 auto-close) are excluded — new submissions at the same spot
+    /// start a fresh report, not a duplicate of a finished case.
+    /// Each flagged report gets its own Tier 2 AI job vs that primary.
     /// </summary>
     private async Task FlagPossibleDuplicateAsync(Report report, CancellationToken ct)
     {
-        const double radiusMeters = 50.0;
-        // 1 deg latitude ≈ 111_320 m. Longitude shrinks by cos(latitude).
+        const double radiusMeters = DuplicateTier1PrimarySelector.DefaultRadiusMeters;
         var latDelta = (decimal)(radiusMeters / 111_320.0);
         var cosLat = Math.Max(Math.Cos((double)report.Latitude * Math.PI / 180.0), 1e-6);
         var lngDelta = (decimal)(radiusMeters / (111_320.0 * cosLat));
 
-        var since = report.CreatedAt.AddHours(-24);
+        var candidates = await reports.QueryAsNoTracking()
+            .Where(r => r.CategoryId == report.CategoryId)
+            .Where(r => r.Id != report.Id)
+            .Where(r => r.Status != ReportStatus.Duplicate
+                     && r.Status != ReportStatus.Rejected
+                     && r.Status != ReportStatus.Closed)
+            .Where(r => r.Latitude >= report.Latitude - latDelta && r.Latitude <= report.Latitude + latDelta)
+            .Where(r => r.Longitude >= report.Longitude - lngDelta && r.Longitude <= report.Longitude + lngDelta)
+            .OrderByDescending(r =>
+                r.Status == ReportStatus.Verified
+                || r.Status == ReportStatus.InProgress
+                || r.Status == ReportStatus.Reopened)
+            .ThenBy(r => r.CreatedAt)
+            .Select(r => new DuplicateNearbyReport(r.Id, r.Latitude, r.Longitude, r.Status, r.CreatedAt))
+            .Take(20)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        var primaryId = DuplicateTier1PrimarySelector.SelectPrimary(
+            report.Latitude, report.Longitude, candidates, radiusMeters);
+
+        if (primaryId is not null)
+            report.MarkPossibleDuplicate(primaryId.Value, DuplicateTier1PrimarySelector.Tier1Source);
+    }
+
+    /// <summary>
+    /// BR-REP-034: flag when a recently Closed report (≤30 days) exists at the same spot and category.
+    /// Skipped when duplicate is flagged or when another report is InProgress nearby (cleanup underway).
+    /// </summary>
+    private async Task FlagSuspectedViolationRecurrenceAsync(Report report, CancellationToken ct)
+    {
+        const double radiusMeters = ViolationRecurrencePrimarySelector.DefaultRadiusMeters;
+        var latDelta = (decimal)(radiusMeters / 111_320.0);
+        var cosLat = Math.Max(Math.Cos((double)report.Latitude * Math.PI / 180.0), 1e-6);
+        var lngDelta = (decimal)(radiusMeters / (111_320.0 * cosLat));
+        var cutoff = DateTime.UtcNow - ViolationRecurrencePrimarySelector.LookbackWindow;
+
+        if (await HasActiveCleanupNearbyAsync(report, latDelta, lngDelta, radiusMeters, ct).ConfigureAwait(false))
+            return;
 
         var candidates = await reports.QueryAsNoTracking()
             .Where(r => r.CategoryId == report.CategoryId)
             .Where(r => r.Id != report.Id)
-            .Where(r => r.Status != ReportStatus.Duplicate && r.Status != ReportStatus.Rejected)
-            .Where(r => r.CreatedAt >= since)
+            .Where(r => r.Status == ReportStatus.Closed)
+            .Where(r => r.ClosedAt >= cutoff)
             .Where(r => r.Latitude >= report.Latitude - latDelta && r.Latitude <= report.Latitude + latDelta)
             .Where(r => r.Longitude >= report.Longitude - lngDelta && r.Longitude <= report.Longitude + lngDelta)
-            .OrderBy(r => r.CreatedAt)
-            .Select(r => new { r.Id, r.Latitude, r.Longitude })
-            .Take(10)
+            .OrderByDescending(r => r.ClosedAt)
+            .Select(r => new ViolationRecurrenceNearbyReport(
+                r.Id, r.Latitude, r.Longitude, r.ClosedAt!.Value))
+            .Take(20)
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
-        var match = candidates.FirstOrDefault(c =>
-            GeoMath.HaversineMeters(report.Latitude, report.Longitude, c.Latitude, c.Longitude) <= radiusMeters);
+        var priorId = ViolationRecurrencePrimarySelector.SelectPrimary(
+            report.Latitude, report.Longitude, candidates, radiusMeters);
 
-        if (match is not null)
-            report.MarkPossibleDuplicate(match.Id, "geo_time");
+        if (priorId is not null)
+            report.MarkSuspectedViolationRecurrence(priorId.Value);
+    }
+
+    /// <summary>
+    /// True when a report is actively being handled or cleaned (Verified / InProgress / Reopened)
+    /// within the recurrence radius and same category.
+    /// </summary>
+    /// <remarks>
+    /// Status list inlined (not calling <see cref="ViolationRecurrencePrimarySelector.BlocksRecurrenceDetection"/>)
+    /// because EF Core cannot translate an arbitrary static method call to SQL. Keep both in sync.
+    /// </remarks>
+    private async Task<bool> HasActiveCleanupNearbyAsync(
+        Report report,
+        decimal latDelta,
+        decimal lngDelta,
+        double radiusMeters,
+        CancellationToken ct)
+    {
+        var nearby = await reports.QueryAsNoTracking()
+            .Where(r => r.CategoryId == report.CategoryId)
+            .Where(r => r.Id != report.Id)
+            .Where(r => r.Status == ReportStatus.Verified || r.Status == ReportStatus.InProgress || r.Status == ReportStatus.Reopened)
+            .Where(r => r.Latitude >= report.Latitude - latDelta && r.Latitude <= report.Latitude + latDelta)
+            .Where(r => r.Longitude >= report.Longitude - lngDelta && r.Longitude <= report.Longitude + lngDelta)
+            .Select(r => new { r.Latitude, r.Longitude })
+            .Take(20)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        return nearby.Any(n =>
+            GeoMath.HaversineMeters(report.Latitude, report.Longitude, n.Latitude, n.Longitude) <= radiusMeters);
     }
 
     private async Task<string> GenerateUniqueCodeAsync(CancellationToken ct)
@@ -401,6 +565,18 @@ public sealed class SubmitPollutionReportCommandHandler(
         } while (attempts < 12 &&
                  await reports.ExistsAsync(r => r.Code == code, ct).ConfigureAwait(false));
         return code;
+    }
+
+    /// <summary>
+    /// So sánh size ảnh client khai (đo trước khi PUT) với size thật trên storage.
+    /// Cho phép sai số nhỏ (1% hoặc tối thiểu 4KB) — JPEG re-encode giữa các bước xử lý ảnh trên
+    /// mobile (Hermes Blob fallback, nén lại khi retry) có thể lệch vài byte dù cùng nội dung ảnh.
+    /// </summary>
+    private static bool IsSizeWithinTolerance(long storedSizeBytes, long declaredSizeBytes)
+    {
+        const long minToleranceBytes = 4 * 1024;
+        var tolerance = Math.Max(minToleranceBytes, declaredSizeBytes / 100);
+        return Math.Abs(storedSizeBytes - declaredSizeBytes) <= tolerance;
     }
 
     private sealed record ResolvedImage(

@@ -102,7 +102,7 @@
 | 401 Unauthorized          | Thiếu/sai token                       |
 | 403 Forbidden             | Có token nhưng không đủ quyền         |
 | 404 Not Found             | Resource không tồn tại                |
-| 409 Conflict              | Resource đã tồn tại (email duplicate) |
+| 409 Conflict              | Resource đã tồn tại (email duplicate) hoặc `IDEMPOTENCY_IN_PROGRESS` |
 | 422 Unprocessable Entity  | Validation fail (field-level errors)  |
 | 429 Too Many Requests     | Rate limit                            |
 | 500 Internal Server Error | Lỗi server                            |
@@ -135,6 +135,13 @@
 ### AI-specific
 
 - `AI_UNAVAILABLE`, `AI_TIMEOUT`, `AI_LOW_CONFIDENCE`
+
+### Idempotency-specific
+
+- `IDEMPOTENCY_IN_PROGRESS` — request trùng key đang xử lý (409)
+- `IDEMPOTENCY_KEY_REUSED` — cùng key nhưng body khác (422)
+- `IDEMPOTENCY_KEY_REQUIRED` — endpoint bắt buộc header nhưng thiếu (422)
+- `IDEMPOTENCY_KEY_INVALID` — key quá dài (>128 ký tự) (422)
 
 ---
 
@@ -258,7 +265,43 @@ Authorization: Bearer {token}
 
 ---
 
-## 9. Rate Limiting
+## 9. Idempotency-Key (double-submit protection)
+
+Một số endpoint **mutation** (POST/PUT) hỗ trợ header `Idempotency-Key` để client retry an toàn khi mạng chập chờn hoặc user double-tap.
+
+### 9.1 Header
+
+```http
+Idempotency-Key: 550e8400-e29b-41d4-a716-446655440000
+```
+
+| Quy tắc | Giá trị |
+| -------- | ------- |
+| Format khuyến nghị | UUID v4 (client sinh) |
+| Độ dài tối đa | 128 ký tự |
+| Phạm vi | Gắn với **user + HTTP method + route + key** |
+| TTL mặc định | 24 giờ (auth/OTP: 1 giờ) |
+| Bắt buộc (Phase 1) | **Không** — thiếu header vẫn xử lý bình thường |
+
+### 9.2 Hành vi server
+
+| Tình huống | HTTP | `code` | Mô tả |
+| ---------- | ---- | ------ | ----- |
+| Lần đầu, key mới | 2xx gốc | `SUCCESS` | Handler chạy bình thường; response được cache |
+| Retry cùng key + **cùng body** | 2xx gốc | `SUCCESS` | **Replay** — trả đúng envelope lần đầu (không chạy handler lại) |
+| Request trùng key đang `processing` | 409 | `IDEMPOTENCY_IN_PROGRESS` | Chờ vài giây, retry **cùng key** |
+| Cùng key, **body khác** | 422 | `IDEMPOTENCY_KEY_REUSED` | Client phải sinh key mới |
+| Endpoint `Required=true` mà thiếu header | 422 | `IDEMPOTENCY_KEY_REQUIRED` | (Phase 2 — chưa bật) |
+
+**Lưu ý:** Response lỗi 4xx/5xx **không** được cache — client có thể retry cùng key sau khi sửa lỗi.
+
+**BR-REP-010:** Replay `POST /v1/reports` **không** trừ thêm quota submit rate limit.
+
+Chi tiết tích hợp FE/Mobile: `docs/Changelogs/fe-idempotency-key-guide.md`.
+
+---
+
+## 10. Rate Limiting
 
 **Headers trả về kèm mọi response:**
 
@@ -279,7 +322,7 @@ Retry-After: 30  # chỉ khi 429
 
 ---
 
-## 10. Audit Log Convention
+## 11. Audit Log Convention
 
 Mọi action nhạy cảm phải log (BR-ADM-010):
 
@@ -302,7 +345,7 @@ Mọi action nhạy cảm phải log (BR-ADM-010):
 
 ---
 
-## 11. Common Enums
+## 12. Common Enums
 
 ### UserRole
 
@@ -336,7 +379,7 @@ PUSH | EMAIL
 
 ---
 
-## 12. Definition of Done — API Task
+## 13. Definition of Done — API Task
 
 Mỗi API task xem là DONE khi:
 

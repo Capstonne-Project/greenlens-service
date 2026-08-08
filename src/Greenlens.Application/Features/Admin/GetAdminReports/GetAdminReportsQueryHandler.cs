@@ -15,24 +15,40 @@ public sealed class GetAdminReportsQueryHandler(
     public async Task<Result<GetAdminReportsResponse>> Handle(
         GetAdminReportsQuery request, CancellationToken ct)
     {
+        logger.LogInformation("Getting admin reports");
+
         var query = reports.QueryAsNoTracking()
             .Include(r => r.Category)
             .Include(r => r.Assignments)
             .AsQueryable();
 
         if (request.Status.HasValue)
+        {
+            logger.LogInformation("Status: {Status}", request.Status.Value);
             query = query.Where(r => r.Status == request.Status.Value);
+        }
         if (request.CategoryId.HasValue)
+        {
+            logger.LogInformation("CategoryId: {CategoryId}", request.CategoryId.Value);
             query = query.Where(r => r.CategoryId == request.CategoryId.Value);
+        }
         if (!string.IsNullOrEmpty(request.WardCode))
+        {
+            logger.LogInformation("WardCode: {WardCode}", request.WardCode);
             query = query.Where(r => r.WardCode == request.WardCode);
+        }
         if (!string.IsNullOrEmpty(request.ProvinceCode))
+        {
+            logger.LogInformation("ProvinceCode: {ProvinceCode}", request.ProvinceCode);
             query = query.Where(r => r.ProvinceCode == request.ProvinceCode);
+        }
         if (!string.IsNullOrEmpty(request.Search))
             query = query.Where(r => r.Code.Contains(request.Search)
                 || (r.Description != null && r.Description.Contains(request.Search)));
+            logger.LogInformation("Search: {Search}", request.Search);
 
         var totalCount = await query.CountAsync(ct).ConfigureAwait(false);
+        logger.LogInformation("Total count: {TotalCount}", totalCount);
 
         var pagination = PaginationMeta.Create(request.Page, request.PageSize, totalCount);
 

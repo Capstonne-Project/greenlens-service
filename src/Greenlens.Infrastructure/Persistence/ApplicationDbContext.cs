@@ -22,6 +22,7 @@ internal sealed class ApplicationDbContext(
     public DbSet<ReportFlag> ReportFlags => Set<ReportFlag>();
     public DbSet<ReportSatisfaction> ReportSatisfactions => Set<ReportSatisfaction>();
     public DbSet<ReportDraft> ReportDrafts => Set<ReportDraft>();
+    public DbSet<ReportReopenRequest> ReportReopenRequests => Set<ReportReopenRequest>();
     public DbSet<ReportAssignment> ReportAssignments => Set<ReportAssignment>();
     public DbSet<WasteTag> WasteTags => Set<WasteTag>();
     public DbSet<ReportWasteTag> ReportWasteTags => Set<ReportWasteTag>();
@@ -35,8 +36,13 @@ internal sealed class ApplicationDbContext(
     public DbSet<EnvironmentalTeam> EnvironmentalTeams => Set<EnvironmentalTeam>();
     public DbSet<TeamMember> TeamMembers => Set<TeamMember>();
 
+    // ── Community Cleanup module ──
+    public DbSet<CommunityCleanupEvent> CommunityCleanupEvents => Set<CommunityCleanupEvent>();
+    public DbSet<CommunityCleanupParticipant> CommunityCleanupParticipants => Set<CommunityCleanupParticipant>();
+
     // ── Inspection & Company module (v1.3) ──
     public DbSet<InspectionReport> InspectionReports => Set<InspectionReport>();
+    public DbSet<InspectionEvidence> InspectionEvidences => Set<InspectionEvidence>();
     public DbSet<ViolatingEntity> ViolatingEntities => Set<ViolatingEntity>();
     public DbSet<PenaltyPayment> PenaltyPayments => Set<PenaltyPayment>();
     public DbSet<EnvironmentalServiceCompany> EnvironmentalServiceCompanies => Set<EnvironmentalServiceCompany>();
@@ -69,6 +75,11 @@ internal sealed class ApplicationDbContext(
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        // BR-CLN-002/BR-INS-004: ST_Distance/ST_MakePoint geo-queries (check-in distance,
+        // duplicate detection) require this on every environment — track it via migration
+        // instead of a manual `CREATE EXTENSION` per dev machine.
+        modelBuilder.HasPostgresExtension("postgis");
+
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
         base.OnModelCreating(modelBuilder);
     }

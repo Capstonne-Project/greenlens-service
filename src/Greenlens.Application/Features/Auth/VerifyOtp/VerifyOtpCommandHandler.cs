@@ -21,6 +21,8 @@ public sealed class VerifyOtpCommandHandler(
         VerifyOtpCommand request,
         CancellationToken cancellationToken)
     {
+        logger.LogInformation("Getting OTP verification");
+
         // Retrieve latest valid OTP for the given purpose
         var otp = await otps.GetLatestValidAsync(request.Email, request.Purpose, cancellationToken)
             .ConfigureAwait(false);
@@ -42,6 +44,7 @@ public sealed class VerifyOtpCommandHandler(
         if (!passwordHasher.Verify(request.OtpCode, otp.CodeHash))
         {
             await uow.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            logger.LogWarning("OTP invalid for {Email}", request.Email);
             return Errors.Auth.OtpInvalid;
         }
 
@@ -53,8 +56,12 @@ public sealed class VerifyOtpCommandHandler(
         {
             var user = await users.GetByEmailAsync(request.Email, cancellationToken)
                 .ConfigureAwait(false);
-            user?.VerifyEmail();
-            logger.LogInformation("Email verified for {Email}", request.Email);
+            logger.LogInformation("User: {User}", user);
+            if (user is not null)
+            {
+                user.VerifyEmail();
+                logger.LogInformation("Email verified for {Email}", request.Email);
+            }
         }
 
         await uow.SaveChangesAsync(cancellationToken).ConfigureAwait(false);

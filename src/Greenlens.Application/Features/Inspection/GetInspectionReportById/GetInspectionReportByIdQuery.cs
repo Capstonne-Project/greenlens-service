@@ -11,6 +11,8 @@ public sealed record InspectionReportDetailResponse(
     Guid Id,
     Guid ReportId,
     string ReportCode,
+    decimal Latitude,
+    decimal Longitude,
     InspectionStatus Status,
     // Team
     Guid? AssignedTeamId,
@@ -34,6 +36,16 @@ public sealed record InspectionReportDetailResponse(
     ViolatingEntityEmbeddedDto? ViolatingEntity,
     // Payment history
     List<PenaltyPaymentDto> Payments,
+    // Checklist workflow (BR-INS-033)
+    DateTime? AcceptedAt,
+    Guid? AcceptedByUserId,
+    DateTime? ArrivalConfirmedAt,
+    decimal? ArrivalLatitude,
+    decimal? ArrivalLongitude,
+    string? ArrivalNote,
+    DateTime? FieldInvestigationSubmittedAt,
+    Guid? FieldInvestigationSubmittedByUserId,
+    IReadOnlyList<InspectionEvidenceItemDto> ChecklistEvidence,
     // Officers
     Guid CreatedByOfficerId,
     string? CreatedByOfficerName,
@@ -44,12 +56,27 @@ public sealed record InspectionReportDetailResponse(
     DateTime? ClosedAt,
     string? ClosedReason,
     DateTime CreatedAt,
-    // UI capability flags (derived from status — BR-INS-010..021)
+    // UI capability flags
+    bool CanAcceptTask,
+    bool CanConfirmArrival,
+    bool CanEditChecklist,
+    bool CanSubmitFieldReport,
     bool CanEditDetails,
     bool CanIssuePenalty,
     bool CanCloseNoViolation,
     bool CanRecordPayment,
     bool CanClose);
+
+/// <summary>Single checklist evidence item.</summary>
+public sealed record InspectionEvidenceItemDto(
+    Guid Id,
+    InspectionEvidenceCategory Category,
+    string? MediaUrl,
+    string? MimeType,
+    long? SizeBytes,
+    string? Description,
+    int? DurationSeconds,
+    DateTime UploadedAt);
 
 /// <summary>Embedded violating entity info within inspection detail.</summary>
 public sealed record ViolatingEntityEmbeddedDto(
@@ -71,4 +98,3 @@ public sealed record PenaltyPaymentDto(
     Guid RecordedByUserId,
     string? RecordedByUserName,
     DateTime CreatedAt);
-

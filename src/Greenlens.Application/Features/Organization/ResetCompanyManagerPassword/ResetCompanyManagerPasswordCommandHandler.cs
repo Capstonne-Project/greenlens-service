@@ -25,12 +25,17 @@ public sealed class ResetCompanyManagerPasswordCommandHandler(
         ResetCompanyManagerPasswordCommand request,
         CancellationToken ct)
     {
+        logger.LogInformation("Resetting company manager password for user {UserId}", request.ManagerUserId);
+
         // ── 1. Verify company exists ──
         var company = await companies.GetByIdAsync(request.CompanyId, ct)
             .ConfigureAwait(false);
 
         if (company is null)
+        {
+            logger.LogWarning("Company {CompanyId} not found", request.CompanyId);
             return Errors.Organization.CompanyNotFound;
+        }
 
         // ── 2. Verify user is a staff member of this company ──
         var staff = await companyStaff.QueryAsNoTracking()
@@ -39,14 +44,20 @@ public sealed class ResetCompanyManagerPasswordCommandHandler(
             .ConfigureAwait(false);
 
         if (staff is null)
+        {
+            logger.LogWarning("Staff {UserId} not found in company {CompanyId}", request.ManagerUserId, request.CompanyId);
             return Errors.Organization.StaffNotInCompany;
+        }
 
         // ── 3. Get the user (tracked for update) ──
         var user = await users.GetByIdAsync(request.ManagerUserId, ct)
             .ConfigureAwait(false);
 
         if (user is null)
+        {
+            logger.LogWarning("User {UserId} not found", request.ManagerUserId);
             return Errors.Organization.StaffNotFound;
+        }
 
         // ── 4. Generate new temp password and reset ──
         var tempPassword = GenerateTempPassword();

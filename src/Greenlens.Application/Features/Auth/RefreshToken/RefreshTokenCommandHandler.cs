@@ -4,12 +4,13 @@ using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Features.Auth.Login;
 using Greenlens.Domain.Common;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Auth.RefreshToken;
 
 /// <summary>Refresh access token using refresh token rotation.</summary>
-/// <remarks>Implements: BR-AUTH-013 (refresh 30d, rotation).</remarks>
+/// <remarks>Implements: BR-AUTH-013 (refresh 30d, rotation), BR-AUTH-015 (block banned/deleted).</remarks>
 public sealed class RefreshTokenCommandHandler(
     IRefreshTokenRepository refreshTokens,
     IUserRepository users,
@@ -22,7 +23,6 @@ public sealed class RefreshTokenCommandHandler(
         RefreshTokenCommand request,
         CancellationToken cancellationToken)
     {
-        // Hash incoming token and look up in DB
         var tokenHash = jwtService.HashToken(request.RefreshToken);
 
         var existingToken = await refreshTokens.GetByTokenHashAsync(tokenHash, cancellationToken)
@@ -34,14 +34,21 @@ public sealed class RefreshTokenCommandHandler(
             return Errors.Auth.InvalidRefreshToken;
         }
 
-        // Find the token owner
         var user = await users.GetByIdAsync(existingToken.UserId, cancellationToken)
             .ConfigureAwait(false);
 
         if (user is null)
+        {
+            logger.LogWarning("User not found for refresh token user {UserId}", existingToken.UserId);
             return Errors.Auth.UserNotFound;
+        }
 
-        // Rotate: revoke old token, create new one
+        if (user.IsBanned)
+            return Errors.Auth.AccountBanned;
+
+        if (user.IsDeleted)
+            return Errors.Auth.AccountDeactivated;
+
         var newRawToken = jwtService.GenerateRefreshToken();
         var newTokenHash = jwtService.HashToken(newRawToken);
 
@@ -50,7 +57,6 @@ public sealed class RefreshTokenCommandHandler(
         var newRefreshToken = Domain.Entities.RefreshToken.Create(user.Id, newTokenHash);
         refreshTokens.Add(newRefreshToken);
 
-        // Generate new access token
         var accessToken = jwtService.GenerateAccessToken(user);
 
         await uow.SaveChangesAsync(cancellationToken).ConfigureAwait(false);

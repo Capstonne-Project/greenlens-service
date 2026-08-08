@@ -18,6 +18,8 @@ public sealed record GetOfficerQueueQuery(
     DateTime? ToDate = null,
     bool? SlaBreached = null,
     bool? IsPossibleDuplicate = null,
+    bool? IsSuspectedViolationRecurrence = null,
+    bool? HasPendingReopenRequest = null,
     // ── Search ──
     string? Search = null,
     // ── Sort ──
@@ -67,4 +69,8 @@ public sealed record OfficerQueueItem(
     string? PossibleDuplicateOfReportCode,
     string? DuplicateDetectionSource,
     decimal? AiSimilarityScore,
-    int DuplicateCandidateCount);
+    int DuplicateCandidateCount,
+    // ── Violation recurrence (BR-REP-034) ──
+    bool IsSuspectedViolationRecurrence,
+    Guid? SuspectedRecurrenceOfReportId,
+    string? SuspectedRecurrenceOfReportCode);

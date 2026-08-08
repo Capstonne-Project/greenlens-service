@@ -12,7 +12,7 @@ namespace Greenlens.Application.Features.Reports.GetCompanyQueue;
 
 /// <summary>
 /// Returns reports dispatched to the caller's company that are awaiting team assignment.
-/// Filters: Status == Verified AND AssignedCompanyId == caller's companyId.
+/// Filters: Status == InProgress AND AssignedCompanyId == caller's companyId AND no active assignments.
 /// </summary>
 public sealed class GetCompanyQueueQueryHandler(
     IReportRepository reports,
@@ -22,21 +22,32 @@ public sealed class GetCompanyQueueQueryHandler(
 {
     public async Task<Result<GetCompanyQueueResponse>> Handle(GetCompanyQueueQuery request, CancellationToken ct)
     {
+        logger.LogInformation("Getting company queue for user {UserId}", currentUser.UserId);
+
         // Resolve caller's company
         var staff = await companyStaff.GetByUserIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
         if (staff is null || !staff.IsActive)
+        {
+            logger.LogWarning("Staff not found for user {UserId}", currentUser.UserId);
             return Errors.Reports.ReportNotDispatchedToYourCompany;
+        }
 
         var companyId = staff.CompanyId;
 
-        // Query reports dispatched to this company, still Verified (awaiting CM team assignment)
+        logger.LogInformation("Company ID: {CompanyId}", companyId);
+
+        // Query reports dispatched to this company, InProgress, awaiting CM team assignment
         var baseQuery = reports.QueryAsNoTracking()
             .Include(r => r.Category)
-            .Where(r => r.Status == ReportStatus.Verified
-                        && r.AssignedCompanyId == companyId);
+            .Where(r => r.Status == ReportStatus.InProgress
+                        && r.AssignedCompanyId == companyId
+                        && !r.Assignments.Any(a => a.Status != AssignmentStatus.Declined));
 
         if (request.Severity.HasValue)
+        {
+            logger.LogInformation("Filtering by severity: {Severity}", request.Severity.Value);
             baseQuery = baseQuery.Where(r => r.Severity == request.Severity.Value);
+        }
 
         var total = await baseQuery.CountAsync(ct).ConfigureAwait(false);
 

@@ -21,10 +21,15 @@ public sealed class ToggleCompanyStaffStatusCommandHandler(
 {
     public async Task<Result> Handle(ToggleCompanyStaffStatusCommand request, CancellationToken ct)
     {
+        logger.LogInformation("Toggling company staff status for user {UserId}", request.UserId);
+
         // 1. Resolve CM's company
         var cmStaff = await companyStaffRepo.GetByUserIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
         if (cmStaff is null)
+        {
+            logger.LogWarning("Company staff not found for user ID {UserId}", currentUser.UserId);
             return Errors.Organization.NotCompanyManager;
+        }
 
         // 2. Find target staff by userId within same company
         var targetStaff = await companyStaffRepo.Query()
@@ -32,8 +37,10 @@ public sealed class ToggleCompanyStaffStatusCommandHandler(
             .ConfigureAwait(false);
 
         if (targetStaff is null)
+        {
+            logger.LogWarning("Staff not found for user ID {UserId} in company {CompanyId}", request.UserId, cmStaff.CompanyId);
             return Errors.Organization.StaffNotFound;
-
+        }
         // 3. Toggle status
         if (request.IsActive)
             targetStaff.Activate();

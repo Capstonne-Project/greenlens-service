@@ -10,4 +10,7 @@ public interface IInspectionReportRepository : IGenericRepository<InspectionRepo
     Task<int> CountByViolatorInPeriodAsync(string violatorIdentity, int months, CancellationToken ct = default);
 
     Task<InspectionReport?> GetByPaymentIdAsync(Guid paymentId, CancellationToken ct = default);
+
+    /// <summary>Lookup payment including soft-deleted rows (unique index / idempotent delete).</summary>
+    Task<PenaltyPayment?> FindPaymentByIdAsync(Guid paymentId, CancellationToken ct = default);
 }

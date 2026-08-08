@@ -26,4 +26,33 @@ internal sealed class UserRepository(ApplicationDbContext context)
         await DbSet.IgnoreQueryFilters()
             .FirstOrDefaultAsync(u => u.Email == email.ToLowerInvariant() && u.DeletedAt != null, ct)
             .ConfigureAwait(false);
+
+    public async Task<bool> EmailExistsIncludingDeletedAsync(
+        string email,
+        Guid? excludeUserId = null,
+        CancellationToken ct = default)
+    {
+        var normalized = email.Trim().ToLowerInvariant();
+        var query = DbSet.IgnoreQueryFilters().Where(u => u.Email == normalized);
+        if (excludeUserId.HasValue)
+            query = query.Where(u => u.Id != excludeUserId.Value);
+
+        return await query.AnyAsync(ct).ConfigureAwait(false);
+    }
+
+    public async Task<User?> GetByPhoneAsync(string phone, CancellationToken ct = default) =>
+        await DbSet.FirstOrDefaultAsync(u => u.PhoneNumber == phone, ct)
+            .ConfigureAwait(false);
+
+    public async Task<bool> PhoneExistsIncludingDeletedAsync(
+        string phone,
+        Guid? excludeUserId = null,
+        CancellationToken ct = default)
+    {
+        var query = DbSet.IgnoreQueryFilters().Where(u => u.PhoneNumber == phone);
+        if (excludeUserId.HasValue)
+            query = query.Where(u => u.Id != excludeUserId.Value);
+
+        return await query.AnyAsync(ct).ConfigureAwait(false);
+    }
 }

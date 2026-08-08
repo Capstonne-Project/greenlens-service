@@ -44,6 +44,12 @@ internal sealed class UserConfiguration : IEntityTypeConfiguration<User>
         // ── Comment moderation (BR-CMT-003) ──
         builder.Property(u => u.CommentViolationCount).HasDefaultValue(0);
 
+        // ── Gamification showcase (BR-GAM-004) — badge nổi bật trên hồ sơ ──
+        builder.HasOne<Badge>()
+            .WithMany()
+            .HasForeignKey(u => u.FeaturedBadgeId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         // Soft delete query filter
         builder.HasQueryFilter(u => u.DeletedAt == null);
     }

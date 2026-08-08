@@ -20,6 +20,7 @@ public sealed record LockGamificationResponse(
     DateTime LockedUntil);
 
 public sealed class LockGamificationCommandHandler(
+    IUserRepository userRepo,
     IUserPointsRepository userPointsRepo,
     IUnitOfWork unitOfWork,
     ILogger<LockGamificationCommandHandler> logger)
@@ -28,20 +29,33 @@ public sealed class LockGamificationCommandHandler(
     public async Task<Result<LockGamificationResponse>> Handle(
         LockGamificationCommand request, CancellationToken ct)
     {
+        logger.LogInformation("Getting lock gamification");
+
+        // Validate target user exists before creating UserPoints (FK constraint)
+        var user = await userRepo.GetByIdAsync(request.TargetUserId, ct)
+            .ConfigureAwait(false);
+
+        if (user is null)
+        {
+            logger.LogWarning("User {UserId} not found", request.TargetUserId);
+            return Errors.Users.UserNotFound;
+        }
+
         var userPoints = await userPointsRepo
             .GetOrCreateByUserIdAsync(request.TargetUserId, ct)
             .ConfigureAwait(false);
 
         if (userPoints.IsLocked)
+        {
+            logger.LogWarning("User {UserId} already locked", request.TargetUserId);
             return Errors.Gamification.AlreadyLocked;
+        }
 
         var deducted = userPoints.Lock(request.Reason, request.LockDays);
 
-        await unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
+        logger.LogInformation("Gamification locked for user {UserId}. Deducted {Points} points. Reason: {Reason}. Until: {Until}", request.TargetUserId, deducted, request.Reason, userPoints.LockedUntil);
 
-        logger.LogWarning(
-            "BR-GAM-006: Gamification locked for user {UserId}. Deducted {Points} points. Reason: {Reason}. Until: {Until}",
-            request.TargetUserId, deducted, request.Reason, userPoints.LockedUntil);
+        await unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
 
         return new LockGamificationResponse(deducted, userPoints.LockedUntil!.Value);
     }

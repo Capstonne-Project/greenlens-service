@@ -1,5 +1,6 @@
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Domain.Common;
+using Greenlens.Domain.Enums;
 using MediatR;
 
 namespace Greenlens.Application.Features.Media.PresignMediaUpload;
@@ -14,7 +15,11 @@ public enum MediaUploadPurpose
     Progress = 2,
     After = 3,
     Comment = 4,
-    Avatar = 5
+    Avatar = 5,
+    /// <summary>BR-REP-015: Citizen evidence when requesting reopen.</summary>
+    ReopenEvidence = 6,
+    /// <summary>BR-INS-033: Inspector checklist evidence (scene photo / video / audio / other file).</summary>
+    InspectionEvidence = 7
 }
 
 /// <summary>
@@ -29,6 +34,8 @@ public sealed record PresignMediaUploadCommand(
     string ContentType,
     MediaUploadPurpose Purpose,
     Guid? ReportId = null,
+    Guid? InspectionId = null,
+    InspectionEvidenceCategory? EvidenceCategory = null,
     long? FileSizeBytes = null) : IRequest<Result<PresignMediaUploadResponse>>, INoTransaction;
 
 public sealed record PresignMediaUploadResponse(

@@ -32,13 +32,20 @@ public sealed class UploadReportVideoCommandHandler(
         UploadReportVideoCommand request,
         CancellationToken cancellationToken)
     {
+        logger.LogInformation("Getting upload report video");
+
         // ── 1. Input validation ──
         if (!AllowedContentTypes.Contains(request.ContentType))
+        {
+            logger.LogWarning("Invalid video type {ContentType}", request.ContentType);
             return Errors.Media.InvalidVideoType;
+        }
 
         if (request.FileSize > MaxFileSizeBytes)
+        {
+            logger.LogWarning("Video too large {Size} bytes", request.FileSize);
             return Errors.Media.VideoTooLarge;
-
+        }
         // ── 2. Transcode (compress) ──
         VideoTranscodeResult transcodeResult;
         try
@@ -56,6 +63,7 @@ public sealed class UploadReportVideoCommandHandler(
                     MaxDurationSeconds = 60
                 },
                 cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Transcoded video {FileName}", request.FileName);
         }
         catch (VideoDurationExceededException ex)
         {
@@ -84,6 +92,7 @@ public sealed class UploadReportVideoCommandHandler(
                     transcodeResult.OutputContentType,
                     "reports/videos",
                     cancellationToken).ConfigureAwait(false);
+                logger.LogInformation("Uploaded transcoded video {FileName} to R2", request.FileName);
             }
             catch (Exception ex)
             {

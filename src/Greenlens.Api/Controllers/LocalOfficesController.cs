@@ -49,11 +49,11 @@ public sealed class LocalOfficesController(ISender sender) : ControllerBase
     [Authorize(Roles = "Admin")]
     [Tags("⚙️ Admin Dashboard")]
     [SwaggerOperation(Summary = "[Admin] Tạo office", Description = "Onboard văn phòng MT cấp xã/phường. Sau khi tạo, báo cáo trong ward đó sẽ tự động route đến office này.")]
-    [SwaggerResponse(201, "Đã tạo", typeof(ApiResponse<CreateLocalOfficeResponse>))]
+    [SwaggerResponse(200, "Đã tạo", typeof(ApiResponse<CreateLocalOfficeResponse>))]
     [SwaggerResponse(409, "Ward đã có office", typeof(ApiResponse))]
     public async Task<IActionResult> CreateAsync(
         [FromBody] CreateLocalOfficeCommand command, CancellationToken ct)
-        => (await sender.Send(command, ct)).ToHttpCreated();
+        => (await sender.Send(command, ct)).ToHttp("Đã tạo văn phòng thành công.");
 
     [HttpPut("{id:guid}")]
     [Authorize(Roles = "Admin")]
@@ -88,6 +88,7 @@ public sealed class LocalOfficesController(ISender sender) : ControllerBase
             "tên team, loại team, trạng thái assignment, phần trăm tiến độ, ghi chú, thời gian. " +
             "Mỗi item có `thumbnails` (mảng URL ảnh đầu tiên của báo cáo, MediaType=Image). " +
             "Hỗ trợ tìm kiếm (mã báo cáo, mô tả, địa chỉ), lọc theo status/category/severity/assignmentStatus, " +
+            "khoảng ngày tạo (fromDate, toDate — ISO date, inclusive theo ngày UTC), " +
             "sắp xếp theo: code, status, severity, priority, createdAt, assignmentCount (mặc định: mới nhất).")]
     [SwaggerResponse(200, "Danh sách báo cáo kèm tiến độ", typeof(ApiResponse<GetOfficeReportsResponse>))]
     [SwaggerResponse(404, "Chưa gán local office", typeof(ApiResponse))]
@@ -96,10 +97,12 @@ public sealed class LocalOfficesController(ISender sender) : ControllerBase
         [FromQuery] string? search = null, [FromQuery] ReportStatus? status = null,
         [FromQuery] Guid? categoryId = null, [FromQuery] Severity? severity = null,
         [FromQuery] AssignmentStatus? assignmentStatus = null,
+        [FromQuery] DateTime? fromDate = null, [FromQuery] DateTime? toDate = null,
         [FromQuery] string? sortBy = null, [FromQuery] bool sortDesc = false,
         CancellationToken ct = default)
         => (await sender.Send(new GetOfficeReportsQuery(
-            page, pageSize, search, status, categoryId, severity, assignmentStatus, sortBy, sortDesc), ct)).ToHttp();
+            page, pageSize, search, status, categoryId, severity, assignmentStatus,
+            fromDate, toDate, sortBy, sortDesc), ct)).ToHttp();
 
     // ═══════════════════════════════════════════
     // ██  STAFF MANAGEMENT
@@ -128,7 +131,7 @@ public sealed class LocalOfficesController(ISender sender) : ControllerBase
             "Citizen phải Accept trước khi role đổi. " +
             "Nếu truyền teamId → sẽ thêm vào team khi Citizen accept. " +
             "Chỉ Citizen mới được mời. User đã thuộc phường khác → reject.")]
-    [SwaggerResponse(201, "Đã gửi lời mời", typeof(ApiResponse<RecruitStaffResponse>))]
+    [SwaggerResponse(200, "Đã gửi lời mời", typeof(ApiResponse<RecruitStaffResponse>))]
     [SwaggerResponse(404, "Không tìm thấy email trong hệ thống", typeof(ApiResponse))]
     [SwaggerResponse(409, "User đã thuộc phường/team khác hoặc đã có invitation pending", typeof(ApiResponse))]
     [SwaggerResponse(422, "Role không hợp lệ hoặc chưa gán office", typeof(ApiResponse))]
@@ -136,7 +139,7 @@ public sealed class LocalOfficesController(ISender sender) : ControllerBase
         [FromBody] RecruitStaffRequest request, CancellationToken ct)
         => (await sender.Send(
             new RecruitStaffCommand(request.Email, request.TargetRole, request.TeamId, request.IsLeader), ct))
-            .ToHttpCreated();
+            .ToHttp("Đã gửi lời mời thành công.");
 
     [HttpDelete("my/staff/{userId:guid}")]
     [Authorize(Roles = "LEO,Admin")]

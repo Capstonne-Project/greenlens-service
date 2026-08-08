@@ -1,26 +1,164 @@
-# GreenLens — Conceptual ERD
+# GreenLens — Conceptual ERD (v2.0)
 
 > **Dự án:** SU26SE049 — Crowdsourced Application for Reporting Environmental Pollution
-> **Loại:** Conceptual ERD — Object + Relationship (không attribute)
-> **Cập nhật:** 2026-07-15
-> **Tổng:** 43 entities · 6 actors
+> **Loại:** Conceptual ERD — Object + Relationship (không attribute) + Actor-Entity interaction
+> **Cập nhật:** 2026-08-07 · **Nguồn:** Domain entities + BR v2.0
+> **Tổng:** 48 entities · 7 actors
 
 ---
 
 ## Actors
 
-| Actor                      | Role                                                         | Entities chính tương tác                                           |
-| -------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------ |
-| 🟢 **Citizen**             | Gửi báo cáo, bình luận, flag, đánh giá, gamification       | Report, Comment, ReportFlag, ReportSatisfaction, UserPoints, Badge |
-| 🔵 **LEO** (Local Env. Officer) | Xác minh, assign team, tạo biên bản kiểm tra, mời nhân sự | Report, ReportAssignment, InspectionReport, StaffInvitation        |
-| 🟣 **DEO** (Dept Env. Officer) | Quản lý cấp tỉnh, tạo company, gia hạn hợp đồng           | Department, EnvironmentalServiceCompany, ContractPeriod            |
-| 🟠 **Cleanup Team**        | Nhận task, check-in, cập nhật tiến độ, resolve               | ReportAssignment, EnvironmentalTeam, TeamMember                    |
-| 🔴 **Inspection Team**     | Kiểm tra vi phạm, xử phạt, thu tiền phạt                    | InspectionReport, ViolatingEntity, PenaltyPayment                  |
-| ⚫ **System Administrator** | Quản lý user/role, danh mục, cấu hình, audit, content mod  | AuditLog, PenaltyFramework, BlockedWord, GamificationConfig        |
+| Actor                           | Role                                                              | Entities chính tương tác                                                                    |
+| ------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| 🟢 **Citizen**                  | Gửi báo cáo, bình luận, flag, đánh giá, tham gia dọn dẹp cộng đồng, gamification | Report, Comment, CommentLike, ReportFlag, ReportSatisfaction, ReportReopenRequest, CommunityCleanupParticipant, UserPoints, Badge |
+| 🔵 **LEO** (Local Env. Officer) | Xác minh, assign team, tạo biên bản kiểm tra, mở chương trình community cleanup, mời nhân sự, moderate | Report, ReportAssignment, InspectionReport, CommunityCleanupEvent, StaffInvitation, Comment (hide) |
+| 🟣 **DEO** (Dept Env. Officer)  | Quản lý cấp tỉnh, tạo company, gia hạn hợp đồng                 | Department, EnvironmentalServiceCompany, ContractPeriod                                     |
+| 🟠 **Cleanup Team**             | Nhận task, check-in, cập nhật tiến độ, resolve                    | ReportAssignment, EnvironmentalTeam, TeamMember                                             |
+| 🔴 **Inspection Team**          | Checklist workflow, xử phạt, thu tiền phạt                       | InspectionReport, InspectionEvidence, ViolatingEntity, PenaltyPayment                       |
+| 🟡 **Company Manager**          | Quản lý nhân sự công ty, nhận task dispatch                      | EnvironmentalServiceCompany, CompanyStaff, ReportAssignment                                 |
+| ⚫ **System Administrator**     | Quản lý user/role, danh mục, cấu hình, audit, content mod        | AuditLog, PenaltyFramework, BlockedWord, GamificationConfig, NotificationTemplate           |
 
 ---
 
-## ER Diagram
+## ER Diagram — Actor-Entity Interaction
+
+> Diagram này mô tả **actor nào tương tác với thực thể nào** — tất cả actor là thực thể riêng, nối tới các domain entity bằng nhãn hành vi.
+
+```mermaid
+%%{init: {'flowchart': {'curve': 'stepBefore', 'nodeSpacing': 25, 'rankSpacing': 50, 'padding': 10}}}%%
+flowchart TB
+    subgraph ACTORS["🎭 Actors"]
+        Citizen["🟢 Citizen"]
+        LEO["🔵 LEO"]
+        DEO["🟣 DEO"]
+        CleanupTeam["🟠 Cleanup Team"]
+        InspectionTeam["🔴 Inspection Team"]
+        CompanyMgr["🟡 Company Manager"]
+        Admin["⚫ System Admin"]
+    end
+
+    subgraph REPORT_CORE["📝 Report"]
+        Report["Report"]
+        ReportMedia["ReportMedia"]
+        ReportFlag["ReportFlag"]
+        ReportSatisfaction["ReportSatisfaction"]
+        ReportReopenRequest["ReportReopenRequest"]
+        ReportDraft["ReportDraft"]
+    end
+
+    subgraph CLEANUP["🧹 Cleanup"]
+        ReportAssignment["ReportAssignment"]
+    end
+
+    subgraph COMMUNITY["🤝 Community Cleanup"]
+        CommunityCleanupEvent["CommunityCleanupEvent"]
+        CommunityCleanupParticipant["CommunityCleanupParticipant"]
+    end
+
+    subgraph INSPECTION["⚖️ Inspection"]
+        InspectionReport["InspectionReport"]
+        InspectionEvidence["InspectionEvidence"]
+        ViolatingEntity["ViolatingEntity"]
+        PenaltyPayment["PenaltyPayment"]
+    end
+
+    subgraph COMMENT_MOD["💬 Comment"]
+        Comment["Comment"]
+        CommentLike["CommentLike"]
+    end
+
+    subgraph GAMIFICATION["🏆 Gamification"]
+        UserPoints["UserPoints"]
+        Badge["Badge"]
+    end
+
+    subgraph ORGANIZATION["🏛️ Organization"]
+        Department["Department"]
+        LocalOffice["LocalOffice"]
+        EnvironmentalTeam["EnvironmentalTeam"]
+        StaffInvitation["StaffInvitation"]
+    end
+
+    subgraph COMPANY["🏢 Company"]
+        ESC["EnvServiceCompany"]
+        CompanyStaff["CompanyStaff"]
+        ContractPeriod["ContractPeriod"]
+    end
+
+    subgraph ADMIN_MOD["⚙️ Administration"]
+        AuditLog["AuditLog"]
+        PenaltyFramework["PenaltyFramework"]
+        BlockedWord["BlockedWord"]
+        GamificationConfig["GamificationConfig"]
+        NotificationTemplate["NotificationTemplate"]
+    end
+
+    %% ══════ Citizen interactions ══════
+    Citizen -- "submits" --> Report
+    Citizen -- "uploads" --> ReportMedia
+    Citizen -- "flags" --> ReportFlag
+    Citizen -- "rates" --> ReportSatisfaction
+    Citizen -- "requests reopen" --> ReportReopenRequest
+    Citizen -- "saves draft" --> ReportDraft
+    Citizen -- "comments" --> Comment
+    Citizen -- "likes" --> CommentLike
+    Citizen -- "joins" --> CommunityCleanupParticipant
+    Citizen -- "earns" --> UserPoints
+    Citizen -- "receives" --> Badge
+
+    %% ══════ LEO interactions ══════
+    LEO -- "verifies / rejects" --> Report
+    LEO -- "assigns team" --> ReportAssignment
+    LEO -- "creates inspection" --> InspectionReport
+    LEO -- "opens program" --> CommunityCleanupEvent
+    LEO -- "invites staff" --> StaffInvitation
+    LEO -- "hides" --> Comment
+    LEO -- "approves reopen" --> ReportReopenRequest
+
+    %% ══════ DEO interactions ══════
+    DEO -- "manages" --> Department
+    DEO -- "creates / manages" --> ESC
+    DEO -- "renews" --> ContractPeriod
+
+    %% ══════ Cleanup Team interactions ══════
+    CleanupTeam -- "executes" --> ReportAssignment
+    CleanupTeam -- "belongs to" --> EnvironmentalTeam
+    CleanupTeam -- "leads" --> CommunityCleanupEvent
+
+    %% ══════ Inspection Team interactions ══════
+    InspectionTeam -- "investigates" --> InspectionReport
+    InspectionTeam -- "uploads evidence" --> InspectionEvidence
+    InspectionTeam -- "identifies" --> ViolatingEntity
+    InspectionTeam -- "records payment" --> PenaltyPayment
+
+    %% ══════ Company Manager interactions ══════
+    CompanyMgr -- "manages staff" --> CompanyStaff
+    CompanyMgr -- "accepts dispatch" --> ReportAssignment
+
+    %% ══════ Admin interactions ══════
+    Admin -- "reviews" --> AuditLog
+    Admin -- "configures" --> PenaltyFramework
+    Admin -- "manages" --> BlockedWord
+    Admin -- "configures" --> GamificationConfig
+    Admin -- "manages" --> NotificationTemplate
+    Admin -- "manages offices" --> LocalOffice
+
+    style ACTORS fill:#f5f5f5,stroke:#424242,stroke-width:3px
+    style REPORT_CORE fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    style CLEANUP fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    style COMMUNITY fill:#e0f2f1,stroke:#00695c,stroke-width:2px
+    style INSPECTION fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style COMMENT_MOD fill:#fce4ec,stroke:#c62828,stroke-width:2px
+    style GAMIFICATION fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px
+    style ORGANIZATION fill:#e8eaf6,stroke:#283593,stroke-width:2px
+    style COMPANY fill:#fff9c4,stroke:#f57f17,stroke-width:2px
+    style ADMIN_MOD fill:#efebe9,stroke:#4e342e,stroke-width:2px
+```
+
+---
+
+## ER Diagram — Entity Relationships
 
 ```mermaid
 erDiagram
@@ -61,6 +199,7 @@ erDiagram
     EnvironmentalTeam ||--o{ TeamMember : "contains"
     EnvironmentalTeam ||--o{ ReportAssignment : "assigned (Cleanup)"
     EnvironmentalTeam ||--o{ InspectionReport : "inspects (Inspection)"
+    EnvironmentalTeam ||--o{ CommunityCleanupEvent : "leads (Leader)"
     EnvironmentalTeam ||--o{ StaffInvitation : "target team"
     TeamMember }o--|| User : "is"
 
@@ -103,22 +242,42 @@ erDiagram
     Report ||--o{ ReportWasteTag : "tagged with"
     Report ||--o{ ReportFlag : "flagged"
     Report ||--o| ReportSatisfaction : "rated (Citizen)"
-    Report ||--o| ReportDraft : "drafted as"
+    Report ||--o{ ReportDraft : "drafted as"
     Report ||--o{ InspectionReport : "inspected"
     Report ||--o{ Report : "parent of duplicates"
     Report ||--o{ Comment : "discussed"
+    Report ||--o{ ReportReopenRequest : "reopen requested"
+    Report ||--o{ CommunityCleanupEvent : "community cleanup"
     Report }o--|| PollutionCategory : "categorized as"
 
     ReportAssignment }o--|| User : "assigned by (LEO/CM)"
     ReportSatisfaction }o--|| User : "rated by (Citizen)"
+    ReportReopenRequest }o--|| User : "requested by (Citizen)"
+    ReportReopenRequest }o--o| User : "reviewed by (LEO)"
+    ReportReopenRequest ||--o{ ReportMedia : "evidence"
+    ReportMedia }o--o| User : "uploaded by"
 
     %% ════════════════════════════════════════════
-    %% COMMENT (Citizen discussion on reports)
+    %% COMMUNITY CLEANUP (NEW v2.0)
+    %% Actor: LEO creates, Cleaner leads, Citizen joins
+    %% ════════════════════════════════════════════
+
+    CommunityCleanupEvent }o--|| User : "created by (LEO)"
+    CommunityCleanupEvent }o--|| User : "led by (Cleaner)"
+    CommunityCleanupEvent }o--o| User : "verified by (LEO)"
+    CommunityCleanupEvent ||--o{ CommunityCleanupParticipant : "has participants"
+    CommunityCleanupParticipant }o--|| User : "is (Citizen/Cleaner)"
+
+    %% ════════════════════════════════════════════
+    %% COMMENT
     %% Actor: Citizen creates, LEO/Admin can hide
     %% ════════════════════════════════════════════
 
     Comment }o--|| User : "authored by (Citizen)"
     Comment ||--o{ CommentMedia : "has media"
+    Comment ||--o{ CommentLike : "liked"
+    Comment ||--o{ Comment : "replies"
+    CommentLike }o--|| User : "liked by (Citizen)"
 
     %% ════════════════════════════════════════════
     %% INSPECTION & PENALTY
@@ -128,14 +287,15 @@ erDiagram
     InspectionReport }o--|| User : "created by (LEO)"
     InspectionReport }o--o| User : "penalty issued by (Inspector)"
     InspectionReport }o--o| ViolatingEntity : "links to violator"
+    InspectionReport ||--o{ InspectionEvidence : "has evidence"
     InspectionReport ||--o{ PenaltyPayment : "has payments"
+    InspectionEvidence }o--|| User : "uploaded by (Inspector)"
     PenaltyPayment }o--|| User : "recorded by (Inspector)"
 
     %% ════════════════════════════════════════════
     %% CATALOG
     %% ════════════════════════════════════════════
 
-    PollutionCategory ||--o{ WasteTag : "contains"
     ReportWasteTag }o--|| WasteTag : "is"
     PenaltyFramework }o--|| PollutionCategory : "per category"
 
@@ -155,7 +315,7 @@ erDiagram
     %% ════════════════════════════════════════════
 
     User ||--o{ Notification : "receives"
-    User ||--o| NotificationPreference : "configures"
+    User ||--o{ NotificationPreference : "configures"
     Notification }o--o| NotificationTemplate : "rendered from"
 
     %% ════════════════════════════════════════════
@@ -178,16 +338,17 @@ erDiagram
 | `}o--o\|`    | Many-to-Zero-or-One (N → 0..1) | N InspectionReport → 0..1 Team |
 | `\|\|--o\|`  | One-to-Zero-or-One (1 → 0..1)  | 1 User → 0..1 UserPoints       |
 
-### Actor color legend (cho visual tools)
+### Actor color legend
 
-| Color | Actor                      |
-| ----- | -------------------------- |
-| 🟢    | Citizen                    |
-| 🔵    | LEO (Local Env. Officer)   |
-| 🟣    | DEO (Dept Env. Officer)    |
-| 🟠    | Cleanup Team               |
-| 🔴    | Inspection Team            |
-| ⚫    | System Administrator       |
+| Color | Actor                        |
+| ----- | ---------------------------- |
+| 🟢    | Citizen                      |
+| 🔵    | LEO (Local Env. Officer)     |
+| 🟣    | DEO (Dept Env. Officer)      |
+| 🟠    | Cleanup Team                 |
+| 🔴    | Inspection Team              |
+| 🟡    | Company Manager              |
+| ⚫    | System Administrator         |
 
 ---
 
@@ -223,110 +384,134 @@ erDiagram
 | 14  | **TeamMember** → **User**                    | N : 1       | `TeamMember.UserId` → `User.Id`                               | 🟠🔴  | Mỗi TeamMember map tới 1 User                                                |
 | 15  | **EnvironmentalTeam** → **ReportAssignment** | 1 : N       | `ReportAssignment.TeamId` → `EnvironmentalTeam.Id`            | 🟠    | Cleanup team nhận task qua assignment                                        |
 | 16  | **EnvironmentalTeam** → **InspectionReport** | 1 : N       | `InspectionReport.AssignedTeamId` → `EnvironmentalTeam.Id`    | 🔴    | Inspection team nhận task xử phạt. Nullable (chưa assign)                    |
-| 17  | **EnvironmentalTeam** → **StaffInvitation**  | 1 : N       | `StaffInvitation.TeamId` → `EnvironmentalTeam.Id`             | 🔵    | Mời vào team cụ thể (nullable — có thể mời vào office mà chưa chỉ định team) |
-| 18  | **EnvironmentalTeam** discriminator          | —           | `EnvironmentalTeam.TeamType` (enum: `Cleanup` / `Inspection`) | —     | Cùng entity, phân biệt bằng enum. Inspection team không thể thuộc company    |
+| 17  | **EnvironmentalTeam** → **CommunityCleanupEvent** | 1 : N  | `CommunityCleanupEvent.LeaderTeamId` → `EnvironmentalTeam.Id` | 🟠    | Leader team dẫn đầu community cleanup                                       |
+| 18  | **EnvironmentalTeam** → **StaffInvitation**  | 1 : N       | `StaffInvitation.TeamId` → `EnvironmentalTeam.Id`             | 🔵    | Mời vào team cụ thể (nullable — có thể mời vào office mà chưa chỉ định team) |
+| 19  | **EnvironmentalTeam** discriminator          | —           | `EnvironmentalTeam.TeamType` (enum: `Cleanup` / `Inspection`) | —     | Cùng entity, phân biệt bằng enum                                            |
 
-### 🏭 Module 4: Company (Environmental Service) — 🟣 DEO
+### 🏭 Module 4: Company (Environmental Service) — 🟣 DEO · 🟡 Company Manager
 
 | #   | Quan hệ                                          | Cardinality | FK / Cách liên kết                                                | Actor | Ghi chú                                                                |
 | --- | ------------------------------------------------ | ----------- | ----------------------------------------------------------------- | ----- | ---------------------------------------------------------------------- |
-| 19  | **Department** → **EnvironmentalServiceCompany** | 1 : N       | `EnvironmentalServiceCompany.DepartmentId` → `Department.Id`      | 🟣    | Sở ký hợp đồng với nhiều công ty                                       |
-| 20  | **Company** → **CompanyStaff**                   | 1 : N       | `CompanyStaff.CompanyId` → `EnvironmentalServiceCompany.Id`       |       | Công ty có nhiều nhân viên hiện trường                                 |
-| 21  | **CompanyStaff** → **User**                      | N : 1       | `CompanyStaff.UserId` → `User.Id`                                 |       | Mỗi CompanyStaff map tới 1 User (role = CompanyStaff)                  |
-| 22  | **Company** → **CompanyServiceArea**             | 1 : N       | `CompanyServiceArea.CompanyId` → `EnvironmentalServiceCompany.Id` | 🟣    | Vùng phục vụ của công ty                                               |
-| 23  | **CompanyServiceArea** → **Ward**                | N : 1       | `CompanyServiceArea.WardCode` → `Ward.Code`                       |       | Một ward có thể thuộc service area của nhiều công ty                   |
-| 24  | **Company** → **EnvironmentalTeam**              | 1 : N       | `EnvironmentalTeam.CompanyId` → `EnvironmentalServiceCompany.Id`  |       | Company teams (CompanyId != null). Không có LocalOfficeId              |
-| 25  | **Company** → **Report**                         | 1 : N       | `Report.AssignedCompanyId` → `EnvironmentalServiceCompany.Id`     | 🔵    | LEO dispatch report cho công ty xử lý. Nullable = community team xử lý |
-| 26  | **Company** → **ContractPeriod**                 | 1 : N       | `ContractPeriod.CompanyId` → `EnvironmentalServiceCompany.Id`     | 🟣    | Lịch sử kỳ hợp đồng. DEO gia hạn/tái ký (BR-CMP-006)                  |
-| 27  | **ContractPeriod** → **User** (RenewedBy)        | N : 1       | `ContractPeriod.RenewedByUserId` → `User.Id`                     | 🟣    | DEO/Admin thực hiện gia hạn                                             |
+| 20  | **Department** → **EnvironmentalServiceCompany** | 1 : N       | `EnvironmentalServiceCompany.DepartmentId` → `Department.Id`      | 🟣    | Sở ký hợp đồng với nhiều công ty                                       |
+| 21  | **Company** → **CompanyStaff**                   | 1 : N       | `CompanyStaff.CompanyId` → `EnvironmentalServiceCompany.Id`       | 🟡    | Công ty có nhiều nhân viên hiện trường                                 |
+| 22  | **CompanyStaff** → **User**                      | N : 1       | `CompanyStaff.UserId` → `User.Id`                                 | 🟡    | Mỗi CompanyStaff map tới 1 User (role = CompanyStaff)                  |
+| 23  | **Company** → **CompanyServiceArea**             | 1 : N       | `CompanyServiceArea.CompanyId` → `EnvironmentalServiceCompany.Id` | 🟣    | Vùng phục vụ của công ty                                               |
+| 24  | **CompanyServiceArea** → **Ward**                | N : 1       | `CompanyServiceArea.WardCode` → `Ward.Code`                       |       | Một ward có thể thuộc service area của nhiều công ty                   |
+| 25  | **Company** → **EnvironmentalTeam**              | 1 : N       | `EnvironmentalTeam.CompanyId` → `EnvironmentalServiceCompany.Id`  | 🟡    | Company teams (CompanyId != null). Không có LocalOfficeId              |
+| 26  | **Company** → **Report**                         | 1 : N       | `Report.AssignedCompanyId` → `EnvironmentalServiceCompany.Id`     | 🔵    | LEO dispatch report cho công ty xử lý. Nullable = community team xử lý |
+| 27  | **Company** → **ContractPeriod**                 | 1 : N       | `ContractPeriod.CompanyId` → `EnvironmentalServiceCompany.Id`     | 🟣    | Lịch sử kỳ hợp đồng. DEO gia hạn/tái ký (BR-CMP-006)                  |
+| 28  | **ContractPeriod** → **User** (RenewedBy)        | N : 1       | `ContractPeriod.RenewedByUserId` → `User.Id`                     | 🟣    | DEO/Admin thực hiện gia hạn                                             |
 
 ### 👤 Module 5: User & Auth — All actors
 
 | #   | Quan hệ                                     | Cardinality | FK / Cách liên kết                            | Ghi chú                                                              |
 | --- | ------------------------------------------- | ----------- | --------------------------------------------- | -------------------------------------------------------------------- |
-| 28  | **User** → **RefreshToken**                 | 1 : N       | `RefreshToken.UserId` → `User.Id`             | Mỗi device/session tạo 1 refresh token. Rotation: revoke cũ khi dùng |
-| 29  | **User** → **PasswordHistory**              | 1 : N       | `PasswordHistory.UserId` → `User.Id`          | Lưu 3 password hash gần nhất. Chặn re-use (BR-AUTH-012)              |
-| 30  | **User** → **OtpCode**                      | 1 : N       | `OtpCode.UserId` → `User.Id`                  | OTP cho xác thực email/phone. Có TTL + purpose                       |
-| 31  | **User** → **StaffInvitation** (invited by) | 1 : N       | `StaffInvitation.InvitedByUserId` → `User.Id` | LEO gửi lời mời                                                      |
-| 32  | **User** → **StaffInvitation** (invited as) | 1 : N       | `StaffInvitation.InvitedUserId` → `User.Id`   | Citizen nhận lời mời trở thành Cleaner/Inspector                     |
+| 29  | **User** → **RefreshToken**                 | 1 : N       | `RefreshToken.UserId` → `User.Id`             | Mỗi device/session tạo 1 refresh token. Rotation: revoke cũ khi dùng |
+| 30  | **User** → **PasswordHistory**              | 1 : N       | `PasswordHistory.UserId` → `User.Id`          | Lưu 3 password hash gần nhất. Chặn re-use (BR-AUTH-012)              |
+| 31  | **User** → **OtpCode**                      | 1 : N       | `OtpCode.UserId` → `User.Id`                  | OTP cho xác thực email/phone. Có TTL + purpose                       |
+| 32  | **User** → **StaffInvitation** (invited by) | 1 : N       | `StaffInvitation.InvitedByUserId` → `User.Id` | LEO gửi lời mời                                                      |
+| 33  | **User** → **StaffInvitation** (invited as) | 1 : N       | `StaffInvitation.InvitedUserId` → `User.Id`   | Citizen nhận lời mời trở thành Cleaner/Inspector                     |
 
 ### 📋 Module 6: Report (Core Aggregate) — 🟢 Citizen · 🔵 LEO
 
-| #   | Quan hệ                              | Cardinality | FK / Cách liên kết                              | Actor | Ghi chú                                                                |
-| --- | ------------------------------------ | ----------- | ----------------------------------------------- | ----- | ---------------------------------------------------------------------- |
-| 33  | **User** → **Report**                | 1 : N       | `Report.ReporterId` → `User.Id`                 | 🟢    | Citizen gửi báo cáo. Nullable (anonymous report, BR-AUTH-014)          |
-| 34  | **Report** → **LocalOffice**         | N : 0..1    | `Report.AssignedOfficeId` → `LocalOffice.Id`    | 🔵    | Auto-route theo GPS/WardCode. Null nếu ward chưa onboard               |
-| 35  | **Report** → **Department**          | N : 0..1    | `Report.AssignedDepartmentId` → `Department.Id` | 🟣    | Auto-route theo ProvinceCode. Fallback queue khi không match office    |
-| 36  | **Report** → **PollutionCategory**   | N : 1       | `Report.CategoryId` → `PollutionCategory.Id`    |       | Mỗi report thuộc đúng 1 danh mục ô nhiễm                               |
-| 37  | **Report** → **ReportMedia**         | 1 : N       | `ReportMedia.ReportId` → `Report.Id`            | 🟢    | Tối đa 5 ảnh/video. Ít nhất 1 ảnh bắt buộc (BR-REP-001)                |
-| 38  | **Report** → **ReportStatusHistory** | 1 : N       | `ReportStatusHistory.ReportId` → `Report.Id`    |       | Lịch sử mỗi lần chuyển status (audit trail)                            |
-| 39  | **Report** → **ReportAssignment**    | 1 : N       | `ReportAssignment.ReportId` → `Report.Id`       | 🔵    | 1 report có thể assign cho nhiều team (cleanup + inspection song song) |
-| 40  | **ReportAssignment** → **User**      | N : 1       | `ReportAssignment.AssignedById` → `User.Id`     | 🔵    | LEO/CM nào assign task này                                             |
-| 41  | **Report** → **ReportWasteTag**      | 1 : N       | `ReportWasteTag.ReportId` → `Report.Id`         |       | Join table: 1 report gắn N waste tags                                  |
-| 42  | **ReportWasteTag** → **WasteTag**    | N : 1       | `ReportWasteTag.WasteTagId` → `WasteTag.Id`     |       | Many-to-many qua join table                                            |
-| 43  | **Report** → **ReportFlag**          | 1 : N       | `ReportFlag.ReportId` → `Report.Id`             | 🟢    | Citizen flag báo cáo (spam, duplicate, invalid…)                       |
-| 44  | **ReportFlag** → **User**            | N : 1       | `ReportFlag.FlaggerId` → `User.Id`              | 🟢    | Ai flag. Unique constraint: (ReportId, FlaggerId, FlagType)            |
-| 45  | **Report** → **ReportSatisfaction**  | 1 : 0..1    | `ReportSatisfaction.ReportId` → `Report.Id`     | 🟢    | Citizen đánh giá mức hài lòng sau khi report Resolved                  |
-| 46  | **ReportSatisfaction** → **User**    | N : 1       | `ReportSatisfaction.UserId` → `User.Id`         | 🟢    | Citizen nào rate                                                       |
-| 47  | **Report** → **ReportDraft**         | 1 : 0..1    | `ReportDraft.ReportId` → `Report.Id`            | 🟢    | Bản nháp chưa submit. Cleanup job xóa draft > 7 ngày                   |
-| 48  | **Report** → **Report** (self-ref)   | 1 : N       | `Report.ParentReportId` → `Report.Id`           |       | Duplicate tracking. Report trùng trỏ về report gốc                     |
-| 49  | **Report** → **User** (VerifiedBy)   | N : 0..1    | `Report.VerifiedBy` → `User.Id`                 | 🔵    | LEO nào xác minh report này                                            |
+| #   | Quan hệ                                 | Cardinality | FK / Cách liên kết                              | Actor | Ghi chú                                                                 |
+| --- | ---------------------------------------- | ----------- | ----------------------------------------------- | ----- | ----------------------------------------------------------------------- |
+| 34  | **User** → **Report**                   | 1 : N       | `Report.ReporterId` → `User.Id`                 | 🟢    | Citizen gửi báo cáo. Nullable (anonymous report, BR-AUTH-014)           |
+| 35  | **Report** → **LocalOffice**            | N : 0..1    | `Report.AssignedOfficeId` → `LocalOffice.Id`    | 🔵    | Auto-route theo GPS/WardCode. Null nếu ward chưa onboard                |
+| 36  | **Report** → **Department**             | N : 0..1    | `Report.AssignedDepartmentId` → `Department.Id` | 🟣    | Auto-route theo ProvinceCode. Fallback queue khi không match office     |
+| 37  | **Report** → **PollutionCategory**      | N : 1       | `Report.CategoryId` → `PollutionCategory.Id`    |       | Mỗi report thuộc đúng 1 danh mục ô nhiễm                                |
+| 38  | **Report** → **ReportMedia**            | 1 : N       | `ReportMedia.ReportId` → `Report.Id`            | 🟢    | Tối đa 5 ảnh/video. Ít nhất 1 ảnh bắt buộc (BR-REP-001)                |
+| 39  | **Report** → **ReportStatusHistory**    | 1 : N       | `ReportStatusHistory.ReportId` → `Report.Id`    |       | Lịch sử mỗi lần chuyển status (audit trail)                             |
+| 40  | **Report** → **ReportAssignment**       | 1 : N       | `ReportAssignment.ReportId` → `Report.Id`       | 🔵    | 1 report có thể assign cho nhiều team (cleanup song song)               |
+| 41  | **ReportAssignment** → **User**         | N : 1       | `ReportAssignment.AssignedById` → `User.Id`     | 🔵    | LEO/CM nào assign task này                                              |
+| 42  | **Report** → **ReportWasteTag**         | 1 : N       | `ReportWasteTag.ReportId` → `Report.Id`         |       | Join table: 1 report gắn N waste tags                                   |
+| 43  | **ReportWasteTag** → **WasteTag**       | N : 1       | `ReportWasteTag.WasteTagId` → `WasteTag.Id`     |       | Many-to-many qua join table                                             |
+| 44  | **Report** → **ReportFlag**             | 1 : N       | `ReportFlag.ReportId` → `Report.Id`             | 🟢    | Citizen flag báo cáo (spam, duplicate, invalid…)                        |
+| 45  | **ReportFlag** → **User**              | N : 1       | `ReportFlag.FlaggerId` → `User.Id`              | 🟢    | Ai flag. Unique constraint: (ReportId, FlaggerId, FlagType)             |
+| 46  | **Report** → **ReportSatisfaction**     | 1 : 0..1    | `ReportSatisfaction.ReportId` → `Report.Id`     | 🟢    | Citizen đánh giá mức hài lòng sau khi report Resolved                   |
+| 47  | **ReportSatisfaction** → **User**      | N : 1       | `ReportSatisfaction.UserId` → `User.Id`         | 🟢    | Citizen nào rate                                                        |
+| 48  | **Report** → **ReportDraft**            | 1 : N       | `ReportDraft.UserId` → `User.Id`                | 🟢    | Bản nháp chưa submit. Cleanup job xóa draft > 7 ngày                    |
+| 49  | **Report** → **Report** (self-ref)      | 1 : N       | `Report.ParentReportId` → `Report.Id`           |       | Duplicate tracking. Report trùng trỏ về report gốc                      |
+| 50  | **Report** → **User** (VerifiedBy)      | N : 0..1    | `Report.VerifiedBy` → `User.Id`                 | 🔵    | LEO nào xác minh report này                                             |
+| 51  | **Report** → **ReportReopenRequest**    | 1 : N       | `ReportReopenRequest.ReportId` → `Report.Id`   | 🟢    | Citizen yêu cầu mở lại report Resolved (BR-REP-015). Max 1 approved     |
+| 52  | **ReportReopenRequest** → **User** (RequestedBy) | N : 1 | `ReportReopenRequest.RequestedBy` → `User.Id`  | 🟢    | Citizen nào yêu cầu                                                     |
+| 53  | **ReportReopenRequest** → **User** (ReviewedBy)  | N : 0..1 | `ReportReopenRequest.ReviewedBy` → `User.Id` | 🔵    | LEO duyệt/từ chối                                                       |
+| 54  | **ReportReopenRequest** → **ReportMedia** | 1 : N    | `ReportMedia.ReopenRequestId` → `ReportReopenRequest.Id` | 🟢 | Bằng chứng đính kèm yêu cầu mở lại                               |
+| 55  | **ReportMedia** → **User** (UploadedBy) | N : 0..1    | `ReportMedia.UploadedBy` → `User.Id`           | 🟢    | Ai upload media này                                                      |
 
-### 💬 Module 7: Comment — 🟢 Citizen · 🔵 LEO (moderate)
+### 🤝 Module 7: Community Cleanup — 🔵 LEO · 🟠 Cleanup · 🟢 Citizen
 
-| #   | Quan hệ                            | Cardinality | FK / Cách liên kết                    | Actor | Ghi chú                                                 |
-| --- | ---------------------------------- | ----------- | ------------------------------------- | ----- | ------------------------------------------------------- |
-| 50  | **Report** → **Comment**           | 1 : N       | `Comment.ReportId` → `Report.Id`      | 🟢    | Citizen bình luận trên báo cáo (BR-CMT-001)              |
-| 51  | **Comment** → **User** (Author)    | N : 1       | `Comment.AuthorId` → `User.Id`        | 🟢    | Ai viết bình luận                                        |
-| 52  | **Comment** → **CommentMedia**     | 1 : N       | `CommentMedia.CommentId` → `Comment.Id`| 🟢    | Tối đa 2 ảnh/comment (BR-CMT-002)                       |
+| #   | Quan hệ                                                   | Cardinality | FK / Cách liên kết                                              | Actor | Ghi chú                                                     |
+| --- | --------------------------------------------------------- | ----------- | --------------------------------------------------------------- | ----- | ------------------------------------------------------------ |
+| 56  | **Report** → **CommunityCleanupEvent**                    | 1 : N       | `CommunityCleanupEvent.ReportId` → `Report.Id`                 | 🔵    | LEO mở chương trình community cleanup trên report            |
+| 57  | **CommunityCleanupEvent** → **User** (CreatedByLeo)       | N : 1       | `CommunityCleanupEvent.CreatedByLeoId` → `User.Id`             | 🔵    | LEO nào tạo chương trình                                     |
+| 58  | **CommunityCleanupEvent** → **User** (LeaderUser)         | N : 1       | `CommunityCleanupEvent.LeaderUserId` → `User.Id`               | 🟠    | Cleaner được chỉ định làm trưởng nhóm                        |
+| 59  | **CommunityCleanupEvent** → **EnvironmentalTeam**         | N : 1       | `CommunityCleanupEvent.LeaderTeamId` → `EnvironmentalTeam.Id`  | 🟠    | Team của leader                                              |
+| 60  | **CommunityCleanupEvent** → **User** (VerifiedByLeo)      | N : 0..1    | `CommunityCleanupEvent.VerifiedByLeoId` → `User.Id`            | 🔵    | LEO xác minh hoàn thành                                      |
+| 61  | **CommunityCleanupEvent** → **CommunityCleanupParticipant** | 1 : N     | `CommunityCleanupParticipant.EventId` → `CommunityCleanupEvent.Id` | 🟢 | Citizen tham gia                                            |
+| 62  | **CommunityCleanupParticipant** → **User**                | N : 1       | `CommunityCleanupParticipant.UserId` → `User.Id`               | 🟢    | Citizen/Cleaner nào tham gia                                 |
 
-### 🔍 Module 8: Inspection & Penalty — 🔵 LEO · 🔴 Inspection Team
+### 💬 Module 8: Comment — 🟢 Citizen · 🔵 LEO (moderate)
 
-| #   | Quan hệ                                      | Cardinality | FK / Cách liên kết                                         | Actor | Ghi chú                                                            |
-| --- | -------------------------------------------- | ----------- | ---------------------------------------------------------- | ----- | ------------------------------------------------------------------ |
-| 53  | **Report** → **InspectionReport**            | 1 : N       | `InspectionReport.ReportId` → `Report.Id`                  | 🔵    | Sub-process song song. 1 report có thể có nhiều lần kiểm tra       |
-| 54  | **InspectionReport** → **User** (CreatedBy)  | N : 1       | `InspectionReport.CreatedByOfficerId` → `User.Id`          | 🔵    | LEO tạo biên bản kiểm tra                                          |
-| 55  | **InspectionReport** → **User** (IssuedBy)   | N : 0..1    | `InspectionReport.IssuedByInspectorId` → `User.Id`         | 🔴    | Inspector (Team Leader) ra quyết định xử phạt. Null nếu chưa issue |
-| 56  | **InspectionReport** → **EnvironmentalTeam** | N : 0..1    | `InspectionReport.AssignedTeamId` → `EnvironmentalTeam.Id` | 🔴    | Team kiểm tra được assign. Null nếu chưa assign                    |
-| 57  | **InspectionReport** → **ViolatingEntity**   | N : 0..1    | `InspectionReport.ViolatingEntityId` → `ViolatingEntity.Id`| 🔴    | Liên kết đối tượng vi phạm (BR-INS-010, BR-INS-022)                |
-| 58  | **InspectionReport** → **PenaltyPayment**    | 1 : N       | `PenaltyPayment.InspectionReportId` → `InspectionReport.Id`| 🔴    | Partial payments. SUM(Amount) vs PenaltyAmount (BR-INS-020)         |
-| 59  | **PenaltyPayment** → **User** (RecordedBy)   | N : 1       | `PenaltyPayment.RecordedByUserId` → `User.Id`              | 🔴    | Inspector ghi nhận khoản nộp phạt                                   |
+| #   | Quan hệ                              | Cardinality | FK / Cách liên kết                      | Actor | Ghi chú                                                  |
+| --- | ------------------------------------ | ----------- | --------------------------------------- | ----- | -------------------------------------------------------- |
+| 63  | **Report** → **Comment**             | 1 : N       | `Comment.ReportId` → `Report.Id`        | 🟢    | Citizen bình luận trên báo cáo (BR-CMT-001)               |
+| 64  | **Comment** → **User** (Author)      | N : 1       | `Comment.AuthorId` → `User.Id`          | 🟢    | Ai viết bình luận                                         |
+| 65  | **Comment** → **CommentMedia**       | 1 : N       | `CommentMedia.CommentId` → `Comment.Id` | 🟢    | Tối đa 2 ảnh/comment (BR-CMT-002)                        |
+| 66  | **Comment** → **CommentLike**        | 1 : N       | `CommentLike.CommentId` → `Comment.Id`  | 🟢    | Like bình luận. UK: (CommentId, UserId) — 1 like/user     |
+| 67  | **CommentLike** → **User**           | N : 1       | `CommentLike.UserId` → `User.Id`        | 🟢    | Ai like                                                   |
+| 68  | **Comment** → **Comment** (self-ref) | 1 : N       | `Comment.ParentCommentId` → `Comment.Id` | 🟢   | Reply threading (TikTok-style)                            |
+| 69  | **Comment** → **User** (HiddenBy)    | N : 0..1    | `Comment.HiddenBy` → `User.Id`          | 🔵⚫  | LEO/Admin ẩn bình luận vi phạm                            |
 
-### 🏷️ Module 9: Catalog
+### 🔍 Module 9: Inspection & Penalty — 🔵 LEO · 🔴 Inspection Team
 
-| #   | Quan hệ                                    | Cardinality | FK / Cách liên kết                             | Actor | Ghi chú                                                                                     |
-| --- | ------------------------------------------ | ----------- | ---------------------------------------------- | ----- | ------------------------------------------------------------------------------------------- |
-| 60  | **PollutionCategory** → **WasteTag**       | 1 : N       | `WasteTag.CategoryId` → `PollutionCategory.Id` |       | Mỗi danh mục ô nhiễm chứa nhiều loại rác. Ví dụ: "Rác sinh hoạt" → ["Bao bì", "Thực phẩm"…] |
-| 61  | **PollutionCategory** → **PenaltyFramework** | 1 : N     | `PenaltyFramework.CategoryId` → `PollutionCategory.Id` | ⚫  | Khung phạt per category per violation level (BR-ADM-008)                                      |
+| #   | Quan hệ                                         | Cardinality | FK / Cách liên kết                                          | Actor | Ghi chú                                                            |
+| --- | ----------------------------------------------- | ----------- | ----------------------------------------------------------- | ----- | ------------------------------------------------------------------ |
+| 70  | **Report** → **InspectionReport**               | 1 : N       | `InspectionReport.ReportId` → `Report.Id`                   | 🔵    | Sub-process song song. 1 report có thể có nhiều lần kiểm tra       |
+| 71  | **InspectionReport** → **User** (CreatedBy)     | N : 1       | `InspectionReport.CreatedByOfficerId` → `User.Id`           | 🔵    | LEO tạo biên bản kiểm tra                                          |
+| 72  | **InspectionReport** → **User** (IssuedBy)      | N : 0..1    | `InspectionReport.IssuedByInspectorId` → `User.Id`          | 🔴    | Inspector (Team Leader) ra quyết định xử phạt                      |
+| 73  | **InspectionReport** → **EnvironmentalTeam**    | N : 0..1    | `InspectionReport.AssignedTeamId` → `EnvironmentalTeam.Id`  | 🔴    | Team kiểm tra được assign. Null nếu chưa assign                    |
+| 74  | **InspectionReport** → **ViolatingEntity**      | N : 0..1    | `InspectionReport.ViolatingEntityId` → `ViolatingEntity.Id` | 🔴    | Liên kết đối tượng vi phạm (BR-INS-010, BR-INS-022)                |
+| 75  | **InspectionReport** → **InspectionEvidence**   | 1 : N       | `InspectionEvidence.InspectionReportId` → `InspectionReport.Id` | 🔴 | Checklist evidence (ảnh/video/text) từ field investigation         |
+| 76  | **InspectionEvidence** → **User** (UploadedBy)  | N : 1       | `InspectionEvidence.UploadedByUserId` → `User.Id`           | 🔴    | Inspector upload evidence                                          |
+| 77  | **InspectionReport** → **PenaltyPayment**       | 1 : N       | `PenaltyPayment.InspectionReportId` → `InspectionReport.Id` | 🔴    | Partial payments. SUM(Amount) vs PenaltyAmount (BR-INS-020)         |
+| 78  | **PenaltyPayment** → **User** (RecordedBy)      | N : 1       | `PenaltyPayment.RecordedByUserId` → `User.Id`               | 🔴    | Inspector ghi nhận khoản nộp phạt                                   |
 
-### 🎮 Module 10: Gamification — 🟢 Citizen
+### 🏷️ Module 10: Catalog
+
+| #   | Quan hệ                                       | Cardinality | FK / Cách liên kết                                     | Actor | Ghi chú                                                                                     |
+| --- | --------------------------------------------- | ----------- | ------------------------------------------------------ | ----- | ------------------------------------------------------------------------------------------- |
+| 79  | **PollutionCategory** → **PenaltyFramework**  | 1 : N       | `PenaltyFramework.CategoryId` → `PollutionCategory.Id` | ⚫    | Khung phạt per category per violation level (BR-ADM-008)                                      |
+
+### 🎮 Module 11: Gamification — 🟢 Citizen
 
 | #   | Quan hệ                               | Cardinality | FK / Cách liên kết                                | Actor | Ghi chú                                                        |
 | --- | ------------------------------------- | ----------- | ------------------------------------------------- | ----- | -------------------------------------------------------------- |
-| 62  | **User** → **UserPoints**             | 1 : 0..1    | `UserPoints.UserId` → `User.Id`                   | 🟢    | Tách entity riêng (SRP). Chỉ tạo khi Citizen bắt đầu tích điểm |
-| 63  | **UserPoints** → **PointTransaction** | 1 : N       | `PointTransaction.UserPointsId` → `UserPoints.Id` | 🟢    | Lịch sử +/- điểm. Tổng luôn bằng sum(Transactions)             |
-| 64  | **User** → **UserBadge**              | 1 : N       | `UserBadge.UserId` → `User.Id`                    | 🟢    | Join table: User nhận Badge                                    |
-| 65  | **Badge** → **UserBadge**             | 1 : N       | `UserBadge.BadgeId` → `Badge.Id`                  | 🟢    | Many-to-many qua join table. Badge là seed data                |
+| 80  | **User** → **UserPoints**             | 1 : 0..1    | `UserPoints.UserId` → `User.Id`                   | 🟢    | Tách entity riêng (SRP). Chỉ tạo khi Citizen bắt đầu tích điểm |
+| 81  | **UserPoints** → **PointTransaction** | 1 : N       | `PointTransaction.UserPointsId` → `UserPoints.Id` | 🟢    | Lịch sử +/- điểm. Tổng luôn bằng sum(Transactions)             |
+| 82  | **User** → **UserBadge**              | 1 : N       | `UserBadge.UserId` → `User.Id`                    | 🟢    | Join table: User nhận Badge                                    |
+| 83  | **Badge** → **UserBadge**             | 1 : N       | `UserBadge.BadgeId` → `Badge.Id`                  | 🟢    | Many-to-many qua join table. Badge là seed data                |
 
-### 🔔 Module 11: Notification — All actors
+### 🔔 Module 12: Notification — All actors
 
-| #   | Quan hệ                                    | Cardinality | FK / Cách liên kết                          | Ghi chú                                                                              |
-| --- | ------------------------------------------ | ----------- | ------------------------------------------- | ------------------------------------------------------------------------------------ |
-| 66  | **User** → **Notification**                | 1 : N       | `Notification.RecipientId` → `User.Id`      | User nhận thông báo. Có ReferenceId trỏ tới entity liên quan (polymorphic, không FK) |
-| 67  | **User** → **NotificationPreference**      | 1 : 0..1    | `NotificationPreference.UserId` → `User.Id` | Cấu hình bật/tắt kênh thông báo per-type. Tạo khi user lần đầu cấu hình              |
-| 68  | **Notification** → **NotificationTemplate** | N : 0..1   | `Notification.TemplateKey` → `NotificationTemplate.TemplateKey` | Rendered from template. Nullable (system-generated)                                |
+| #   | Quan hệ                                       | Cardinality | FK / Cách liên kết                                              | Ghi chú                                                                              |
+| --- | --------------------------------------------- | ----------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| 84  | **User** → **Notification**                   | 1 : N       | `Notification.RecipientId` → `User.Id`                          | User nhận thông báo. Có ReferenceId trỏ tới entity liên quan (polymorphic, không FK) |
+| 85  | **User** → **NotificationPreference**         | 1 : N       | `NotificationPreference.UserId` → `User.Id`                    | Cấu hình bật/tắt kênh thông báo per-type. UK: (UserId, Type)                         |
+| 86  | **Notification** → **NotificationTemplate**   | N : 0..1    | `Notification` rendered from `NotificationTemplate.TemplateKey` | Template-based rendering. Nullable (system-generated)                                |
 
-### ⚙️ Module 12: Administration — ⚫ System Administrator
+### ⚙️ Module 13: Administration — ⚫ System Administrator
 
 | #   | Quan hệ                              | Cardinality | FK / Cách liên kết                | Actor | Ghi chú                                                   |
 | --- | ------------------------------------ | ----------- | --------------------------------- | ----- | --------------------------------------------------------- |
-| 69  | **User** → **AuditLog**             | 1 : N       | `AuditLog.UserId` → `User.Id`    | ⚫    | Immutable. Mọi action nhạy cảm đều ghi log (BR-ADM-010)   |
-| 70  | **GamificationConfig** (standalone) | —           | —                                 | ⚫    | Admin cấu hình điểm per action (BR-ADM-009)               |
-| 71  | **BlockedWord** (standalone)        | —           | —                                 | ⚫    | Admin CRUD từ cấm (profanity filter). Cache in-memory      |
+| 87  | **User** → **AuditLog**             | 1 : N       | `AuditLog.UserId` → `User.Id`    | ⚫    | Immutable. Mọi action nhạy cảm đều ghi log (BR-ADM-010)   |
+| 88  | **GamificationConfig** (standalone) | —           | —                                 | ⚫    | Admin cấu hình điểm per action (BR-ADM-005)               |
+| 89  | **BlockedWord** (standalone)        | —           | —                                 | ⚫    | Admin CRUD từ cấm (profanity filter). Cache in-memory      |
+| 90  | **NotificationTemplate** (standalone) | —         | —                                 | ⚫    | Admin quản lý template thông báo. Publish/Unpublish        |
 
 ---
 
-## Nhóm Entity theo Module (Tổng: 43 entities)
+## Nhóm Entity theo Module (Tổng: 48 entities)
 
 ### 🗺️ Administrative & Location (4)
 
@@ -344,17 +529,21 @@ erDiagram
 
 `User` · `RefreshToken` · `PasswordHistory` · `OtpCode`
 
-### 📋 Report — Core Aggregate (9)
+### 📋 Report — Core Aggregate (10)
 
-`Report` · `ReportMedia` · `ReportStatusHistory` · `ReportAssignment` · `ReportWasteTag` · `ReportFlag` · `ReportSatisfaction` · `ReportDraft` · `InspectionReport`
+`Report` · `ReportMedia` · `ReportStatusHistory` · `ReportAssignment` · `ReportReopenRequest` · `ReportWasteTag` · `ReportFlag` · `ReportSatisfaction` · `ReportDraft`
 
-### 💬 Comment (2)
+### 🤝 Community Cleanup (2)
 
-`Comment` · `CommentMedia`
+`CommunityCleanupEvent` · `CommunityCleanupParticipant`
 
-### 🔍 Inspection & Penalty (3)
+### 💬 Comment (3)
 
-`ViolatingEntity` · `PenaltyPayment` · `PenaltyFramework`
+`Comment` · `CommentMedia` · `CommentLike`
+
+### 🔍 Inspection & Penalty (4)
+
+`InspectionReport` · `InspectionEvidence` · `ViolatingEntity` · `PenaltyPayment`
 
 ### 🏷️ Catalog (2)
 
@@ -368,25 +557,26 @@ erDiagram
 
 `Notification` · `NotificationPreference` · `NotificationTemplate`
 
-### ⚙️ Administration (2)
+### ⚙️ Administration (3)
 
-`AuditLog` · `BlockedWord`
+`AuditLog` · `PenaltyFramework` · `BlockedWord`
 
 ---
 
 ## Tổng hợp: User là "hub" trung tâm
 
-`User` có quan hệ với **23 entities khác** — là node kết nối lớn nhất trong hệ thống:
+`User` có quan hệ với **28 entities khác** — là node kết nối lớn nhất trong hệ thống:
 
-| Vai trò của User (Actor) | Entities liên quan                                                                                                       |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
-| 🟢 **Citizen**           | Report (submitter), ReportMedia, ReportFlag (flagger), ReportSatisfaction (rater), Comment (author), ReportDraft          |
-| 🔵 **LEO**               | Report (verifier, assigner), ReportAssignment (assigner), InspectionReport (creator), StaffInvitation (inviter)           |
-| 🟣 **DEO**               | Department, EnvironmentalServiceCompany (creator), ContractPeriod (renewer)                                              |
-| 🟠 **Cleanup Team**      | TeamMember, ReportAssignment (executor)                                                                                  |
-| 🔴 **Inspection Team**   | TeamMember, InspectionReport (issuer), PenaltyPayment (recorder)                                                         |
-| ⚫ **Admin**              | AuditLog, BlockedWord, GamificationConfig, PenaltyFramework, NotificationTemplate                                        |
-| **Auth** (all actors)    | RefreshToken, PasswordHistory, OtpCode                                                                                   |
-| **Gamification**         | UserPoints, UserBadge                                                                                                    |
-| **Notification**         | Notification (recipient), NotificationPreference                                                                         |
-| **Organization**         | Department (DEO), LocalOffice (LEO/Cleaner/Inspector), LocalOffice.OfficerId                                             |
+| Vai trò của User (Actor) | Entities liên quan                                                                                                                    |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| 🟢 **Citizen**           | Report (submitter), ReportMedia, ReportFlag (flagger), ReportSatisfaction (rater), ReportReopenRequest, Comment (author), CommentLike, CommunityCleanupParticipant, ReportDraft |
+| 🔵 **LEO**               | Report (verifier, assigner), ReportAssignment (assigner), InspectionReport (creator), CommunityCleanupEvent (creator, verifier), ReportReopenRequest (reviewer), StaffInvitation (inviter), Comment (hider) |
+| 🟣 **DEO**               | Department, EnvironmentalServiceCompany (creator), ContractPeriod (renewer)                                                           |
+| 🟠 **Cleanup Team**      | TeamMember, ReportAssignment (executor), CommunityCleanupEvent (leader)                                                               |
+| 🔴 **Inspection Team**   | TeamMember, InspectionReport (issuer), InspectionEvidence (uploader), PenaltyPayment (recorder)                                       |
+| 🟡 **Company Manager**   | CompanyStaff (manager), ReportAssignment (accepts dispatch)                                                                           |
+| ⚫ **Admin**              | AuditLog, BlockedWord, GamificationConfig, PenaltyFramework, NotificationTemplate, LocalOffice                                        |
+| **Auth** (all actors)    | RefreshToken, PasswordHistory, OtpCode                                                                                                |
+| **Gamification**         | UserPoints, UserBadge                                                                                                                 |
+| **Notification**         | Notification (recipient), NotificationPreference                                                                                      |
+| **Organization**         | Department (DEO), LocalOffice (LEO/Cleaner/Inspector), LocalOffice.OfficerId                                                          |

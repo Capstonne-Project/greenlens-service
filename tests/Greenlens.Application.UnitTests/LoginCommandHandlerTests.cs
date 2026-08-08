@@ -1,9 +1,7 @@
-using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Features.Auth.Login;
 using Greenlens.Domain.Entities;
-using Greenlens.Domain.Enums;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 
@@ -21,13 +19,18 @@ public sealed class LoginCommandHandlerTests
 
     public LoginCommandHandlerTests()
     {
-        _sut = new LoginCommandHandler(_users, _refreshTokens, _companyStaff, _uow, _jwt, _hasher, NullLogger<LoginCommandHandler>.Instance);
+        _sut = new LoginCommandHandler(
+            _users, _refreshTokens, _companyStaff, _uow, _jwt, _hasher,
+            NullLogger<LoginCommandHandler>.Instance);
     }
+
+    private static LoginCommand EmailLogin(string email, string password) =>
+        new(email, password);
 
     private static User CreateUser(string email = "test@test.com")
     {
         var user = User.Create(email, "hash", "Test User");
-        user.VerifyEmail(); // Login requires verified email
+        user.VerifyEmail();
         return user;
     }
 
@@ -44,7 +47,7 @@ public sealed class LoginCommandHandlerTests
         _jwt.GenerateRefreshToken().Returns("refresh-token");
         _jwt.HashToken("refresh-token").Returns("hashed-refresh");
 
-        var result = await _sut.Handle(new LoginCommand("test@test.com", "password123"), CancellationToken.None);
+        var result = await _sut.Handle(EmailLogin("test@test.com", "password123"), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.Equal("access-token", result.Value!.AccessToken);
@@ -57,7 +60,7 @@ public sealed class LoginCommandHandlerTests
     {
         _users.GetByEmailAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((User?)null);
 
-        var result = await _sut.Handle(new LoginCommand("unknown@test.com", "pass"), CancellationToken.None);
+        var result = await _sut.Handle(EmailLogin("unknown@test.com", "pass"), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal("INVALID_CREDENTIALS", result.Error!.Code);
@@ -70,7 +73,7 @@ public sealed class LoginCommandHandlerTests
         _users.GetByEmailAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(user);
         _hasher.Verify(Arg.Any<string>(), Arg.Any<string>()).Returns(false);
 
-        var result = await _sut.Handle(new LoginCommand("test@test.com", "wrong"), CancellationToken.None);
+        var result = await _sut.Handle(EmailLogin("test@test.com", "wrong"), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal("INVALID_CREDENTIALS", result.Error!.Code);
@@ -82,14 +85,33 @@ public sealed class LoginCommandHandlerTests
     public async Task Handle_LockedOutUser_ShouldReturnAccountLocked()
     {
         var user = CreateUser();
-        for (int i = 0; i < 5; i++) user.RecordFailedLogin();
+        for (var i = 0; i < 5; i++)
+            user.RecordFailedLogin();
 
         _users.GetByEmailAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(user);
 
-        var result = await _sut.Handle(new LoginCommand("test@test.com", "pass"), CancellationToken.None);
+        var result = await _sut.Handle(EmailLogin("test@test.com", "pass"), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal("ACCOUNT_LOCKED", result.Error!.Code);
+    }
+
+    [Fact]
+    public async Task Handle_ThreeFailedAttempts_StillAllowsLoginAttempt_BR_AUTH_011()
+    {
+        var user = CreateUser();
+        user.RecordFailedLogin();
+        user.RecordFailedLogin();
+        user.RecordFailedLogin();
+
+        _users.GetByEmailAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(user);
+        _hasher.Verify(Arg.Any<string>(), Arg.Any<string>()).Returns(false);
+
+        var result = await _sut.Handle(EmailLogin("test@test.com", "wrong"), CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("INVALID_CREDENTIALS", result.Error!.Code);
+        Assert.Equal(4, user.FailedLoginAttempts);
     }
 
     [Fact]
@@ -105,7 +127,7 @@ public sealed class LoginCommandHandlerTests
         _jwt.GenerateRefreshToken().Returns("refresh");
         _jwt.HashToken(Arg.Any<string>()).Returns("hashed");
 
-        await _sut.Handle(new LoginCommand("test@test.com", "correct"), CancellationToken.None);
+        await _sut.Handle(EmailLogin("test@test.com", "correct"), CancellationToken.None);
 
         Assert.Equal(0, user.FailedLoginAttempts);
     }
@@ -120,7 +142,7 @@ public sealed class LoginCommandHandlerTests
         _jwt.GenerateRefreshToken().Returns("rt");
         _jwt.HashToken("rt").Returns("hashed-rt");
 
-        await _sut.Handle(new LoginCommand("test@test.com", "pass"), CancellationToken.None);
+        await _sut.Handle(EmailLogin("test@test.com", "pass"), CancellationToken.None);
 
         _refreshTokens.Received(1).Add(Arg.Any<RefreshToken>());
         await _uow.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
@@ -135,7 +157,7 @@ public sealed class LoginCommandHandlerTests
         _jwt.GenerateRefreshToken().Returns("r");
         _jwt.HashToken(Arg.Any<string>()).Returns("h");
 
-        await _sut.Handle(new LoginCommand("TEST@TEST.COM", "pass"), CancellationToken.None);
+        await _sut.Handle(EmailLogin("TEST@TEST.COM", "pass"), CancellationToken.None);
 
         await _users.Received(1).GetByEmailAsync("test@test.com", Arg.Any<CancellationToken>());
     }
@@ -146,7 +168,7 @@ public sealed class LoginCommandHandlerTests
         var user = CreateUnverifiedUser();
         _users.GetByEmailAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(user);
 
-        var result = await _sut.Handle(new LoginCommand("test@test.com", "pass"), CancellationToken.None);
+        var result = await _sut.Handle(EmailLogin("test@test.com", "pass"), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal("EMAIL_NOT_VERIFIED", result.Error!.Code);

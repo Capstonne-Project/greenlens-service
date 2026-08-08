@@ -1,7 +1,7 @@
-# GreenLens — Sequence Diagrams (22 ⭐ Ưu tiên)
+# GreenLens — Sequence Diagrams (31 ⭐ Ưu tiên)
 
 > **Dự án:** SU26SE049 — Crowdsourced Application for Reporting Environmental Pollution  
-> **Tổng quan:** 22 Sequence Diagram ưu tiên cho bài bảo vệ tốt nghiệp, dựa trên source code thực tế.  
+> **Tổng quan:** 31 Sequence Diagram ưu tiên cho bài bảo vệ tốt nghiệp, dựa trên source code thực tế (gồm luồng inspection checklist BR-INS-033).  
 > **Thứ tự:** Theo luồng trải nghiệm người dùng: Auth → Report → Cleanup → Inspection → Organization → Community → Gamification → Notification → Map → Media → Admin
 
 > [!NOTE]
@@ -364,7 +364,7 @@ sequenceDiagram
 
 ### SD-12 ⭐ Reject Report
 
-**Actor:** LEO · **BR:** BR-REP-021
+**Actor:** LEO · **BR:** BR-REP-020, BR-REP-021, BR-ORG-015
 
 ```mermaid
 sequenceDiagram
@@ -390,6 +390,7 @@ sequenceDiagram
     Repo-->>-Hdl: report
 
     Hdl->>Hdl: report.Reject(reason)<br/>[state: Submitted → Rejected]
+    Note over Hdl: Rejected là trạng thái cuối. Lưu rejected_reason, không re-queue DEO
     Hdl->>Hdl: ReportStatusHistory.Create(Submitted → Rejected)
 
     Hdl->>+PtsRepo: Get reporter's UserPoints
@@ -566,8 +567,8 @@ sequenceDiagram
         Citizen->>+App: Xem report Resolved → Nhấn "Xác nhận"
         App->>+Ctrl: PUT /api/reports/{id}/close
         Ctrl->>+Hdl: Send(CloseReportCommand)
-    else Auto-close sau 7 ngày [BR-REP-016]
-        Job->>+DB: SELECT * FROM reports<br/>WHERE status = 'Resolved' AND resolved_at < NOW() - 7d
+    else Auto-close sau 2 ngày [BR-REP-016]
+        Job->>+DB: SELECT * FROM reports<br/>WHERE status = 'Resolved' AND resolved_at < NOW() - 2d
         DB-->>-Job: reports[]
         loop Each report
             Job->>+Hdl: Process(reportId)
@@ -603,7 +604,9 @@ sequenceDiagram
 
 ### SD-18 ⭐ Duplicate Detection & Handling
 
-**Actor:** AI / LEO · **BR:** BR-REP-030, BR-REP-032, BR-AI-002
+**Actor:** AI / LEO · **BR:** BR-REP-030, BR-REP-031, BR-REP-032, BR-AI-002
+
+> **BR-REP-032 (confirm):** merge **comments** sang báo cáo gốc, +1 reporter count, +50% điểm; **media không merge** — ảnh giữ trên bản ghi duplicate.
 
 ```mermaid
 sequenceDiagram
@@ -613,6 +616,7 @@ sequenceDiagram
     participant AI as :IAiImageCompare
     participant Ctrl as :ReportsController
     participant Hdl as :ConfirmDuplicateHandler
+    participant PtsHdl as :DuplicateMergedPointsHandler
     participant Repo as :IReportRepository
     participant UoW as :IUnitOfWork
     participant DB as Database
@@ -621,7 +625,7 @@ sequenceDiagram
     Job->>+DB: SELECT reports<br/>WHERE same category + within 50m + within 24h
     DB-->>-Job: candidates[]
     alt Match found (Haversine ≤ 50m)
-        Job->>Job: report.MarkPossibleDuplicate(candidateId, "geo_time")
+        Job->>Job: report.MarkPossibleDuplicate(candidateId, "geo_category")
         Job->>+DB: UPDATE reports SET is_possible_duplicate = true
         DB-->>-Job: OK
     end
@@ -647,13 +651,24 @@ sequenceDiagram
     DB-->>-Repo: report, primaryReport
     Repo-->>-Hdl: report, primaryReport
 
+    loop Comments on duplicate report
+        Hdl->>Hdl: comment.ReassignToReport(primary.Id)
+    end
+    Note over Hdl: report_media KHÔNG đổi report_id (ảnh giữ trên báo cáo duplicate)
+
     Hdl->>Hdl: report.MarkDuplicate(primaryReportId)<br/>[state: → Duplicate]
-    Hdl->>Hdl: primaryReport.ReporterCount++
+    Hdl->>Hdl: primaryReport.IncrementReporterCount()
+    Hdl->>Hdl: ReportStatusHistory.Create(→ Duplicate)
 
     Hdl->>+UoW: SaveChangesAsync()
-    UoW->>+DB: UPDATE reports (both)
+    UoW->>+DB: UPDATE reports (both), UPDATE comments,<br/>INSERT status_history
     DB-->>-UoW: OK
     UoW-->>-Hdl: OK
+
+    Hdl->>Hdl: ReportMarkedDuplicateEvent
+    Hdl->>+PtsHdl: Award +50% base ReportVerified points
+    PtsHdl->>DB: UPDATE user_points, INSERT point_transactions
+    PtsHdl-->>-Hdl: OK
 
     Hdl-->>-Ctrl: Result<success>
     Ctrl-->>-App: 200 OK
@@ -663,6 +678,9 @@ sequenceDiagram
 ---
 
 ## Nhóm 3: Cleanup & Field Work
+
+> **Luồng cleanup thường (LEO gán team):** SD-13 (Nhóm 2) → SD-21 → SD-22 → **SD-23** → SD-15 (Nhóm 2) → SD-16 (Nhóm 2)  
+> **Luồng community cleanup:** **SD-25** (tổng hợp — thay cho assign team thông thường trên cùng Report Verified)
 
 ---
 
@@ -764,7 +782,239 @@ sequenceDiagram
 
 ---
 
+### SD-23 ⭐ Upload Before & Update Progress
+
+**Actor:** Cleaner/CompanyStaff (Team Leader) · **BR:** BR-REP-014, BR-CLN-004
+
+> Sau SD-22 (check-in). Ảnh upload qua presign R2 (xem SD-66). Hoàn thành cuối cùng → SD-15.
+
+```mermaid
+sequenceDiagram
+    actor Leader as Team Leader
+    participant App as Mobile App
+    participant Media as :MediaController
+    participant RptCtrl as :ReportsController
+    participant BeforeHdl as :UploadBeforeImagesHandler
+    participant ProgHdl as :UpdateProgressHandler
+    participant TeamRepo as :ITeamMemberRepository
+    participant AsgRepo as :IAssignmentRepository
+    participant Storage as :IFileStorageService
+    participant MediaRepo as :IReportMediaRepository
+    participant UoW as :IUnitOfWork
+    participant DB as Database
+
+    Leader->>+App: Chụp ảnh hiện trường + cập nhật % tiến độ
+
+    Note over App,Storage: Bước 1 — Presign & upload R2 (SD-66)
+    App->>+Media: POST /v1/media/presign {purpose: Before|Progress, reportId}
+    Media-->>-App: presignedUrl, publicUrl
+
+    App->>App: PUT ảnh trực tiếp lên R2
+
+    Note over App,RptCtrl: Bước 2 — Lưu URL ảnh Before
+    App->>+RptCtrl: POST /v1/reports/{id}/before-images {imageUrls[]}
+    RptCtrl->>+BeforeHdl: Send(UploadBeforeImagesCommand)
+
+    BeforeHdl->>+TeamRepo: GetLeaderByUserIdAsync(userId)
+    TeamRepo-->>-BeforeHdl: leader?
+
+    alt Không phải Team Leader
+        BeforeHdl-->>RptCtrl: Result.Failure(NotTeamLeader)
+        RptCtrl-->>App: 422 Unprocessable Entity
+        App-->>Leader: "Chỉ trưởng đội mới upload ảnh"
+    else Assignment ≠ InProgress
+        BeforeHdl-->>RptCtrl: Result.Failure(AssignmentNotInProgress)
+        RptCtrl-->>App: 422
+        App-->>Leader: "Task chưa ở trạng thái đang xử lý"
+    else URL không thuộc CDN R2 hệ thống
+        BeforeHdl->>+Storage: IsOwnedPublicUrl(url)
+        Storage-->>-BeforeHdl: false
+        BeforeHdl-->>RptCtrl: Result.Failure(InvalidStorageUrl)
+        RptCtrl-->>App: 422
+    else Happy path — lưu Before
+        BeforeHdl->>BeforeHdl: ReportMedia.Create(type=Before)
+        BeforeHdl->>MediaRepo: Add(media)
+        BeforeHdl->>+UoW: SaveChangesAsync()
+        UoW->>DB: INSERT report_media
+        UoW-->>-BeforeHdl: OK
+        BeforeHdl-->>-RptCtrl: Result<UploadBeforeImagesResponse>
+        RptCtrl-->>-App: 200 OK {savedUrls}
+    end
+
+    Note over App,RptCtrl: Bước 3 — Cập nhật tiến độ + ảnh Progress
+    App->>+RptCtrl: PUT /v1/reports/{id}/progress<br/>{progressPercent, progressNote?, imageUrls[]}
+    RptCtrl->>+ProgHdl: Send(UpdateProgressCommand)
+
+    ProgHdl->>+TeamRepo: GetLeaderByUserIdAsync(userId)
+    TeamRepo-->>-ProgHdl: leader
+
+    ProgHdl->>+AsgRepo: GetByReportIdAsync(reportId)
+    AsgRepo-->>-ProgHdl: assignment (teamId match)
+
+    alt progressPercent ∉ [0, 100]
+        ProgHdl-->>RptCtrl: Result.Failure(InvalidProgressPercent)
+        RptCtrl-->>App: 422
+        App-->>Leader: "Phần trăm tiến độ không hợp lệ"
+    else Assignment ≠ InProgress
+        ProgHdl-->>RptCtrl: Result.Failure(AssignmentNotInProgress)
+        RptCtrl-->>App: 422
+    else Happy path
+        ProgHdl->>ProgHdl: assignment.UpdateProgress(percent, note)
+        opt imageUrls provided
+            ProgHdl->>ProgHdl: ReportMedia.Create(type=Progress)
+            ProgHdl->>MediaRepo: Add(media)
+        end
+        ProgHdl->>+UoW: SaveChangesAsync()
+        UoW->>DB: UPDATE report_assignments, INSERT report_media
+        UoW-->>-ProgHdl: OK
+        ProgHdl-->>-RptCtrl: Result<UpdateProgressResponse>
+        RptCtrl-->>-App: 200 OK
+        App-->>-Leader: Hiển thị tiến độ mới
+        Note over Leader,App: Khi đủ ảnh After → SD-15 Resolve
+    end
+```
+
+---
+
+### SD-25 ⭐ Community Cleanup (End-to-End)
+
+**Actor:** LEO (Web) · Citizen (Mobile) · Leader/Cleaner (Mobile) · **BR:** BR-CMU-001..015 (draft)
+
+> Một Report Verified chỉ có **tối đa 1** community event active. Thay thế luồng AssignTeam thông thường trong thời gian event active.
+
+```mermaid
+sequenceDiagram
+    actor LEO
+    actor Citizen
+    actor Leader as Leader (Cleaner)
+    participant Web as Web App
+    participant Mobile as Mobile App
+    participant Ctrl as :CommunityCleanupsController
+    participant CreateHdl as :CreateCommunityCleanupHandler
+    participant JoinHdl as :JoinCommunityCleanupHandler
+    participant StartHdl as :StartCommunityCleanupHandler
+    participant VerifyHdl as :VerifyCommunityCleanupHandler
+    participant Notif as :INotificationService
+    participant UoW as :IUnitOfWork
+    participant DB as Database
+
+    rect rgb(240, 248, 255)
+        Note over LEO,DB: Phase 1 — LEO mở chương trình
+        LEO->>+Web: Report Verified → Mở chương trình dọn cộng đồng
+        Web->>+Ctrl: POST /v1/reports/{reportId}/community-cleanups<br/>{title, leaderUserId, startsAt, ...}
+        Ctrl->>+CreateHdl: Send(CreateCommunityCleanupCommand)
+
+        alt Report chưa Verified hoặc đã có event active
+            CreateHdl-->>Ctrl: Result.Failure(Conflict)
+            Ctrl-->>Web: 409 Conflict
+            Web-->>LEO: "Không thể mở chương trình"
+        else Happy path
+            CreateHdl->>CreateHdl: CommunityCleanupEvent.Create()<br/>Status: OpenForJoin<br/>Report: Verified → InProgress
+            CreateHdl->>+UoW: SaveChangesAsync()
+            UoW->>DB: INSERT community_cleanup_events, UPDATE reports
+            UoW-->>-CreateHdl: OK
+            CreateHdl->>+Notif: NotifyAsync(citizens nearby, CommunityCleanupOpened)
+            Notif-->>-CreateHdl: Sent
+            CreateHdl-->>-Ctrl: Result<eventDetail>
+            Ctrl-->>-Web: 201 Created
+            Web-->>-LEO: Hiển thị chương trình đã mở
+        end
+    end
+
+    rect rgb(240, 255, 240)
+        Note over Citizen,DB: Phase 2 — Citizen tham gia
+        Citizen->>+Mobile: Xem danh sách → Tham gia
+        Mobile->>+Ctrl: GET /v1/community-cleanups (OpenForJoin)
+        Ctrl-->>-Mobile: 200 danh sách
+        Mobile->>+Ctrl: POST /v1/community-cleanups/{eventId}/join
+        Ctrl->>+JoinHdl: Send(JoinCommunityCleanupCommand)
+
+        alt Đã đủ người / đã đóng đăng ký / đã join
+            JoinHdl-->>Ctrl: Result.Failure(BusinessRule)
+            Ctrl-->>Mobile: 422
+            Mobile-->>Citizen: Hiển thị lỗi
+        else Happy path
+            JoinHdl->>JoinHdl: Participant.Join()
+            JoinHdl->>+UoW: SaveChangesAsync()
+            UoW->>DB: INSERT community_cleanup_participants
+            UoW-->>-JoinHdl: OK
+            JoinHdl-->>-Ctrl: Result.Success
+            Ctrl-->>-Mobile: 200 OK
+            Mobile-->>-Citizen: "Đã tham gia chương trình"
+        end
+
+        opt Check-in tại điểm tập trung
+            Citizen->>Mobile: Check-in GPS
+            Mobile->>Ctrl: POST /v1/community-cleanups/{eventId}/check-in {lat, lng, reason?}
+            alt Quá 200m và không có reason ≥ 20 ký tự
+                Ctrl-->>Mobile: 422
+            else OK
+                Ctrl-->>Mobile: 200 — participant CheckedIn
+            end
+        end
+    end
+
+    rect rgb(255, 248, 240)
+        Note over Leader,DB: Phase 3 — Leader thực hiện dọn dẹp
+        Leader->>+Mobile: Bắt đầu → Upload before → Cập nhật tiến độ
+        Mobile->>+Ctrl: POST /v1/community-cleanups/{eventId}/start
+        Ctrl->>+StartHdl: Send(StartCommunityCleanupCommand)
+        StartHdl->>StartHdl: Status: OpenForJoin/JoinClosed → InProgress
+        StartHdl->>UoW: SaveChangesAsync()
+        StartHdl-->>-Ctrl: OK
+        Ctrl-->>-Mobile: 200
+
+        Mobile->>Ctrl: POST .../before-images {imageUrls[]}
+        Mobile->>Ctrl: PUT .../progress {progressPercent, imageUrls[]}
+        Mobile->>Ctrl: POST .../submit-verification {imageUrls[]}
+        Ctrl->>Ctrl: Status → PendingVerification
+        Ctrl-->>Mobile: 200
+        Mobile-->>-Leader: "Đã gửi xác thực cho LEO"
+    end
+
+    rect rgb(255, 240, 245)
+        Note over LEO,DB: Phase 4 — LEO duyệt kết quả
+        LEO->>+Web: GET /v1/community-cleanups/office-queue?status=PendingVerification
+        Web->>Ctrl: GET office-queue
+        Ctrl-->>Web: Danh sách chờ duyệt
+
+        alt Duyệt thành công
+            Web->>+Ctrl: POST /v1/community-cleanups/{eventId}/verify
+            Ctrl->>+VerifyHdl: Send(VerifyCommunityCleanupCommand)
+            VerifyHdl->>VerifyHdl: Event → Completed<br/>Report → Resolved
+            VerifyHdl->>+UoW: SaveChangesAsync()
+            UoW->>DB: UPDATE community_cleanup_events, reports
+            UoW-->>-VerifyHdl: OK
+            VerifyHdl-->>-Ctrl: Result.Success
+            Ctrl-->>-Web: 200 OK
+            Web-->>-LEO: "Đã duyệt — báo cáo Resolved"
+        else Từ chối — yêu cầu làm lại
+            Web->>+Ctrl: POST .../reject-verification {reason ≥ 20 chars}
+            Ctrl->>Ctrl: PendingVerification → InProgress
+            Ctrl-->>Web: 200
+            Web-->>LEO: Leader cần bổ sung minh chứng
+        end
+    end
+```
+
+---
+
 ## Nhóm 4: Inspection & Penalty
+
+> **Luồng đầy đủ (BR-INS-033):** SD-28 → SD-29 → **SD-41** (mở detail) → SD-30 → SD-31 (optional) → SD-33 → SD-34 → SD-32 *hoặc* SD-35 → **SD-39 (LEO)**
+
+| SD | Use case | Actor |
+|----|----------|-------|
+| SD-28 | Tạo biên bản | LEO (Web) |
+| SD-29 | Giao đội thanh tra | LEO (Web) |
+| SD-41 | GET detail + capability flags | Inspector (Mobile) |
+| SD-30 | Nhận nhiệm vụ | Inspector (Mobile) |
+| SD-31 | Xác nhận đến nơi (GPS mềm) | Inspector (Mobile) |
+| SD-33 | Checklist + upload evidence | Inspector (Mobile) |
+| SD-34 | Gửi biên bản hiện trường | Team Leader |
+| SD-32 | Lập quyết định xử phạt | Team Leader |
+| SD-35 | Đóng — không vi phạm | Team Leader |
+| SD-39 | Ghi nhận thanh toán đủ **& tự động đóng biên bản** (1 bước) | **LEO (Web)** — không còn Team Leader |
 
 ---
 
@@ -784,7 +1034,7 @@ sequenceDiagram
     participant DB as Database
 
     LEO->>+App: Chọn report đã Verified → Tạo biên bản thanh tra
-    App->>+Ctrl: POST /api/inspections {reportId}
+    App->>+Ctrl: POST /v1/inspections {reportId}
     Ctrl->>+Hdl: Send(CreateInspectionCommand)
 
     Hdl->>+RptRepo: GetByIdAsync(reportId)
@@ -842,7 +1092,7 @@ sequenceDiagram
     participant DB as Database
 
     LEO->>+App: Mở inspection → Chọn team thanh tra
-    App->>+Ctrl: PUT /api/inspections/{id}/assign-team {teamId}
+    App->>+Ctrl: PUT /v1/inspections/{id}/assign-team {teamId}
     Ctrl->>+Hdl: Send(AssignInspTeamCommand)
 
     Hdl->>+InspRepo: GetByIdAsync(inspectionId)
@@ -886,6 +1136,348 @@ sequenceDiagram
 
 ---
 
+### SD-41 ⭐ Get Inspection Detail (Capability Flags)
+
+**Actor:** Inspector · **BR:** BR-INS-033, BR-INS-010
+
+> **Mục đích:** Query read-only — Mobile App biết **nút nào bật/tắt** trước khi gọi các command SD-30..40. Backend tính sẵn `can*` từ `Status` + `FieldInvestigationSubmittedAt`.
+
+```mermaid
+sequenceDiagram
+    actor Inspector
+    participant App as Mobile App
+    participant Ctrl as :InspectionsController
+    participant Hdl as :GetInspectionReportByIdHandler
+    participant InspRepo as :IInspectionReportRepository
+    participant EvRepo as :IInspectionEvidenceRepository
+    participant TeamRepo as :ITeamMemberRepository
+    participant DB as Database
+
+    Inspector->>+App: Mở chi tiết biên bản thanh tra
+    App->>+Ctrl: GET /v1/inspections/{id}
+    Ctrl->>+Hdl: Send(GetInspectionReportByIdQuery)
+
+    Hdl->>+InspRepo: QueryAsNoTracking + Include(report, team, payments...)
+    InspRepo->>+DB: SELECT inspection_reports, payments, ...
+    DB-->>-InspRepo: inspection row
+    InspRepo-->>-Hdl: inspection
+
+    alt Inspection không tồn tại
+        Hdl-->>Ctrl: Result.Failure(NotFound)
+        Ctrl-->>App: 404 Not Found
+        App-->>Inspector: Hiển thị "Không tìm thấy biên bản"
+    else Inspector không thuộc assigned team
+        Hdl->>+TeamRepo: ValidateTeamMemberAsync
+        TeamRepo->>DB: SELECT team_members ...
+        TeamRepo-->>-Hdl: forbidden
+        Hdl-->>Ctrl: Result.Failure(Forbidden)
+        Ctrl-->>App: 403 Forbidden
+        App-->>Inspector: Hiển thị lỗi quyền truy cập
+    else Happy path
+        Hdl->>+EvRepo: Query checklist evidence by inspectionId
+        EvRepo->>+DB: SELECT inspection_evidences ORDER BY uploaded_at
+        DB-->>-EvRepo: checklist items
+        EvRepo-->>-Hdl: checklistEvidence[]
+
+        Hdl->>Hdl: fieldSubmitted = FieldInvestigationSubmittedAt.HasValue
+        Hdl->>Hdl: inProgress = Status == InProgress
+
+        Note over Hdl: Tính capability flags [BR-INS-033]
+        Hdl->>Hdl: CanAcceptTask = Draft && AssignedTeamId != null
+        Hdl->>Hdl: CanConfirmArrival / CanEditChecklist /<br/>CanSubmitFieldReport / CanEditDetails<br/>= inProgress && !fieldSubmitted
+        Hdl->>Hdl: CanIssuePenalty / CanCloseNoViolation<br/>= inProgress && fieldSubmitted
+        Hdl->>Hdl: CanRecordPayment = PenaltyIssued | Overdue<br/>(LEO web only — không còn PartiallyPaid, không hiện ở Inspector App)
+        Hdl->>Hdl: CanClose = Paid<br/>(hiếm khi true — RecordPayment của LEO đã tự động Close)
+
+        Hdl-->>-Ctrl: Result InspectionReportDetailResponse<br/>{status, checklistEvidence, payments, can*}
+        Ctrl-->>-App: 200 OK
+        App->>App: Bật/tắt nút theo canAcceptTask, canIssuePenalty, ...
+        App-->>-Inspector: Hiển thị màn detail + action buttons
+    end
+```
+
+**Capability flags → UI mapping:**
+
+| Flag | Nút UI (Inspector App) |
+|------|------------------------|
+| `canAcceptTask` | Nhận nhiệm vụ → SD-30 |
+| `canConfirmArrival` | Xác nhận đến nơi → SD-31 |
+| `canEditChecklist` | Sửa checklist / upload → SD-33 |
+| `canEditDetails` | Sửa mô tả vi phạm (trong giai đoạn checklist) |
+| `canSubmitFieldReport` | Gửi biên bản hiện trường → SD-34 |
+| `canIssuePenalty` | Lập quyết định xử phạt → SD-32 |
+| `canCloseNoViolation` | Đóng — không vi phạm → SD-35 |
+| `canRecordPayment` | *(Không hiện ở Inspector App)* — chỉ LEO thấy nút "Ghi nhận nộp phạt" trên Web Portal → SD-39 |
+| `canClose` | *(Legacy)* — RecordPayment của LEO nay tự động Close, endpoint `PUT /close` hiếm khi cần dùng riêng |
+
+---
+
+### SD-30 ⭐ Accept Inspection Task
+
+**Actor:** Inspector · **BR:** BR-INS-003, BR-INS-033
+
+```mermaid
+sequenceDiagram
+    actor Inspector
+    participant App as Mobile App
+    participant Ctrl as :InspectionsController
+    participant Hdl as :AcceptInspectionTaskHandler
+    participant InspRepo as :IInspectionReportRepository
+    participant TeamRepo as :ITeamMemberRepository
+    participant UoW as :IUnitOfWork
+    participant DB as Database
+
+    Inspector->>+App: Mở task được giao → Nhận nhiệm vụ
+    App->>+Ctrl: POST /v1/inspections/{id}/accept
+    Ctrl->>+Hdl: Send(AcceptInspectionTaskCommand)
+
+    Hdl->>+InspRepo: GetByIdAsync(inspectionId)
+    InspRepo->>+DB: SELECT * FROM inspection_reports WHERE id = ?
+    DB-->>-InspRepo: inspection
+    InspRepo-->>-Hdl: inspection
+
+    alt inspection.Status ≠ Draft
+        Hdl-->>Ctrl: Result.Failure(BusinessRule:<br/>"Phải ở trạng thái Draft")
+        Ctrl-->>App: 400 Bad Request
+        App-->>Inspector: Hiển thị lỗi trạng thái
+    else AssignedTeamId is null
+        Hdl-->>Ctrl: Result.Failure(BusinessRule:<br/>"Chưa giao đội thanh tra")
+        Ctrl-->>App: 400 Bad Request
+        App-->>Inspector: Hiển thị lỗi
+    else User không thuộc assigned team
+        Hdl->>+TeamRepo: IsMemberAsync(teamId, userId)
+        TeamRepo->>DB: SELECT team_members ...
+        TeamRepo-->>-Hdl: false
+        Hdl-->>Ctrl: Result.Failure(Forbidden)
+        Ctrl-->>App: 403 Forbidden
+    else Happy path
+        Hdl->>Hdl: inspection.AcceptTask(userId)
+        Note over Hdl: Status: Draft → InProgress
+        Hdl->>+UoW: SaveChangesAsync()
+        UoW->>+DB: UPDATE inspection_reports SET status, accepted_at
+        DB-->>-UoW: OK
+        UoW-->>-Hdl: OK
+        Hdl-->>-Ctrl: Result.Success
+        Ctrl-->>-App: 200 OK
+        App-->>-Inspector: Hiển thị "Đã nhận nhiệm vụ"
+    end
+```
+
+---
+
+### SD-31 ⭐ Confirm Arrival (Soft GPS)
+
+**Actor:** Inspector · **BR:** BR-INS-033
+
+```mermaid
+sequenceDiagram
+    actor Inspector
+    participant App as Mobile App
+    participant Ctrl as :InspectionsController
+    participant Hdl as :ConfirmArrivalHandler
+    participant InspRepo as :IInspectionReportRepository
+    participant RptRepo as :IReportRepository
+    participant Geo as :IGeoDistanceService
+    participant UoW as :IUnitOfWork
+    participant DB as Database
+
+    Inspector->>+App: Xác nhận đã đến hiện trường (GPS)
+    App->>+Ctrl: POST /v1/inspections/{id}/confirm-arrival {lat, lng, note?}
+    Ctrl->>+Hdl: Send(ConfirmArrivalCommand)
+
+    Hdl->>+InspRepo: GetByIdAsync(inspectionId)
+    InspRepo-->>-Hdl: inspection (InProgress)
+
+    Hdl->>+RptRepo: GetByIdAsync(reportId)
+    RptRepo-->>-Hdl: report (lat, lng)
+
+    Hdl->>+Geo: GetDistanceInMetersAsync(inspectorGPS, reportGPS)
+    Geo-->>-Hdl: distanceMeters
+
+    alt distance > 200m AND note is empty
+        Hdl-->>Ctrl: Result.Failure(Validation:<br/>"Cần ghi chú giải trình khi xa > 200m")
+        Ctrl-->>App: 400 Bad Request
+        App-->>Inspector: Hiển thị yêu cầu nhập note
+    else inspection.Status ≠ InProgress
+        Hdl-->>Ctrl: Result.Failure(BusinessRule)
+        Ctrl-->>App: 400 Bad Request
+    else Happy path
+        Hdl->>Hdl: inspection.ConfirmArrival(lat, lng, note)
+        Note over Hdl: Status vẫn InProgress
+        Hdl->>+UoW: SaveChangesAsync()
+        UoW->>+DB: UPDATE arrival_confirmed_at, arrival_lat/lng
+        DB-->>-UoW: OK
+        UoW-->>-Hdl: OK
+        Hdl-->>-Ctrl: Result.Success
+        Ctrl-->>-App: 200 OK
+        App-->>-Inspector: Hiển thị "Đã xác nhận đến nơi"
+    end
+```
+
+---
+
+### SD-33 ⭐ Update Checklist & Upload Evidence
+
+**Actor:** Inspector · **BR:** BR-INS-033, BR-INS-010
+
+```mermaid
+sequenceDiagram
+    actor Inspector
+    participant App as Mobile App
+    participant Ctrl as :InspectionsController
+    participant ChkHdl as :UpdateInspectionChecklistHandler
+    participant EvHdl as :UploadInspectionEvidenceHandler
+    participant InspRepo as :IInspectionReportRepository
+    participant EvRepo as :IInspectionEvidenceRepository
+    participant Storage as :IFileStorageService
+    participant UoW as :IUnitOfWork
+    participant DB as Database
+
+    Note over Inspector,DB: Bước A — Text checklist
+    Inspector->>+App: Nhập mô tả tình trạng vi phạm
+    App->>+Ctrl: PUT /v1/inspections/{id}/checklist {violationStatusText, otherDescription?}
+    Ctrl->>+ChkHdl: Send(UpdateInspectionChecklistCommand)
+    ChkHdl->>InspRepo: GetByIdAsync
+    alt Field report đã submit
+        ChkHdl-->>Ctrl: Result.Failure(BusinessRule:<br/>"Checklist đã khóa")
+        Ctrl-->>App: 400 Bad Request
+    else Happy path
+        ChkHdl->>EvRepo: Upsert ViolationStatus / Other text
+        ChkHdl->>UoW: SaveChangesAsync()
+        UoW->>DB: INSERT/UPDATE inspection_evidences
+        ChkHdl-->>Ctrl: Result.Success
+        Ctrl-->>App: 200 OK
+    end
+
+    Note over Inspector,DB: Bước B — Upload ảnh hiện trường (≥ 2 ScenePhoto)
+    Inspector->>App: Chụp / chọn ảnh hiện trường
+    App->>Ctrl: POST /v1/inspections/{id}/evidence?category=ScenePhoto (multipart)
+    Ctrl->>+EvHdl: Send(UploadInspectionEvidenceCommand)
+    EvHdl->>InspRepo: GetByIdAsync (InProgress, chưa submit)
+    alt File quá size limit
+        EvHdl-->>Ctrl: Result.Failure(Validation:<br/>"FILE_TOO_LARGE")
+        Ctrl-->>App: 400 Bad Request
+    else Happy path
+        EvHdl->>+Storage: UploadAsync → R2
+        Storage-->>-EvHdl: mediaUrl
+        EvHdl->>EvRepo: Add(InspectionEvidence.CreateMedia)
+        EvHdl->>UoW: SaveChangesAsync()
+        UoW->>DB: INSERT inspection_evidences
+        EvHdl-->>-Ctrl: Result {uploadedUrls, totalCount}
+        Ctrl-->>App: 200 OK
+        App-->>Inspector: Hiển thị số ảnh đã upload
+    end
+```
+
+---
+
+### SD-34 ⭐ Submit Field Investigation Report
+
+**Actor:** Team Leader · **BR:** BR-INS-033, BR-INS-012
+
+```mermaid
+sequenceDiagram
+    actor Leader as Team Leader
+    participant App as Mobile App
+    participant Ctrl as :InspectionsController
+    participant Hdl as :SubmitFieldInvestigationHandler
+    participant InspRepo as :IInspectionReportRepository
+    participant EvRepo as :IInspectionEvidenceRepository
+    participant Val as :InspectionChecklistValidator
+    participant UoW as :IUnitOfWork
+    participant DB as Database
+
+    Leader->>+App: Hoàn tất checklist → Gửi biên bản hiện trường
+    App->>+Ctrl: PUT /v1/inspections/{id}/submit-field-report
+    Ctrl->>+Hdl: Send(SubmitFieldInvestigationCommand)
+
+    Hdl->>+InspRepo: GetByIdAsync(inspectionId)
+    InspRepo-->>-Hdl: inspection
+
+    alt User không phải Team Leader
+        Hdl-->>Ctrl: Result.Failure(Forbidden)
+        Ctrl-->>App: 403 Forbidden
+        App-->>Leader: Hiển thị lỗi quyền
+    else Checklist chưa đủ
+        Hdl->>+EvRepo: GetByInspectionReportIdAsync
+        EvRepo-->>-Hdl: evidences
+        Hdl->>Val: Validate(evidences)
+        alt Thiếu ViolationStatus text
+            Val-->>Hdl: ChecklistViolationStatusRequired
+            Hdl-->>Ctrl: Result.Failure(Validation)
+            Ctrl-->>App: 400 Bad Request
+            App-->>Leader: Hiển thị lỗi checklist
+        else ScenePhoto < 2
+            Val-->>Hdl: InsufficientEvidenceImages
+            Hdl-->>Ctrl: Result.Failure(Validation)
+            Ctrl-->>App: 400 Bad Request
+            App-->>Leader: Hiển thị "Cần ≥ 2 ảnh hiện trường"
+        end
+    else Happy path
+        Hdl->>Hdl: inspection.SubmitFieldInvestigation(leaderId)
+        Note over Hdl: field_investigation_submitted_at set — Status vẫn InProgress — canIssuePenalty / canCloseNoViolation = true
+        Hdl->>+UoW: SaveChangesAsync()
+        UoW->>+DB: UPDATE inspection_reports
+        DB-->>-UoW: OK
+        UoW-->>-Hdl: OK
+        Hdl-->>-Ctrl: Result.Success
+        Ctrl-->>-App: 200 OK
+        App-->>-Leader: Hiển thị "Đã gửi biên bản hiện trường"
+    end
+```
+
+---
+
+### SD-35 ⭐ Close No Violation
+
+**Actor:** Team Leader · **BR:** BR-INS-013, BR-INS-033, BR-ADM-010
+
+```mermaid
+sequenceDiagram
+    actor Leader as Team Leader
+    participant App as Mobile App
+    participant Ctrl as :InspectionsController
+    participant Hdl as :CloseNoViolationHandler
+    participant InspRepo as :IInspectionReportRepository
+    participant Audit as :IAuditLogger
+    participant UoW as :IUnitOfWork
+    participant DB as Database
+
+    Leader->>+App: Không phát hiện vi phạm → Đóng biên bản
+    App->>+Ctrl: PUT /v1/inspections/{id}/close-no-violation {reason}
+    Ctrl->>+Hdl: Send(CloseNoViolationCommand)
+
+    Hdl->>+InspRepo: GetByIdAsync(inspectionId)
+    InspRepo-->>-Hdl: inspection
+
+    alt Chưa submit field report
+        Hdl-->>Ctrl: Result.Failure(BusinessRule:<br/>"INSPECTION_FIELD_REPORT_REQUIRED")
+        Ctrl-->>App: 422 Unprocessable Entity
+        App-->>Leader: Hiển thị lỗi
+    else reason.length < 50
+        Hdl-->>Ctrl: Result.Failure(Validation:<br/>"Lý do ≥ 50 ký tự")
+        Ctrl-->>App: 400 Bad Request
+    else User không phải Team Leader
+        Hdl-->>Ctrl: Result.Failure(Forbidden)
+        Ctrl-->>App: 403 Forbidden
+    else Happy path
+        Hdl->>Hdl: inspection.CloseNoViolation(reason)
+        Note over Hdl: Status: InProgress → ClosedNoViolation
+        Hdl->>+UoW: SaveChangesAsync()
+        UoW->>+DB: UPDATE inspection_reports
+        DB-->>-UoW: OK
+        UoW-->>-Hdl: OK
+        Hdl->>+Audit: LogAsync("CloseNoViolation", ...)
+        Audit->>DB: INSERT audit_logs
+        Audit-->>-Hdl: OK
+        Hdl-->>-Ctrl: Result.Success
+        Ctrl-->>-App: 200 OK
+        App-->>-Leader: Hiển thị "Đã đóng — không vi phạm"
+    end
+```
+
+---
+
 ### SD-32 ⭐ Issue Penalty
 
 **Actor:** Inspector / LEO · **BR:** BR-INS-005, BR-INS-006, BR-INS-010
@@ -904,16 +1496,27 @@ sequenceDiagram
     participant DB as Database
 
     Inspector->>+App: Nhập thông tin xử phạt (số tiền, quyết định, ...)
-    App->>+Ctrl: PUT /api/inspections/{id}/issue-penalty {amount, decisionNo, ...}
+    App->>+Ctrl: PUT /v1/inspections/{id}/issue-penalty {amount, decisionNo, ...}
     Ctrl->>+Hdl: Send(IssuePenaltyCommand)
 
     Hdl->>+InspRepo: GetByIdAsync(inspectionId)
     InspRepo->>+DB: SELECT * FROM inspection_reports WHERE id = ?
     DB-->>-InspRepo: inspection
     InspRepo-->>-Hdl: inspection
-    Hdl->>Hdl: Check inspection.Status == InProgress
 
-    Hdl->>+FwRepo: Get framework for category + level
+    alt User không phải Team Leader
+        Hdl-->>Ctrl: Result.Failure(Forbidden)
+        Ctrl-->>App: 403 Forbidden
+        App-->>Inspector: Hiển thị lỗi quyền
+    else Field report chưa submit [BR-INS-033]
+        Hdl-->>Ctrl: Result.Failure(BusinessRule:<br/>"INSPECTION_FIELD_REPORT_REQUIRED")
+        Ctrl-->>App: 422 Unprocessable Entity
+        App-->>Inspector: Hiển thị "Cần gửi biên bản hiện trường trước"
+    else inspection.Status ≠ InProgress
+        Hdl-->>Ctrl: Result.Failure(BusinessRule)
+        Ctrl-->>App: 400 Bad Request
+    else Happy path
+        Hdl->>+FwRepo: Get framework for category + level
     FwRepo->>+DB: SELECT * FROM penalty_frameworks<br/>WHERE category_id = ? AND level = ?
     DB-->>-FwRepo: framework
     FwRepo-->>-Hdl: framework (minAmount, maxAmount)
@@ -949,6 +1552,91 @@ sequenceDiagram
     Hdl-->>-Ctrl: Result<success>
     Ctrl-->>-App: 200 OK
     App-->>-Inspector: Hiển thị "Đã lập biên bản xử phạt"
+    end
+```
+
+---
+
+### SD-39 ⭐ Record Payment & Close Inspection (LEO — 1 hành động duy nhất)
+
+**Actor:** LEO (phụ trách khu vực của report gốc) · **BR:** BR-INS-020, BR-ORG-012, BR-ADM-010, BR-NTF-002
+
+> Sau SD-32 (Issue Penalty, do Inspector Team Leader ban hành).
+> **Đổi từ thiết kế cũ:** người xác nhận đóng tiền và đóng biên bản không còn là Inspector Team Leader
+> mà chuyển hẳn cho **LEO** — vì LEO là người trực tiếp tiếp dân và thu tiền phạt tại trụ sở phường/xã
+> (BR-INS-020 "in-person at ward office"). Không còn hỗ trợ nộp từng phần: `paidAmount` phải khớp
+> **đúng bằng** số tiền còn lại; ghi nhận thành công sẽ **tự động đóng hồ sơ luôn** trong cùng 1 request
+> (`Paid → Closed`), không cần thao tác `PUT /close` riêng nữa. Inspector Team Leader (người đã ban hành
+> QĐ xử phạt) chỉ nhận **1 thông báo duy nhất** báo hồ sơ đã hoàn tất — không còn tự bấm đóng.
+
+```mermaid
+sequenceDiagram
+    actor LEO as LEO
+    participant Web as Web Portal
+    participant Ctrl as :InspectionsController
+    participant PayHdl as :RecordPaymentHandler
+    participant AuthZ as :InspectionTeamAuthorization
+    participant LeoOfficeRepo as :ILocalOfficeRepository
+    participant ReportRepo as :IReportRepository
+    participant InspRepo as :IInspectionReportRepository
+    participant Storage as :IFileStorageService
+    participant Notif as :INotificationService
+    participant Audit as :IAuditLogger
+    participant UoW as :IUnitOfWork
+    participant DB as Database
+    actor Insp as Inspector Team Leader
+
+    LEO->>+Web: Xác nhận đã nộp đủ + upload biên lai (Section "Thanh toán")
+    Web->>+Ctrl: PUT /v1/inspections/{id}/record-payment (multipart:<br/>paidAmount, paidAt, receipt, note?)
+    Ctrl->>+PayHdl: Send(RecordPaymentCommand)
+
+    PayHdl->>+InspRepo: GetByIdAsync(inspectionId)
+    InspRepo-->>-PayHdl: inspection (PenaltyIssued/Overdue)
+
+    PayHdl->>+AuthZ: ValidateLeoForReportAsync(inspection, ...)
+    AuthZ->>+ReportRepo: GetByIdAsync(inspection.ReportId)
+    ReportRepo-->>-AuthZ: report
+    AuthZ->>+LeoOfficeRepo: QueryAsNoTracking() — OfficerId == currentUser
+    LeoOfficeRepo-->>-AuthZ: leoOffice?
+    AuthZ-->>-PayHdl: null hoặc lỗi NotAssignedLeoForReport
+
+    alt LEO không phụ trách khu vực của report này
+        PayHdl-->>Ctrl: Result.Failure(Forbidden:<br/>"NOT_ASSIGNED_LEO_FOR_REPORT")
+        Ctrl-->>Web: 403 Forbidden
+    else Thiếu file receipt
+        PayHdl-->>Ctrl: Result.Failure(Validation:<br/>"PaymentReceiptRequired")
+        Ctrl-->>Web: 400 Bad Request
+        Web-->>LEO: Hiển thị "Cần upload biên lai"
+    else Status không hợp lệ (không phải PenaltyIssued/Overdue)
+        PayHdl-->>Ctrl: Result.Failure(BusinessRule:<br/>"INSPECTION_INVALID_STATE")
+        Ctrl-->>Web: 422 Unprocessable Entity
+    else paidAmount ≠ số tiền còn lại
+        PayHdl-->>Ctrl: Result.Failure(Validation:<br/>"PAYMENT_AMOUNT_MUST_MATCH_REMAINING")
+        Ctrl-->>Web: 422 Unprocessable Entity
+        Web-->>LEO: Hiển thị "Số tiền phải đúng bằng số còn lại"
+    else Happy path — thu đủ tiền & đóng hồ sơ cùng lúc
+        PayHdl->>+Storage: UploadAsync(receipt) → R2
+        Storage-->>-PayHdl: evidenceUrl
+        PayHdl->>PayHdl: PenaltyPayment.Create + inspection.RecordPayment(payment)
+        Note over PayHdl: PaidAmount == PenaltyAmount → Status = Paid (không còn PartiallyPaid)
+        PayHdl->>PayHdl: inspection.Close("Đóng hồ sơ sau khi LEO ghi nhận nộp phạt đủ.")
+        Note over PayHdl: Status: Paid → Closed (tự động, cùng 1 request)
+        PayHdl->>+UoW: SaveChangesAsync()
+        UoW->>+DB: INSERT penalty_payments,<br/>UPDATE inspection_reports<br/>SET status=Closed, closed_at
+        DB-->>-UoW: OK
+        UoW-->>-PayHdl: OK
+        PayHdl->>+Audit: LogAsync("RecordPaymentAndClose", ...)
+        Audit->>DB: INSERT audit_logs
+        Audit-->>-PayHdl: OK
+        PayHdl->>+Notif: SendFromTemplateAsync(<br/>inspection.IssuedByInspectorId,<br/>InspectionPenaltyPaidAndClosed,<br/>referenceId = inspection.Id)
+        Notif->>DB: INSERT notifications
+        Notif-->>-PayHdl: OK
+        Note over Notif,Insp: Push/in-app tới Inspector Team Leader (người đã ban hành QĐ) — không cần tự bấm đóng
+        PayHdl-->>-Ctrl: Result.Success
+        Ctrl-->>-Web: 200 OK "Đã ghi nhận nộp phạt đủ và đóng hồ sơ."
+        Web-->>-LEO: Hiển thị "Đã đóng hồ sơ"
+        Insp-->>Insp: Nhận thông báo "Đã nộp phạt đủ — hồ sơ đã đóng"
+    end
 ```
 
 ---
@@ -1171,71 +1859,107 @@ sequenceDiagram
 
 ### SD-44 ⭐ Add Comment (with Media & Moderation)
 
-**Actor:** Citizen · **BR:** BR-CMT-001, BR-CMT-002, BR-CMT-005
+**Actor:** Citizen · **BR:** BR-CMT-001, BR-CMT-002, BR-CMT-003
 
 ```mermaid
 sequenceDiagram
     actor Citizen
     participant App as Mobile App
     participant Ctrl as :CommentsController
-    participant Hdl as :CreateCommentHandler
+    participant Hdl as :AddCommentCommandHandler
+    participant UserRepo as :IUserRepository
     participant RptRepo as :IReportRepository
+    participant Access as CommentAccess
     participant Prof as :IProfanityFilter
-    participant CmtRepo as :ICommentRepository
+    participant DB as :IApplicationDbContext
     participant UoW as :IUnitOfWork
-    participant Notif as :INotificationService
-    participant DB as Database
+    participant Evt as DomainEvent
 
     Citizen->>+App: Viết bình luận + đính kèm ảnh (optional)
-    App->>+Ctrl: POST /api/reports/{reportId}/comments {content, mediaUrls?, parentId?}
-    Ctrl->>+Hdl: Send(CreateCommentCommand)
+    App->>+Ctrl: POST /api/v1/reports/{reportId}/comments<br/>{content, images?, parentCommentId?}
+    Ctrl->>+Hdl: Send(AddCommentCommand)
 
-    Hdl->>Hdl: Check user.IsCommentBanned() [BR-CMT-005]
-
-    Hdl->>+RptRepo: GetByIdAsync(reportId)
-    RptRepo->>+DB: SELECT * FROM reports WHERE id = ?
-    DB-->>-RptRepo: report
-    RptRepo-->>-Hdl: report ✓
-
-    alt parentId provided (reply)
-        Hdl->>+CmtRepo: GetByIdAsync(parentId)
-        CmtRepo->>+DB: SELECT * FROM comments WHERE id = ?
-        DB-->>-CmtRepo: parentComment
-        CmtRepo-->>-Hdl: parentComment ✓
+    Hdl->>Hdl: Check currentUser.IsAuthenticated [BR-CMT-001]
+    alt Chưa đăng nhập
+        Hdl-->>Ctrl: Result.Failure(LoginRequired)
+        Ctrl-->>App: 403 Forbidden
+        App-->>Citizen: "Bạn cần đăng nhập để bình luận"
     end
 
-    Hdl->>+Prof: ContainsProfanity(content)
-    Prof-->>-Hdl: hasProfanity
+    Hdl->>+UserRepo: GetByIdAsync(currentUser.UserId)
+    UserRepo-->>-Hdl: user
+    alt User không tồn tại
+        Hdl-->>Ctrl: Result.Failure(UserNotFound)
+        Ctrl-->>App: 404 Not Found
+    end
 
-    alt Content has profanity
+    Hdl->>Hdl: user.IsCommentBanned()? [BR-CMT-003]
+    alt Bị cấm bình luận
+        Hdl-->>Ctrl: Result.Failure(CommentBanned)
+        Ctrl-->>App: 422 "Tài khoản bị khóa bình luận"
+        App-->>Citizen: "Bạn đã bị khóa bình luận"
+    end
+
+    Hdl->>+RptRepo: GetByIdAsync(reportId)
+    RptRepo-->>-Hdl: report
+    alt Report không tồn tại
+        Hdl-->>Ctrl: Result.Failure(ReportNotFound)
+        Ctrl-->>App: 404 Not Found
+    end
+
+    Hdl->>+Access: CanCommentOnReport(hideReporterName,<br/>role, userId, reporterId) [BR-CMT-001]
+    Access-->>-Hdl: allowed?
+    alt Không có quyền comment (anonymous report guard)
+        Hdl-->>Ctrl: Result.Failure(CommentNotAllowed)
+        Ctrl-->>App: 403 Forbidden
+        App-->>Citizen: "Bạn không có quyền bình luận trên báo cáo này"
+    end
+
+    opt parentCommentId provided (reply)
+        Hdl->>+DB: Set<Comment>().FirstOrDefaultAsync(parentId, reportId)
+        DB-->>-Hdl: parentComment
+        alt Parent comment không tồn tại
+            Hdl-->>Ctrl: Result.Failure(CommentNotFound)
+            Ctrl-->>App: 404 Not Found
+        end
+        Hdl->>Hdl: Flatten nested reply (TikTok-style):<br/>parentId = parent.ParentCommentId ?? parent.Id
+    end
+
+    Hdl->>+Prof: ContainsProfanity(content) [BR-CMT-003]
+    Prof-->>-Hdl: hasProfanity
+    alt Nội dung vi phạm
         Hdl->>Hdl: user.RecordCommentViolation()
-        Note over Hdl: 3 violations → ban 7d [BR-CMT-005]
-        Hdl-->>Ctrl: 400 InappropriateContent
-        Ctrl-->>App: 400
+        Note over Hdl: 3 violations → ban 7 ngày [BR-CMT-003]
+        Hdl->>+UoW: SaveChangesAsync()
+        UoW-->>-Hdl: OK (lưu violation count)
+        Hdl-->>Ctrl: Result.Failure(InappropriateContent)
+        Ctrl-->>App: 422 "Nội dung vi phạm quy tắc cộng đồng"
         App-->>Citizen: "Nội dung vi phạm quy tắc cộng đồng"
     end
 
-    Hdl->>Hdl: Comment.Create(reportId, authorId, content, parentId?)
-    Hdl->>CmtRepo: Add(comment)
+    Hdl->>Hdl: Comment.Create(reportId, userId, content, parentId?)
+    Note over Hdl: try/catch DomainException → DomainValidation error
 
-    opt mediaUrls provided [BR-CMT-002]
-        loop For each mediaUrl
+    Hdl->>Hdl: comment.AddDomainEvent(CommentPostedEvent)
+    Hdl->>DB: Set<Comment>().Add(comment)
+
+    opt images provided [BR-CMT-002]
+        loop For each image {url, mimeType, sizeBytes}
             Hdl->>Hdl: CommentMedia.Create(commentId, url, mime, size)
+            Hdl->>DB: Set<CommentMedia>().Add(media)
         end
     end
 
     Hdl->>+UoW: SaveChangesAsync()
     UoW->>+DB: INSERT INTO comments,<br/>INSERT INTO comment_media (optional)
     DB-->>-UoW: OK
+    Note over UoW: DomainEvent dispatch (MediatR IPublisher)
     UoW-->>-Hdl: OK
 
-    Hdl->>+Notif: NotifyAsync(reportOwner, NewComment)
-    Notif->>+DB: INSERT INTO notifications
-    DB-->>-Notif: OK
-    Notif-->>-Hdl: Sent
+    Evt-->>Evt: CommentPostedEvent →<br/>Notification handler gửi thông báo cho report owner
 
-    Hdl-->>-Ctrl: Result<CommentResponse>
-    Ctrl-->>-App: 201 Created {commentId}
+    Hdl-->>-Ctrl: Result<AddCommentResponse>
+    Ctrl-->>-App: 201 Created {id, reportId, content,<br/>createdAt, canEdit, parentCommentId, images}
     App-->>-Citizen: Hiển thị bình luận mới
 ```
 
@@ -1552,12 +2276,21 @@ flowchart LR
     subgraph Cleanup ["3️⃣ Cleanup"]
         SD21["SD-21<br/>Accept/Decline"]
         SD22["SD-22<br/>Check-in"]
+        SD23["SD-23<br/>Before & Progress"]
+        SD25["SD-25<br/>Community Cleanup"]
     end
 
     subgraph Inspection ["4️⃣ Inspection"]
         SD28["SD-28<br/>Create"]
         SD29["SD-29<br/>Assign Team"]
+        SD41["SD-41<br/>GET Detail"]
+        SD30["SD-30<br/>Accept Task"]
+        SD31["SD-31<br/>Confirm Arrival"]
+        SD33["SD-33<br/>Checklist"]
+        SD34["SD-34<br/>Submit Field Report"]
         SD32["SD-32<br/>Issue Penalty"]
+        SD35["SD-35<br/>Close No Violation"]
+        SD39["SD-39<br/>Payment & Close (LEO)"]
     end
 
     subgraph Org ["5️⃣ Organization"]

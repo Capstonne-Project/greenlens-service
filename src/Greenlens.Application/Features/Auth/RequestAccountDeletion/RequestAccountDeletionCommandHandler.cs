@@ -14,6 +14,7 @@ namespace Greenlens.Application.Features.Auth.RequestAccountDeletion;
 /// <remarks>Implements: BR-AUTH-021 (soft delete 90 days, anonymize reports).</remarks>
 public sealed class RequestAccountDeletionCommandHandler(
     IUserRepository users,
+    IReportRepository reports,
     IUnitOfWork uow,
     ICurrentUser currentUser,
     ILogger<RequestAccountDeletionCommandHandler> logger)
@@ -25,25 +26,38 @@ public sealed class RequestAccountDeletionCommandHandler(
         RequestAccountDeletionCommand request,
         CancellationToken cancellationToken)
     {
+        logger.LogInformation("Getting account deletion");
+
         var user = await users.GetByIdAsync(currentUser.UserId, cancellationToken)
             .ConfigureAwait(false);
 
         if (user is null)
+        {
+            logger.LogWarning("User not found for user {UserId}", currentUser.UserId);
             return Errors.Auth.UserNotFound;
+        }
 
         if (user.IsDeleted)
+        {
+            logger.LogWarning("User {UserId} already deleted", currentUser.UserId);
             return Errors.Users.UserAlreadyDeleted;
+        }
 
-        // Soft-delete user (sets DeletedAt, DeletedBy)
         user.SoftDelete(currentUser.Email);
+
+        var anonymizedCount = await reports
+            .AnonymizeReporterAsync(user.Id, cancellationToken)
+            .ConfigureAwait(false);
+
+        logger.LogInformation("Anonymized count: {AnonymizedCount}", anonymizedCount);
 
         await uow.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         var deletionDate = DateTime.UtcNow.AddDays(RetentionDays);
 
         logger.LogInformation(
-            "User {UserId} requested account deletion. Will be hard-deleted after {Date}",
-            user.Id, deletionDate);
+            "User {UserId} requested account deletion. {ReportCount} reports anonymized. Will be hard-deleted after {Date}",
+            user.Id, anonymizedCount, deletionDate);
 
         return new RequestAccountDeletionResponse(
             $"Tài khoản sẽ được xóa vĩnh viễn sau {RetentionDays} ngày. Bạn có thể khôi phục trước thời hạn.",

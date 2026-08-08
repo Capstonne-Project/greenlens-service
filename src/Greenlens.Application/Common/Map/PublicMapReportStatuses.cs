@@ -8,6 +8,7 @@ public static class PublicMapReportStatuses
     public static readonly ReportStatus[] Visible =
     [
         ReportStatus.Verified,
+        ReportStatus.Reopened,
         ReportStatus.InProgress,
         ReportStatus.Resolved,
         ReportStatus.Closed

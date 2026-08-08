@@ -6,6 +6,7 @@ using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Notifications.UpdateNotificationPreferences;
 
@@ -36,17 +37,22 @@ public sealed class UpdateNotificationPreferencesCommandValidator
 internal sealed class UpdateNotificationPreferencesCommandHandler(
     ICurrentUser currentUser,
     INotificationPreferenceRepository prefRepo,
-    IUnitOfWork unitOfWork)
+    IUnitOfWork unitOfWork,
+    ILogger<UpdateNotificationPreferencesCommandHandler> logger)
     : IRequestHandler<UpdateNotificationPreferencesCommand, Result>
 {
     public async Task<Result> Handle(
         UpdateNotificationPreferencesCommand request, CancellationToken ct)
     {
+        logger.LogInformation("Updating notification preferences");
+
         var userId = currentUser.UserId;
 
         var existing = await prefRepo.Query()
             .Where(p => p.UserId == userId)
             .ToListAsync(ct).ConfigureAwait(false);
+
+        logger.LogInformation("Existing preferences: {Existing}", existing);
 
         foreach (var update in request.Preferences)
         {
@@ -54,16 +60,20 @@ internal sealed class UpdateNotificationPreferencesCommandHandler(
 
             if (pref is not null)
             {
+                logger.LogInformation("Updating preference for type {Type}", update.Type);
                 pref.Update(update.PushEnabled, update.EmailEnabled);
             }
             else
             {
+                logger.LogInformation("Adding new preference for type {Type}", update.Type);
                 prefRepo.Add(NotificationPreference.Create(
                     userId, update.Type, update.PushEnabled, update.EmailEnabled));
             }
         }
 
         await unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        logger.LogInformation("Notification preferences updated");
 
         return Result.Success();
     }

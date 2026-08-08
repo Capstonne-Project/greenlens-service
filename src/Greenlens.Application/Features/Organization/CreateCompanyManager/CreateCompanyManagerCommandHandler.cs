@@ -1,9 +1,11 @@
+using System.Text.Json;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Organization.CreateCompanyManager;
@@ -12,13 +14,14 @@ namespace Greenlens.Application.Features.Organization.CreateCompanyManager;
 /// DEO creates a CompanyManager account for an existing company.
 /// Supports deferred onboarding: company can be created first, CM account created later.
 /// </summary>
-/// <remarks>Implements: BR-CMP-001, BR-CMP-002.</remarks>
+/// <remarks>Implements: BR-CMP-001, BR-CMP-002, BR-ADM-010.</remarks>
 public sealed class CreateCompanyManagerCommandHandler(
     IEnvironmentalServiceCompanyRepository companies,
     IUserRepository users,
     ICompanyStaffRepository companyStaff,
     IUnitOfWork uow,
     IPasswordHasher passwordHasher,
+    IAuditLogger auditLogger,
     ILogger<CreateCompanyManagerCommandHandler> logger)
     : IRequestHandler<CreateCompanyManagerCommand, Result<CreateCompanyManagerResponse>>
 {
@@ -26,20 +29,26 @@ public sealed class CreateCompanyManagerCommandHandler(
         CreateCompanyManagerCommand request,
         CancellationToken ct)
     {
+        logger.LogInformation("Creating company manager for company {CompanyId}", request.CompanyId);
         // ── 1. Verify company exists ──
         var company = await companies.GetByIdAsync(request.CompanyId, ct)
             .ConfigureAwait(false);
 
         if (company is null)
+        {
+            logger.LogWarning("Company {CompanyId} not found", request.CompanyId);
             return Errors.Organization.CompanyNotFound;
+        }
 
         // ── 2. Check manager email uniqueness ──
-        var emailExists = await users.ExistsAsync(
-            u => u.Email == request.ManagerEmail.ToLowerInvariant(), ct)
+        var emailError = await UserRegistrationGuard
+            .ValidateNewEmailForProvisioningAsync(users, request.ManagerEmail, ct)
             .ConfigureAwait(false);
-
-        if (emailExists)
-            return Errors.Organization.ManagerEmailAlreadyExists;
+        if (emailError is not null)
+        {
+            logger.LogWarning("Email {Email} is already in use", request.ManagerEmail);
+            return emailError;
+        }
 
         // ── 3. Create CM user with temporary password ──
         var tempPassword = GenerateTempPassword();
@@ -57,11 +66,39 @@ public sealed class CreateCompanyManagerCommandHandler(
         var staffLink = CompanyStaff.Create(managerUser.Id, company.Id, "Manager");
         companyStaff.Add(staffLink);
 
-        await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+        try
+        {
+            await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+            logger.LogInformation("Company manager created for company {CompanyId}", request.CompanyId);
+        }
+        catch (DbUpdateException ex)
+        {
+            var mapped = PostgresUniqueViolationMapper.TryMap(ex);
+            if (mapped is not null)
+            {
+                logger.LogWarning("Failed to save changes for company manager {CompanyId}", request.CompanyId);
+                return mapped;
+            }
+            throw;
+        }
 
         logger.LogInformation(
             "CM account {ManagerEmail} created for company {CompanyId} '{CompanyName}'",
             request.ManagerEmail, company.Id, company.Name);
+
+        await auditLogger.LogAsync(
+            "CreateCompanyManager",
+            "Company",
+            company.Id.ToString(),
+            oldValues: null,
+            newValues: JsonSerializer.Serialize(new
+            {
+                request.CompanyId,
+                ManagerUserId = managerUser.Id,
+                managerUser.Email,
+                managerUser.FullName
+            }),
+            ct).ConfigureAwait(false);
 
         return new CreateCompanyManagerResponse(
             managerUser.Id,
