@@ -31,6 +31,7 @@ public sealed class InspectionTaskAssignedNotifierTests
     {
         var teamId = Guid.NewGuid();
         var reportId = Guid.NewGuid();
+        var inspectionId = Guid.NewGuid();
         var member1 = Guid.NewGuid();
         var member2 = Guid.NewGuid();
 
@@ -40,14 +41,14 @@ public sealed class InspectionTaskAssignedNotifierTests
         _teamRecipients.GetActiveMemberUserIdsAsync(teamId, Arg.Any<CancellationToken>())
             .Returns(new[] { member1, member2 });
 
-        await _sut.NotifyTeamAsync(teamId, reportId, Guid.NewGuid(), "RPT-800", CancellationToken.None);
+        await _sut.NotifyTeamAsync(teamId, reportId, inspectionId, "RPT-800", CancellationToken.None);
 
         await _notifications.Received(2).SendFromTemplateAsync(
             Arg.Any<Guid>(),
             NotificationType.InspectionTaskAssigned,
             Arg.Is<Dictionary<string, string>>(d =>
                 d["report_code"] == "RPT-800" && d["team_name"] == "Đội Thanh tra A"),
-            reportId,
+            inspectionId,
             Arg.Any<CancellationToken>());
     }
 
