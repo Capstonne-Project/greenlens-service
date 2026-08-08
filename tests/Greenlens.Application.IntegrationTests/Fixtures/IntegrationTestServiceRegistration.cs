@@ -47,10 +47,13 @@ internal static class IntegrationTestServiceRegistration
         services.AddScoped<IViolatingEntityRepository, ViolatingEntityRepository>();
         services.AddScoped<IStaffInvitationRepository, StaffInvitationRepository>();
         services.AddScoped<ITeamMemberRepository, TeamMemberRepository>();
+        services.AddScoped<IOtpRepository, OtpRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<ITransactionManager, TransactionManager>();
         services.AddScoped<IDomainEventCollector, DomainEventCollector>();
         services.AddScoped<IChangeTrackerCleaner, ChangeTrackerCleaner>();
+        services.AddSingleton<IAuditLogger, NoOpAuditLogger>();
+        services.AddSingleton<INotificationService, NoOpNotificationService>();
 
         services.AddLogging(builder => builder.SetMinimumLevel(LogLevel.Warning));
 

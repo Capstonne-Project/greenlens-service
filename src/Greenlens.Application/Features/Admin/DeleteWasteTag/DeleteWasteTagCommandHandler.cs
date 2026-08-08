@@ -18,7 +18,7 @@ public sealed class DeleteWasteTagCommandHandler(
 {
     public async Task<Result> Handle(DeleteWasteTagCommand request, CancellationToken ct)
     {
-        var wasteTag = await wasteTags.GetByIdAsync(request.Id, ct).ConfigureAwait(false);
+        var wasteTag = await wasteTags.GetByIdIncludingDeletedAsync(request.Id, ct).ConfigureAwait(false);
         if (wasteTag is null)
         {
             logger.LogWarning("Waste tag not found: {Id}", request.Id);
