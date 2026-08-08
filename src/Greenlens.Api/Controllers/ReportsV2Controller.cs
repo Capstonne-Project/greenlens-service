@@ -23,7 +23,8 @@ public sealed class ReportsV2Controller(ISender sender) : ControllerBase
     [SwaggerOperation(
         Summary = "[LEO/DEO] Danh sách nghi ngờ trùng lặp (nhóm theo báo cáo gốc)",
         Description = "BR-REP-031 v2: Trả về các báo cáo gốc (primary) kèm toàn bộ báo cáo bị gắn cờ possible_duplicate " +
-            "trùng với báo cáo gốc đó. Hỗ trợ filter primaryReportId và các filter/search/sort giống v1. " +
+            "trùng với báo cáo gốc đó. Phạm vi theo user đăng nhập: LEO → phường (AssignedOfficeId), DEO → sở (AssignedDepartmentId), Admin → toàn hệ thống. " +
+            "Hỗ trợ filter primaryReportId và các filter/search/sort giống v1. " +
             "Pagination áp dụng trên số nhóm báo cáo gốc, không phải từng báo cáo trùng riêng lẻ.")]
     [SwaggerResponse(200, "Danh sách nhóm nghi ngờ trùng lặp", typeof(ApiResponse<GetDuplicateCandidatesV2Response>))]
     public async Task<IActionResult> GetDuplicateCandidatesAsync(

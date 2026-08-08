@@ -1,5 +1,7 @@
 using Greenlens.Application.Common;
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Reports.Common;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -11,10 +13,15 @@ namespace Greenlens.Application.Features.Reports.GetViolationRecurrenceCompariso
 /// <summary>
 /// Returns side-by-side data for the current report and the prior Closed report (BR-REP-034).
 /// </summary>
-/// <remarks>Implements: BR-REP-034, BR-OFF-005 (LEO triage support).</remarks>
+/// <remarks>
+/// Implements: BR-REP-034, BR-OFF-005 (LEO triage support).
+/// Scope: LEO → assigned office; DEO → department; Admin → all.
+/// </remarks>
 public sealed class GetViolationRecurrenceComparisonQueryHandler(
     IReportRepository reports,
     IInspectionReportRepository inspections,
+    IUserRepository users,
+    ICurrentUser currentUser,
     ILogger<GetViolationRecurrenceComparisonQueryHandler> logger)
     : IRequestHandler<GetViolationRecurrenceComparisonQuery, Result<ViolationRecurrenceComparisonResponse>>
 {
@@ -23,6 +30,13 @@ public sealed class GetViolationRecurrenceComparisonQueryHandler(
         CancellationToken ct)
     {
         logger.LogInformation("Getting violation recurrence comparison for report {ReportId}", request.ReportId);
+
+        var user = await users.GetByIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
+        if (user is null)
+        {
+            logger.LogWarning("User not found for violation recurrence comparison: {UserId}", currentUser.UserId);
+            return Errors.Users.UserNotFound;
+        }
 
         var current = await reports.QueryAsNoTracking()
             .Include(r => r.Category)
@@ -40,6 +54,16 @@ public sealed class GetViolationRecurrenceComparisonQueryHandler(
         {
             logger.LogWarning("Report {ReportId} has no violation recurrence flag", request.ReportId);
             return Errors.Reports.NotSuspectedViolationRecurrence;
+        }
+
+        var accessError = ReportReviewCandidateFilters.ValidateReportAccess(
+            current, user, currentUser.Role);
+        if (accessError is not null)
+        {
+            logger.LogWarning(
+                "User {UserId} denied recurrence comparison for report {ReportId}: {ErrorCode}",
+                currentUser.UserId, request.ReportId, accessError.Code);
+            return accessError;
         }
 
         var priorId = current.SuspectedRecurrenceOfReportId.Value;

@@ -1,4 +1,6 @@
 using FluentAssertions;
+using Greenlens.Application.Common.Interfaces;
+using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Features.Reports.GetDuplicateCandidatesV2;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
@@ -7,11 +9,35 @@ using Greenlens.Infrastructure.Persistence;
 using Greenlens.Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using NSubstitute;
 
 namespace Greenlens.Application.UnitTests;
 
 public sealed class GetDuplicateCandidatesV2QueryHandlerTests
 {
+    private static (GetDuplicateCandidatesV2QueryHandler Sut, ApplicationDbContext Ctx) CreateSut(ApplicationDbContext ctx)
+    {
+        var admin = User.Create("admin@test.local", "hash", "Admin", UserRole.Admin);
+        ctx.Users.Add(admin);
+        ctx.SaveChanges();
+
+        var currentUser = Substitute.For<ICurrentUser>();
+        currentUser.UserId.Returns(admin.Id);
+        currentUser.Role.Returns(UserRole.Admin.ToString());
+
+        var users = Substitute.For<IUserRepository>();
+        users.GetByIdAsync(admin.Id, Arg.Any<CancellationToken>()).Returns(admin);
+
+        var sut = new GetDuplicateCandidatesV2QueryHandler(
+            new ReportRepository(ctx),
+            new ReportMediaRepository(ctx),
+            users,
+            currentUser,
+            NullLogger<GetDuplicateCandidatesV2QueryHandler>.Instance);
+
+        return (sut, ctx);
+    }
+
     [Fact]
     public async Task Handle_GroupsDuplicatesByPrimary_BR_REP_031()
     {
@@ -34,10 +60,7 @@ public sealed class GetDuplicateCandidatesV2QueryHandlerTests
         ctx.Reports.AddRange(primary, dup1, dup2);
         await ctx.SaveChangesAsync();
 
-        var sut = new GetDuplicateCandidatesV2QueryHandler(
-            new ReportRepository(ctx),
-            new ReportMediaRepository(ctx),
-            NullLogger<GetDuplicateCandidatesV2QueryHandler>.Instance);
+        var (sut, _) = CreateSut(ctx);
 
         var result = await sut.Handle(new GetDuplicateCandidatesV2Query(), CancellationToken.None);
 
@@ -73,10 +96,7 @@ public sealed class GetDuplicateCandidatesV2QueryHandlerTests
         ctx.Reports.AddRange(primary1, primary2, dupForP1, dupForP2);
         await ctx.SaveChangesAsync();
 
-        var sut = new GetDuplicateCandidatesV2QueryHandler(
-            new ReportRepository(ctx),
-            new ReportMediaRepository(ctx),
-            NullLogger<GetDuplicateCandidatesV2QueryHandler>.Instance);
+        var (sut, _) = CreateSut(ctx);
 
         var result = await sut.Handle(
             new GetDuplicateCandidatesV2Query(PrimaryReportId: primary1.Id),

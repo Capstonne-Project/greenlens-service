@@ -1,7 +1,9 @@
 using Greenlens.Application.Common;
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Features.Inspection.GetInspectionReportById;
 using Greenlens.Domain.Common;
+using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -11,13 +13,17 @@ namespace Greenlens.Application.Features.Inspection.GetPaymentHistory;
 /// <summary>BR-INS-020: Returns all PenaltyPayment records for an InspectionReport.</summary>
 public sealed class GetPaymentHistoryQueryHandler(
     IInspectionReportRepository inspections,
+    IReportRepository reports,
+    ITeamMemberRepository teamMembers,
+    IUserRepository users,
+    ICurrentUser currentUser,
     ILogger<GetPaymentHistoryQueryHandler> logger)
     : IRequestHandler<GetPaymentHistoryQuery, Result<GetPaymentHistoryResponse>>
 {
     public async Task<Result<GetPaymentHistoryResponse>> Handle(
         GetPaymentHistoryQuery request, CancellationToken ct)
     {
-        logger.LogInformation("Getting payment history");
+        logger.LogInformation("Getting payment history for inspection {InspectionId}", request.InspectionId);
 
         var ir = await inspections.QueryAsNoTracking()
             .Include(x => x.Payments).ThenInclude(p => p.RecordedByUser)
@@ -28,6 +34,14 @@ public sealed class GetPaymentHistoryQueryHandler(
         {
             logger.LogWarning("Inspection not found for inspection {InspectionId}", request.InspectionId);
             return Errors.Inspections.InspectionNotFound;
+        }
+
+        if (currentUser.Role != UserRole.Admin.ToString())
+        {
+            var scopeError = await InspectionTeamAuthorization.ValidateInspectionReadAccessAsync(
+                ir, reports, teamMembers, users, currentUser, ct).ConfigureAwait(false);
+            if (scopeError is not null)
+                return scopeError;
         }
 
         var payments = ir.Payments

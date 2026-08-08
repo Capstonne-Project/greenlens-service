@@ -1,3 +1,5 @@
+using Greenlens.Application.Common;
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Common.Models;
 using Greenlens.Application.Features.Reports.Common;
@@ -15,10 +17,15 @@ namespace Greenlens.Application.Features.Reports.GetDuplicateCandidatesV2;
 /// <summary>
 /// Returns possible-duplicate reports grouped by their primary (canonical) report for LEO review.
 /// </summary>
-/// <remarks>Implements: BR-REP-031 (possible duplicate queue), BR-REP-032 (merge review).</remarks>
+/// <remarks>
+/// Implements: BR-REP-031 (possible duplicate queue), BR-REP-032 (merge review).
+/// Scope: LEO → assigned office; DEO → department; Admin → all.
+/// </remarks>
 public sealed class GetDuplicateCandidatesV2QueryHandler(
     IReportRepository reports,
     IReportMediaRepository reportMedia,
+    IUserRepository users,
+    ICurrentUser currentUser,
     ILogger<GetDuplicateCandidatesV2QueryHandler> logger)
     : IRequestHandler<GetDuplicateCandidatesV2Query, Result<GetDuplicateCandidatesV2Response>>
 {
@@ -26,7 +33,14 @@ public sealed class GetDuplicateCandidatesV2QueryHandler(
         GetDuplicateCandidatesV2Query request,
         CancellationToken ct)
     {
-        var duplicateQuery = BuildDuplicateQuery(reports, request);
+        var user = await users.GetByIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
+        if (user is null)
+        {
+            logger.LogWarning("User not found for duplicate candidates v2: {UserId}", currentUser.UserId);
+            return Errors.Users.UserNotFound;
+        }
+
+        var duplicateQuery = BuildDuplicateQuery(reports, request, user, currentUser.Role);
 
         var groupStatsQuery = duplicateQuery
             .GroupBy(r => r.PossibleDuplicateOfReportId!.Value)
@@ -158,12 +172,16 @@ public sealed class GetDuplicateCandidatesV2QueryHandler(
 
     private static IQueryable<Report> BuildDuplicateQuery(
         IReportRepository reports,
-        GetDuplicateCandidatesV2Query request)
+        GetDuplicateCandidatesV2Query request,
+        User user,
+        string role)
     {
         var query = reports.QueryAsNoTracking()
             .Where(r => r.IsPossibleDuplicate)
             .Where(r => r.PossibleDuplicateOfReportId != null)
             .Where(r => r.Status != ReportStatus.Duplicate && r.Status != ReportStatus.Rejected);
+
+        query = ReportReviewCandidateFilters.ApplyOfficerScope(query, user, role);
 
         query = ReportReviewCandidateFilters.ApplyCommon(
             query,

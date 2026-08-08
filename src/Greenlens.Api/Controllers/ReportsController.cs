@@ -354,7 +354,7 @@ public sealed class ReportsController(
     [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(
         Summary = "[LEO] Board tổng quan các báo cáo đang xử lý",
-        Description = "Trả về danh sách card báo cáo InProgress trong office của LEO, " +
+        Description = "Trả về danh sách card báo cáo InProgress trong office của LEO đang đăng nhập, " +
             "mỗi card gồm: SLA countdown, tiến độ tổng thể, avatar top-3 team leader. " +
             "Dùng cho trang dashboard dạng grid. " +
             "hoursRemaining âm = đã breach SLA. " +
@@ -374,7 +374,7 @@ public sealed class ReportsController(
     [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(
         Summary = "[LEO] Tiến trình xử lý báo cáo",
-        Description = "Trả về toàn bộ thông tin tiến trình của một báo cáo đang InProgress: " +
+        Description = "Trả về toàn bộ thông tin tiến trình của một báo cáo đang InProgress trong phạm vi office LEO đăng nhập: " +
             "trạng thái từng team, người gán team (assignedById/assignedByName), % hoàn thành, ảnh tiến trình/nghiệm thu, SLA còn lại, và lịch sử status. " +
             "overallProgressPercent là trung bình của các assignment đang active (Completed = 100%). " +
             "sla.hoursRemaining âm = đã breach. " +
@@ -389,7 +389,7 @@ public sealed class ReportsController(
     [Tags("🔍 DEO Dashboard")]
     [SwaggerOperation(
         Summary = "[LEO/DEO] Xem hàng đợi báo cáo",
-        Description = "Trả về danh sách báo cáo trong phạm vi quản lý. " +
+        Description = "Trả về danh sách báo cáo trong phạm vi officer đăng nhập: DEO → hàng đợi fallback department (chưa gán office), LEO → Submitted/Verified/Reopened trong office. " +
             "Hỗ trợ search (code, address, category), filter (status, severity, category, ward, date range, SLA breached, isPossibleDuplicate, isSuspectedViolationRecurrence), " +
             "và sort (priorityScore, createdAt, severity, slaVerifyDueAt, slaResolveDueAt — asc/desc). " +
             "Default sort: priorityScore desc.")]
@@ -493,8 +493,8 @@ public sealed class ReportsController(
     [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(
         Summary = "[LEO/DEO] Danh sách báo cáo nghi ngờ trùng lặp",
-        Description = "BR-REP-031: Trả về các báo cáo bị gắn cờ possible_duplicate (Tier 1 geo/category hoặc Tier 2 AI) " +
-            "kèm thông tin báo cáo gốc và ảnh thumbnail đầu tiên (media[] tối đa 1 phần tử). " +
+        Description = "BR-REP-031: Trả về các báo cáo bị gắn cờ possible_duplicate trong phạm vi LEO (office) / DEO (department). " +
+            "Tier 1 geo/category hoặc Tier 2 AI — kèm thông tin báo cáo gốc và ảnh thumbnail đầu tiên (media[] tối đa 1 phần tử). " +
             "Hỗ trợ search (code, address, category), filter (status, severity, categoryId, wardCode, fromDate, toDate, duplicateDetectionSource, minAiSimilarityScore), sort.")]
     [SwaggerResponse(200, "Danh sách nghi ngờ trùng lặp", typeof(ApiResponse<GetDuplicateCandidatesResponse>))]
     public async Task<IActionResult> GetDuplicateCandidatesAsync(
@@ -532,7 +532,7 @@ public sealed class ReportsController(
     [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(
         Summary = "[LEO/DEO] Chi tiết so sánh báo cáo nghi ngờ trùng lặp",
-        Description = "BR-REP-031/BR-REP-032: Side-by-side chi tiết báo cáo hiện tại và báo cáo gốc " +
+        Description = "BR-REP-031/BR-REP-032: Side-by-side chi tiết báo cáo hiện tại và báo cáo gốc trong phạm vi officer đăng nhập. " +
             "(kèm toàn bộ media, khoảng cách, chênh lệch thời gian) để LEO quyết định gộp/bác bỏ.")]
     [SwaggerResponse(200, "Chi tiết so sánh", typeof(ApiResponse<DuplicateCandidateDetailResponse>))]
     [SwaggerResponse(404, "Không tìm thấy báo cáo hoặc báo cáo gốc", typeof(ApiResponse))]
@@ -575,7 +575,7 @@ public sealed class ReportsController(
     [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(
         Summary = "[LEO/DEO] Danh sách báo cáo nghi ngờ tái phạm vi phạm",
-        Description = "BR-REP-034: Trả về các báo cáo bị gắn cờ isSuspectedViolationRecurrence " +
+        Description = "BR-REP-034: Trả về các báo cáo bị gắn cờ isSuspectedViolationRecurrence trong phạm vi LEO/DEO đăng nhập " +
             "(cùng category, ≤25m, báo cáo trước đã Closed trong 30 ngày) kèm báo cáo Closed trước đó " +
             "và ảnh thumbnail đầu tiên (media[] / priorClosedReport.media[] tối đa 1 phần tử). " +
             "Hỗ trợ search, filter (status, severity, categoryId, wardCode, fromDate, toDate, minDaysSincePriorClosed, maxDaysSincePriorClosed), sort.")]
@@ -615,7 +615,7 @@ public sealed class ReportsController(
     [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(
         Summary = "[LEO/DEO] So sánh báo cáo với case Closed trước đó",
-        Description = "BR-REP-034: Side-by-side current report vs prior Closed report when recurrence flag is set.")]
+        Description = "BR-REP-034: Side-by-side current report vs prior Closed report trong phạm vi officer đăng nhập.")]
     [SwaggerResponse(200, "So sánh", typeof(ApiResponse<ViolationRecurrenceComparisonResponse>))]
     [SwaggerResponse(404, "Không tìm thấy báo cáo", typeof(ApiResponse))]
     [SwaggerResponse(422, "Báo cáo không có cờ nghi ngờ vi phạm tái phát", typeof(ApiResponse))]

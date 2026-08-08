@@ -18,6 +18,9 @@ public sealed class GetInspectionTeamKpiQueryHandler(
     IInspectionReportRepository inspectionRepo,
     IEnvironmentalTeamRepository teams,
     ITeamMemberRepository teamMembers,
+    ILocalOfficeRepository localOffices,
+    ICompanyStaffRepository companyStaff,
+    IUserRepository users,
     ICurrentUser currentUser,
     ILogger<GetInspectionTeamKpiQueryHandler> logger)
     : IRequestHandler<GetInspectionTeamKpiQuery, Result<InspectionTeamKpiResponse>>
@@ -28,9 +31,13 @@ public sealed class GetInspectionTeamKpiQueryHandler(
     {
         logger.LogInformation("Getting inspection team kpi");
 
-        // Resolve team ID — Inspector sees own team, LEO/Admin can specify
+        var actor = await users.GetByIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
+        if (actor is null)
+            return Errors.Users.UserNotFound;
+
+        // Resolve team ID — Inspector sees own team; LEO/Admin may specify teamId
         Guid teamId;
-        if (request.TeamId.HasValue)
+        if (request.TeamId.HasValue && actor.Role is UserRole.LEO or UserRole.Admin)
         {
             teamId = request.TeamId.Value;
         }
@@ -51,6 +58,11 @@ public sealed class GetInspectionTeamKpiQueryHandler(
             logger.LogWarning("Team not found for team {TeamId}", teamId);
             return Errors.Inspections.TeamNotFound;
         }
+
+        var accessError = await InspectionTeamAuthorization.ValidateTeamKpiAccessAsync(
+            team, actor, teamMembers, localOffices, companyStaff, ct).ConfigureAwait(false);
+        if (accessError is not null)
+            return accessError;
 
         // Resolve period
         var (from, to) = ResolvePeriod(request);

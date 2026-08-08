@@ -1,5 +1,7 @@
 using Greenlens.Application.Common;
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Reports.Common;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -14,9 +16,12 @@ namespace Greenlens.Application.Features.Reports.GetReportProgress;
 /// </summary>
 /// <remarks>
 /// Implements: BR-OFF-020 (SLA countdown), BR-OFF-011 (multi-team tracking).
+/// Scope: LEO → assigned office; Admin → all.
 /// </remarks>
 public sealed class GetReportProgressQueryHandler(
     IReportRepository reports,
+    IUserRepository users,
+    ICurrentUser currentUser,
     ILogger<GetReportProgressQueryHandler> logger)
     : IRequestHandler<GetReportProgressQuery, Result<ReportProgressResponse>>
 {
@@ -32,6 +37,13 @@ public sealed class GetReportProgressQueryHandler(
         GetReportProgressQuery request, CancellationToken ct)
     {
         logger.LogInformation("Getting report progress for report {ReportId}", request.ReportId);
+
+        var user = await users.GetByIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
+        if (user is null)
+        {
+            logger.LogWarning("User not found for report progress: {UserId}", currentUser.UserId);
+            return Errors.Users.UserNotFound;
+        }
 
         var report = await reports.QueryAsNoTracking()
             .Include(x => x.Category)
@@ -51,6 +63,16 @@ public sealed class GetReportProgressQueryHandler(
         {
             logger.LogWarning("Report not found for ID {ReportId}", request.ReportId);
             return Errors.Reports.ReportNotFound;
+        }
+
+        var accessError = ReportReviewCandidateFilters.ValidateLeoReportAccess(
+            report, user, currentUser.Role);
+        if (accessError is not null)
+        {
+            logger.LogWarning(
+                "User {UserId} denied progress for report {ReportId}: {ErrorCode}",
+                currentUser.UserId, request.ReportId, accessError.Code);
+            return accessError;
         }
 
         // ── SLA countdown ──────────────────────────────────────────

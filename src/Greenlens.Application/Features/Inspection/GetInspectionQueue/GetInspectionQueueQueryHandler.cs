@@ -3,6 +3,7 @@ using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Common.Models;
 using Greenlens.Domain.Common;
+using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -13,6 +14,7 @@ namespace Greenlens.Application.Features.Inspection.GetInspectionQueue;
 public sealed class GetInspectionQueueQueryHandler(
     IInspectionReportRepository inspections,
     ITeamMemberRepository teamMembers,
+    IEnvironmentalTeamRepository teams,
     ICurrentUser currentUser,
     ILogger<GetInspectionQueueQueryHandler> logger)
     : IRequestHandler<GetInspectionQueueQuery, Result<GetInspectionQueueResponse>>
@@ -20,12 +22,15 @@ public sealed class GetInspectionQueueQueryHandler(
     public async Task<Result<GetInspectionQueueResponse>> Handle(
         GetInspectionQueueQuery request, CancellationToken ct)
     {
-        logger.LogInformation("Getting inspection queue");
+        logger.LogInformation("Getting inspection queue for user {UserId}", currentUser.UserId);
 
-        // Find teams the current user belongs to (Inspection type)
-        var myTeams = await teamMembers.Query()
+        var myTeams = await teamMembers.QueryAsNoTracking()
             .Where(tm => tm.UserId == currentUser.UserId)
-            .Select(tm => tm.TeamId)
+            .Join(
+                teams.QueryAsNoTracking().Where(t => t.TeamType == TeamType.Inspection),
+                tm => tm.TeamId,
+                t => t.Id,
+                (tm, _) => tm.TeamId)
             .ToListAsync(ct)
             .ConfigureAwait(false);
 

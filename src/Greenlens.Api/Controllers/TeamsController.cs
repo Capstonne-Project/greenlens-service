@@ -215,8 +215,10 @@ public sealed class TeamsController(ISender sender) : ControllerBase
     [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(
         Summary = "[Admin/LEO/DEO] Danh sách teams cộng đồng",
-        Description = "Trả về danh sách đội MT cộng đồng (CompanyId == null) kèm trạng thái hiện tại (Available/Busy). " +
-            "Hỗ trợ lọc theo office, loại team, trạng thái và tình trạng rảnh/bận (isAvailable). " +
+        Description = "Trả về danh sách đội MT cộng đồng (CompanyId == null) trong phạm vi officer đăng nhập: LEO → office của mình, DEO → các office thuộc sở. " +
+            "Kèm trạng thái hiện tại (Available/Busy). " +
+            "Hỗ trợ lọc theo loại team, trạng thái và tình trạng rảnh/bận (isAvailable). " +
+            "Admin có thể lọc thêm localOfficeId. " +
             "Để xem team công ty → dùng `GET /v1/teams/company-teams` (CompanyManager).")]
     [SwaggerResponse(200, "Danh sách teams", typeof(ApiResponse<GetTeamsResponse>))]
     public async Task<IActionResult> GetAllAsync(

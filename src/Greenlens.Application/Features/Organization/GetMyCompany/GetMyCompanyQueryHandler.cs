@@ -28,9 +28,9 @@ public sealed class GetMyCompanyQueryHandler(
 
         // 1. Resolve CM's companyId
         var staff = await companyStaff.GetByUserIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
-        if (staff is null)
+        if (staff is null || !staff.IsActive)
         {
-            logger.LogWarning("Company manager not found for user ID {UserId}", currentUser.UserId);
+            logger.LogWarning("Company manager not found or inactive for user ID {UserId}", currentUser.UserId);
             return Errors.Organization.NotCompanyManager;
         }
 
