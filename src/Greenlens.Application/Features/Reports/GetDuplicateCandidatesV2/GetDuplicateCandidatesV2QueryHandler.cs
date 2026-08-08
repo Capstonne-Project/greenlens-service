@@ -181,7 +181,8 @@ public sealed class GetDuplicateCandidatesV2QueryHandler(
             .Where(r => r.PossibleDuplicateOfReportId != null)
             .Where(r => r.Status != ReportStatus.Duplicate && r.Status != ReportStatus.Rejected);
 
-        query = ReportReviewCandidateFilters.ApplyOfficerScope(query, user, role);
+        query = ReportReviewCandidateFilters.ApplyDuplicateReviewScope(
+            query, reports.QueryAsNoTracking(), user, role);
 
         query = ReportReviewCandidateFilters.ApplyCommon(
             query,

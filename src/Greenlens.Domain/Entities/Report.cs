@@ -437,7 +437,8 @@ public sealed class Report : SoftDeletableEntity
 
     /// <summary>
     /// Tier 2 result from the AI image compare service (BR-AI-002).
-    /// Same scene → upgrade source to <see cref="DuplicateDetectionSources.Tier2Ai"/> and record score; different scene → dismiss.
+    /// Same scene → upgrade source to Tier2Ai and record score.
+    /// Different scene → keep Tier 1 flag for LEO review (BR-REP-031); store AI score only.
     /// </summary>
     public void ApplyDuplicateAiResult(bool isSameScene, decimal confidence)
     {
@@ -450,7 +451,7 @@ public sealed class Report : SoftDeletableEntity
 
         if (!isSameScene)
         {
-            DismissDuplicate();
+            AiSimilarityScore = confidence;
             return;
         }
 

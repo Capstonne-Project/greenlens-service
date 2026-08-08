@@ -407,16 +407,16 @@ public sealed class ReportTests
     }
 
     [Fact]
-    public void ApplyDuplicateAiResult_DifferentScene_DismissesFlag_BR_AI_002()
+    public void ApplyDuplicateAiResult_DifferentScene_KeepsTier1FlagForLeoReview_BR_REP_031()
     {
         var report = CreateTestReport();
         report.MarkPossibleDuplicate(Guid.NewGuid(), DuplicateDetectionSources.Tier1);
 
         report.ApplyDuplicateAiResult(isSameScene: false, confidence: 0.20m);
 
-        Assert.False(report.IsPossibleDuplicate);
-        Assert.Null(report.PossibleDuplicateOfReportId);
-        Assert.Null(report.DuplicateDetectionSource);
+        Assert.True(report.IsPossibleDuplicate);
+        Assert.Equal(DuplicateDetectionSources.Tier1, report.DuplicateDetectionSource);
+        Assert.Equal(0.20m, report.AiSimilarityScore);
     }
 
     [Fact]

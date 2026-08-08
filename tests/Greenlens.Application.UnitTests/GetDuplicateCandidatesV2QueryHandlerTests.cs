@@ -109,6 +109,57 @@ public sealed class GetDuplicateCandidatesV2QueryHandlerTests
         result.Value.Pagination.TotalItems.Should().Be(1);
     }
 
+    [Fact]
+    public async Task Handle_LeoSeesDuplicateWhenPrimaryInSameOffice_BR_REP_031()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase($"dup-candidates-v2-leo-{Guid.NewGuid():N}")
+            .Options;
+
+        var ctx = new ApplicationDbContext(options);
+        var officeId = Guid.NewGuid();
+        var otherOfficeId = Guid.NewGuid();
+
+        var leo = User.Create("leo.dup@test.local", "hash", "LEO Dup", UserRole.LEO);
+        leo.AssignToLocalOffice(officeId);
+        ctx.Users.Add(leo);
+
+        var category = PollutionCategory.Create("TRASH", "Rác thải", "Trash");
+        ctx.PollutionCategories.Add(category);
+        await ctx.SaveChangesAsync();
+
+        var primary = CreateReport("RPT-PRIMARY", category.Id, 10.7626m, 106.6602m);
+        primary.RouteToLocalOffice(officeId, Guid.NewGuid());
+        primary.Verify(leo.Id);
+
+        var dup = CreateReport("RPT-DUP-REMOTE-OFFICE", category.Id, 10.7627m, 106.6603m);
+        dup.RouteToLocalOffice(otherOfficeId, Guid.NewGuid());
+        dup.MarkPossibleDuplicate(primary.Id, DuplicateDetectionSources.Tier1);
+
+        ctx.Reports.AddRange(primary, dup);
+        await ctx.SaveChangesAsync();
+
+        var currentUser = Substitute.For<ICurrentUser>();
+        currentUser.UserId.Returns(leo.Id);
+        currentUser.Role.Returns(UserRole.LEO.ToString());
+
+        var users = Substitute.For<IUserRepository>();
+        users.GetByIdAsync(leo.Id, Arg.Any<CancellationToken>()).Returns(leo);
+
+        var sut = new GetDuplicateCandidatesV2QueryHandler(
+            new ReportRepository(ctx),
+            new ReportMediaRepository(ctx),
+            users,
+            currentUser,
+            NullLogger<GetDuplicateCandidatesV2QueryHandler>.Instance);
+
+        var result = await sut.Handle(new GetDuplicateCandidatesV2Query(), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.Items.Should().ContainSingle(i => i.Primary.Code == "RPT-PRIMARY");
+        result.Value.Items[0].Duplicates.Should().ContainSingle(d => d.Code == "RPT-DUP-REMOTE-OFFICE");
+    }
+
     private static Report CreateReport(string code, Guid categoryId, decimal lat, decimal lng) =>
         Report.Create(
             code,

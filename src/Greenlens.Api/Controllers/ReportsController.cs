@@ -175,7 +175,10 @@ public sealed class ReportsController(
     [HttpGet("{id:guid}")]
     [Authorize]
     [Tags("📋 Reports — Citizen Flow")]
-    [SwaggerOperation(Summary = "[Auth] Chi tiết báo cáo", Description = "Trả về full thông tin báo cáo kèm media, assignments, lịch sử status.")]
+    [SwaggerOperation(
+        Summary = "[Auth] Chi tiết báo cáo",
+        Description = "Trả về full thông tin báo cáo kèm media, assignments, lịch sử status. " +
+            "LEO/DEO/Admin: thêm `isSuspicious` + `suspiciousReasons` (BR-REP-011, message tiếng Việt — chỉ tham khảo).")]
     [SwaggerResponse(200, "Chi tiết báo cáo", typeof(ApiResponse<ReportDetailResponse>))]
     [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
     public async Task<IActionResult> GetByIdAsync([FromRoute] Guid id, CancellationToken ct)

@@ -42,7 +42,13 @@ public sealed record ReportDetailResponse(
     /// <summary>BR-REP-034: suspected violator recurrence near a recently Closed report.</summary>
     bool IsSuspectedViolationRecurrence = false,
     Guid? SuspectedRecurrenceOfReportId = null,
-    PriorClosedReportSummary? PriorClosedReport = null);
+    PriorClosedReportSummary? PriorClosedReport = null,
+    /// <summary>
+    /// BR-REP-011: EXIF data-quality warnings for officers (LEO/DEO/Admin). Null for other roles.
+    /// Human-readable messages (vi-VN), not internal codes. Advisory only.
+    /// </summary>
+    bool? IsSuspicious = null,
+    IReadOnlyList<string>? SuspiciousReasons = null);
 
 public sealed record PendingReopenRequestInfo(
     Guid RequestId,

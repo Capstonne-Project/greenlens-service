@@ -13,7 +13,11 @@ using Microsoft.Extensions.Options;
 
 namespace Greenlens.Application.Features.Reports.ReassignTeam;
 
-/// <summary>Reassign report to different team (same type). BR-OFF-012, BR-ADM-010.</summary>
+/// <summary>
+/// LEO reassigns report to a different team (same type).
+/// Supports replacing a team that declined (assignment already Declined) or proactively swapping Assigned teams.
+/// BR-OFF-012, BR-ADM-010.
+/// </summary>
 public sealed class ReassignTeamCommandHandler(
     IReportRepository reports,
     IEnvironmentalTeamRepository teams,
@@ -84,8 +88,32 @@ public sealed class ReassignTeamCommandHandler(
             return Errors.Reports.AssignmentNotFound;
         }
 
-        // Create new assignment, mark old as declined
-        oldAssignment.Decline(request.Reason);
+        if (request.OldTeamId == request.NewTeamId)
+        {
+            logger.LogWarning("Reassign skipped: old and new team are the same ({TeamId})", request.NewTeamId);
+            return Errors.Reports.InvalidStatusTransition;
+        }
+
+        if (oldAssignment.Status == AssignmentStatus.Assigned)
+            oldAssignment.Decline(request.Reason);
+        else if (oldAssignment.Status != AssignmentStatus.Declined)
+        {
+            logger.LogWarning(
+                "Cannot reassign from assignment {AssignmentId} in status {Status}",
+                oldAssignment.Id, oldAssignment.Status);
+            return Errors.Reports.InvalidStatusTransition;
+        }
+
+        if (reportAssignments.Any(a =>
+                a.TeamId == request.NewTeamId
+                && a.Status is AssignmentStatus.Assigned
+                    or AssignmentStatus.InProgress
+                    or AssignmentStatus.Completed))
+        {
+            logger.LogWarning("Team {TeamId} already has an active assignment on report {ReportId}",
+                request.NewTeamId, request.ReportId);
+            return Errors.Reports.InvalidStatusTransition;
+        }
 
         var newAssignment = ReportAssignment.Create(
             request.ReportId,

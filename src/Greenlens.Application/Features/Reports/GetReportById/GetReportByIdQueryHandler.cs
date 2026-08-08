@@ -1,3 +1,4 @@
+using Greenlens.Application.Features.Reports;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
@@ -15,7 +16,8 @@ namespace Greenlens.Application.Features.Reports.GetReportById;
 /// <remarks>
 /// Implements: BR-REP-012 (ẩn danh người gửi), BR-REP-015 (pending reopen in response),
 /// BR-REP-018 (satisfaction in response), BR-REP-032 (mergedReports + SourceReportId thumbs),
-/// BR-AUTH-022 (reporter đã xóa tài khoản → ẩn danh tính).
+/// BR-AUTH-022 (reporter đã xóa tài khoản → ẩn danh tính),
+/// BR-REP-011 (EXIF suspicion warnings for LEO/DEO/Admin only).
 /// </remarks>
 public sealed class GetReportByIdQueryHandler(
     IReportRepository reports,
@@ -170,6 +172,15 @@ public sealed class GetReportByIdQueryHandler(
         }
 
         logger.LogInformation("Lấy chi tiết báo cáo thành công. Mã báo cáo: {ReportCode}", r.Code);
+
+        bool? isSuspicious = null;
+        IReadOnlyList<string>? suspiciousReasons = null;
+        if (CanViewExifSuspicionWarnings(currentUser.Role))
+        {
+            isSuspicious = r.IsSuspicious;
+            suspiciousReasons = ReportSuspiciousReasonsParser.ToDisplayMessages(r.SuspiciousReasons);
+        }
+
         return new ReportDetailResponse(
             r.Id, r.Code, r.ReporterId,
             reporterName, reporterAvatarUrl,
@@ -194,6 +205,11 @@ public sealed class GetReportByIdQueryHandler(
             mergedReports,
             r.IsSuspectedViolationRecurrence,
             r.SuspectedRecurrenceOfReportId,
-            priorClosed);
+            priorClosed,
+            isSuspicious,
+            suspiciousReasons);
     }
+
+    private static bool CanViewExifSuspicionWarnings(string role) =>
+        role is "LEO" or "DEO" or "Admin";
 }

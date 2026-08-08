@@ -3,7 +3,11 @@ namespace Greenlens.Application.Common.Interfaces;
 /// <summary>BR-REP-011: extract EXIF timestamp/GPS from report images for data-quality checks.</summary>
 public interface IImageExifAnalyzer
 {
-    ImageExifAnalysis Analyze(ReadOnlyMemory<byte> imageBytes, DateTime submittedAtUtc);
+    ImageExifAnalysis Analyze(
+        ReadOnlyMemory<byte> imageBytes,
+        DateTime submittedAtUtc,
+        decimal submittedLatitude,
+        decimal submittedLongitude);
 }
 
 public sealed record ImageExifAnalysis(
@@ -12,5 +16,7 @@ public sealed record ImageExifAnalysis(
     decimal? Latitude,
     decimal? Longitude,
     string? ExifJson,
-    bool IsSuspicious,
-    string? SuspiciousReasonCode);
+    IReadOnlyList<string> SuspiciousReasons)
+{
+    public bool IsSuspicious => SuspiciousReasons.Count > 0;
+}

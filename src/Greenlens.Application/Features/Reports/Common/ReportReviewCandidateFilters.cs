@@ -28,6 +28,44 @@ internal static class ReportReviewCandidateFilters
     }
 
     /// <summary>
+    /// Duplicate review queue: show candidates tied to the officer's office via the duplicate row
+    /// OR its canonical primary (BR-REP-031, BR-ORG-012).
+    /// </summary>
+    public static IQueryable<Report> ApplyDuplicateReviewScope(
+        IQueryable<Report> duplicateCandidates,
+        IQueryable<Report> allReports,
+        User user,
+        string role)
+    {
+        if (role == UserRole.Admin.ToString())
+            return duplicateCandidates;
+
+        if (role == UserRole.LEO.ToString() && user.LocalOfficeId.HasValue)
+        {
+            var officeId = user.LocalOfficeId.Value;
+            return duplicateCandidates.Where(r =>
+                r.AssignedOfficeId == officeId
+                || (r.PossibleDuplicateOfReportId != null
+                    && allReports.Any(p =>
+                        p.Id == r.PossibleDuplicateOfReportId
+                        && p.AssignedOfficeId == officeId)));
+        }
+
+        if (role == UserRole.DEO.ToString() && user.DepartmentId.HasValue)
+        {
+            var departmentId = user.DepartmentId.Value;
+            return duplicateCandidates.Where(r =>
+                r.AssignedDepartmentId == departmentId
+                || (r.PossibleDuplicateOfReportId != null
+                    && allReports.Any(p =>
+                        p.Id == r.PossibleDuplicateOfReportId
+                        && p.AssignedDepartmentId == departmentId)));
+        }
+
+        return duplicateCandidates.Where(_ => false);
+    }
+
+    /// <summary>
     /// Validates single-report access for LEO/DEO/Admin officer dashboards (BR-ORG-012).
     /// </summary>
     public static Error? ValidateReportAccess(Report report, User user, string role)

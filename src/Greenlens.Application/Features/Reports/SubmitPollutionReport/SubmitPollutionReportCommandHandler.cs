@@ -323,20 +323,24 @@ public sealed class SubmitPollutionReportCommandHandler(
         {
             var swExif = System.Diagnostics.Stopwatch.StartNew();
             var submittedAtUtc = clock.UtcNow;
-            var exif = exifAnalyzer.Analyze(bytes, submittedAtUtc);
+            var exif = exifAnalyzer.Analyze(
+                bytes,
+                submittedAtUtc,
+                request.Latitude,
+                request.Longitude);
             swExif.Stop();
             logger.LogWarning("[TIMING] EXIF analyze took {ElapsedMs}ms", swExif.ElapsedMilliseconds);
 
             if (!string.IsNullOrEmpty(exif.ExifJson))
                 primaryMedia.SetExifData(exif.ExifJson);
 
-            if (exif.IsSuspicious && exif.SuspiciousReasonCode is not null)
+            if (exif.IsSuspicious)
             {
-                report.FlagSuspicious(JsonSerializer.Serialize(new[] { exif.SuspiciousReasonCode }));
+                report.FlagSuspicious(JsonSerializer.Serialize(exif.SuspiciousReasons));
                 exifWarning = ExifSuspicionEvaluator.StaleWarningMessage;
                 logger.LogWarning(
-                    "Report {ReportCode} flagged suspicious: {Reason}",
-                    report.Code, exif.SuspiciousReasonCode);
+                    "Report {ReportCode} flagged suspicious: {Reasons}",
+                    report.Code, string.Join(", ", exif.SuspiciousReasons));
             }
         }
 
@@ -466,6 +470,11 @@ public sealed class SubmitPollutionReportCommandHandler(
                      && r.Status != ReportStatus.Closed)
             .Where(r => r.Latitude >= report.Latitude - latDelta && r.Latitude <= report.Latitude + latDelta)
             .Where(r => r.Longitude >= report.Longitude - lngDelta && r.Longitude <= report.Longitude + lngDelta)
+            .OrderByDescending(r =>
+                r.Status == ReportStatus.Verified
+                || r.Status == ReportStatus.InProgress
+                || r.Status == ReportStatus.Reopened)
+            .ThenBy(r => r.CreatedAt)
             .Select(r => new DuplicateNearbyReport(r.Id, r.Latitude, r.Longitude, r.Status, r.CreatedAt))
             .Take(20)
             .ToListAsync(ct)
