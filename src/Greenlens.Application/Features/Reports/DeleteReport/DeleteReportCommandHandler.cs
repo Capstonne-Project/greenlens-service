@@ -27,7 +27,7 @@ public sealed class DeleteReportCommandHandler(
     {
         logger.LogInformation("Deleting report for report {ReportId}", request.ReportId);
 
-        var report = await reports.GetByIdAsync(request.ReportId, ct).ConfigureAwait(false);
+        var report = await reports.GetByIdIncludingDeletedAsync(request.ReportId, ct).ConfigureAwait(false);
         if (report is null)
         {
             logger.LogWarning("Report not found for ID {ReportId}", request.ReportId);

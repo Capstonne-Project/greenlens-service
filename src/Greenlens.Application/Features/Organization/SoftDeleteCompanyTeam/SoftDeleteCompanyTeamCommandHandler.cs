@@ -22,7 +22,7 @@ public sealed class SoftDeleteCompanyTeamCommandHandler(
     {
         logger.LogInformation("Soft deleting company team for team {TeamId}", request.TeamId);
 
-        var team = await teams.GetByIdAsync(request.TeamId, ct).ConfigureAwait(false);
+        var team = await teams.GetByIdIncludingDeletedAsync(request.TeamId, ct).ConfigureAwait(false);
         if (team is null)
         {
             logger.LogWarning("Team {TeamId} not found", request.TeamId);
