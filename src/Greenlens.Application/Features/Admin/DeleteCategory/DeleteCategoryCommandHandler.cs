@@ -18,7 +18,7 @@ public sealed class DeleteCategoryCommandHandler(
 {
     public async Task<Result> Handle(DeleteCategoryCommand request, CancellationToken ct)
     {
-        var category = await categories.GetByIdAsync(request.Id, ct).ConfigureAwait(false);
+        var category = await categories.GetByIdIncludingDeletedAsync(request.Id, ct).ConfigureAwait(false);
         if (category is null)
         {
             logger.LogWarning("Category not found: {Id}", request.Id);

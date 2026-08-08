@@ -22,6 +22,12 @@ internal static class IntegrationDataSeeder
     public static async Task<Department> SeedDepartmentAsync(IApplicationDbContext db)
     {
         await EnsureLocationCatalogAsync(db);
+
+        var existing = await db.Set<Department>()
+            .FirstOrDefaultAsync(d => d.ProvinceCode == "79");
+        if (existing is not null)
+            return existing;
+
         var dept = Department.Create("Integration Dept", "79");
         db.Set<Department>().Add(dept);
         await db.SaveChangesAsync();

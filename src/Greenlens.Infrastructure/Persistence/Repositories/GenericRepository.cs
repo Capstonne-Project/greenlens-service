@@ -18,6 +18,11 @@ internal abstract class GenericRepository<T>(ApplicationDbContext context)
     public async Task<T?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
         await DbSet.FindAsync([id], ct).ConfigureAwait(false);
 
+    public async Task<T?> GetByIdIncludingDeletedAsync(Guid id, CancellationToken ct = default) =>
+        await DbSet.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(e => e.Id == id, ct)
+            .ConfigureAwait(false);
+
     public void Add(T entity) => DbSet.Add(entity);
 
     public void AddRange(IEnumerable<T> entities) => DbSet.AddRange(entities);
