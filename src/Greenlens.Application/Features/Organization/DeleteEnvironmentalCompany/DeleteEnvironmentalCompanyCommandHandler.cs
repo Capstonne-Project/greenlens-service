@@ -21,7 +21,7 @@ public sealed class DeleteEnvironmentalCompanyCommandHandler(
     {
         logger.LogInformation("Deleting environmental company {CompanyId}", request.Id);
 
-        var company = await companies.GetByIdAsync(request.Id, ct).ConfigureAwait(false);
+        var company = await companies.GetByIdIncludingDeletedAsync(request.Id, ct).ConfigureAwait(false);
         if (company is null)
         {
             logger.LogWarning("Environmental company {CompanyId} not found", request.Id);
