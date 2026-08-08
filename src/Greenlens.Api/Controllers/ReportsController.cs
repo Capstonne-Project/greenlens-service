@@ -324,7 +324,7 @@ public sealed class ReportsController(
         Summary = "[CompanyManager] Theo dõi task đã phân công",
         Description = "Xem toàn bộ task đã phân công cho team của công ty: team nào → báo cáo nào, " +
             "tiến độ (%), trạng thái assignment (Assigned/InProgress/Completed/Declined), " +
-            "SLA deadline, và thông tin người phân công. " +
+            "SLA deadline, thông tin người phân công, và ảnh đại diện báo cáo (report.media[] — tối đa 1 ảnh đầu). " +
             "Lọc theo: assignmentStatus, reportStatus, search (mã báo cáo, địa chỉ, tên team).")]
     [SwaggerResponse(200, "Danh sách assignment", typeof(ApiResponse<GetCompanyAssignmentsResponse>))]
     public async Task<IActionResult> GetCompanyAssignmentsAsync(

@@ -1,4 +1,5 @@
 using Greenlens.Application.Common.Models;
+using Greenlens.Application.Features.Reports.Common;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -42,7 +43,8 @@ public sealed record CompanyAssignmentReport(
     string CategoryName,
     Severity Severity,
     ReportStatus Status,
-    DateTime? SlaResolveDueAt);
+    DateTime? SlaResolveDueAt,
+    IReadOnlyList<ReportReviewMediaItem> Media);
 
 public sealed record CompanyAssignmentTeam(
     Guid TeamId,

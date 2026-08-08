@@ -2,6 +2,7 @@ using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Common.Models;
+using Greenlens.Application.Features.Reports.Common;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -16,6 +17,7 @@ namespace Greenlens.Application.Features.Reports.GetCompanyAssignments;
 /// </summary>
 public sealed class GetCompanyAssignmentsQueryHandler(
     IReportAssignmentRepository assignments,
+    IReportMediaRepository reportMedia,
     ICompanyStaffRepository companyStaff,
     ICurrentUser currentUser,
     ILogger<GetCompanyAssignmentsQueryHandler> logger)
@@ -72,11 +74,11 @@ public sealed class GetCompanyAssignmentsQueryHandler(
 
         var total = await baseQuery.CountAsync(ct).ConfigureAwait(false);
 
-        var items = await baseQuery
+        var rows = await baseQuery
             .OrderByDescending(a => a.AssignedAt)
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
-            .Select(a => new CompanyAssignmentItem(
+            .Select(a => new AssignmentRow(
                 a.Id,
                 a.Status,
                 a.AssignedAt,
@@ -86,22 +88,51 @@ public sealed class GetCompanyAssignmentsQueryHandler(
                 a.ProgressNote,
                 a.ProgressUpdatedAt,
                 a.Note,
-                new CompanyAssignmentReport(
-                    a.Report!.Id,
-                    a.Report.Code,
-                    a.Report.Address,
-                    a.Report.WardCode,
-                    a.Report.Category.NameVi,
-                    a.Report.Severity,
-                    a.Report.Status,
-                    a.Report.SlaResolveDueAt),
-                new CompanyAssignmentTeam(
-                    a.Team!.Id,
-                    a.Team.Name,
-                    a.Team.Members.Count),
+                a.Report!.Id,
+                a.Report.Code,
+                a.Report.Address,
+                a.Report.WardCode,
+                a.Report.Category.NameVi,
+                a.Report.Severity,
+                a.Report.Status,
+                a.Report.SlaResolveDueAt,
+                a.Team!.Id,
+                a.Team.Name,
+                a.Team.Members.Count,
                 a.AssignedByUser != null ? a.AssignedByUser.FullName : "Unknown"))
             .ToListAsync(ct)
             .ConfigureAwait(false);
+
+        var reportIds = rows.Select(r => r.ReportId).Distinct().ToList();
+        var firstMediaByReportId = await CitizenReportMediaLoader
+            .LoadFirstByReportIdsAsync(reportMedia, reportIds, ct)
+            .ConfigureAwait(false);
+
+        var items = rows.Select(r => new CompanyAssignmentItem(
+            r.AssignmentId,
+            r.AssignmentStatus,
+            r.AssignedAt,
+            r.StartedAt,
+            r.CompletedAt,
+            r.ProgressPercent,
+            r.ProgressNote,
+            r.ProgressUpdatedAt,
+            r.Note,
+            new CompanyAssignmentReport(
+                r.ReportId,
+                r.ReportCode,
+                r.ReportAddress,
+                r.WardCode,
+                r.CategoryName,
+                r.Severity,
+                r.ReportStatus,
+                r.SlaResolveDueAt,
+                CitizenReportMediaLoader.GetFirstMediaList(firstMediaByReportId, r.ReportId)),
+            new CompanyAssignmentTeam(
+                r.TeamId,
+                r.TeamName,
+                r.MemberCount),
+            r.AssignedByName)).ToList();
 
         var pagination = PaginationMeta.Create(request.Page, request.PageSize, total);
 
@@ -111,4 +142,27 @@ public sealed class GetCompanyAssignmentsQueryHandler(
 
         return new GetCompanyAssignmentsResponse(items, pagination);
     }
+
+    private sealed record AssignmentRow(
+        Guid AssignmentId,
+        AssignmentStatus AssignmentStatus,
+        DateTime AssignedAt,
+        DateTime? StartedAt,
+        DateTime? CompletedAt,
+        int ProgressPercent,
+        string? ProgressNote,
+        DateTime? ProgressUpdatedAt,
+        string? Note,
+        Guid ReportId,
+        string ReportCode,
+        string? ReportAddress,
+        string? WardCode,
+        string CategoryName,
+        Severity Severity,
+        ReportStatus ReportStatus,
+        DateTime? SlaResolveDueAt,
+        Guid TeamId,
+        string TeamName,
+        int MemberCount,
+        string AssignedByName);
 }
