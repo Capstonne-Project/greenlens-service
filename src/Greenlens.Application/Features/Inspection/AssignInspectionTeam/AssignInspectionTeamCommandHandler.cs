@@ -20,6 +20,7 @@ public sealed class AssignInspectionTeamCommandHandler(
     IInspectionReportRepository inspections,
     IReportRepository reports,
     IEnvironmentalTeamRepository teams,
+    ITeamMemberRepository teamMembers,
     IReportStatusHistoryRepository statusHistory,
     ICurrentUser currentUser,
     IUnitOfWork uow,
@@ -52,6 +53,12 @@ public sealed class AssignInspectionTeamCommandHandler(
         {
             logger.LogWarning("Team {TeamId} is not of type Inspection", request.TeamId);
             return Errors.Inspections.TeamNotInspectionType;
+        }
+
+        if (!await teamMembers.HasMembersAsync(request.TeamId, ct).ConfigureAwait(false))
+        {
+            logger.LogWarning("Team {TeamId} has no members", request.TeamId);
+            return Errors.Organization.TeamHasNoMembers;
         }
 
         var oldTeamId = inspection.AssignedTeamId;

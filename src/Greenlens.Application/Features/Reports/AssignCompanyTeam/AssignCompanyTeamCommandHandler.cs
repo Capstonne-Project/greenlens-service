@@ -22,6 +22,7 @@ namespace Greenlens.Application.Features.Reports.AssignCompanyTeam;
 public sealed class AssignCompanyTeamCommandHandler(
     IReportRepository reports,
     IEnvironmentalTeamRepository teams,
+    ITeamMemberRepository teamMembers,
     IReportAssignmentRepository assignments,
     ICompanyStaffRepository companyStaff,
     ICurrentUser currentUser,
@@ -83,6 +84,12 @@ public sealed class AssignCompanyTeamCommandHandler(
             {
                 logger.LogWarning("Team {TeamId} is not in caller's company", item.TeamId);
                 return Errors.Reports.ReportNotDispatchedToYourCompany;
+            }
+
+            if (!await teamMembers.HasMembersAsync(item.TeamId, ct).ConfigureAwait(false))
+            {
+                logger.LogWarning("Team {TeamId} has no members", item.TeamId);
+                return Errors.Organization.TeamHasNoMembers;
             }
 
             // BR-OFF-013: configurable workload limit (default 6, warning at 5)

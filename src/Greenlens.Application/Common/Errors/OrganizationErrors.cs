@@ -41,6 +41,11 @@ public static partial class Errors
             "Không tìm thấy đội môi trường.",
             ErrorType.NotFound);
 
+        public static Error TeamHasNoMembers => new(
+            "TEAM_HAS_NO_MEMBERS",
+            "Không thể phân công task cho đội chưa có thành viên.",
+            ErrorType.BusinessRule);
+
         public static Error MemberAlreadyInTeam => new(
             "MEMBER_ALREADY_IN_TEAM",
             "Người dùng đã là thành viên của đội này.",

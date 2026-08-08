@@ -17,6 +17,7 @@ namespace Greenlens.Application.Features.Reports.ReassignTeam;
 public sealed class ReassignTeamCommandHandler(
     IReportRepository reports,
     IEnvironmentalTeamRepository teams,
+    ITeamMemberRepository teamMembers,
     IReportAssignmentRepository assignments,
     ICurrentUser currentUser,
     IUnitOfWork uow,
@@ -56,6 +57,12 @@ public sealed class ReassignTeamCommandHandler(
         {
             logger.LogWarning("Old team type {OldTeamType} is not the same as new team type {NewTeamType}", oldTeam.TeamType, newTeam.TeamType);
             return Errors.Reports.ReassignSameTeamType;
+        }
+
+        if (!await teamMembers.HasMembersAsync(request.NewTeamId, ct).ConfigureAwait(false))
+        {
+            logger.LogWarning("Team {TeamId} has no members", request.NewTeamId);
+            return Errors.Organization.TeamHasNoMembers;
         }
 
         // BR-OFF-013: configurable workload limit (default 6, warning at 5)
