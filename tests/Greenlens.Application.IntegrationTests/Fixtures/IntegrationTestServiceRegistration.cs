@@ -56,6 +56,7 @@ internal static class IntegrationTestServiceRegistration
         services.AddScoped<IChangeTrackerCleaner, ChangeTrackerCleaner>();
         services.AddSingleton<IAuditLogger, NoOpAuditLogger>();
         services.AddSingleton<INotificationService, NoOpNotificationService>();
+        services.AddSingleton<IAuthEmailScheduler, NoOpAuthEmailScheduler>();
 
         services.AddLogging(builder => builder.SetMinimumLevel(LogLevel.Warning));
 
