@@ -20,6 +20,8 @@ public sealed record ReportProgressResponse(
     ProgressSummaryDto Summary,
     IReadOnlyList<AssignmentProgressDto> Assignments,
     ReportMediaGroupDto Media,
+    /// <summary>All report images (citizen submit, before/progress/after, inspection, reopen evidence).</summary>
+    IReadOnlyList<MediaItemDto> Images,
     IReadOnlyList<StatusHistoryItemDto> StatusHistory);
 
 /// <summary>SLA countdown — HoursRemaining is negative when breached.</summary>
@@ -57,13 +59,23 @@ public sealed record AssignmentProgressDto(
     string? ProgressNote,
     DateTime? ProgressUpdatedAt);
 
-/// <summary>Report media grouped by phase: Before (citizen), Progress (team mid-task), After (completion evidence).</summary>
+/// <summary>Report media grouped by phase.</summary>
 public sealed record ReportMediaGroupDto(
+    IReadOnlyList<MediaItemDto> SubmissionImages,
     IReadOnlyList<MediaItemDto> BeforeImages,
     IReadOnlyList<MediaItemDto> ProgressImages,
-    IReadOnlyList<MediaItemDto> AfterImages);
+    IReadOnlyList<MediaItemDto> AfterImages,
+    IReadOnlyList<MediaItemDto> InspectionImages,
+    IReadOnlyList<MediaItemDto> ReopenEvidenceImages);
 
-public sealed record MediaItemDto(string Url, DateTime UploadedAt);
+public sealed record MediaItemDto(
+    Guid Id,
+    string MediaType,
+    string Url,
+    string? ThumbnailUrl,
+    string MimeType,
+    long SizeBytes,
+    DateTime UploadedAt);
 
 public sealed record StatusHistoryItemDto(
     ReportStatus? FromStatus,

@@ -3,6 +3,7 @@ using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Features.Reports.Common;
 using Greenlens.Domain.Common;
+using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -133,25 +134,26 @@ public sealed class GetReportProgressQueryHandler(
             StartedAt:               report.StartedAt);
 
         // ── Media grouped by phase ─────────────────────────────────
-        var beforeImages = report.Media
-            .Where(m => m.Type == MediaType.Before)
-            .OrderBy(m => m.UploadedAt)
-            .Select(m => new MediaItemDto(m.Url, m.UploadedAt))
-            .ToList();
+        var submissionImages = MapMedia(report.Media, MediaType.Image, MediaType.Video);
+        var beforeImages = MapMedia(report.Media, MediaType.Before);
+        var progressImages = MapMedia(report.Media, MediaType.Progress);
+        var afterImages = MapMedia(report.Media, MediaType.After);
+        var inspectionImages = MapMedia(report.Media, MediaType.Inspection);
+        var reopenEvidenceImages = MapMedia(report.Media, MediaType.ReopenEvidence);
 
-        var progressImages = report.Media
-            .Where(m => m.Type == MediaType.Progress)
-            .OrderBy(m => m.UploadedAt)
-            .Select(m => new MediaItemDto(m.Url, m.UploadedAt))
-            .ToList();
+        var media = new ReportMediaGroupDto(
+            submissionImages,
+            beforeImages,
+            progressImages,
+            afterImages,
+            inspectionImages,
+            reopenEvidenceImages);
 
-        var afterImages = report.Media
-            .Where(m => m.Type == MediaType.After)
+        var allImages = report.Media
+            .Where(m => m.Type != MediaType.Video)
             .OrderBy(m => m.UploadedAt)
-            .Select(m => new MediaItemDto(m.Url, m.UploadedAt))
+            .Select(MapMediaItem)
             .ToList();
-
-        var media = new ReportMediaGroupDto(beforeImages, progressImages, afterImages);
 
         // ── Status history (newest first) ─────────────────────────
         var history = report.StatusHistory
@@ -179,6 +181,19 @@ public sealed class GetReportProgressQueryHandler(
             summary,
             assignmentDtos,
             media,
+            allImages,
             history);
     }
+
+    private static List<MediaItemDto> MapMedia(
+        IEnumerable<ReportMedia> media,
+        params MediaType[] types) =>
+        media
+            .Where(m => types.Contains(m.Type))
+            .OrderBy(m => m.UploadedAt)
+            .Select(MapMediaItem)
+            .ToList();
+
+    private static MediaItemDto MapMediaItem(ReportMedia m) =>
+        new(m.Id, m.Type.ToString(), m.Url, m.ThumbnailUrl, m.MimeType, m.SizeBytes, m.UploadedAt);
 }

@@ -381,7 +381,7 @@ public sealed class ReportsController(
             "trạng thái từng team, người gán team (assignedById/assignedByName), % hoàn thành, ảnh tiến trình/nghiệm thu, SLA còn lại, và lịch sử status. " +
             "overallProgressPercent là trung bình của các assignment đang active (Completed = 100%). " +
             "sla.hoursRemaining âm = đã breach. " +
-            "media.progressImages gom tất cả ảnh tiến trình từ mọi team.")]
+            "images = tất cả ảnh của báo cáo (flat). media.*Images = nhóm theo phase (submission/before/progress/after/inspection/reopenEvidence).")]
     [SwaggerResponse(200, "Tiến trình báo cáo", typeof(ApiResponse<ReportProgressResponse>))]
     [SwaggerResponse(404, "Không tìm thấy báo cáo", typeof(ApiResponse))]
     public async Task<IActionResult> GetProgressAsync([FromRoute] Guid id, CancellationToken ct)
