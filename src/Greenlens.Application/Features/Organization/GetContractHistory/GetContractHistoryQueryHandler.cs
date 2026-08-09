@@ -2,6 +2,7 @@ using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
+using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -60,6 +61,25 @@ public sealed class GetContractHistoryQueryHandler(
         {
             logger.LogWarning("Company {CompanyId} not found", companyId);
             return Errors.Organization.CompanyNotFound;
+        }
+
+        if (currentUser.Role == UserRole.DEO.ToString())
+        {
+            var deo = await users.GetByIdAsync(currentUser.UserId, cancellationToken).ConfigureAwait(false);
+            if (deo is null)
+            {
+                logger.LogWarning("User not found for contract history: {UserId}", currentUser.UserId);
+                return Errors.Users.UserNotFound;
+            }
+
+            var accessError = CompanyAccessAuthorization.ValidateViewAccess(company, deo);
+            if (accessError is not null)
+            {
+                logger.LogWarning(
+                    "User {UserId} denied contract history for company {CompanyId}: {ErrorCode}",
+                    currentUser.UserId, companyId, accessError.Code);
+                return accessError;
+            }
         }
 
         // Resolve user names for each period

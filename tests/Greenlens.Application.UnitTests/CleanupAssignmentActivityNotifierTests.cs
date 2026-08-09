@@ -13,6 +13,7 @@ public sealed class CleanupAssignmentActivityNotifierTests
 {
     private readonly INotificationService _notifications = Substitute.For<INotificationService>();
     private readonly IEnvironmentalTeamRepository _teams = Substitute.For<IEnvironmentalTeamRepository>();
+    private readonly IEnvironmentalServiceCompanyRepository _companies = Substitute.For<IEnvironmentalServiceCompanyRepository>();
     private readonly CleanupAssignmentActivityNotifier _sut;
 
     public CleanupAssignmentActivityNotifierTests()
@@ -20,6 +21,7 @@ public sealed class CleanupAssignmentActivityNotifierTests
         _sut = new CleanupAssignmentActivityNotifier(
             _notifications,
             _teams,
+            _companies,
             NotificationTestDbFactory.CreateEmpty(),
             NullLogger<CleanupAssignmentActivityNotifier>.Instance);
     }

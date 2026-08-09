@@ -10,10 +10,14 @@ namespace Greenlens.Infrastructure.Imaging;
 /// <summary>BR-REP-011: reads EXIF DateTimeOriginal and GPS from uploaded report images.</summary>
 public sealed class MetadataExtractorImageExifAnalyzer : IImageExifAnalyzer
 {
-    public ImageExifAnalysis Analyze(ReadOnlyMemory<byte> imageBytes, DateTime submittedAtUtc)
+    public ImageExifAnalysis Analyze(
+        ReadOnlyMemory<byte> imageBytes,
+        DateTime submittedAtUtc,
+        decimal submittedLatitude,
+        decimal submittedLongitude)
     {
         if (imageBytes.IsEmpty)
-            return MissingAnalysis(submittedAtUtc);
+            return MissingAnalysis(submittedAtUtc, submittedLatitude, submittedLongitude);
 
         try
         {
@@ -53,8 +57,14 @@ public sealed class MetadataExtractorImageExifAnalyzer : IImageExifAnalyzer
             }
 
             var hasTimestamp = capturedAtUtc.HasValue;
-            var reason = ExifSuspicionEvaluator.ResolveSuspiciousReason(
-                hasTimestamp, capturedAtUtc, submittedAtUtc);
+            var reasons = ExifSuspicionEvaluator.ResolveSuspiciousReasons(
+                hasTimestamp,
+                capturedAtUtc,
+                submittedAtUtc,
+                submittedLatitude,
+                submittedLongitude,
+                latitude,
+                longitude);
 
             string? exifJson = null;
             if (hasTimestamp || latitude.HasValue)
@@ -73,18 +83,21 @@ public sealed class MetadataExtractorImageExifAnalyzer : IImageExifAnalyzer
                 latitude,
                 longitude,
                 exifJson,
-                reason is not null,
-                reason);
+                reasons);
         }
         catch
         {
-            return MissingAnalysis(submittedAtUtc);
+            return MissingAnalysis(submittedAtUtc, submittedLatitude, submittedLongitude);
         }
     }
 
-    private static ImageExifAnalysis MissingAnalysis(DateTime submittedAtUtc)
+    private static ImageExifAnalysis MissingAnalysis(
+        DateTime submittedAtUtc,
+        decimal submittedLatitude,
+        decimal submittedLongitude)
     {
-        var reason = ExifSuspicionEvaluator.ResolveSuspiciousReason(false, null, submittedAtUtc);
-        return new ImageExifAnalysis(false, null, null, null, null, true, reason);
+        var reasons = ExifSuspicionEvaluator.ResolveSuspiciousReasons(
+            false, null, submittedAtUtc, submittedLatitude, submittedLongitude, null, null);
+        return new ImageExifAnalysis(false, null, null, null, null, reasons);
     }
 }

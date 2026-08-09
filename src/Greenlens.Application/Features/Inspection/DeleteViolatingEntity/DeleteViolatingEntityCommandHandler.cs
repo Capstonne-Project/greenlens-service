@@ -21,7 +21,7 @@ public sealed class DeleteViolatingEntityCommandHandler(
     {
         logger.LogInformation("Getting delete violating entity");
 
-        var entity = await violatingEntities.GetByIdAsync(request.EntityId, ct).ConfigureAwait(false);
+        var entity = await violatingEntities.GetByIdIncludingDeletedAsync(request.EntityId, ct).ConfigureAwait(false);
         if (entity is null)
         {
             logger.LogWarning("Violating entity not found for entity {EntityId}", request.EntityId);

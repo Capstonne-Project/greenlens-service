@@ -25,13 +25,15 @@ public sealed class GetMyTaskDetailQueryHandler(
     {
         logger.LogInformation("Getting my task detail for user {UserId}", currentUser.UserId);
 
-        // Any member of the team can view (not just leader)
-        var membership = await teamMembers
+        // Any member of any team the user belongs to can view (not just leader)
+        var myTeamIds = await teamMembers
             .QueryAsNoTracking()
-            .FirstOrDefaultAsync(m => m.UserId == currentUser.UserId, ct)
+            .Where(m => m.UserId == currentUser.UserId)
+            .Select(m => m.TeamId)
+            .ToListAsync(ct)
             .ConfigureAwait(false);
 
-        if (membership is null)
+        if (myTeamIds.Count == 0)
         {
             logger.LogWarning("Team member not found for user {UserId}", currentUser.UserId);
             return Errors.Reports.NotTeamMember;
@@ -47,12 +49,15 @@ public sealed class GetMyTaskDetailQueryHandler(
                 .ThenInclude(r => r!.WasteTags)
                     .ThenInclude(wt => wt.WasteTag)
             .FirstOrDefaultAsync(
-                a => a.ReportId == request.ReportId && a.TeamId == membership.TeamId, ct)
+                a => a.ReportId == request.ReportId && myTeamIds.Contains(a.TeamId), ct)
             .ConfigureAwait(false);
 
         if (assignment is null)
         {
-            logger.LogWarning("Assignment not found for report ID {ReportId} and team ID {TeamId}", request.ReportId, membership.TeamId);
+            logger.LogWarning(
+                "Assignment not found for report ID {ReportId} and user teams {TeamIds}",
+                request.ReportId,
+                string.Join(',', myTeamIds));
             return Errors.Reports.AssignmentNotFound;
         }
 

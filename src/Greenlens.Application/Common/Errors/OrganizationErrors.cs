@@ -41,6 +41,11 @@ public static partial class Errors
             "Không tìm thấy đội môi trường.",
             ErrorType.NotFound);
 
+        public static Error TeamHasNoMembers => new(
+            "TEAM_HAS_NO_MEMBERS",
+            "Không thể phân công task cho đội chưa có thành viên.",
+            ErrorType.BusinessRule);
+
         public static Error MemberAlreadyInTeam => new(
             "MEMBER_ALREADY_IN_TEAM",
             "Người dùng đã là thành viên của đội này.",
@@ -220,6 +225,16 @@ public static partial class Errors
         public static Error TeamHasActiveAssignments => new(
             "TEAM_HAS_ACTIVE_ASSIGNMENTS",
             "Không thể xóa team đang có nhiệm vụ đang xử lý.",
+            ErrorType.BusinessRule);
+
+        public static Error CannotModifyTeamWithActiveTasks => new(
+            "CANNOT_MODIFY_TEAM_WITH_ACTIVE_TASKS",
+            "Không thể thay đổi thành viên khi đội đang có nhiệm vụ đang xử lý.",
+            ErrorType.BusinessRule);
+
+        public static Error TeamAlreadyHasLeader => new(
+            "TEAM_ALREADY_HAS_LEADER",
+            "Đội đã có trưởng nhóm. Mỗi đội chỉ được phép có một trưởng nhóm.",
             ErrorType.BusinessRule);
 
         // ── Contract Renewal (BR-CMP-006) ──

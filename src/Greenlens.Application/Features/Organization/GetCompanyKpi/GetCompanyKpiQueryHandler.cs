@@ -19,6 +19,7 @@ public sealed class GetCompanyKpiQueryHandler(
     IEnvironmentalTeamRepository teams,
     IEnvironmentalServiceCompanyRepository companies,
     ICompanyStaffRepository companyStaff,
+    IUserRepository users,
     IReportRepository reports,
     ICurrentUser currentUser,
     ILogger<GetCompanyKpiQueryHandler> logger)
@@ -75,6 +76,25 @@ public sealed class GetCompanyKpiQueryHandler(
         {
             logger.LogWarning("Company {CompanyId} not found", companyId);
             return Errors.Organization.CompanyNotFound;
+        }
+
+        if (currentUser.Role == UserRole.DEO.ToString())
+        {
+            var deo = await users.GetByIdAsync(currentUser.UserId, cancellationToken).ConfigureAwait(false);
+            if (deo is null)
+            {
+                logger.LogWarning("User not found for company KPI: {UserId}", currentUser.UserId);
+                return Errors.Users.UserNotFound;
+            }
+
+            var accessError = CompanyAccessAuthorization.ValidateViewAccess(company, deo);
+            if (accessError is not null)
+            {
+                logger.LogWarning(
+                    "User {UserId} denied KPI for company {CompanyId}: {ErrorCode}",
+                    currentUser.UserId, companyId, accessError.Code);
+                return accessError;
+            }
         }
 
         // ── Resolve period ──

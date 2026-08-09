@@ -11,6 +11,10 @@ internal sealed class TeamMemberRepository(ApplicationDbContext db)
         => QueryAsNoTracking()
             .AnyAsync(m => m.TeamId == teamId && m.UserId == userId, ct);
 
+    public Task<bool> HasMembersAsync(Guid teamId, CancellationToken ct = default)
+        => QueryAsNoTracking()
+            .AnyAsync(m => m.TeamId == teamId, ct);
+
     public Task<TeamMember?> GetLeaderByUserIdAsync(Guid userId, CancellationToken ct = default)
         => QueryAsNoTracking()
             .FirstOrDefaultAsync(m => m.UserId == userId && m.IsLeader, ct);

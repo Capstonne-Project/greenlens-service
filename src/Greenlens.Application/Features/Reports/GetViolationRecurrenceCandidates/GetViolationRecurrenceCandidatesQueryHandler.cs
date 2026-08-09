@@ -1,3 +1,5 @@
+using Greenlens.Application.Common;
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Common.Models;
 using Greenlens.Application.Features.Reports.Common;
@@ -16,10 +18,13 @@ namespace Greenlens.Application.Features.Reports.GetViolationRecurrenceCandidate
 /// </summary>
 /// <remarks>
 /// Implements: BR-REP-034 (recurrence flag on submit), BR-OFF-005 (LEO review queue support).
+/// Scope: LEO → assigned office; DEO → department; Admin → all.
 /// </remarks>
 public sealed class GetViolationRecurrenceCandidatesQueryHandler(
     IReportRepository reports,
     IReportMediaRepository reportMedia,
+    IUserRepository users,
+    ICurrentUser currentUser,
     ILogger<GetViolationRecurrenceCandidatesQueryHandler> logger)
     : IRequestHandler<GetViolationRecurrenceCandidatesQuery, Result<GetViolationRecurrenceCandidatesResponse>>
 {
@@ -27,11 +32,20 @@ public sealed class GetViolationRecurrenceCandidatesQueryHandler(
         GetViolationRecurrenceCandidatesQuery request,
         CancellationToken ct)
     {
+        var user = await users.GetByIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
+        if (user is null)
+        {
+            logger.LogWarning("User not found for violation recurrence candidates: {UserId}", currentUser.UserId);
+            return Errors.Users.UserNotFound;
+        }
+
         var now = DateTime.UtcNow;
 
         var query = reports.QueryAsNoTracking()
             .Where(r => r.IsSuspectedViolationRecurrence)
             .Where(r => r.Status != ReportStatus.Duplicate && r.Status != ReportStatus.Rejected);
+
+        query = ReportReviewCandidateFilters.ApplyOfficerScope(query, user, currentUser.Role);
 
         query = ReportReviewCandidateFilters.ApplyCommon(
             query,

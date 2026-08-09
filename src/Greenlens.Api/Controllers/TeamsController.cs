@@ -124,7 +124,7 @@ public sealed class TeamsController(ISender sender) : ControllerBase
     [SwaggerOperation(
         Summary = "[Cleaner/CompanyStaff/Inspector] Từ chối task",
         Description = "Team từ chối task trong vòng 24 giờ sau khi được phân công. Yêu cầu lý do ≥ 20 ký tự. " +
-            "Nếu tất cả team đều từ chối → report quay về `Verified` để LEO/CM phân công lại.")]
+            "Report giữ `InProgress`; LEO xem `GET /v1/reports/{reportId}/progress` (assignment `Declined`) rồi `PUT /v1/reports/{reportId}/reassign`.")]
     [SwaggerResponse(200, "Đã từ chối", typeof(ApiResponse))]
     [SwaggerResponse(422, "Quá 24h, lý do quá ngắn, hoặc assignment không ở trạng thái Assigned", typeof(ApiResponse))]
     public async Task<IActionResult> DeclineTaskAsync(
@@ -215,8 +215,10 @@ public sealed class TeamsController(ISender sender) : ControllerBase
     [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(
         Summary = "[Admin/LEO/DEO] Danh sách teams cộng đồng",
-        Description = "Trả về danh sách đội MT cộng đồng (CompanyId == null) kèm trạng thái hiện tại (Available/Busy). " +
-            "Hỗ trợ lọc theo office, loại team, trạng thái và tình trạng rảnh/bận (isAvailable). " +
+        Description = "Trả về danh sách đội MT cộng đồng (CompanyId == null) trong phạm vi officer đăng nhập: LEO → office của mình, DEO → các office thuộc sở. " +
+            "Kèm trạng thái hiện tại (Available/Busy). " +
+            "Hỗ trợ lọc theo loại team, trạng thái và tình trạng rảnh/bận (isAvailable). " +
+            "Admin có thể lọc thêm localOfficeId. " +
             "Để xem team công ty → dùng `GET /v1/teams/company-teams` (CompanyManager).")]
     [SwaggerResponse(200, "Danh sách teams", typeof(ApiResponse<GetTeamsResponse>))]
     public async Task<IActionResult> GetAllAsync(

@@ -15,7 +15,17 @@ public sealed class GetTeamByIdTests(PostgresContainerFixture fixture) : Integra
     {
         var teamId = await WithDbAsync(async db =>
         {
+            // Seed the current user (Admin) into DB so ResolveActorAsync can find them
+            var admin = User.CreateByAdmin(CurrentUser.Email!, "hash", "Admin User", UserRole.Admin);
+            // Overwrite the Id to match CurrentUser
+            typeof(Greenlens.Domain.Common.BaseEntity)
+                .GetProperty(nameof(Greenlens.Domain.Common.BaseEntity.Id))!
+                .SetValue(admin, CurrentUser.UserId);
+            db.Set<User>().Add(admin);
+
             var office = await IntegrationDataSeeder.SeedLocalOfficeAsync(db);
+            admin.AssignToLocalOffice(office.Id);
+
             var cleaner = await IntegrationDataSeeder.SeedUserAsync(db, UserRole.Cleaner);
             cleaner.AssignToLocalOffice(office.Id);
 
@@ -37,6 +47,16 @@ public sealed class GetTeamByIdTests(PostgresContainerFixture fixture) : Integra
     [Fact]
     public async Task Handle_MissingTeam_ReturnsNotFound()
     {
+        await WithDbAsync(async db =>
+        {
+            var admin = User.CreateByAdmin(CurrentUser.Email!, "hash", "Admin User", UserRole.Admin);
+            typeof(Greenlens.Domain.Common.BaseEntity)
+                .GetProperty(nameof(Greenlens.Domain.Common.BaseEntity.Id))!
+                .SetValue(admin, CurrentUser.UserId);
+            db.Set<User>().Add(admin);
+            await db.SaveChangesAsync();
+        });
+
         var result = await Mediator.Send(new GetTeamByIdQuery(Guid.NewGuid()));
 
         result.IsFailure.Should().BeTrue();

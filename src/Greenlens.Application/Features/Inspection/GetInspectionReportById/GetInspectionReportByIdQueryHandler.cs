@@ -14,7 +14,9 @@ namespace Greenlens.Application.Features.Inspection.GetInspectionReportById;
 public sealed class GetInspectionReportByIdQueryHandler(
     IInspectionReportRepository inspections,
     IInspectionEvidenceRepository evidences,
+    IReportRepository reports,
     ITeamMemberRepository teamMembers,
+    IUserRepository users,
     ICurrentUser currentUser,
     ILogger<GetInspectionReportByIdQueryHandler> logger)
     : IRequestHandler<GetInspectionReportByIdQuery, Result<InspectionReportDetailResponse>>
@@ -40,10 +42,10 @@ public sealed class GetInspectionReportByIdQueryHandler(
             return Errors.Inspections.InspectionNotFound;
         }
 
-        if (currentUser.Role == "Inspector")
+        if (currentUser.Role != UserRole.Admin.ToString())
         {
-            var scopeError = await InspectionTeamAuthorization.ValidateTeamMemberAsync(
-                ir, teamMembers, currentUser, ct).ConfigureAwait(false);
+            var scopeError = await InspectionTeamAuthorization.ValidateInspectionReadAccessAsync(
+                ir, reports, teamMembers, users, currentUser, ct).ConfigureAwait(false);
             if (scopeError is not null)
                 return scopeError;
         }

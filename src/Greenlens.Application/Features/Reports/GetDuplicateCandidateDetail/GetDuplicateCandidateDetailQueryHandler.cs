@@ -1,5 +1,7 @@
 using Greenlens.Application.Common;
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Reports.Common;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using MediatR;
@@ -11,9 +13,14 @@ namespace Greenlens.Application.Features.Reports.GetDuplicateCandidateDetail;
 /// <summary>
 /// Returns side-by-side detail for a report flagged as a possible duplicate and its primary report.
 /// </summary>
-/// <remarks>Implements: BR-REP-031 (possible duplicate flag), BR-REP-032 (merge review).</remarks>
+/// <remarks>
+/// Implements: BR-REP-031 (possible duplicate flag), BR-REP-032 (merge review).
+/// Scope: LEO → assigned office; DEO → department; Admin → all.
+/// </remarks>
 public sealed class GetDuplicateCandidateDetailQueryHandler(
     IReportRepository reports,
+    IUserRepository users,
+    ICurrentUser currentUser,
     ILogger<GetDuplicateCandidateDetailQueryHandler> logger)
     : IRequestHandler<GetDuplicateCandidateDetailQuery, Result<DuplicateCandidateDetailResponse>>
 {
@@ -21,6 +28,13 @@ public sealed class GetDuplicateCandidateDetailQueryHandler(
         GetDuplicateCandidateDetailQuery request, CancellationToken ct)
     {
         logger.LogInformation("Getting duplicate candidate detail for report {ReportId}", request.ReportId);
+
+        var user = await users.GetByIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
+        if (user is null)
+        {
+            logger.LogWarning("User not found for duplicate candidate detail: {UserId}", currentUser.UserId);
+            return Errors.Users.UserNotFound;
+        }
 
         var report = await reports.QueryAsNoTracking()
             .Include(r => r.Category)
@@ -38,6 +52,16 @@ public sealed class GetDuplicateCandidateDetailQueryHandler(
         {
             logger.LogWarning("Report {ReportId} has no possible-duplicate flag", request.ReportId);
             return Errors.Reports.NotPossibleDuplicate;
+        }
+
+        var accessError = ReportReviewCandidateFilters.ValidateReportAccess(
+            report, user, currentUser.Role);
+        if (accessError is not null)
+        {
+            logger.LogWarning(
+                "User {UserId} denied duplicate detail for report {ReportId}: {ErrorCode}",
+                currentUser.UserId, request.ReportId, accessError.Code);
+            return accessError;
         }
 
         var primaryId = report.PossibleDuplicateOfReportId.Value;

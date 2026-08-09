@@ -1,6 +1,9 @@
 using Greenlens.Application.Common;
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Reports.Common;
 using Greenlens.Domain.Common;
+using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -14,9 +17,12 @@ namespace Greenlens.Application.Features.Reports.GetReportProgress;
 /// </summary>
 /// <remarks>
 /// Implements: BR-OFF-020 (SLA countdown), BR-OFF-011 (multi-team tracking).
+/// Scope: LEO → assigned office; Admin → all.
 /// </remarks>
 public sealed class GetReportProgressQueryHandler(
     IReportRepository reports,
+    IUserRepository users,
+    ICurrentUser currentUser,
     ILogger<GetReportProgressQueryHandler> logger)
     : IRequestHandler<GetReportProgressQuery, Result<ReportProgressResponse>>
 {
@@ -32,6 +38,13 @@ public sealed class GetReportProgressQueryHandler(
         GetReportProgressQuery request, CancellationToken ct)
     {
         logger.LogInformation("Getting report progress for report {ReportId}", request.ReportId);
+
+        var user = await users.GetByIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
+        if (user is null)
+        {
+            logger.LogWarning("User not found for report progress: {UserId}", currentUser.UserId);
+            return Errors.Users.UserNotFound;
+        }
 
         var report = await reports.QueryAsNoTracking()
             .Include(x => x.Category)
@@ -51,6 +64,16 @@ public sealed class GetReportProgressQueryHandler(
         {
             logger.LogWarning("Report not found for ID {ReportId}", request.ReportId);
             return Errors.Reports.ReportNotFound;
+        }
+
+        var accessError = ReportReviewCandidateFilters.ValidateLeoReportAccess(
+            report, user, currentUser.Role);
+        if (accessError is not null)
+        {
+            logger.LogWarning(
+                "User {UserId} denied progress for report {ReportId}: {ErrorCode}",
+                currentUser.UserId, request.ReportId, accessError.Code);
+            return accessError;
         }
 
         // ── SLA countdown ──────────────────────────────────────────
@@ -111,25 +134,26 @@ public sealed class GetReportProgressQueryHandler(
             StartedAt:               report.StartedAt);
 
         // ── Media grouped by phase ─────────────────────────────────
-        var beforeImages = report.Media
-            .Where(m => m.Type == MediaType.Before)
-            .OrderBy(m => m.UploadedAt)
-            .Select(m => new MediaItemDto(m.Url, m.UploadedAt))
-            .ToList();
+        var submissionImages = MapMedia(report.Media, MediaType.Image, MediaType.Video);
+        var beforeImages = MapMedia(report.Media, MediaType.Before);
+        var progressImages = MapMedia(report.Media, MediaType.Progress);
+        var afterImages = MapMedia(report.Media, MediaType.After);
+        var inspectionImages = MapMedia(report.Media, MediaType.Inspection);
+        var reopenEvidenceImages = MapMedia(report.Media, MediaType.ReopenEvidence);
 
-        var progressImages = report.Media
-            .Where(m => m.Type == MediaType.Progress)
-            .OrderBy(m => m.UploadedAt)
-            .Select(m => new MediaItemDto(m.Url, m.UploadedAt))
-            .ToList();
+        var media = new ReportMediaGroupDto(
+            submissionImages,
+            beforeImages,
+            progressImages,
+            afterImages,
+            inspectionImages,
+            reopenEvidenceImages);
 
-        var afterImages = report.Media
-            .Where(m => m.Type == MediaType.After)
+        var allImages = report.Media
+            .Where(m => m.Type != MediaType.Video)
             .OrderBy(m => m.UploadedAt)
-            .Select(m => new MediaItemDto(m.Url, m.UploadedAt))
+            .Select(MapMediaItem)
             .ToList();
-
-        var media = new ReportMediaGroupDto(beforeImages, progressImages, afterImages);
 
         // ── Status history (newest first) ─────────────────────────
         var history = report.StatusHistory
@@ -157,6 +181,19 @@ public sealed class GetReportProgressQueryHandler(
             summary,
             assignmentDtos,
             media,
+            allImages,
             history);
     }
+
+    private static List<MediaItemDto> MapMedia(
+        IEnumerable<ReportMedia> media,
+        params MediaType[] types) =>
+        media
+            .Where(m => types.Contains(m.Type))
+            .OrderBy(m => m.UploadedAt)
+            .Select(MapMediaItem)
+            .ToList();
+
+    private static MediaItemDto MapMediaItem(ReportMedia m) =>
+        new(m.Id, m.Type.ToString(), m.Url, m.ThumbnailUrl, m.MimeType, m.SizeBytes, m.UploadedAt);
 }

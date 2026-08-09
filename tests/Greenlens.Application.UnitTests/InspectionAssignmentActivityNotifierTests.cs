@@ -42,7 +42,7 @@ public sealed class InspectionAssignmentActivityNotifierTests
             NotificationType.InspectionTaskAccepted,
             Arg.Is<Dictionary<string, string>>(d =>
                 d["report_code"] == "RPT-810" && d["team_name"] == "Đội Thanh tra A"),
-            reportId,
+            inspectionId,
             Arg.Any<CancellationToken>());
     }
 
@@ -73,7 +73,7 @@ public sealed class InspectionAssignmentActivityNotifierTests
                 d["report_code"] == "RPT-811"
                 && d["team_name"] == "Đội Thanh tra B"
                 && d["activity_summary"] == InspectionActivityLabels.ChecklistUpdated),
-            reportId,
+            inspectionId,
             Arg.Any<CancellationToken>());
     }
 
@@ -104,7 +104,7 @@ public sealed class InspectionAssignmentActivityNotifierTests
                 d["report_code"] == "RPT-812"
                 && d["team_name"] == "Đội Thanh tra C"
                 && d["outcome_summary"] == InspectionActivityLabels.PenaltyIssued),
-            reportId,
+            inspectionId,
             Arg.Any<CancellationToken>());
     }
 }

@@ -1,3 +1,4 @@
+using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Common.Models;
@@ -33,24 +34,27 @@ public sealed class GetCompaniesQueryHandler(
             .Include(c => c.Staff)
             .AsQueryable();
 
-        // ── BR-ADM-012: DEO scope by province ──
+        // ── BR-ADM-012: DEO scope by department ──
         var user = await users.GetByIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
-        if (user is not null && user.Role == UserRole.DEO && user.DepartmentId.HasValue)
+        if (user is null)
         {
-            logger.LogInformation("User {UserId} is a DEO with department {DepartmentId}", currentUser.UserId, user.DepartmentId.Value);
-            // Resolve province code through the user's department
-            var userWithDept = await users.QueryAsNoTracking()
-                .Include(u => u.Department)
-                .FirstOrDefaultAsync(u => u.Id == currentUser.UserId, ct)
-                .ConfigureAwait(false);
+            logger.LogWarning("User not found for companies list: {UserId}", currentUser.UserId);
+            return Errors.Users.UserNotFound;
+        }
 
-            var provinceCode = userWithDept?.Department?.ProvinceCode;
-            if (!string.IsNullOrEmpty(provinceCode))
+        if (user.Role == UserRole.DEO)
+        {
+            if (!user.DepartmentId.HasValue)
             {
-                // Only companies that have at least one ServiceArea in DEO's province
-                query = query.Where(c =>
-                    c.ServiceAreas.Any(sa => sa.Ward != null && sa.Ward.ProvinceCode == provinceCode));
+                logger.LogWarning("DEO {UserId} has no department", currentUser.UserId);
+                return Errors.Organization.DepartmentNotFound;
             }
+
+            logger.LogInformation(
+                "DEO {UserId} listing companies for department {DepartmentId}",
+                currentUser.UserId, user.DepartmentId.Value);
+
+            query = query.Where(c => c.DepartmentId == user.DepartmentId.Value);
         }
 
         // ── Filter ──

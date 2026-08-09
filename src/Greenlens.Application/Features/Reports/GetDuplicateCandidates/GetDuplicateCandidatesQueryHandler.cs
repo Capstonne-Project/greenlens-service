@@ -1,3 +1,5 @@
+using Greenlens.Application.Common;
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Common.Models;
 using Greenlens.Application.Features.Reports.Common;
@@ -14,19 +16,34 @@ namespace Greenlens.Application.Features.Reports.GetDuplicateCandidates;
 /// <summary>
 /// Returns paginated reports flagged as possible duplicates for LEO review.
 /// </summary>
-/// <remarks>Implements: BR-REP-031 (possible duplicate queue), BR-REP-032 (merge review).</remarks>
+/// <remarks>
+/// Implements: BR-REP-031 (possible duplicate queue), BR-REP-032 (merge review).
+/// Scope: LEO → assigned office; DEO → department; Admin → all.
+/// </remarks>
 public sealed class GetDuplicateCandidatesQueryHandler(
     IReportRepository reports,
     IReportMediaRepository reportMedia,
+    IUserRepository users,
+    ICurrentUser currentUser,
     ILogger<GetDuplicateCandidatesQueryHandler> logger)
     : IRequestHandler<GetDuplicateCandidatesQuery, Result<GetDuplicateCandidatesResponse>>
 {
     public async Task<Result<GetDuplicateCandidatesResponse>> Handle(
         GetDuplicateCandidatesQuery request, CancellationToken ct)
     {
+        var user = await users.GetByIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
+        if (user is null)
+        {
+            logger.LogWarning("User not found for duplicate candidates: {UserId}", currentUser.UserId);
+            return Errors.Users.UserNotFound;
+        }
+
         var query = reports.QueryAsNoTracking()
             .Where(r => r.IsPossibleDuplicate)
             .Where(r => r.Status != ReportStatus.Duplicate && r.Status != ReportStatus.Rejected);
+
+        query = ReportReviewCandidateFilters.ApplyDuplicateReviewScope(
+            query, reports.QueryAsNoTracking(), user, currentUser.Role);
 
         query = ReportReviewCandidateFilters.ApplyCommon(
             query,

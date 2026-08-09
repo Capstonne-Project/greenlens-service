@@ -45,6 +45,9 @@ public sealed record UserProfileDto(
     DateTime CreatedAt,
     DateTime? UpdatedAt,
     IReadOnlyList<string> Achievements,
+    int TotalPoints,
+    int Level,
+    bool IsGamificationLocked,
     int? Rank,
     FeaturedBadgeDto? FeaturedBadge);
 

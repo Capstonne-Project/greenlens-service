@@ -1,3 +1,5 @@
+using Greenlens.Application.Common;
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Common.Models;
 using Greenlens.Domain.Common;
@@ -8,27 +10,69 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Greenlens.Application.Features.Organization.GetTeams;
 
+/// <summary>
+/// Lists community teams scoped to the caller: LEO → own office, DEO → department offices, Admin → optional filter.
+/// </summary>
+/// <remarks>Implements: BR-ORG-003.</remarks>
 public sealed class GetTeamsQueryHandler(
     IEnvironmentalTeamRepository teams,
     IReportAssignmentRepository assignments,
+    IUserRepository users,
+    ILocalOfficeRepository localOffices,
+    ICurrentUser currentUser,
     ILogger<GetTeamsQueryHandler> logger)
     : IRequestHandler<GetTeamsQuery, Result<GetTeamsResponse>>
 {
     public async Task<Result<GetTeamsResponse>> Handle(
         GetTeamsQuery request, CancellationToken ct)
     {
-        logger.LogInformation("Getting teams for local office {LocalOfficeId}", request.LocalOfficeId);
+        var user = await users.GetByIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
+        if (user is null)
+        {
+            logger.LogWarning("User not found for teams list: {UserId}", currentUser.UserId);
+            return Errors.Users.UserNotFound;
+        }
+
+        logger.LogInformation("Getting community teams for user {UserId}", currentUser.UserId);
 
         var query = teams.QueryAsNoTracking()
             .Include(t => t.LocalOffice)
             .Include(t => t.Members)
+            .Where(t => t.CompanyId == null)
             .AsQueryable();
 
-        if (request.LocalOfficeId.HasValue)
+        if (user.Role == UserRole.LEO)
         {
-            logger.LogInformation("Filtering teams by local office ID: {LocalOfficeId}", request.LocalOfficeId.Value);
+            if (!user.LocalOfficeId.HasValue)
+            {
+                logger.LogWarning("LEO {UserId} has no office", currentUser.UserId);
+                return Errors.Organization.OfficerNoOffice;
+            }
+
+            query = query.Where(t => t.LocalOfficeId == user.LocalOfficeId.Value);
+        }
+        else if (user.Role == UserRole.DEO)
+        {
+            if (!user.DepartmentId.HasValue)
+            {
+                logger.LogWarning("DEO {UserId} has no department", currentUser.UserId);
+                return Errors.Organization.DepartmentNotFound;
+            }
+
+            var officeIds = await localOffices.QueryAsNoTracking()
+                .Where(o => o.DepartmentId == user.DepartmentId.Value)
+                .Select(o => o.Id)
+                .ToListAsync(ct)
+                .ConfigureAwait(false);
+
+            query = query.Where(t =>
+                t.LocalOfficeId != null && officeIds.Contains(t.LocalOfficeId.Value));
+        }
+        else if (request.LocalOfficeId.HasValue)
+        {
             query = query.Where(t => t.LocalOfficeId == request.LocalOfficeId.Value);
         }
+
         if (request.TeamType.HasValue)
         {
             logger.LogInformation("Filtering teams by team type: {TeamType}", request.TeamType.Value);

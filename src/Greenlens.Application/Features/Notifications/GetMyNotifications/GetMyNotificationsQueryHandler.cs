@@ -156,6 +156,7 @@ internal sealed class GetMyNotificationsQueryHandler(
         NotificationType.CleanupProgressUpdated or
         NotificationType.CleanupTaskCompleted or
         NotificationType.CompanyReportDispatched or
+        NotificationType.CompanyTeamAssigned or
         NotificationType.DuplicateReviewNeeded or
         NotificationType.ViolationRecurrenceReviewNeeded or
         NotificationType.ReopenReviewNeeded or

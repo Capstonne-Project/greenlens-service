@@ -1,4 +1,6 @@
 using FluentAssertions;
+using Greenlens.Application.Common.Interfaces;
+using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Features.Reports.GetDuplicateCandidatesV2;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
@@ -7,11 +9,35 @@ using Greenlens.Infrastructure.Persistence;
 using Greenlens.Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using NSubstitute;
 
 namespace Greenlens.Application.UnitTests;
 
 public sealed class GetDuplicateCandidatesV2QueryHandlerTests
 {
+    private static (GetDuplicateCandidatesV2QueryHandler Sut, ApplicationDbContext Ctx) CreateSut(ApplicationDbContext ctx)
+    {
+        var admin = User.Create("admin@test.local", "hash", "Admin", UserRole.Admin);
+        ctx.Users.Add(admin);
+        ctx.SaveChanges();
+
+        var currentUser = Substitute.For<ICurrentUser>();
+        currentUser.UserId.Returns(admin.Id);
+        currentUser.Role.Returns(UserRole.Admin.ToString());
+
+        var users = Substitute.For<IUserRepository>();
+        users.GetByIdAsync(admin.Id, Arg.Any<CancellationToken>()).Returns(admin);
+
+        var sut = new GetDuplicateCandidatesV2QueryHandler(
+            new ReportRepository(ctx),
+            new ReportMediaRepository(ctx),
+            users,
+            currentUser,
+            NullLogger<GetDuplicateCandidatesV2QueryHandler>.Instance);
+
+        return (sut, ctx);
+    }
+
     [Fact]
     public async Task Handle_GroupsDuplicatesByPrimary_BR_REP_031()
     {
@@ -34,10 +60,7 @@ public sealed class GetDuplicateCandidatesV2QueryHandlerTests
         ctx.Reports.AddRange(primary, dup1, dup2);
         await ctx.SaveChangesAsync();
 
-        var sut = new GetDuplicateCandidatesV2QueryHandler(
-            new ReportRepository(ctx),
-            new ReportMediaRepository(ctx),
-            NullLogger<GetDuplicateCandidatesV2QueryHandler>.Instance);
+        var (sut, _) = CreateSut(ctx);
 
         var result = await sut.Handle(new GetDuplicateCandidatesV2Query(), CancellationToken.None);
 
@@ -73,10 +96,7 @@ public sealed class GetDuplicateCandidatesV2QueryHandlerTests
         ctx.Reports.AddRange(primary1, primary2, dupForP1, dupForP2);
         await ctx.SaveChangesAsync();
 
-        var sut = new GetDuplicateCandidatesV2QueryHandler(
-            new ReportRepository(ctx),
-            new ReportMediaRepository(ctx),
-            NullLogger<GetDuplicateCandidatesV2QueryHandler>.Instance);
+        var (sut, _) = CreateSut(ctx);
 
         var result = await sut.Handle(
             new GetDuplicateCandidatesV2Query(PrimaryReportId: primary1.Id),
@@ -87,6 +107,57 @@ public sealed class GetDuplicateCandidatesV2QueryHandlerTests
         result.Value.Items[0].Primary.Id.Should().Be(primary1.Id);
         result.Value.Items[0].Duplicates.Should().ContainSingle(d => d.Code == "RPT-D-P1");
         result.Value.Pagination.TotalItems.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Handle_LeoSeesDuplicateWhenPrimaryInSameOffice_BR_REP_031()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase($"dup-candidates-v2-leo-{Guid.NewGuid():N}")
+            .Options;
+
+        var ctx = new ApplicationDbContext(options);
+        var officeId = Guid.NewGuid();
+        var otherOfficeId = Guid.NewGuid();
+
+        var leo = User.Create("leo.dup@test.local", "hash", "LEO Dup", UserRole.LEO);
+        leo.AssignToLocalOffice(officeId);
+        ctx.Users.Add(leo);
+
+        var category = PollutionCategory.Create("TRASH", "Rác thải", "Trash");
+        ctx.PollutionCategories.Add(category);
+        await ctx.SaveChangesAsync();
+
+        var primary = CreateReport("RPT-PRIMARY", category.Id, 10.7626m, 106.6602m);
+        primary.RouteToLocalOffice(officeId, Guid.NewGuid());
+        primary.Verify(leo.Id);
+
+        var dup = CreateReport("RPT-DUP-REMOTE-OFFICE", category.Id, 10.7627m, 106.6603m);
+        dup.RouteToLocalOffice(otherOfficeId, Guid.NewGuid());
+        dup.MarkPossibleDuplicate(primary.Id, DuplicateDetectionSources.Tier1);
+
+        ctx.Reports.AddRange(primary, dup);
+        await ctx.SaveChangesAsync();
+
+        var currentUser = Substitute.For<ICurrentUser>();
+        currentUser.UserId.Returns(leo.Id);
+        currentUser.Role.Returns(UserRole.LEO.ToString());
+
+        var users = Substitute.For<IUserRepository>();
+        users.GetByIdAsync(leo.Id, Arg.Any<CancellationToken>()).Returns(leo);
+
+        var sut = new GetDuplicateCandidatesV2QueryHandler(
+            new ReportRepository(ctx),
+            new ReportMediaRepository(ctx),
+            users,
+            currentUser,
+            NullLogger<GetDuplicateCandidatesV2QueryHandler>.Instance);
+
+        var result = await sut.Handle(new GetDuplicateCandidatesV2Query(), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.Items.Should().ContainSingle(i => i.Primary.Code == "RPT-PRIMARY");
+        result.Value.Items[0].Duplicates.Should().ContainSingle(d => d.Code == "RPT-DUP-REMOTE-OFFICE");
     }
 
     private static Report CreateReport(string code, Guid categoryId, decimal lat, decimal lng) =>

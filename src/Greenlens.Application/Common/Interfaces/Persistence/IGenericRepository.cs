@@ -12,6 +12,9 @@ public interface IGenericRepository<T> where T : BaseEntity
     IQueryable<T> Query();
     IQueryable<T> QueryAsNoTracking();
     Task<T?> GetByIdAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>Bypasses global query filters (e.g. soft-delete) to find the entity by ID.</summary>
+    Task<T?> GetByIdIncludingDeletedAsync(Guid id, CancellationToken ct = default);
     void Add(T entity);
     void AddRange(IEnumerable<T> entities);
     void Remove(T entity);

@@ -3,7 +3,6 @@ using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Features.Notifications;
 using Greenlens.Domain.Common;
-using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -11,15 +10,13 @@ using Microsoft.Extensions.Logging;
 namespace Greenlens.Application.Features.Reports.DeclineAssignment;
 
 /// <summary>
-/// Team declines within 2h window. BR-CLN-007, BR-INS-003.
-/// If ALL assignments are declined → report reverts to Verified so LEO can re-assign.
+/// Team declines within 24h window. BR-CLN-007, BR-INS-003.
+/// Report stays InProgress; LEO reassigns via PUT /reports/{id}/reassign after reviewing progress.
 /// </summary>
 public sealed class DeclineAssignmentCommandHandler(
     IReportRepository reports,
     IReportAssignmentRepository assignments,
-    IReportStatusHistoryRepository statusHistory,
     ICleanupAssignmentActivityNotifier activityNotifier,
-    ICurrentUser currentUser,
     IUnitOfWork uow,
     ILogger<DeclineAssignmentCommandHandler> logger) : IRequestHandler<DeclineAssignmentCommand, Result>
 {
@@ -55,7 +52,6 @@ public sealed class DeclineAssignmentCommandHandler(
             return Errors.Reports.AssignmentNotFound;
         }
 
-        // DC1: must be Assigned (not yet accepted) to decline
         if (assignment.Status != AssignmentStatus.Assigned)
         {
             logger.LogWarning("Assignment {AssignmentId} is not assigned", assignment.Id);
@@ -71,28 +67,6 @@ public sealed class DeclineAssignmentCommandHandler(
 
         assignment.Decline(request.Reason);
 
-        // DC2: revert if ALL assignments are declined → back to Verified for LEO re-assignment
-        var allDeclinedOrPending = reportAssignments
-            .All(a => a.TeamId == request.TeamId
-                ? true  // current one just declined
-                : a.Status is AssignmentStatus.Assigned or AssignmentStatus.Declined);
-
-        if (allDeclinedOrPending)
-        {
-            if (report.AssignedCompanyId is null)
-            {
-                // Community team flow — LEO re-assigns from Verified queue
-                report.ForceStatus(ReportStatus.Verified);
-
-                statusHistory.Add(ReportStatusHistory.Create(
-                    report.Id,
-                    ReportStatus.InProgress,
-                    ReportStatus.Verified,
-                    currentUser.UserId));
-            }
-            // Company-dispatched reports stay InProgress — CM re-assigns from company-queue
-        }
-
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 
         await activityNotifier.NotifyDeclinedAsync(
@@ -103,11 +77,9 @@ public sealed class DeclineAssignmentCommandHandler(
             request.Reason,
             ct).ConfigureAwait(false);
 
-        if (allDeclinedOrPending)
-            logger.LogWarning("All teams declined report {ReportId} — reverted to Verified", report.Id);
-        else
-            logger.LogInformation("Team {TeamId} declined assignment for report {ReportId}",
-                request.TeamId, report.Id);
+        logger.LogInformation(
+            "Team {TeamId} declined assignment for report {ReportId}; report remains InProgress",
+            request.TeamId, report.Id);
 
         return Result.Success();
     }

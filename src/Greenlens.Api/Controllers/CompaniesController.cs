@@ -103,7 +103,8 @@ public sealed class CompaniesController(ISender sender) : ControllerBase
     [Tags("🔍 DEO Dashboard")]
     [SwaggerOperation(
         Summary = "[DEO/Admin] Danh sách công ty DVMT",
-        Description = "Trả về danh sách công ty DVMT với phân trang, tìm kiếm (tên, mã HĐ, MST), " +
+        Description = "Trả về danh sách công ty DVMT thuộc department của DEO đăng nhập (Admin xem tất cả). " +
+            "Hỗ trợ phân trang, tìm kiếm (tên, mã HĐ, MST), " +
             "lọc theo trạng thái. Sắp xếp: name, status, contractNumber (mặc định: mới nhất).")]
     [SwaggerResponse(200, "Danh sách công ty", typeof(ApiResponse<GetCompaniesResponse>))]
     public async Task<IActionResult> GetAllAsync(
@@ -118,7 +119,7 @@ public sealed class CompaniesController(ISender sender) : ControllerBase
     [Tags("🔍 DEO Dashboard")]
     [SwaggerOperation(
         Summary = "[DEO/Admin] Chi tiết công ty DVMT",
-        Description = "Trả về thông tin chi tiết công ty kèm danh sách phường phụ trách và số nhân sự.")]
+        Description = "Trả về thông tin chi tiết công ty trong phạm vi department DEO đăng nhập (Admin xem tất cả), kèm danh sách phường phụ trách và số nhân sự.")]
     [SwaggerResponse(200, "Chi tiết công ty", typeof(ApiResponse<CompanyDetailResponse>))]
     [SwaggerResponse(404, "Công ty không tồn tại", typeof(ApiResponse))]
     public async Task<IActionResult> GetByIdAsync(

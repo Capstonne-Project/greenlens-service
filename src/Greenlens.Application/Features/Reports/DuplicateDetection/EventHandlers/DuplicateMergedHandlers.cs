@@ -1,7 +1,6 @@
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
-using Greenlens.Application.Features.Gamification.AwardPoints;
-using Greenlens.Application.Features.Gamification.CheckBadges;
+using Greenlens.Application.Features.Gamification;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -49,12 +48,16 @@ internal sealed class DuplicateMergedPointsHandler(
             "Gamification: DuplicateMerged → {Points} points (50% of ReportVerified={Base}) for user {UserId}",
             points, basePoints, notification.ReporterId);
 
-        await sender.Send(new AwardPointsCommand(
-            notification.ReporterId, points, PointReason.DuplicateReport, notification.PrimaryReportId), ct)
-            .ConfigureAwait(false);
-
-        await sender.Send(new CheckBadgesCommand(notification.ReporterId), ct)
-            .ConfigureAwait(false);
+        await GamificationPointAwarder.TryAwardAsync(
+            sender,
+            logger,
+            notification.ReporterId,
+            points,
+            PointReason.DuplicateReport,
+            notification.PrimaryReportId,
+            "DuplicateReport",
+            checkBadges: true,
+            ct).ConfigureAwait(false);
     }
 }
 
