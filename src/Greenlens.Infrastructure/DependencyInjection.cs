@@ -269,8 +269,11 @@ public static class DependencyInjection
             .ValidateOnStart();
 
         // ── Firebase Admin SDK ──────────────────────────
-        var firebaseKeyPath = configuration["Firebase:ServiceAccountKeyPath"];
-        if (!string.IsNullOrEmpty(firebaseKeyPath) && File.Exists(firebaseKeyPath) && FirebaseApp.DefaultInstance is null)
+        // Đường dẫn tương đối trong config resolve theo current directory, khác nhau tuỳ cách
+        // khởi chạy (dotnet run / IIS / container). Thử thêm base directory của assembly để
+        // key nằm cạnh binary vẫn tìm thấy.
+        var firebaseKeyPath = ResolveFirebaseKeyPath(configuration["Firebase:ServiceAccountKeyPath"]);
+        if (firebaseKeyPath is not null && FirebaseApp.DefaultInstance is null)
         {
             using var stream = File.OpenRead(firebaseKeyPath);
 #pragma warning disable CS0618 // GoogleCredential.FromStream is deprecated but Firebase Admin SDK requires it
@@ -282,8 +285,19 @@ public static class DependencyInjection
         }
         else if (FirebaseApp.DefaultInstance is null)
         {
-            // Fallback: use GOOGLE_APPLICATION_CREDENTIALS env var
-            FirebaseApp.Create();
+            // Fallback: GOOGLE_APPLICATION_CREDENTIALS env var. Ném lỗi nếu biến này cũng
+            // không có — nuốt lỗi ở đây sẽ khiến Google login fail khó hiểu lúc runtime.
+            try
+            {
+                FirebaseApp.Create();
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException(
+                    "Firebase Admin SDK could not be initialized. Set Firebase:ServiceAccountKeyPath " +
+                    "to a readable service account JSON file, or set GOOGLE_APPLICATION_CREDENTIALS. " +
+                    "Google login and phone auth require this.", ex);
+            }
         }
 
         // ── JWT Authentication ───────────────────────────
@@ -467,5 +481,24 @@ public static class DependencyInjection
         // Classification is an opt-in pre-submit UX feature. Remove the legacy
         // recurring registration from persistent Hangfire storage after rollout.
         RecurringJob.RemoveIfExists("ai-retry");
+    }
+
+    /// <summary>
+    /// Resolves the Firebase service account key, trying the path as configured and then
+    /// relative to the app's base directory. Returns null when no readable file is found.
+    /// </summary>
+    private static string? ResolveFirebaseKeyPath(string? configuredPath)
+    {
+        if (string.IsNullOrWhiteSpace(configuredPath))
+            return null;
+
+        if (File.Exists(configuredPath))
+            return configuredPath;
+
+        if (Path.IsPathRooted(configuredPath))
+            return null;
+
+        var nextToBinary = Path.Combine(AppContext.BaseDirectory, configuredPath);
+        return File.Exists(nextToBinary) ? nextToBinary : null;
     }
 }
