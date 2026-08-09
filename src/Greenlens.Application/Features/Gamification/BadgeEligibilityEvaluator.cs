@@ -14,9 +14,8 @@ internal static class BadgeEligibilityEvaluator
             "streak_7d" => metrics.MaxSubmitStreakDays >= 7,
             "streak_30d" => metrics.MaxSubmitStreakDays >= 30,
             "duplicate_finder" => metrics.DuplicateReportCount >= 5,
-            "community_voice" => metrics.HasCommunityVoice,
+            "community_voice" => metrics.MaxReporterCount >= 10,
             "cleanup_hero" => metrics.CompletedCleanupCount >= 2,
-            "hotspot_hunter" => metrics.HotspotReportCount >= 3,
             _ => badge.RequiredPoints.HasValue && totalPoints >= badge.RequiredPoints.Value
                 || badge.RequiredReportCount.HasValue
                     && metrics.VerifiedReportCount >= badge.RequiredReportCount.Value
@@ -37,7 +36,6 @@ internal static class BadgeEligibilityEvaluator
             "duplicate_finder" => metrics.DuplicateReportCount,
             "cleanup_hero" => metrics.CompletedCleanupCount,
             "community_voice" => metrics.MaxReporterCount,
-            "hotspot_hunter" => metrics.HotspotReportCount,
             "rising_star" or "eco_expert" or "green_legend" => totalPoints,
             _ => badge.RequiredPoints.HasValue
                 ? totalPoints
@@ -65,7 +63,6 @@ internal static class BadgeEligibilityEvaluator
             "streak_30d" => 30,
             "duplicate_finder" => 5,
             "community_voice" => 10,
-            "hotspot_hunter" => 3,
             "rising_star" => 100,
             "eco_expert" => 1500,
             "green_legend" => 5000,
@@ -85,7 +82,6 @@ internal static class BadgeEligibilityEvaluator
             "duplicate_finder" => "duplicate_reports",
             "cleanup_hero" => "cleanup_events",
             "community_voice" => "reporter_count",
-            "hotspot_hunter" => "hotspot_reports",
             "rising_star" or "eco_expert" or "green_legend" => "points",
             _ => badge.RequiredPoints.HasValue ? "points"
                 : badge.RequiredReportCount.HasValue ? "verified_reports"

@@ -8,12 +8,10 @@ public sealed class BadgeEligibilityEvaluatorTests
     private static BadgeEligibilityMetrics Metrics(
         int verified = 0,
         int duplicate = 0,
-        bool hasCommunityVoice = false,
         int maxReporterCount = 0,
         int streakDays = 0,
-        int cleanups = 0,
-        int hotspotReports = 0) =>
-        new(verified, duplicate, hasCommunityVoice, maxReporterCount, streakDays, cleanups, hotspotReports);
+        int cleanups = 0) =>
+        new(verified, duplicate, maxReporterCount, streakDays, cleanups);
 
     [Theory]
     [InlineData("first_report", 1, true)]
@@ -77,7 +75,7 @@ public sealed class BadgeEligibilityEvaluatorTests
         var badge = CreateBadge("community_voice");
 
         Assert.True(BadgeEligibilityEvaluator.IsEligible(
-            badge, 0, Metrics(hasCommunityVoice: true, maxReporterCount: 10)));
+            badge, 0, Metrics(maxReporterCount: 10)));
     }
 
     [Fact]
