@@ -67,7 +67,12 @@ ehthumbs.db
 ehthumbs_vista.db
 
 ## Secrets — NEVER commit
+# Firebase service account keys. Tên file do Firebase sinh có dạng
+# "<project-id>-firebase-adminsdk-<hash>.json" — prefix là project id nên
+# pattern chỉ khớp "firebase-adminsdk*" sẽ TRƯỢT. Bắt cả hai dạng:
 **/firebase-adminsdk*.json
+**/*firebase-adminsdk*.json
+**/*-adminsdk-*.json
 *.pfx
 *.key
 *.pem
