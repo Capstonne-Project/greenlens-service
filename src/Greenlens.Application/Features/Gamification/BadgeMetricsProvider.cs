@@ -26,8 +26,7 @@ internal static class BadgeMetricsProvider
             .Where(r => r.ReporterId == userId);
 
         var verifiedReportCount = await userReports
-            .CountAsync(r => r.Status != ReportStatus.Rejected
-                             && r.Status != ReportStatus.Submitted, ct)
+            .CountAsync(r => VerifiedReportStatusFilter.CountedStatuses.Contains(r.Status), ct)
             .ConfigureAwait(false);
 
         var duplicateReportCount = await userReports
@@ -37,6 +36,10 @@ internal static class BadgeMetricsProvider
         var hasCommunityVoice = await userReports
             .AnyAsync(r => r.ReporterCount >= 10, ct)
             .ConfigureAwait(false);
+
+        var maxReporterCount = await userReports
+            .MaxAsync(r => (int?)r.ReporterCount, ct)
+            .ConfigureAwait(false) ?? 0;
 
         var submitTimestamps = await userReports
             .Select(r => r.CreatedAt)
@@ -57,8 +60,10 @@ internal static class BadgeMetricsProvider
             verifiedReportCount,
             duplicateReportCount,
             hasCommunityVoice,
+            maxReporterCount,
             maxSubmitStreakDays,
-            completedCleanupCount);
+            completedCleanupCount,
+            HotspotReportCount: 0); // TODO: BR-MAP-010 hotspot detection
 
         return (totalPoints, metrics);
     }

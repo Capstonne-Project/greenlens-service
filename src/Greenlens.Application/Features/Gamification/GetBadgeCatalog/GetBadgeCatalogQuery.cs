@@ -14,7 +14,9 @@ public sealed record BadgeCatalogItem(
     bool IsUnlocked, DateTime? AwardedAt,
     int? RequiredPoints, int? RequiredReportCount, int? RequiredStreakDays,
     bool IsFeatured,
-    int? CurrentProgressValue);
+    int? CurrentProgressValue,
+    int? TargetProgressValue,
+    string? ProgressMetric);
 
 public sealed class GetBadgeCatalogQueryHandler(
     IBadgeRepository badgeRepo,
@@ -43,15 +45,17 @@ public sealed class GetBadgeCatalogQueryHandler(
             .Select(b =>
             {
                 var isUnlocked = ownedByBadgeId.ContainsKey(b.Id);
+                var current = BadgeEligibilityEvaluator.GetCurrentProgressValue(b, totalPoints, metrics);
+                var target = BadgeEligibilityEvaluator.GetTargetValue(b);
                 return new BadgeCatalogItem(
                     b.Id, b.Code, b.NameVi, b.NameEn, b.Description, b.IconUrl,
                     IsUnlocked: isUnlocked,
                     AwardedAt: ownedByBadgeId.TryGetValue(b.Id, out var awardedAt) ? awardedAt : null,
                     b.RequiredPoints, b.RequiredReportCount, b.RequiredStreakDays,
                     IsFeatured: featuredBadgeId == b.Id,
-                    CurrentProgressValue: isUnlocked
-                        ? null
-                        : BadgeEligibilityEvaluator.GetCurrentProgressValue(b, totalPoints, metrics));
+                    CurrentProgressValue: current,
+                    TargetProgressValue: target,
+                    ProgressMetric: BadgeEligibilityEvaluator.GetProgressMetric(b));
             })
             .OrderByDescending(i => i.IsUnlocked)
             .ThenBy(i => i.RequiredPoints ?? i.RequiredReportCount ?? int.MaxValue)

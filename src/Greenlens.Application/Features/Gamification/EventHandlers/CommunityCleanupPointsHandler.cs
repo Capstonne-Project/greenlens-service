@@ -26,19 +26,25 @@ public sealed class CommunityCleanupParticipationPointsHandler(
             .GetConfiguredPointsAsync(db, PointReason.CommunityCleanupParticipation, 15, ct)
             .ConfigureAwait(false);
 
-        if (points == 0)
-            return;
-
         var checkedInParticipants = (await participants
             .GetByEventIdAsync(notification.EventId, ct)
             .ConfigureAwait(false))
             .Where(p => p.Status == CommunityCleanupParticipantStatus.CheckedIn)
             .ToList();
 
+        if (points == 0)
+        {
+            foreach (var participant in checkedInParticipants)
+            {
+                await GamificationPointAwarder.TryCheckBadgesAsync(sender, participant.UserId, ct)
+                    .ConfigureAwait(false);
+            }
+
+            return;
+        }
+
         foreach (var participant in checkedInParticipants)
         {
-            // EventId (not ReportId) is the idempotency key — one report can host multiple
-            // cleanup events over time (e.g. after a Cancelled one), each must award once.
             await GamificationPointAwarder.TryAwardAsync(
                 sender,
                 logger,
@@ -47,8 +53,11 @@ public sealed class CommunityCleanupParticipationPointsHandler(
                 PointReason.CommunityCleanupParticipation,
                 notification.EventId,
                 "CommunityCleanupParticipation",
-                checkBadges: true,
+                checkBadges: false,
                 ct).ConfigureAwait(false);
+
+            await GamificationPointAwarder.TryCheckBadgesAsync(sender, participant.UserId, ct)
+                .ConfigureAwait(false);
         }
     }
 }

@@ -74,4 +74,12 @@ internal static class GamificationPointAwarder
 
         return true;
     }
+
+    internal static async Task TryCheckBadgesAsync(
+        ISender sender,
+        Guid userId,
+        CancellationToken ct)
+    {
+        await sender.Send(new CheckBadgesCommand(userId), ct).ConfigureAwait(false);
+    }
 }
