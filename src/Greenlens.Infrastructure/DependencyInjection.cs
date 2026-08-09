@@ -479,6 +479,14 @@ public static class DependencyInjection
             job => job.ExecuteAsync(),
             "*/5 * * * *"); // every 5 minutes
 
+        // BR-GAM-004: Safety-net recheck of badge eligibility for every gamification user.
+        // Backfills badges (e.g. streak_7d/30d) whose progress axis can cross the threshold
+        // without a point-awarding event firing to trigger CheckBadgesCommand.
+        RecurringJob.AddOrUpdate<BadgeRecheckJob>(
+            "badge-recheck",
+            job => job.ExecuteAsync(),
+            "0 1 * * *"); // daily at 01:00 UTC
+
         // Classification is an opt-in pre-submit UX feature. Remove the legacy
         // recurring registration from persistent Hangfire storage after rollout.
         RecurringJob.RemoveIfExists("ai-retry");
