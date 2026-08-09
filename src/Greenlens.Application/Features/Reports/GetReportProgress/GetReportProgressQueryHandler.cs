@@ -92,7 +92,7 @@ public sealed class GetReportProgressQueryHandler(
             hoursRemaining,
             hoursRemaining.HasValue && hoursRemaining.Value < 0,
             SlaLabels.GetValueOrDefault(report.Severity, report.Severity.ToString()));
-
+        
         // ── Per-team assignments ───────────────────────────────────
         var assignmentDtos = report.Assignments
             .OrderBy(a => a.AssignedAt)

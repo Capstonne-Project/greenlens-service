@@ -7,6 +7,7 @@ namespace Greenlens.Application.Features.Reports.GetReportProgress;
 public sealed record GetReportProgressQuery(Guid ReportId) : IRequest<Result<ReportProgressResponse>>;
 
 /// <summary>LEO view: full progress breakdown of an InProgress report.</summary>
+/// <param name="Images">All report images (citizen submit, before/progress/after, inspection, reopen evidence).</param>
 public sealed record ReportProgressResponse(
     Guid ReportId,
     string Code,
@@ -20,7 +21,6 @@ public sealed record ReportProgressResponse(
     ProgressSummaryDto Summary,
     IReadOnlyList<AssignmentProgressDto> Assignments,
     ReportMediaGroupDto Media,
-    /// <summary>All report images (citizen submit, before/progress/after, inspection, reopen evidence).</summary>
     IReadOnlyList<MediaItemDto> Images,
     IReadOnlyList<StatusHistoryItemDto> StatusHistory);
 
