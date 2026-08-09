@@ -8,6 +8,7 @@ using Greenlens.Application.Features.Organization.CreateTeam;
 using Greenlens.Application.Features.Organization.SoftDeleteCompanyTeam;
 using Greenlens.Application.Features.Organization.ToggleCompanyTeamStatus;
 using Greenlens.Application.Features.Organization.GetCompanyTeams;
+using Greenlens.Application.Features.Organization.GetCompanyTeamById;
 using Greenlens.Application.Features.Organization.GetMyTeamProfile;
 using Greenlens.Application.Features.Organization.GetTeamById;
 using Greenlens.Application.Features.Organization.GetTeams;
@@ -337,6 +338,20 @@ public sealed class TeamsController(ISender sender) : ControllerBase
         [FromQuery] bool? isActive = null,
         CancellationToken ct = default)
         => (await sender.Send(new GetCompanyTeamsQuery(page, pageSize, isActive), ct)).ToHttp();
+
+    [HttpGet("company-teams/{id:guid}")]
+    [Authorize(Roles = "CompanyManager,Admin")]
+    [Tags("🏢 Company Dashboard")]
+    [SwaggerOperation(
+        Summary = "[CompanyManager] Chi tiết team công ty",
+        Description = "CompanyManager xem chi tiết một team thuộc công ty mình, kèm danh sách thành viên. " +
+            "Admin có thể xem mọi team công ty.")]
+    [SwaggerResponse(200, "Chi tiết team công ty", typeof(ApiResponse<CompanyTeamDetailResponse>))]
+    [SwaggerResponse(403, "Không phải CompanyManager hoặc team không thuộc công ty", typeof(ApiResponse))]
+    [SwaggerResponse(404, "Không tìm thấy team", typeof(ApiResponse))]
+    public async Task<IActionResult> GetCompanyTeamByIdAsync(
+        [FromRoute] Guid id, CancellationToken ct)
+        => (await sender.Send(new GetCompanyTeamByIdQuery(id), ct)).ToHttp();
 
     [HttpPost("company-teams")]
     [Authorize(Roles = "CompanyManager,Admin")]

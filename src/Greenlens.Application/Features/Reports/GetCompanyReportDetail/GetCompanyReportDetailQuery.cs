@@ -6,12 +6,11 @@ namespace Greenlens.Application.Features.Reports.GetCompanyReportDetail;
 
 /// <summary>
 /// CompanyManager views detailed progress/timeline of a specific report
-/// dispatched to their company, including all team assignments and status history.
+/// dispatched to their company, including the assigned team and status history.
 /// </summary>
 public sealed record GetCompanyReportDetailQuery(Guid ReportId) : IRequest<Result<CompanyReportDetailResponse>>;
 
 public sealed record CompanyReportDetailResponse(
-    // ── Report info ──
     Guid ReportId,
     string Code,
     ReportStatus Status,
@@ -27,20 +26,11 @@ public sealed record CompanyReportDetailResponse(
     DateTime? ResolvedAt,
     DateTime? ClosedAt,
     int ReopenedCount,
-    // ── SLA ──
     CompanyReportSlaInfo Sla,
-    // ── Aggregate summary ──
-    CompanyReportProgressSummary Summary,
-    // ── Media grouped by phase ──
     CompanyReportMediaGroup Media,
-    // ── All team assignments for this report (company teams only) ──
-    IReadOnlyList<CompanyReportTeamAssignment> TeamAssignments,
-    // ── Full status timeline ──
+    CompanyReportTeamAssignment? Assignment,
     IReadOnlyList<CompanyReportTimelineEntry> Timeline,
-    // ── Waste tags ──
     IReadOnlyList<CompanyReportWasteTag> WasteTags);
-
-// ── SLA ──
 
 /// <summary>SLA countdown — HoursRemaining is negative when breached.</summary>
 public sealed record CompanyReportSlaInfo(
@@ -49,32 +39,16 @@ public sealed record CompanyReportSlaInfo(
     bool IsBreached,
     string SeverityLabel);
 
-// ── Progress summary ──
-
-/// <summary>Aggregated team stats across all company assignments on this report.</summary>
-public sealed record CompanyReportProgressSummary(
-    int TotalTeams,
-    int AcceptedTeams,
-    int CompletedTeams,
-    int DeclinedTeams,
-    int PendingTeams,
-    int OverallProgressPercent,
-    DateTime? StartedAt);
-
-// ── Media grouped by phase ──
-
-/// <summary>Report media grouped: Before (citizen), Progress (team mid-task), After (completion).</summary>
+/// <summary>Report media grouped by phase (progress images live under assignment.progressUpdates).</summary>
 public sealed record CompanyReportMediaGroup(
     IReadOnlyList<CompanyReportMediaItem> BeforeImages,
-    IReadOnlyList<CompanyReportMediaItem> ProgressImages,
     IReadOnlyList<CompanyReportMediaItem> AfterImages);
 
 public sealed record CompanyReportMediaItem(
     string Url,
     DateTime UploadedAt);
 
-// ── Team assignments ──
-
+/// <summary>The single company team assignment on this report.</summary>
 public sealed record CompanyReportTeamAssignment(
     Guid AssignmentId,
     AssignmentStatus Status,
@@ -83,24 +57,29 @@ public sealed record CompanyReportTeamAssignment(
     DateTime? CompletedAt,
     string? Note,
     string? DeclineReason,
-    // ── Progress ──
     int ProgressPercent,
     string? ProgressNote,
     DateTime? ProgressUpdatedAt,
     string? ProgressUpdatedByName,
-    // ── Team ──
     Guid TeamId,
     string TeamName,
     IReadOnlyList<CompanyReportTeamMember> Members,
-    // ── Assigned by ──
-    string AssignedByName);
+    string AssignedByName,
+    IReadOnlyList<CompanyReportProgressUpdateItem> ProgressUpdates);
 
 public sealed record CompanyReportTeamMember(
     Guid UserId,
     string FullName,
     bool IsLeader);
 
-// ── Timeline ──
+public sealed record CompanyReportProgressUpdateItem(
+    Guid Id,
+    int ProgressPercent,
+    string? ProgressNote,
+    DateTime UpdatedAt,
+    Guid UpdatedByUserId,
+    string? UpdatedByName,
+    IReadOnlyList<CompanyReportMediaItem> Images);
 
 public sealed record CompanyReportTimelineEntry(
     DateTime Timestamp,
@@ -108,8 +87,6 @@ public sealed record CompanyReportTimelineEntry(
     ReportStatus ToStatus,
     string? ChangedByName,
     string? Reason);
-
-// ── Waste tags ──
 
 public sealed record CompanyReportWasteTag(
     Guid TagId,
