@@ -55,9 +55,9 @@ public static class ExifSuspicionEvaluator
     public static string ToDisplayMessage(string reasonCode) =>
         reasonCode switch
         {
-            MissingMetadataReason => "Ảnh thiếu metadata EXIF (thời gian chụp)",
-            StaleTimestampReason => "Ảnh chụp hơn 1 ngày trước khi gửi báo cáo",
-            GpsMismatchReason => "Vị trí chọn trên bản đồ khác GPS trên ảnh (hơn 200m)",
+            MissingMetadataReason => "Ảnh thiếu thông tin thời gian chụp",
+            StaleTimestampReason => "Ảnh chụp quá lâu (hơn 1 ngày) so với thời gian gửi",
+            GpsMismatchReason => "Vị trí người dân chọn trên bản đồ khác với vị trí trong ảnh",
             _ => reasonCode
         };
 
