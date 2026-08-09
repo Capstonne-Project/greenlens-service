@@ -18,7 +18,7 @@ namespace Greenlens.Application.Features.Reports.AssignCompanyTeam;
 /// Validates: report InProgress + dispatched to caller's company, teams belong to that company, workload ok.
 /// Report status remains InProgress (set at LEO dispatch).
 /// </summary>
-/// <remarks>Implements: BR-CMP-005, BR-OFF-011, BR-ADM-010.</remarks>
+/// <remarks>Implements: BR-CMP-005, BR-OFF-011, BR-NTF-002, BR-ADM-010.</remarks>
 public sealed class AssignCompanyTeamCommandHandler(
     IReportRepository reports,
     IEnvironmentalTeamRepository teams,
@@ -28,6 +28,7 @@ public sealed class AssignCompanyTeamCommandHandler(
     ICurrentUser currentUser,
     IUnitOfWork uow,
     ICleanupTaskAssignedNotifier taskNotifier,
+    ICompanyTeamAssignedLeoNotifier leoNotifier,
     IOptions<WorkloadLimitsOptions> workloadOptions,
     IAuditLogger auditLogger,
     ILogger<AssignCompanyTeamCommandHandler> logger) : IRequestHandler<AssignCompanyTeamCommand, Result>
@@ -70,6 +71,7 @@ public sealed class AssignCompanyTeamCommandHandler(
             return Errors.Reports.ReportNotDispatchedToYourCompany;
         }
         // Validate each team
+        var assignedTeamNames = new List<string>(request.Teams.Count);
         foreach (var item in request.Teams)
         {
             var team = await teams.GetByIdAsync(item.TeamId, ct).ConfigureAwait(false);
@@ -103,6 +105,8 @@ public sealed class AssignCompanyTeamCommandHandler(
             if (workload >= limits.WarningThreshold)
                 logger.LogWarning("Company team {TeamId} approaching workload limit: {Current}/{Max}",
                     item.TeamId, workload, limits.MaxTasksPerTeam);
+
+            assignedTeamNames.Add(team.Name);
         }
 
         // Create assignments
@@ -142,6 +146,14 @@ public sealed class AssignCompanyTeamCommandHandler(
                 report.Code,
                 ct).ConfigureAwait(false);
         }
+
+        await leoNotifier.NotifyAsync(
+            report.Id,
+            report.Code,
+            report.AssignedOfficeId,
+            callerCompanyId,
+            assignedTeamNames,
+            ct).ConfigureAwait(false);
 
         logger.LogInformation(
             "Report {ReportId} assigned to {TeamCount} company team(s) by CompanyManager {UserId}",

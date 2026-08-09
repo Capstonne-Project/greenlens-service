@@ -81,6 +81,9 @@ public enum NotificationType
     /// <summary>BR-CMP-005: CompanyManager — LEO dispatched a report to the company queue.</summary>
     CompanyReportDispatched,
 
+    /// <summary>BR-CMP-005: LEO — CompanyManager assigned company team(s) to a dispatched report.</summary>
+    CompanyTeamAssigned,
+
     /// <summary>BR-REP-008: Report pending > 72h.</summary>
     ReportOverdue,
     /// <summary>BR-REP-009: Verified report unassigned > 24h.</summary>

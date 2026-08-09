@@ -264,6 +264,14 @@ internal static class NotificationTemplateSeeder
             NotificationType.CompanyReportDispatched),
 
         Create(
+            "company_team_assigned",
+            "Công ty đã phân công đội xử lý",
+            "Công ty {company_name} đã phân công đội {team_names} xử lý báo cáo {report_code} tại {ward_name}.",
+            "Company assigned cleanup team",
+            "Company {company_name} assigned team(s) {team_names} to report {report_code}.",
+            NotificationType.CompanyTeamAssigned),
+
+        Create(
             "report_overdue",
             "Báo cáo quá hạn",
             "Báo cáo {report_code} tại {ward_name} đã tồn tại quá 72 giờ mà chưa được xử lý.",
