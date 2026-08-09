@@ -1,6 +1,7 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Organization.Common;
 using Greenlens.Domain.Common;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -17,6 +18,8 @@ public sealed class RemoveCompanyTeamMemberCommandHandler(
     ICompanyStaffRepository companyStaff,
     IEnvironmentalTeamRepository teams,
     ITeamMemberRepository members,
+    IReportAssignmentRepository assignments,
+    IInspectionReportRepository inspections,
     IUnitOfWork uow,
     ICurrentUser currentUser,
     ILogger<RemoveCompanyTeamMemberCommandHandler> logger) : IRequestHandler<RemoveCompanyTeamMemberCommand, Result>
@@ -25,7 +28,6 @@ public sealed class RemoveCompanyTeamMemberCommandHandler(
     {
         logger.LogInformation("Removing company team member for user {UserId}", request.UserId);
 
-        // 1. Resolve CM's company
         var staff = await companyStaff.GetByUserIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
         if (staff is null)
         {
@@ -33,7 +35,6 @@ public sealed class RemoveCompanyTeamMemberCommandHandler(
             return Errors.Organization.NotCompanyManager;
         }
 
-        // 2. Validate team belongs to CM's company
         var team = await teams.GetByIdAsync(request.TeamId, ct).ConfigureAwait(false);
         if (team is null)
         {
@@ -46,7 +47,7 @@ public sealed class RemoveCompanyTeamMemberCommandHandler(
             logger.LogWarning("Team {TeamId} is not in the company {CompanyId}", request.TeamId, staff.CompanyId);
             return Errors.Organization.TeamNotInCompany;
         }
-        // 3. Find member in team
+
         var member = await members.QueryAsNoTracking()
             .FirstOrDefaultAsync(m => m.TeamId == request.TeamId && m.UserId == request.UserId, ct)
             .ConfigureAwait(false);
@@ -57,7 +58,13 @@ public sealed class RemoveCompanyTeamMemberCommandHandler(
             return Errors.Organization.MemberNotFound;
         }
 
-        // 4. Re-fetch tracked and remove
+        if (await TeamMembershipRules.HasActiveTasksAsync(request.TeamId, assignments, inspections, ct)
+            .ConfigureAwait(false))
+        {
+            logger.LogWarning("Cannot remove member from company team {TeamId} with active tasks", request.TeamId);
+            return Errors.Organization.CannotModifyTeamWithActiveTasks;
+        }
+
         var tracked = await members.GetByIdAsync(member.Id, ct).ConfigureAwait(false);
         if (tracked is not null)
         {

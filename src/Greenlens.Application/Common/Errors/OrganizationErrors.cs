@@ -227,6 +227,16 @@ public static partial class Errors
             "Không thể xóa team đang có nhiệm vụ đang xử lý.",
             ErrorType.BusinessRule);
 
+        public static Error CannotModifyTeamWithActiveTasks => new(
+            "CANNOT_MODIFY_TEAM_WITH_ACTIVE_TASKS",
+            "Không thể thay đổi thành viên khi đội đang có nhiệm vụ đang xử lý.",
+            ErrorType.BusinessRule);
+
+        public static Error TeamAlreadyHasLeader => new(
+            "TEAM_ALREADY_HAS_LEADER",
+            "Đội đã có trưởng nhóm. Mỗi đội chỉ được phép có một trưởng nhóm.",
+            ErrorType.BusinessRule);
+
         // ── Contract Renewal (BR-CMP-006) ──
 
         public static Error SubsidiaryCannotRenew => new(

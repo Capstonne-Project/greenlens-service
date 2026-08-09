@@ -1,6 +1,7 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Organization.Common;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
@@ -18,6 +19,8 @@ public sealed class TransferTeamMemberCommandHandler(
     IEnvironmentalTeamRepository teams,
     ITeamMemberRepository teamMembers,
     IUserRepository users,
+    IReportAssignmentRepository assignments,
+    IInspectionReportRepository inspections,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     ILogger<TransferTeamMemberCommandHandler> logger) : IRequestHandler<TransferTeamMemberCommand, Result<TransferTeamMemberResponse>>
@@ -113,6 +116,23 @@ public sealed class TransferTeamMemberCommandHandler(
         {
             logger.LogWarning("User {UserId} is already in team {TeamId}", request.UserId, request.NewTeamId);
             return Errors.Organization.MemberAlreadyInTeam;
+        }
+
+        if (await TeamMembershipRules.HasActiveTasksAsync(request.CurrentTeamId, assignments, inspections, ct)
+            .ConfigureAwait(false))
+        {
+            logger.LogWarning(
+                "Cannot transfer member from team {TeamId} with active tasks",
+                request.CurrentTeamId);
+            return Errors.Organization.CannotModifyTeamWithActiveTasks;
+        }
+
+        if (request.IsLeader
+            && await TeamMembershipRules.TeamHasLeaderAsync(teamMembers, request.NewTeamId, excludeUserId: null, ct)
+                .ConfigureAwait(false))
+        {
+            logger.LogWarning("Target team {TeamId} already has a leader", request.NewTeamId);
+            return Errors.Organization.TeamAlreadyHasLeader;
         }
 
         // ── 9. Atomic: remove from old team + add to new team ──
