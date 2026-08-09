@@ -13,11 +13,13 @@ namespace Greenlens.Application.Features.Reports.UpdateProgress;
 /// <summary>
 /// Team leader updates cleanup progress (percent, note, optional R2 image URLs).
 /// TeamId resolved from JWT token — caller must be a team leader.
-/// Does NOT change report or assignment status.
+/// Does NOT change report or assignment status. Each update is stored as history.
 /// </summary>
+/// <remarks>Implements: BR-CLN-004 (progress tracking).</remarks>
 public sealed class UpdateProgressCommandHandler(
     IReportRepository reports,
     IReportAssignmentRepository assignments,
+    IAssignmentProgressUpdateRepository progressUpdates,
     ITeamMemberRepository teamMembers,
     IReportMediaRepository reportMedia,
     IFileStorageService fileStorage,
@@ -76,6 +78,14 @@ public sealed class UpdateProgressCommandHandler(
             return Errors.Reports.AssignmentNotInProgress;
         }
 
+        var progressUpdate = AssignmentProgressUpdate.Create(
+            assignment.Id,
+            request.ReportId,
+            request.ProgressPercent,
+            request.ProgressNote,
+            currentUser.UserId);
+        progressUpdates.Add(progressUpdate);
+
         var savedUrls = new List<string>(request.ImageUrls.Count);
         foreach (var url in request.ImageUrls)
         {
@@ -86,7 +96,8 @@ public sealed class UpdateProgressCommandHandler(
                 trimmed,
                 "image/jpeg",
                 0L,
-                currentUser.UserId);
+                currentUser.UserId,
+                progressUpdateId: progressUpdate.Id);
             reportMedia.Add(media);
             savedUrls.Add(trimmed);
         }

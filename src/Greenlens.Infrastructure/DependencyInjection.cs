@@ -71,6 +71,7 @@ public static class DependencyInjection
         services.AddScoped<IEnvironmentalTeamRepository, EnvironmentalTeamRepository>();
         services.AddScoped<ITeamMemberRepository, TeamMemberRepository>();
         services.AddScoped<IReportAssignmentRepository, ReportAssignmentRepository>();
+        services.AddScoped<IAssignmentProgressUpdateRepository, AssignmentProgressUpdateRepository>();
         services.AddScoped<ICommunityCleanupEventRepository, CommunityCleanupEventRepository>();
         services.AddScoped<ICommunityCleanupParticipantRepository, CommunityCleanupParticipantRepository>();
 

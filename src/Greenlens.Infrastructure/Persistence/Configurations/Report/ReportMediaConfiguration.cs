@@ -35,6 +35,11 @@ internal sealed class ReportMediaConfiguration : IEntityTypeConfiguration<Report
             .HasForeignKey(m => m.ReopenRequestId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        builder.HasOne(m => m.ProgressUpdate)
+            .WithMany(u => u.Media)
+            .HasForeignKey(m => m.ProgressUpdateId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         // ── Indexes ──
         builder.HasIndex(m => m.ReportId);
         // BR-REP-032: project thumbs for merged Duplicate reports by origin
