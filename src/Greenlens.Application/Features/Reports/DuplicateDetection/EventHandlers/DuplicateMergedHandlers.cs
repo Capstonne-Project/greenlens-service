@@ -22,42 +22,47 @@ internal sealed class DuplicateMergedPointsHandler(
 {
     public async Task Handle(ReportMarkedDuplicateEvent notification, CancellationToken ct)
     {
-        // Optional kill-switch: Admin can disable DuplicateReport in GamificationConfig (BR-ADM-005).
+        // Optional kill-switch: Admin can disable DuplicateReport points (BR-ADM-005).
         var duplicateCfg = await db.Set<GamificationConfig>()
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.ActionType == PointReason.DuplicateReport, ct)
             .ConfigureAwait(false);
-        if (duplicateCfg is not null && !duplicateCfg.IsActive)
-            return;
 
-        var verifiedCfg = await db.Set<GamificationConfig>()
-            .AsNoTracking()
-            .FirstOrDefaultAsync(c => c.ActionType == PointReason.ReportVerified, ct)
+        var pointsEnabled = duplicateCfg is null || duplicateCfg.IsActive;
+
+        if (pointsEnabled)
+        {
+            var verifiedCfg = await db.Set<GamificationConfig>()
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.ActionType == PointReason.ReportVerified, ct)
+                .ConfigureAwait(false);
+
+            var basePoints = verifiedCfg is { IsActive: true } ? verifiedCfg.Points : 10;
+            var points = basePoints > 0
+                ? (int)Math.Round(basePoints * 0.5, MidpointRounding.AwayFromZero)
+                : 0;
+
+            if (points > 0)
+            {
+                logger.LogDebug(
+                    "Gamification: DuplicateMerged → {Points} points (50% of ReportVerified={Base}) for user {UserId}",
+                    points, basePoints, notification.ReporterId);
+
+                await GamificationPointAwarder.TryAwardAsync(
+                    sender,
+                    logger,
+                    notification.ReporterId,
+                    points,
+                    PointReason.DuplicateReport,
+                    notification.PrimaryReportId,
+                    "DuplicateReport",
+                    checkBadges: false,
+                    ct).ConfigureAwait(false);
+            }
+        }
+
+        await GamificationPointAwarder.TryCheckBadgesAsync(sender, notification.ReporterId, ct)
             .ConfigureAwait(false);
-
-        // Base = ReportVerified points (fallback 10). Award = round half-up of 50%.
-        var basePoints = verifiedCfg is { IsActive: true } ? verifiedCfg.Points : 10;
-        if (basePoints <= 0)
-            return;
-
-        var points = (int)Math.Round(basePoints * 0.5, MidpointRounding.AwayFromZero);
-        if (points == 0)
-            return;
-
-        logger.LogDebug(
-            "Gamification: DuplicateMerged → {Points} points (50% of ReportVerified={Base}) for user {UserId}",
-            points, basePoints, notification.ReporterId);
-
-        await GamificationPointAwarder.TryAwardAsync(
-            sender,
-            logger,
-            notification.ReporterId,
-            points,
-            PointReason.DuplicateReport,
-            notification.PrimaryReportId,
-            "DuplicateReport",
-            checkBadges: true,
-            ct).ConfigureAwait(false);
     }
 }
 

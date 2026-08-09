@@ -23,6 +23,56 @@ namespace Greenlens.Infrastructure.Migrations
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "postgis");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Greenlens.Domain.Entities.AssignmentProgressUpdate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AssignmentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("assignment_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("ProgressNote")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("progress_note");
+
+                    b.Property<int>("ProgressPercent")
+                        .HasColumnType("integer")
+                        .HasColumnName("progress_percent");
+
+                    b.Property<Guid>("ReportId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("report_id");
+
+                    b.Property<Guid>("UpdatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by_user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_assignment_progress_updates");
+
+                    b.HasIndex("AssignmentId")
+                        .HasDatabaseName("ix_assignment_progress_updates_assignment_id");
+
+                    b.HasIndex("ReportId")
+                        .HasDatabaseName("ix_assignment_progress_updates_report_id");
+
+                    b.HasIndex("UpdatedByUserId")
+                        .HasDatabaseName("ix_assignment_progress_updates_updated_by_user_id");
+
+                    b.HasIndex("AssignmentId", "CreatedAt")
+                        .HasDatabaseName("ix_assignment_progress_updates_assignment_id_created_at");
+
+                    b.ToTable("assignment_progress_updates", (string)null);
+                });
+
             modelBuilder.Entity("Greenlens.Domain.Entities.AuditLog", b =>
                 {
                     b.Property<Guid>("Id")
@@ -258,6 +308,17 @@ namespace Greenlens.Infrastructure.Migrations
                             IsActive = true,
                             NameEn = "Community Voice",
                             NameVi = "Tiếng Nói Cộng Đồng"
+                        },
+                        new
+                        {
+                            Id = new Guid("a1000001-0000-0000-0000-000000000013"),
+                            Code = "cleanup_hero",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Hoàn thành tham gia 2 chương trình dọn dẹp cộng đồng",
+                            IconUrl = "badges/icons/cleanup_hero.png",
+                            IsActive = true,
+                            NameEn = "Cleanup Hero",
+                            NameVi = "Anh Hùng Dọn Dẹp"
                         },
                         new
                         {
@@ -3011,6 +3072,10 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasColumnType("character varying(64)")
                         .HasColumnName("p_hash");
 
+                    b.Property<Guid?>("ProgressUpdateId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("progress_update_id");
+
                     b.Property<Guid?>("ReopenRequestId")
                         .HasColumnType("uuid")
                         .HasColumnName("reopen_request_id");
@@ -3069,6 +3134,9 @@ namespace Greenlens.Infrastructure.Migrations
 
                     b.HasIndex("PHash")
                         .HasDatabaseName("ix_report_media_p_hash");
+
+                    b.HasIndex("ProgressUpdateId")
+                        .HasDatabaseName("ix_report_media_progress_update_id");
 
                     b.HasIndex("ReopenRequestId")
                         .HasDatabaseName("ix_report_media_reopen_request_id");
@@ -3975,6 +4043,27 @@ namespace Greenlens.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Greenlens.Domain.Entities.AssignmentProgressUpdate", b =>
+                {
+                    b.HasOne("Greenlens.Domain.Entities.ReportAssignment", "Assignment")
+                        .WithMany("ProgressUpdates")
+                        .HasForeignKey("AssignmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_assignment_progress_updates_report_assignments_assignment_id");
+
+                    b.HasOne("Greenlens.Domain.Entities.User", "UpdatedByUser")
+                        .WithMany()
+                        .HasForeignKey("UpdatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_assignment_progress_updates_users_updated_by_user_id");
+
+                    b.Navigation("Assignment");
+
+                    b.Navigation("UpdatedByUser");
+                });
+
             modelBuilder.Entity("Greenlens.Domain.Entities.AuditLog", b =>
                 {
                     b.HasOne("Greenlens.Domain.Entities.User", "User")
@@ -4552,6 +4641,12 @@ namespace Greenlens.Infrastructure.Migrations
 
             modelBuilder.Entity("Greenlens.Domain.Entities.ReportMedia", b =>
                 {
+                    b.HasOne("Greenlens.Domain.Entities.AssignmentProgressUpdate", "ProgressUpdate")
+                        .WithMany("Media")
+                        .HasForeignKey("ProgressUpdateId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_report_media_assignment_progress_updates_progress_update_id");
+
                     b.HasOne("Greenlens.Domain.Entities.ReportReopenRequest", "ReopenRequest")
                         .WithMany("Media")
                         .HasForeignKey("ReopenRequestId")
@@ -4570,6 +4665,8 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasForeignKey("UploadedBy")
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_report_media_users_uploaded_by");
+
+                    b.Navigation("ProgressUpdate");
 
                     b.Navigation("ReopenRequest");
 
@@ -4787,6 +4884,11 @@ namespace Greenlens.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Greenlens.Domain.Entities.AssignmentProgressUpdate", b =>
+                {
+                    b.Navigation("Media");
+                });
+
             modelBuilder.Entity("Greenlens.Domain.Entities.Comment", b =>
                 {
                     b.Navigation("Likes");
@@ -4871,6 +4973,11 @@ namespace Greenlens.Infrastructure.Migrations
                     b.Navigation("StatusHistory");
 
                     b.Navigation("WasteTags");
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.ReportAssignment", b =>
+                {
+                    b.Navigation("ProgressUpdates");
                 });
 
             modelBuilder.Entity("Greenlens.Domain.Entities.ReportReopenRequest", b =>

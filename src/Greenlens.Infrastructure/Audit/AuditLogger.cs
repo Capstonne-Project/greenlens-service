@@ -30,6 +30,19 @@ internal sealed class AuditLogger(
         string? newValues,
         CancellationToken ct = default)
     {
+        await EnqueueAsync(action, entityType, entityId, oldValues, newValues, ct)
+            .ConfigureAwait(false);
+        await db.SaveChangesAsync(ct).ConfigureAwait(false);
+    }
+
+    public Task EnqueueAsync(
+        string action,
+        string entityType,
+        string? entityId,
+        string? oldValues,
+        string? newValues,
+        CancellationToken ct = default)
+    {
         var httpContext = httpContextAccessor.HttpContext;
         var ipAddress = httpContext?.Connection.RemoteIpAddress?.ToString() ?? "unknown";
         var userAgent = httpContext?.Request.Headers.UserAgent.ToString();
@@ -45,6 +58,6 @@ internal sealed class AuditLogger(
             userAgent: userAgent);
 
         db.AuditLogs.Add(log);
-        await db.SaveChangesAsync(ct).ConfigureAwait(false);
+        return Task.CompletedTask;
     }
 }

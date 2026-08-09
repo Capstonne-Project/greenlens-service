@@ -4,6 +4,6 @@ namespace Greenlens.Application.Features.Gamification;
 internal sealed record BadgeEligibilityMetrics(
     int VerifiedReportCount,
     int DuplicateReportCount,
-    bool HasCommunityVoice,
+    int MaxReporterCount,
     int MaxSubmitStreakDays,
     int CompletedCleanupCount);

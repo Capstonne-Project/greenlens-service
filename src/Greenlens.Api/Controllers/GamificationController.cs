@@ -49,7 +49,10 @@ public sealed class GamificationController(ISender sender) : ControllerBase
     /// <summary>Full badge catalog — earned + locked, to motivate progress.</summary>
     [HttpGet("badges")]
     [Authorize]
-    [SwaggerOperation(Summary = "Get full badge catalog (earned + locked)")]
+    [SwaggerOperation(
+        Summary = "Get full badge catalog (earned + locked)",
+        Description = "Mỗi badge trả currentProgressValue + targetProgressValue + progressMetric để FE hiển thị tiến trình (vd. 3/5 duplicate_reports). " +
+            "progressMetric: verified_reports | points | streak_days | duplicate_reports | cleanup_events | reporter_count | hotspot_reports.")]
     [SwaggerResponse(200, "Badge catalog", typeof(ApiResponse<IReadOnlyList<BadgeCatalogItem>>))]
     public async Task<IActionResult> GetBadgeCatalog(CancellationToken ct)
     {

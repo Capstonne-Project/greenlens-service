@@ -98,40 +98,57 @@ public sealed class RecordPaymentCommandHandler(
             return closeResult;
         }
 
-        await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+        // ── Đọc mọi dữ liệu cần cho side-effect TRƯỚC khi ghi ──
+        // NotificationService.SendRawAsync gọi ChangeTracker.Clear() (detach toàn bộ entity)
+        // ngay giữa transaction đang mở. Nếu còn thao tác EF nào trên `inspection` sau đó,
+        // EF sẽ UPDATE một entity đã detach → 0 rows affected → DbUpdateConcurrencyException
+        // → middleware trả 409 CONCURRENCY_CONFLICT dù không hề có ai sửa đồng thời.
+        // Vì vậy: load report trước, ghi một lần, rồi mới bắn notification ở cuối cùng.
+        var inspectorId = inspection.IssuedByInspectorId;
+        var reportCode = inspectorId.HasValue
+            ? (await reports.GetByIdAsync(inspection.ReportId, ct).ConfigureAwait(false))?.Code
+              ?? string.Empty
+            : string.Empty;
 
-        await auditLogger.LogAsync(
+        var newSnapshot = JsonSerializer.Serialize(new
+        {
+            status = inspection.Status.ToString(),
+            paidAmount = inspection.PaidAmount,
+            paymentAmount = request.PaidAmount
+        });
+        var totalPaid = inspection.PaidAmount;
+        var penaltyAmount = inspection.PenaltyAmount;
+        var inspectionId = inspection.Id;
+
+        // Audit log ghi cùng lượt SaveChanges với payment + status — một transaction, một lần ghi.
+        await auditLogger.EnqueueAsync(
             "RecordPaymentAndClose",
             "InspectionReport",
-            inspection.Id.ToString(),
+            inspectionId.ToString(),
             oldValues: oldSnapshot,
-            newValues: JsonSerializer.Serialize(new
-            {
-                status = inspection.Status.ToString(),
-                paidAmount = inspection.PaidAmount,
-                paymentAmount = request.PaidAmount
-            }),
+            newValues: newSnapshot,
             ct).ConfigureAwait(false);
+
+        await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 
         logger.LogInformation(
             "Payment {Amount} VND recorded on InspectionReport {Id} (paid at {PaidAt}). Dossier closed. Total paid: {TotalPaid}/{Total}",
-            request.PaidAmount, inspection.Id, request.PaidAt,
-            inspection.PaidAmount, inspection.PenaltyAmount);
+            request.PaidAmount, inspectionId, request.PaidAt, totalPaid, penaltyAmount);
 
-        if (inspection.IssuedByInspectorId.HasValue)
+        // Side-effect cuối cùng — sau đây không được chạm vào `inspection` nữa.
+        if (inspectorId.HasValue)
         {
-            var report = await reports.GetByIdAsync(inspection.ReportId, ct).ConfigureAwait(false);
             var placeholders = NotificationPlaceholders.ForInspectionPenaltyPaidAndClosed(
-                report?.Code ?? string.Empty,
+                reportCode,
                 request.PaidAmount);
 
             // referenceId = InspectionId (không phải ReportId) — mobile Inspector route
             // /(inspector)/inspection/{id} gọi GET /v1/inspections/{id}, cần đúng InspectionId.
             await notificationService.SendFromTemplateAsync(
-                inspection.IssuedByInspectorId.Value,
+                inspectorId.Value,
                 NotificationType.InspectionPenaltyPaidAndClosed,
                 placeholders,
-                inspection.Id,
+                inspectionId,
                 ct).ConfigureAwait(false);
         }
 

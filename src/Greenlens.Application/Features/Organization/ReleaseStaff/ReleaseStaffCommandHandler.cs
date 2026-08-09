@@ -1,6 +1,7 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Organization.Common;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -16,6 +17,8 @@ namespace Greenlens.Application.Features.Organization.ReleaseStaff;
 public sealed class ReleaseStaffCommandHandler(
     IUserRepository users,
     ITeamMemberRepository teamMembers,
+    IReportAssignmentRepository assignments,
+    IInspectionReportRepository inspections,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     ILogger<ReleaseStaffCommandHandler> logger)
@@ -53,6 +56,26 @@ public sealed class ReleaseStaffCommandHandler(
         {
             logger.LogWarning("Target user {UserId} is not in the LEO's office", request.UserId);
             return Errors.Organization.UserNotInYourOffice;
+        }
+
+        // Block release while any of the user's teams still has active tasks
+        var teamIds = await teamMembers.QueryAsNoTracking()
+            .Where(tm => tm.UserId == request.UserId)
+            .Select(tm => tm.TeamId)
+            .Distinct()
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        foreach (var teamId in teamIds)
+        {
+            if (await TeamMembershipRules.HasActiveTasksAsync(teamId, assignments, inspections, ct)
+                .ConfigureAwait(false))
+            {
+                logger.LogWarning(
+                    "Cannot release user {UserId} while team {TeamId} has active tasks",
+                    request.UserId, teamId);
+                return Errors.Organization.CannotModifyTeamWithActiveTasks;
+            }
         }
 
         // Remove all team memberships

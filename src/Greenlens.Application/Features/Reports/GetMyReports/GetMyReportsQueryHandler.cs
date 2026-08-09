@@ -54,6 +54,8 @@ public sealed class GetMyReportsQueryHandler(
                 r.CreatedAt,
                 r.ResolvedAt,
                 r.ClosedAt,
+                r.HasPendingReopenRequest,
+                r.ReopenedCount,
                 OwnImageUrl = r.Media
                     .OrderBy(m => m.UploadedAt)
                     .Select(m => m.ThumbnailUrl ?? m.Url)
@@ -101,7 +103,9 @@ public sealed class GetMyReportsQueryHandler(
                     ? r.OwnImageUrl
                     : sourceThumbs.GetValueOrDefault(r.Id),
                 r.ParentReportId,
-                r.PrimaryCode))
+                r.PrimaryCode,
+                r.HasPendingReopenRequest,
+                r.ReopenedCount))
             .ToList();
 
         logger.LogInformation("Lấy danh sách báo cáo thành công. Số lượng: {Count}", items.Count);

@@ -1,6 +1,7 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Organization.Common;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
@@ -80,6 +81,14 @@ public sealed class AddCompanyTeamMemberCommandHandler(
         {
             logger.LogWarning("User {UserId} is already a member of team {TeamId}", request.UserId, request.TeamId);
             return Errors.Organization.MemberAlreadyInTeam;
+        }
+
+        if (request.IsLeader
+            && await TeamMembershipRules.TeamHasLeaderAsync(teamMembers, request.TeamId, excludeUserId: null, ct)
+                .ConfigureAwait(false))
+        {
+            logger.LogWarning("Company team {TeamId} already has a leader", request.TeamId);
+            return Errors.Organization.TeamAlreadyHasLeader;
         }
 
         // 6. Add member

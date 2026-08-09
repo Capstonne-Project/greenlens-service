@@ -26,17 +26,16 @@ internal static class BadgeMetricsProvider
             .Where(r => r.ReporterId == userId);
 
         var verifiedReportCount = await userReports
-            .CountAsync(r => r.Status != ReportStatus.Rejected
-                             && r.Status != ReportStatus.Submitted, ct)
+            .CountAsync(r => VerifiedReportStatusFilter.CountedStatuses.Contains(r.Status), ct)
             .ConfigureAwait(false);
 
         var duplicateReportCount = await userReports
             .CountAsync(r => r.Status == ReportStatus.Duplicate, ct)
             .ConfigureAwait(false);
 
-        var hasCommunityVoice = await userReports
-            .AnyAsync(r => r.ReporterCount >= 10, ct)
-            .ConfigureAwait(false);
+        var maxReporterCount = await userReports
+            .MaxAsync(r => (int?)r.ReporterCount, ct)
+            .ConfigureAwait(false) ?? 0;
 
         var submitTimestamps = await userReports
             .Select(r => r.CreatedAt)
@@ -56,7 +55,7 @@ internal static class BadgeMetricsProvider
         var metrics = new BadgeEligibilityMetrics(
             verifiedReportCount,
             duplicateReportCount,
-            hasCommunityVoice,
+            maxReporterCount,
             maxSubmitStreakDays,
             completedCleanupCount);
 

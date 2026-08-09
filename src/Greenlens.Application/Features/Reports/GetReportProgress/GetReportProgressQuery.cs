@@ -7,6 +7,7 @@ namespace Greenlens.Application.Features.Reports.GetReportProgress;
 public sealed record GetReportProgressQuery(Guid ReportId) : IRequest<Result<ReportProgressResponse>>;
 
 /// <summary>LEO view: full progress breakdown of an InProgress report.</summary>
+/// <param name="Images">All report images (citizen submit, before/progress/after, inspection, reopen evidence).</param>
 public sealed record ReportProgressResponse(
     Guid ReportId,
     string Code,
@@ -20,6 +21,7 @@ public sealed record ReportProgressResponse(
     ProgressSummaryDto Summary,
     IReadOnlyList<AssignmentProgressDto> Assignments,
     ReportMediaGroupDto Media,
+    IReadOnlyList<MediaItemDto> Images,
     IReadOnlyList<StatusHistoryItemDto> StatusHistory);
 
 /// <summary>SLA countdown — HoursRemaining is negative when breached.</summary>
@@ -55,15 +57,36 @@ public sealed record AssignmentProgressDto(
     string? DeclineReason,
     int ProgressPercent,
     string? ProgressNote,
-    DateTime? ProgressUpdatedAt);
+    DateTime? ProgressUpdatedAt,
+    IReadOnlyList<ProgressUpdateItemDto> ProgressUpdates);
 
-/// <summary>Report media grouped by phase: Before (citizen), Progress (team mid-task), After (completion evidence).</summary>
+/// <summary>One progress update snapshot (percent, note, images) from a team leader.</summary>
+public sealed record ProgressUpdateItemDto(
+    Guid Id,
+    int ProgressPercent,
+    string? ProgressNote,
+    DateTime UpdatedAt,
+    Guid UpdatedByUserId,
+    string? UpdatedByName,
+    IReadOnlyList<MediaItemDto> Images);
+
+/// <summary>Report media grouped by phase.</summary>
 public sealed record ReportMediaGroupDto(
+    IReadOnlyList<MediaItemDto> SubmissionImages,
     IReadOnlyList<MediaItemDto> BeforeImages,
     IReadOnlyList<MediaItemDto> ProgressImages,
-    IReadOnlyList<MediaItemDto> AfterImages);
+    IReadOnlyList<MediaItemDto> AfterImages,
+    IReadOnlyList<MediaItemDto> InspectionImages,
+    IReadOnlyList<MediaItemDto> ReopenEvidenceImages);
 
-public sealed record MediaItemDto(string Url, DateTime UploadedAt);
+public sealed record MediaItemDto(
+    Guid Id,
+    string MediaType,
+    string Url,
+    string? ThumbnailUrl,
+    string MimeType,
+    long SizeBytes,
+    DateTime UploadedAt);
 
 public sealed record StatusHistoryItemDto(
     ReportStatus? FromStatus,

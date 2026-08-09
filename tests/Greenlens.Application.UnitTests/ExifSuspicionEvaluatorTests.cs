@@ -99,8 +99,8 @@ public sealed class ReportSuspiciousReasonsParserTests
 
         Assert.Equal(
             [
-                "Vị trí chọn trên bản đồ khác GPS trên ảnh (hơn 200m)",
-                "Ảnh chụp hơn 1 ngày trước khi gửi báo cáo"
+                "Vị trí người dân chọn trên bản đồ khác với vị trí trong ảnh",
+                "Ảnh chụp quá lâu (hơn 1 ngày) so với thời gian gửi"
             ],
             messages);
     }

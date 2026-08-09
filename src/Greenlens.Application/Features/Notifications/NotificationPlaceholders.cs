@@ -213,4 +213,15 @@ internal static class NotificationPlaceholders
             ["report_code"] = reportCode,
             ["company_name"] = companyName
         };
+
+    internal static Dictionary<string, string> ForCompanyTeamAssigned(
+        string reportCode,
+        string companyName,
+        string teamNames) =>
+        new(StringComparer.Ordinal)
+        {
+            ["report_code"] = reportCode,
+            ["company_name"] = companyName,
+            ["team_names"] = teamNames
+        };
 }
