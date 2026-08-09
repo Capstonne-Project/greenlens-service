@@ -57,7 +57,18 @@ public sealed record AssignmentProgressDto(
     string? DeclineReason,
     int ProgressPercent,
     string? ProgressNote,
-    DateTime? ProgressUpdatedAt);
+    DateTime? ProgressUpdatedAt,
+    IReadOnlyList<ProgressUpdateItemDto> ProgressUpdates);
+
+/// <summary>One progress update snapshot (percent, note, images) from a team leader.</summary>
+public sealed record ProgressUpdateItemDto(
+    Guid Id,
+    int ProgressPercent,
+    string? ProgressNote,
+    DateTime UpdatedAt,
+    Guid UpdatedByUserId,
+    string? UpdatedByName,
+    IReadOnlyList<MediaItemDto> Images);
 
 /// <summary>Report media grouped by phase.</summary>
 public sealed record ReportMediaGroupDto(

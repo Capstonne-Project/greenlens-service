@@ -378,7 +378,7 @@ public sealed class ReportsController(
     [SwaggerOperation(
         Summary = "[LEO] Tiến trình xử lý báo cáo",
         Description = "Trả về toàn bộ thông tin tiến trình của một báo cáo đang InProgress trong phạm vi office LEO đăng nhập: " +
-            "trạng thái từng team, người gán team (assignedById/assignedByName), % hoàn thành, ảnh tiến trình/nghiệm thu, SLA còn lại, và lịch sử status. " +
+            "trạng thái từng team, người gán team (assignedById/assignedByName), % hoàn thành, lịch sử cập nhật tiến độ (assignments[].progressUpdates), ảnh tiến trình/nghiệm thu, SLA còn lại, và lịch sử status. " +
             "overallProgressPercent là trung bình của các assignment đang active (Completed = 100%). " +
             "sla.hoursRemaining âm = đã breach. " +
             "images = tất cả ảnh của báo cáo (flat). media.*Images = nhóm theo phase (submission/before/progress/after/inspection/reopenEvidence).")]

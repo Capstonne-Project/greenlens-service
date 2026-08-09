@@ -9,6 +9,7 @@ namespace Greenlens.Infrastructure.Seeders;
 /// <summary>
 /// Idempotent runtime seed for gamification catalog (BR-GAM-004, BR-ADM-005).
 /// Complements EF HasData migrations — inserts missing badges/config rows on dev startup.
+/// Note: cleanup_hero is also seeded via migration (id a1000001-…-013); seeder is fallback for older DBs.
 /// </summary>
 internal static class GamificationSeeder
 {

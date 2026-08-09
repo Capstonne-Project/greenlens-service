@@ -27,19 +27,22 @@ public sealed class ReportVerifiedPointsHandler(
             .GetConfiguredPointsAsync(db, PointReason.ReportVerified, 10, ct)
             .ConfigureAwait(false);
 
-        if (points == 0)
-            return;
+        if (points != 0)
+        {
+            await GamificationPointAwarder.TryAwardAsync(
+                sender,
+                logger,
+                notification.ReporterId,
+                points,
+                PointReason.ReportVerified,
+                notification.ReportId,
+                "ReportVerified",
+                checkBadges: false,
+                ct).ConfigureAwait(false);
+        }
 
-        await GamificationPointAwarder.TryAwardAsync(
-            sender,
-            logger,
-            notification.ReporterId,
-            points,
-            PointReason.ReportVerified,
-            notification.ReportId,
-            "ReportVerified",
-            checkBadges: true,
-            ct).ConfigureAwait(false);
+        await GamificationPointAwarder.TryCheckBadgesAsync(sender, notification.ReporterId, ct)
+            .ConfigureAwait(false);
     }
 }
 
@@ -55,19 +58,22 @@ public sealed class ReportResolvedPointsHandler(
             .GetConfiguredPointsAsync(db, PointReason.ReportResolved, 20, ct)
             .ConfigureAwait(false);
 
-        if (points == 0)
-            return;
+        if (points != 0)
+        {
+            await GamificationPointAwarder.TryAwardAsync(
+                sender,
+                logger,
+                notification.ReporterId,
+                points,
+                PointReason.ReportResolved,
+                notification.ReportId,
+                "ReportResolved",
+                checkBadges: false,
+                ct).ConfigureAwait(false);
+        }
 
-        await GamificationPointAwarder.TryAwardAsync(
-            sender,
-            logger,
-            notification.ReporterId,
-            points,
-            PointReason.ReportResolved,
-            notification.ReportId,
-            "ReportResolved",
-            checkBadges: true,
-            ct).ConfigureAwait(false);
+        await GamificationPointAwarder.TryCheckBadgesAsync(sender, notification.ReporterId, ct)
+            .ConfigureAwait(false);
     }
 }
 

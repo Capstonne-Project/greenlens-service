@@ -52,6 +52,12 @@ public sealed class GetReportProgressQueryHandler(
             .Include(x => x.Assignments)
                 .ThenInclude(a => a.AssignedByUser)
             .Include(x => x.Assignments)
+                .ThenInclude(a => a.ProgressUpdates)
+                    .ThenInclude(u => u.UpdatedByUser)
+            .Include(x => x.Assignments)
+                .ThenInclude(a => a.ProgressUpdates)
+                    .ThenInclude(u => u.Media)
+            .Include(x => x.Assignments)
                 .ThenInclude(a => a.Team)
                     .ThenInclude(t => t!.Members)
                         .ThenInclude(m => m.User)
@@ -93,6 +99,7 @@ public sealed class GetReportProgressQueryHandler(
             .Select(a =>
             {
                 var leader = a.Team?.Members.FirstOrDefault(m => m.IsLeader);
+                var progressUpdates = MapProgressUpdates(a);
                 return new AssignmentProgressDto(
                     a.Id,
                     a.TeamId,
@@ -108,7 +115,8 @@ public sealed class GetReportProgressQueryHandler(
                     a.DeclineReason,
                     a.ProgressPercent,
                     a.ProgressNote,
-                    a.ProgressUpdatedAt);
+                    a.ProgressUpdatedAt,
+                    progressUpdates);
             })
             .ToList();
 
@@ -183,6 +191,44 @@ public sealed class GetReportProgressQueryHandler(
             media,
             allImages,
             history);
+    }
+
+    private static List<ProgressUpdateItemDto> MapProgressUpdates(ReportAssignment assignment)
+    {
+        if (assignment.ProgressUpdates.Count > 0)
+        {
+            return assignment.ProgressUpdates
+                .OrderBy(u => u.CreatedAt)
+                .Select(u => new ProgressUpdateItemDto(
+                    u.Id,
+                    u.ProgressPercent,
+                    u.ProgressNote,
+                    u.CreatedAt,
+                    u.UpdatedByUserId,
+                    u.UpdatedByUser?.FullName,
+                    u.Media
+                        .Where(m => m.Type != MediaType.Video)
+                        .OrderBy(m => m.UploadedAt)
+                        .Select(MapMediaItem)
+                        .ToList()))
+                .ToList();
+        }
+
+        // Legacy: only latest snapshot on assignment (percent/note); images stay in media.progressImages.
+        if (assignment.ProgressUpdatedAt is null && assignment.ProgressPercent == 0)
+            return [];
+
+        return
+        [
+            new ProgressUpdateItemDto(
+                assignment.Id,
+                assignment.ProgressPercent,
+                assignment.ProgressNote,
+                assignment.ProgressUpdatedAt ?? assignment.StartedAt ?? assignment.AssignedAt,
+                assignment.ProgressUpdatedByUserId ?? assignment.AssignedById,
+                null,
+                [])
+        ];
     }
 
     private static List<MediaItemDto> MapMedia(

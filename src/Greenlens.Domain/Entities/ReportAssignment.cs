@@ -35,6 +35,7 @@ public sealed class ReportAssignment : SoftDeletableEntity
     public Guid? ProgressUpdatedByUserId { get; private set; }
 
     // ── Navigation ──
+    public ICollection<AssignmentProgressUpdate> ProgressUpdates { get; private set; } = [];
     public Report? Report { get; private set; }
     public EnvironmentalTeam? Team { get; private set; }
     public User? AssignedByUser { get; private set; }

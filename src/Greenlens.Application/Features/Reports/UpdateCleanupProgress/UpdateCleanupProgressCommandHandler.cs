@@ -3,6 +3,7 @@ using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Features.Notifications;
 using Greenlens.Domain.Common;
+using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -15,6 +16,7 @@ namespace Greenlens.Application.Features.Reports.UpdateCleanupProgress;
 public sealed class UpdateCleanupProgressCommandHandler(
     IReportRepository reports,
     IReportAssignmentRepository assignments,
+    IAssignmentProgressUpdateRepository progressUpdates,
     ICleanupAssignmentActivityNotifier activityNotifier,
     ICurrentUser currentUser,
     IUnitOfWork uow,
@@ -49,6 +51,13 @@ public sealed class UpdateCleanupProgressCommandHandler(
             logger.LogWarning("Assignment {AssignmentId} is not in a valid status for cleanup progress update", assignment.Id);
             return Errors.Cleanup.AssignmentNotInProgress;
         }
+
+        progressUpdates.Add(AssignmentProgressUpdate.Create(
+            assignment.Id,
+            request.ReportId,
+            request.Percent,
+            request.Note,
+            currentUser.UserId));
 
         assignment.UpdateProgress(request.Percent, request.Note, currentUser.UserId);
 

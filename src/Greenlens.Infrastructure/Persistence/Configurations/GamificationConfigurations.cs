@@ -76,7 +76,7 @@ internal sealed class BadgeConfiguration : IEntityTypeConfiguration<Badge>
         builder.Property(x => x.Description).HasMaxLength(500);
         builder.Property(x => x.IconUrl).HasMaxLength(500);
 
-        // Seed initial badges (BR-GAM-004) — 12 badges, 4 groups
+        // Seed initial badges (BR-GAM-004) — 13 badges, 4 groups
             // Note: IconUrl uses relative path placeholders; replace with S3 URLs in production.
             var seedDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
@@ -95,6 +95,7 @@ internal sealed class BadgeConfiguration : IEntityTypeConfiguration<Badge>
                 new { Id = Guid.Parse("a1000001-0000-0000-0000-000000000007"), Code = "hotspot_hunter", NameVi = "Thợ Săn Điểm Nóng", NameEn = "Hotspot Hunter", Description = "Gửi 3 báo cáo trong khu vực hotspot ô nhiễm", IsActive = true, RequiredReportCount = (int?)null, RequiredPoints = (int?)null, RequiredStreakDays = (int?)null, IconUrl = (string?)"badges/icons/hotspot_hunter.png", CreatedAt = seedDate },
                 new { Id = Guid.Parse("a1000001-0000-0000-0000-000000000008"), Code = "duplicate_finder", NameVi = "Người Phát Hiện Trùng", NameEn = "Duplicate Finder", Description = "5 báo cáo được xác nhận là trùng lặp, hỗ trợ phát hiện ô nhiễm", IsActive = true, RequiredReportCount = (int?)null, RequiredPoints = (int?)null, RequiredStreakDays = (int?)null, IconUrl = (string?)"badges/icons/duplicate_finder.png", CreatedAt = seedDate },
                 new { Id = Guid.Parse("a1000001-0000-0000-0000-000000000009"), Code = "community_voice", NameVi = "Tiếng Nói Cộng Đồng", NameEn = "Community Voice", Description = "Có báo cáo nhận ≥ 10 lượt xác nhận từ cộng đồng", IsActive = true, RequiredReportCount = (int?)null, RequiredPoints = (int?)null, RequiredStreakDays = (int?)null, IconUrl = (string?)"badges/icons/community_voice.png", CreatedAt = seedDate },
+                new { Id = Guid.Parse("a1000001-0000-0000-0000-000000000013"), Code = "cleanup_hero", NameVi = "Anh Hùng Dọn Dẹp", NameEn = "Cleanup Hero", Description = "Hoàn thành tham gia 2 chương trình dọn dẹp cộng đồng", IsActive = true, RequiredReportCount = (int?)null, RequiredPoints = (int?)null, RequiredStreakDays = (int?)null, IconUrl = (string?)"badges/icons/cleanup_hero.png", CreatedAt = seedDate },
 
                 // ── Group D: Level (point thresholds) ──
                 new { Id = Guid.Parse("a1000001-0000-0000-0000-000000000010"), Code = "rising_star", NameVi = "Ngôi Sao Đang Lên", NameEn = "Rising Star", Description = "Đạt Level 2 với 100 điểm tích lũy", IsActive = true, RequiredReportCount = (int?)null, RequiredPoints = (int?)100, RequiredStreakDays = (int?)null, IconUrl = (string?)"badges/icons/rising_star.png", CreatedAt = seedDate },
