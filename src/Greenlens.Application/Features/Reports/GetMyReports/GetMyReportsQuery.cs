@@ -19,4 +19,7 @@ public sealed record MyReportItem(
     DateTime? ResolvedAt, DateTime? ClosedAt,
     string? ImageUrl,
     Guid? MergedIntoPrimaryReportId,
-    string? MergedIntoPrimaryReportCode);
+    string? MergedIntoPrimaryReportCode,
+    /// <summary>BR-REP-015: yêu cầu mở lại đang chờ LEO duyệt — FE hiện badge riêng thay vì "Resolved".</summary>
+    bool HasPendingReopenRequest,
+    int ReopenedCount);

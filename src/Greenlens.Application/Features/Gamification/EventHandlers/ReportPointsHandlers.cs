@@ -1,7 +1,10 @@
 using Greenlens.Application.Common.Interfaces;
+using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Gamification.CheckBadges;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Gamification.EventHandlers;
@@ -93,5 +96,41 @@ public sealed class ReportRejectedPointsHandler(
             "ReportRejected",
             checkBadges: false,
             ct).ConfigureAwait(false);
+    }
+}
+
+/// <summary>
+/// Rechecks badge eligibility on every report submission — not just after point-awarding events.
+/// Needed because some badges (e.g. streak_7d, streak_30d) progress purely with the passage of
+/// calendar days and new submissions, independent of LEO verification/resolution timing. Without
+/// this hook, a user who already qualifies (e.g. submitted on 7 consecutive days) would never be
+/// awarded the badge until an unrelated point event happened to fire later (or possibly never, if
+/// their reports are rejected instead of verified). Awards no points — CheckBadgesCommand only
+/// evaluates and persists newly-earned badges.
+/// </summary>
+/// <remarks>Implements: BR-GAM-004.</remarks>
+public sealed class ReportSubmittedBadgeCheckHandler(
+    ISender sender,
+    IReportRepository reports,
+    ILogger<ReportSubmittedBadgeCheckHandler> logger)
+    : INotificationHandler<ReportSubmittedEvent>
+{
+    public async Task Handle(ReportSubmittedEvent notification, CancellationToken ct)
+    {
+        var reporterId = await reports.QueryAsNoTracking()
+            .Where(r => r.Id == notification.ReportId)
+            .Select(r => r.ReporterId)
+            .FirstOrDefaultAsync(ct)
+            .ConfigureAwait(false);
+
+        if (!reporterId.HasValue)
+        {
+            logger.LogDebug(
+                "Badge recheck skipped for report {ReportId}: no reporter",
+                notification.ReportId);
+            return;
+        }
+
+        await sender.Send(new CheckBadgesCommand(reporterId.Value), ct).ConfigureAwait(false);
     }
 }
