@@ -41,9 +41,19 @@ public sealed class ExceptionHandlingMiddleware(
         }
         catch (DbUpdateConcurrencyException ex)
         {
-            logger.LogWarning(
+            // Model hiện KHÔNG dùng concurrency token (không RowVersion/xmin), nên exception này
+            // hầu như luôn nghĩa là "UPDATE/DELETE khớp 0 dòng" do entity bị detach giữa chừng
+            // (ChangeTracker.Clear() của side-effect) — không phải xung đột ghi đồng thời thật.
+            // Log Error kèm entity để truy vết, đừng hạ xuống Warning và đổ lỗi cho user.
+            var entries = string.Join(
+                ", ",
+                ex.Entries.Select(e => $"{e.Entity.GetType().Name}({e.State})"));
+            logger.LogError(
                 ex,
-                "Concurrency conflict — resource modified by another request between load and save.");
+                "Concurrency/stale-entity conflict on {Method} {Path}. Affected entries: {Entries}",
+                context.Request.Method,
+                context.Request.Path,
+                string.IsNullOrEmpty(entries) ? "(none)" : entries);
             await HandleConcurrencyExceptionAsync(context);
         }
         catch (Exception ex)
@@ -77,15 +87,16 @@ public sealed class ExceptionHandlingMiddleware(
     }
 
     /// <summary>
-    /// Optimistic concurrency conflict — record was changed by another request/job
-    /// between load and save (e.g. duplicate submit, or a background job raced in).
+    /// Ghi đè không khớp dòng nào (stale/detached entity, hoặc thao tác đã được xử lý trước đó).
+    /// Thao tác có thể ĐÃ được lưu thành công — message hướng dẫn user tải lại để kiểm tra,
+    /// thay vì khẳng định thất bại và mời thử lại (dễ gây ghi trùng ở endpoint không idempotent).
     /// </summary>
     private static async Task HandleConcurrencyExceptionAsync(HttpContext context)
     {
         var response = new ApiResponse
         {
             Code = "CONCURRENCY_CONFLICT",
-            Message = "Dữ liệu vừa được cập nhật bởi một yêu cầu khác. Vui lòng tải lại trang và thử lại.",
+            Message = "Thao tác có thể đã được ghi nhận. Vui lòng tải lại trang để kiểm tra trạng thái trước khi thử lại.",
             Status = 409,
             Data = null
         };

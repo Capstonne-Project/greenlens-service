@@ -22,4 +22,14 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <!--
+    Firebase service account key: gitignored (secret) nhưng phải nằm cạnh binary khi chạy.
+    Không dùng wildcard trong <None Include> để tránh vô tình đóng gói secret khác.
+  -->
+  <ItemGroup>
+    <None Include="*-adminsdk-*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>
