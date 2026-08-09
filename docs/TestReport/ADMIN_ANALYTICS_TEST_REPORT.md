@@ -175,7 +175,7 @@
 
 ## Phân quyền & Vai trò Hệ thống (Roles & Permission Matrix)
 
-| Test Case ID | Test Case Description | Test Case Procedure | Expected Results | Pre-conditions | Round 1 | Test date | Tester | Round 2 | Test date | Tester | Round 3 | Test date | Tester | Round 3 | Test date | Tester | Note |
+| Test Case ID | Test Case Description | Test Case Procedure | Expected Results | Pre-conditions | Round 1 | Test date | Tester | Round 2 | Test date | Tester | Round 3 | Test date | Tester | Note |
 | ------------ | --------------------- | ------------------- | ---------------- | -------------- | ------- | --------- | ------ | ------- | --------- | ------ | ------- | --------- | ------ | ---- |
 | TC_ADM_090 | Xem danh sách các Vai trò (Roles) trong hệ thống. | 1. Đăng nhập Admin.<br>2. Truy cập menu "Phân quyền & Vai trò". | Danh sách 6 Role mặc định hiển thị kèm mô tả rõ ràng: Admin, DEO (Sở), LEO (Phường/Xã), Cleaner (Dọn dẹp), Inspector (Thanh tra), Citizen (Công dân). | - User là Admin. | Passed | 04/09/2026 | TamKnm | | | | | | | API `GET /v1/admin/roles` trả về danh sách `RoleDto`. |
 | TC_ADM_091 | Xem Ma trận Phân quyền (Permission Matrix). | 1. Mở tab "Ma trận phân quyền (Permission Matrix)". | Hiển thị bảng ma trận theo dạng Lưới (Grid): Dòng là các Resource/Endpoint, Cột là các Roles. Tích xanh đánh dấu quyền tương ứng của từng Role. | - User là Admin. | Passed | 04/09/2026 | TamKnm | | | | | | | API `GET /v1/admin/permissions` trả về `RolePermissionDto`. |
