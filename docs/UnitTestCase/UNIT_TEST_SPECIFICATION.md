@@ -90,47 +90,47 @@
 
 ## 2. FUNCTION LIST
 
-| No | Module | Requirement Name | Class Name | Function Name | Function Code | Sheet Name | Description | Pre-Condition |
-| :-: | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| 1 | Auth | Critical Unit Test | `RegisterCommandHandler` | Register Account | `UT_Register` | `UT_Register` | Đăng ký tài khoản Citizen & gửi OTP (SD-01) | Dependencies mocked. |
-| 2 | Auth | Critical Unit Test | `LoginCommandHandler` | User Login | `UT_Login` | `UT_Login` | Đăng nhập JWT & check lockout 5 lần (SD-02) | Dependencies mocked. |
-| 3 | Auth | Critical Unit Test | `VerifyEmailCommandHandler` | Verify Email OTP | `UT_VerifyEmail` | `UT_VerifyEmail` | Xác minh OTP kích hoạt tài khoản (SD-03) | Dependencies mocked. |
-| 4 | Reports | Critical Unit Test | `SubmitPollutionReportCommandHandler` | Submit Pollution Report | `UT_SubmitReport` | `UT_SubmitReport` | Gửi báo cáo ô nhiễm, check GPS VN & Rate limit (SD-06) | Dependencies mocked. |
-| 5 | Reports | Critical Unit Test | `VerifyReportCommandHandler` | Verify Report | `UT_VerifyReport` | `UT_VerifyReport` | LEO/DEO duyệt báo cáo & tính priority (SD-09) | Dependencies mocked. |
-| 6 | Reports | Critical Unit Test | `RejectReportCommandHandler` | Reject Report | `UT_RejectReport` | `UT_RejectReport` | Từ chối báo cáo với lý do ≥20 ký tự (SD-10) | Dependencies mocked. |
-| 7 | Reports | Critical Unit Test | `ConfirmDuplicateCommandHandler` | Confirm Duplicate | `UT_ConfirmDuplicate` | `UT_ConfirmDuplicate` | Đánh dấu báo cáo trùng lặp ST_DWithin 50m (SD-11) | Dependencies mocked. |
-| 8 | Reports | Critical Unit Test | `CloseReportCommandHandler` | Close Report | `UT_CloseReport` | `UT_CloseReport` | Đóng báo cáo hoàn tất / auto-close 7 ngày (SD-16) | Dependencies mocked. |
-| 9 | Reports | Critical Unit Test | `RequestReopenReportCommandHandler` | Request Reopen | `UT_RequestReopen` | `UT_RequestReopen` | Citizen gửi minh chứng mở lại báo cáo (SD-17) | Dependencies mocked. |
-| 10 | Cleanup | Critical Unit Test | `AcceptAssignmentCommandHandler` | Accept Assignment | `UT_AcceptAssignment` | `UT_AcceptAssignment` | Đội thu gom tiếp nhận task dọn dẹp (SD-21) | Dependencies mocked. |
-| 11 | Cleanup | Critical Unit Test | `DeclineAssignmentCommandHandler` | Decline Assignment | `UT_DeclineAssignment` | `UT_DeclineAssignment` | Từ chối task & thông báo cho LEO (SD-21) | Dependencies mocked. |
-| 12 | Cleanup | Critical Unit Test | `CheckInCleanupCommandHandler` | Cleanup Site Check-In | `UT_CheckInCleanup` | `UT_CheckInCleanup` | Check-in tọa độ thực địa thu gom ≤200m (SD-22) | Dependencies mocked. |
-| 13 | Cleanup | Critical Unit Test | `UploadBeforeImagesCommandHandler` | Upload Before Images | `UT_UploadBefore` | `UT_UploadBefore` | Trưởng đội upload ảnh hiện trường trước dọn (SD-23) | Dependencies mocked. |
-| 14 | Cleanup | Critical Unit Test | `UpdateProgressCommandHandler` | Update Cleanup Progress | `UT_UpdateProgress` | `UT_UpdateProgress` | Cập nhật % tiến độ & ảnh dọn dẹp (SD-23) | Dependencies mocked. |
-| 15 | Cleanup | Critical Unit Test | `ResolveReportCommandHandler` | Resolve Report Cleanup | `UT_ResolveReport` | `UT_ResolveReport` | Upload ảnh After & hoàn thành thu gom (SD-15) | Dependencies mocked. |
-| 16 | Cleanup | Critical Unit Test | `EscalateCleanupCommandHandler` | Escalate Cleanup Issue | `UT_EscalateCleanup` | `UT_EscalateCleanup` | Báo cáo leo thang sự cố vượt quá khả năng xử lý | Dependencies mocked. |
-| 17 | Community | Critical Unit Test | `CreateCommunityCleanupCommandHandler` | Create Community Cleanup | `UT_CreateCommunity` | `UT_CreateCommunity` | LEO khởi tạo chiến dịch dọn rác cộng đồng (SD-25) | Dependencies mocked. |
-| 18 | Community | Critical Unit Test | `JoinCommunityCleanupCommandHandler` | Join Community Cleanup | `UT_JoinCommunity` | `UT_JoinCommunity` | Citizen đăng ký tham gia dọn rác cộng đồng (SD-25) | Dependencies mocked. |
-| 19 | Community | Critical Unit Test | `CheckInCommunityCleanupCommandHandler` | Volunteer Check-In | `UT_VolunteerCheckIn` | `UT_VolunteerCheckIn` | Tình nguyện viên check-in GPS tại sự kiện (SD-25) | Dependencies mocked. |
-| 20 | Inspection | Critical Unit Test | `CreateInspectionCommandHandler` | Create Inspection Report | `UT_CreateInspection` | `UT_CreateInspection` | LEO lập biên bản kiểm tra thanh tra (SD-28) | Dependencies mocked. |
-| 21 | Inspection | Critical Unit Test | `AssignInspectionTeamCommandHandler` | Assign Inspection Team | `UT_AssignInspector` | `UT_AssignInspector` | Giao nhiệm vụ cho Đội thanh tra (SD-29) | Dependencies mocked. |
-| 22 | Inspection | Critical Unit Test | `CheckInInspectionCommandHandler` | Inspection Check-In | `UT_CheckInInspection` | `UT_CheckInInspection` | Thanh tra viên check-in tọa độ thực địa (SD-31) | Dependencies mocked. |
-| 23 | Inspection | Critical Unit Test | `SubmitInspectionReportCommandHandler` | Submit Inspection Field Report | `UT_SubmitInspection` | `UT_SubmitInspection` | Lập biên bản vi phạm & upload chứng cứ (SD-34) | Dependencies mocked. |
-| 24 | Inspection | Critical Unit Test | `IssuePenaltyDecisionCommandHandler` | Issue Penalty Decision | `UT_IssuePenalty` | `UT_IssuePenalty` | Trưởng đội ra quyết định xử phạt hành chính (SD-32) | Dependencies mocked. |
-| 25 | Inspection | Critical Unit Test | `RecordPenaltyPaymentCommandHandler` | Record Penalty Payment | `UT_RecordPayment` | `UT_RecordPayment` | LEO ghi nhận nộp phạt & tự động đóng hồ sơ (SD-39) | Dependencies mocked. |
-| 26 | Org | Critical Unit Test | `CreateCompanyCommandHandler` | Create Environmental Company | `UT_CreateCompany` | `UT_CreateCompany` | Admin/DEO khởi tạo công ty môi trường | Dependencies mocked. |
-| 27 | Org | Critical Unit Test | `AddTeamMemberCommandHandler` | Add Team Member | `UT_AddTeamMember` | `UT_AddTeamMember` | Thêm nhân sự vào đội thu gom/thanh tra | Dependencies mocked. |
-| 28 | Gamification | Critical Unit Test | `GamificationPointAwarder` | Award Activity Points | `UT_AwardPoints` | `UT_AwardPoints` | Cộng điểm thưởng báo cáo/dọn dẹp (SD-51) | Dependencies mocked. |
-| 29 | Gamification | Critical Unit Test | `BadgeEligibilityEvaluator` | Evaluate User Badges | `UT_EvaluateBadges` | `UT_EvaluateBadges` | Khảo sát điều kiện & cấp huy hiệu tự động | Dependencies mocked. |
-| 30 | Media | Critical Unit Test | `PresignMediaUploadCommandHandler` | Presign Media Upload | `UT_PresignMedia` | `UT_PresignMedia` | Cấp URL upload S3 direct (SD-66) | Dependencies mocked. |
-| 31 | Media | Critical Unit Test | `ExifSuspicionEvaluator` | Evaluate EXIF Media | `UT_EvaluateExif` | `UT_EvaluateExif` | Kiểm tra tính nghi vấn & strip EXIF (BR-AI-007) | Dependencies mocked. |
-| 32 | Map | Critical Unit Test | `GetNearbyReportsQueryHandler` | Get Nearby Reports | `UT_GetNearbyMap` | `UT_GetNearbyMap` | Truy vấn báo cáo lân cận theo bán kính GIS | Dependencies mocked. |
-| 33 | Map | Critical Unit Test | `GetHeatmapQueryHandler` | Get Heatmap Data | `UT_GetHeatmap` | `UT_GetHeatmap` | Lấy dữ liệu bản đồ nhiệt ô nhiễm | Dependencies mocked. |
-| 34 | Notifications | Critical Unit Test | `SendNotificationCommandHandler` | Send Push Notification | `UT_SendNotification` | `UT_SendNotification` | Gửi thông báo Push FCM & In-app | Dependencies mocked. |
-| 35 | Comments | Critical Unit Test | `AddCommentCommandHandler` | Add Report Comment | `UT_AddComment` | `UT_AddComment` | Thêm bình luận trên báo cáo & đính kèm ảnh | Dependencies mocked. |
-| 36 | Users | Critical Unit Test | `UpdateProfileCommandHandler` | Update User Profile | `UT_UpdateProfile` | `UT_UpdateProfile` | Cập nhật thông tin hồ sơ cá nhân | Dependencies mocked. |
-| 37 | Admin | Critical Unit Test | `BanUserCommandHandler` | Ban User Account | `UT_BanUser` | `UT_BanUser` | Admin khóa tài khoản vi phạm | Dependencies mocked. |
-| 38 | Admin | Critical Unit Test | `UpdateUserRoleCommandHandler` | Change User Role | `UT_UpdateUserRole` | `UT_UpdateUserRole` | Admin thay đổi vai trò người dùng | Dependencies mocked. |
-| 39 | Catalog | Critical Unit Test | `GetCategoriesQueryHandler` | Get Catalog Categories | `UT_GetCategories` | `UT_GetCategories` | Truy vấn danh mục loại ô nhiễm | Dependencies mocked. |
+| No | Requirement Name | Class Name | Function Name | Function Code(Optional) | Sheet Name | Description | Pre-Condition |
+| :-: | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 1 | Critical Unit Test | `RegisterCommandHandler` | Register Account | `UT_Register` | `UT_Register` | Đăng ký tài khoản Citizen & gửi OTP (SD-01) | Dependencies mocked. |
+| 2 | Critical Unit Test | `LoginCommandHandler` | User Login | `UT_Login` | `UT_Login` | Đăng nhập JWT & check lockout 5 lần (SD-02) | Dependencies mocked. |
+| 3 | Critical Unit Test | `VerifyEmailCommandHandler` | Verify Email OTP | `UT_VerifyEmail` | `UT_VerifyEmail` | Xác minh OTP kích hoạt tài khoản (SD-03) | Dependencies mocked. |
+| 4 | Critical Unit Test | `SubmitPollutionReportCommandHandler` | Submit Pollution Report | `UT_SubmitReport` | `UT_SubmitReport` | Gửi báo cáo ô nhiễm, check GPS VN & Rate limit (SD-06) | Dependencies mocked. |
+| 5 | Critical Unit Test | `VerifyReportCommandHandler` | Verify Report | `UT_VerifyReport` | `UT_VerifyReport` | LEO/DEO duyệt báo cáo & tính priority (SD-09) | Dependencies mocked. |
+| 6 | Critical Unit Test | `RejectReportCommandHandler` | Reject Report | `UT_RejectReport` | `UT_RejectReport` | Từ chối báo cáo với lý do ≥20 ký tự (SD-10) | Dependencies mocked. |
+| 7 | Critical Unit Test | `ConfirmDuplicateCommandHandler` | Confirm Duplicate | `UT_ConfirmDuplicate` | `UT_ConfirmDuplicate` | Đánh dấu báo cáo trùng lặp ST_DWithin 50m (SD-11) | Dependencies mocked. |
+| 8 | Critical Unit Test | `CloseReportCommandHandler` | Close Report | `UT_CloseReport` | `UT_CloseReport` | Đóng báo cáo hoàn tất / auto-close 7 ngày (SD-16) | Dependencies mocked. |
+| 9 | Critical Unit Test | `RequestReopenReportCommandHandler` | Request Reopen | `UT_RequestReopen` | `UT_RequestReopen` | Citizen gửi minh chứng mở lại báo cáo (SD-17) | Dependencies mocked. |
+| 10 | Critical Unit Test | `AcceptAssignmentCommandHandler` | Accept Assignment | `UT_AcceptAssignment` | `UT_AcceptAssignment` | Đội thu gom tiếp nhận task dọn dẹp (SD-21) | Dependencies mocked. |
+| 11 | Critical Unit Test | `DeclineAssignmentCommandHandler` | Decline Assignment | `UT_DeclineAssignment` | `UT_DeclineAssignment` | Từ chối task & thông báo cho LEO (SD-21) | Dependencies mocked. |
+| 12 | Critical Unit Test | `CheckInCleanupCommandHandler` | Cleanup Site Check-In | `UT_CheckInCleanup` | `UT_CheckInCleanup` | Check-in tọa độ thực địa thu gom ≤200m (SD-22) | Dependencies mocked. |
+| 13 | Critical Unit Test | `UploadBeforeImagesCommandHandler` | Upload Before Images | `UT_UploadBefore` | `UT_UploadBefore` | Trưởng đội upload ảnh hiện trường trước dọn (SD-23) | Dependencies mocked. |
+| 14 | Critical Unit Test | `UpdateProgressCommandHandler` | Update Cleanup Progress | `UT_UpdateProgress` | `UT_UpdateProgress` | Cập nhật % tiến độ & ảnh dọn dẹp (SD-23) | Dependencies mocked. |
+| 15 | Critical Unit Test | `ResolveReportCommandHandler` | Resolve Report Cleanup | `UT_ResolveReport` | `UT_ResolveReport` | Upload ảnh After & hoàn thành thu gom (SD-15) | Dependencies mocked. |
+| 16 | Critical Unit Test | `EscalateCleanupCommandHandler` | Escalate Cleanup Issue | `UT_EscalateCleanup` | `UT_EscalateCleanup` | Báo cáo leo thang sự cố vượt quá khả năng xử lý | Dependencies mocked. |
+| 17 | Critical Unit Test | `CreateCommunityCleanupCommandHandler` | Create Community Cleanup | `UT_CreateCommunity` | `UT_CreateCommunity` | LEO khởi tạo chiến dịch dọn rác cộng đồng (SD-25) | Dependencies mocked. |
+| 18 | Critical Unit Test | `JoinCommunityCleanupCommandHandler` | Join Community Cleanup | `UT_JoinCommunity` | `UT_JoinCommunity` | Citizen đăng ký tham gia dọn rác cộng đồng (SD-25) | Dependencies mocked. |
+| 19 | Critical Unit Test | `CheckInCommunityCleanupCommandHandler` | Volunteer Check-In | `UT_VolunteerCheckIn` | `UT_VolunteerCheckIn` | Tình nguyện viên check-in GPS tại sự kiện (SD-25) | Dependencies mocked. |
+| 20 | Critical Unit Test | `CreateInspectionCommandHandler` | Create Inspection Report | `UT_CreateInspection` | `UT_CreateInspection` | LEO lập biên bản kiểm tra thanh tra (SD-28) | Dependencies mocked. |
+| 21 | Critical Unit Test | `AssignInspectionTeamCommandHandler` | Assign Inspection Team | `UT_AssignInspector` | `UT_AssignInspector` | Giao nhiệm vụ cho Đội thanh tra (SD-29) | Dependencies mocked. |
+| 22 | Critical Unit Test | `CheckInInspectionCommandHandler` | Inspection Check-In | `UT_CheckInInspection` | `UT_CheckInInspection` | Thanh tra viên check-in tọa độ thực địa (SD-31) | Dependencies mocked. |
+| 23 | Critical Unit Test | `SubmitInspectionReportCommandHandler` | Submit Inspection Field Report | `UT_SubmitInspection` | `UT_SubmitInspection` | Lập biên bản vi phạm & upload chứng cứ (SD-34) | Dependencies mocked. |
+| 24 | Critical Unit Test | `IssuePenaltyDecisionCommandHandler` | Issue Penalty Decision | `UT_IssuePenalty` | `UT_IssuePenalty` | Trưởng đội ra quyết định xử phạt hành chính (SD-32) | Dependencies mocked. |
+| 25 | Critical Unit Test | `RecordPenaltyPaymentCommandHandler` | Record Penalty Payment | `UT_RecordPayment` | `UT_RecordPayment` | LEO ghi nhận nộp phạt & tự động đóng hồ sơ (SD-39) | Dependencies mocked. |
+| 26 | Critical Unit Test | `CreateCompanyCommandHandler` | Create Environmental Company | `UT_CreateCompany` | `UT_CreateCompany` | Admin/DEO khởi tạo công ty môi trường | Dependencies mocked. |
+| 27 | Critical Unit Test | `AddTeamMemberCommandHandler` | Add Team Member | `UT_AddTeamMember` | `UT_AddTeamMember` | Thêm nhân sự vào đội thu gom/thanh tra | Dependencies mocked. |
+| 28 | Critical Unit Test | `GamificationPointAwarder` | Award Activity Points | `UT_AwardPoints` | `UT_AwardPoints` | Cộng điểm thưởng báo cáo/dọn dẹp (SD-51) | Dependencies mocked. |
+| 29 | Critical Unit Test | `BadgeEligibilityEvaluator` | Evaluate User Badges | `UT_EvaluateBadges` | `UT_EvaluateBadges` | Khảo sát điều kiện & cấp huy hiệu tự động | Dependencies mocked. |
+| 30 | Critical Unit Test | `PresignMediaUploadCommandHandler` | Presign Media Upload | `UT_PresignMedia` | `UT_PresignMedia` | Cấp URL upload S3 direct (SD-66) | Dependencies mocked. |
+| 31 | Critical Unit Test | `ExifSuspicionEvaluator` | Evaluate EXIF Media | `UT_EvaluateExif` | `UT_EvaluateExif` | Kiểm tra tính nghi vấn & strip EXIF (BR-AI-007) | Dependencies mocked. |
+| 32 | Critical Unit Test | `GetNearbyReportsQueryHandler` | Get Nearby Reports | `UT_GetNearbyMap` | `UT_GetNearbyMap` | Truy vấn báo cáo lân cận theo bán kính GIS | Dependencies mocked. |
+| 33 | Critical Unit Test | `GetHeatmapQueryHandler` | Get Heatmap Data | `UT_GetHeatmap` | `UT_GetHeatmap` | Lấy dữ liệu bản đồ nhiệt ô nhiễm | Dependencies mocked. |
+| 34 | Critical Unit Test | `SendNotificationCommandHandler` | Send Push Notification | `UT_SendNotification` | `UT_SendNotification` | Gửi thông báo Push FCM & In-app | Dependencies mocked. |
+| 35 | Critical Unit Test | `AddCommentCommandHandler` | Add Report Comment | `UT_AddComment` | `UT_AddComment` | Thêm bình luận trên báo cáo & đính kèm ảnh | Dependencies mocked. |
+| 36 | Critical Unit Test | `UpdateProfileCommandHandler` | Update User Profile | `UT_UpdateProfile` | `UT_UpdateProfile` | Cập nhật thông tin hồ sơ cá nhân | Dependencies mocked. |
+| 37 | Critical Unit Test | `BanUserCommandHandler` | Ban User Account | `UT_BanUser` | `UT_BanUser` | Admin khóa tài khoản vi phạm | Dependencies mocked. |
+| 38 | Critical Unit Test | `UpdateUserRoleCommandHandler` | Change User Role | `UT_UpdateUserRole` | `UT_UpdateUserRole` | Admin thay đổi vai trò người dùng | Dependencies mocked. |
+| 39 | Critical Unit Test | `GetCategoriesQueryHandler` | Get Catalog Categories | `UT_GetCategories` | `UT_GetCategories` | Truy vấn danh mục loại ô nhiễm | Dependencies mocked. |
 
 ---
 
