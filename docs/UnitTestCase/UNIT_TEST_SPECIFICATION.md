@@ -144,7 +144,7 @@
 | :--- | :--- | :--- | :--- |
 | **Function Code** | `UT_Register` | **Function Name** | Register Account (`RegisterCommandHandler`) |
 | **Created By** | Dev Team | **Executed By** | xUnit Runner (.NET 9) |
-| **Lines of Code (LOC)**| 115 | **Lack of Test Cases**| 0 |
+| **Lines of Code (LOC)**| 100 | **Lack of Test Cases**| 0 |
 | **Test Requirement** | Register Citizen account, validate password strength, hash bcrypt >= 12, send OTP email. |
 | **Test Results** | **Passed:** 10 \| **Failed:** 0 \| **Untested:** 0 \| **N / A / B:** 2 / 6 / 2 \| **Total TCs:** 10 |
 
@@ -180,7 +180,7 @@
 | :--- | :--- | :--- | :--- |
 | **Function Code** | `UT_Login` | **Function Name** | User Login (`LoginCommandHandler`) |
 | **Created By** | Dev Team | **Executed By** | xUnit Runner (.NET 9) |
-| **Lines of Code (LOC)**| 140 | **Lack of Test Cases**| 0 |
+| **Lines of Code (LOC)**| 110 | **Lack of Test Cases**| 0 |
 | **Test Requirement** | User authentication, bcrypt verify, 5 failed attempts lockout 30m, issue JWT 24h + Refresh token 30d. |
 | **Test Results** | **Passed:** 11 \| **Failed:** 0 \| **Untested:** 0 \| **N / A / B:** 2 / 7 / 2 \| **Total TCs:** 11 |
 
@@ -215,7 +215,7 @@
 | :--- | :--- | :--- | :--- |
 | **Function Code** | `UT_VerifyEmail` | **Function Name** | Verify Email OTP (`VerifyEmailCommandHandler`) |
 | **Created By** | Dev Team | **Executed By** | xUnit Runner (.NET 9) |
-| **Lines of Code (LOC)**| 85 | **Lack of Test Cases**| 0 |
+| **Lines of Code (LOC)**| 80 | **Lack of Test Cases**| 0 |
 | **Test Requirement** | Verify 6-digit OTP code, check expiration (15m), set IsEmailVerified = true. |
 | **Test Results** | **Passed:** 8 \| **Failed:** 0 \| **Untested:** 0 \| **N / A / B:** 2 / 5 / 1 \| **Total TCs:** 8 |
 
@@ -249,7 +249,7 @@
 | :--- | :--- | :--- | :--- |
 | **Function Code** | `UT_SubmitReport` | **Function Name** | Submit Pollution Report (`SubmitPollutionReportCommandHandler`) |
 | **Created By** | Dev Team | **Executed By** | xUnit Runner (.NET 9) |
-| **Lines of Code (LOC)**| 180 | **Lack of Test Cases**| 0 |
+| **Lines of Code (LOC)**| 120 | **Lack of Test Cases**| 0 |
 | **Test Requirement** | Submit report with photos, GPS bounds VN Lat 8.0-24.0, Lng 102.0-110.0, Rate limit 5/h 20/24h. |
 | **Test Results** | **Passed:** 12 \| **Failed:** 0 \| **Untested:** 0 \| **N / A / B:** 3 / 7 / 2 \| **Total TCs:** 12 |
 
@@ -285,7 +285,7 @@
 | :--- | :--- | :--- | :--- |
 | **Function Code** | `UT_VerifyReport` | **Function Name** | Verify Report (`VerifyReportCommandHandler`) |
 | **Created By** | Dev Team | **Executed By** | xUnit Runner (.NET 9) |
-| **Lines of Code (LOC)**| 130 | **Lack of Test Cases**| 0 |
+| **Lines of Code (LOC)**| 100 | **Lack of Test Cases**| 0 |
 | **Test Requirement** | Officer verifies report, sets severity level, calculates priority score, transition Status Submitted -> Verified. |
 | **Test Results** | **Passed:** 10 \| **Failed:** 0 \| **Untested:** 0 \| **N / A / B:** 3 / 5 / 2 \| **Total TCs:** 10 |
 
@@ -318,7 +318,7 @@
 | :--- | :--- | :--- | :--- |
 | **Function Code** | `UT_RejectReport` | **Function Name** | Reject Report (`RejectReportCommandHandler`) |
 | **Created By** | Dev Team | **Executed By** | xUnit Runner (.NET 9) |
-| **Lines of Code (LOC)**| 95 | **Lack of Test Cases**| 0 |
+| **Lines of Code (LOC)**| 80 | **Lack of Test Cases**| 0 |
 | **Test Requirement** | Reject invalid report, enforce rejection reason length >= 20 characters, transition Status Submitted -> Rejected. |
 | **Test Results** | **Passed:** 8 \| **Failed:** 0 \| **Untested:** 0 \| **N / A / B:** 2 / 4 / 2 \| **Total TCs:** 8 |
 
@@ -350,7 +350,7 @@
 | :--- | :--- | :--- | :--- |
 | **Function Code** | `UT_ConfirmDuplicate` | **Function Name** | Confirm Duplicate (`ConfirmDuplicateCommandHandler`) |
 | **Created By** | Dev Team | **Executed By** | xUnit Runner (.NET 9) |
-| **Lines of Code (LOC)**| 110 | **Lack of Test Cases**| 0 |
+| **Lines of Code (LOC)**| 90 | **Lack of Test Cases**| 0 |
 | **Test Requirement** | Link duplicate report to original report ID, PostGIS ST_DWithin <= 50m check, transition Status -> Duplicate. |
 | **Test Results** | **Passed:** 9 \| **Failed:** 0 \| **Untested:** 0 \| **N / A / B:** 2 / 5 / 2 \| **Total TCs:** 9 |
 
@@ -382,7 +382,7 @@
 | :--- | :--- | :--- | :--- |
 | **Function Code** | `UT_CloseReport` | **Function Name** | Close Report (`CloseReportCommandHandler`) |
 | **Created By** | Dev Team | **Executed By** | xUnit Runner (.NET 9) |
-| **Lines of Code (LOC)**| 90 | **Lack of Test Cases**| 0 |
+| **Lines of Code (LOC)**| 80 | **Lack of Test Cases**| 0 |
 | **Test Requirement** | Close resolved report via Citizen confirmation or Hangfire auto-close after 7 days. |
 | **Test Results** | **Passed:** 8 \| **Failed:** 0 \| **Untested:** 0 \| **N / A / B:** 2 / 4 / 2 \| **Total TCs:** 8 |
 
@@ -414,7 +414,7 @@
 | :--- | :--- | :--- | :--- |
 | **Function Code** | `UT_RequestReopen` | **Function Name** | Request Reopen (`RequestReopenReportCommandHandler`) |
 | **Created By** | Dev Team | **Executed By** | xUnit Runner (.NET 9) |
-| **Lines of Code (LOC)**| 105 | **Lack of Test Cases**| 0 |
+| **Lines of Code (LOC)**| 90 | **Lack of Test Cases**| 0 |
 | **Test Requirement** | Citizen requests report reopen with evidence photos, max 2 reopen requests allowed per report. |
 | **Test Results** | **Passed:** 9 \| **Failed:** 0 \| **Untested:** 0 \| **N / A / B:** 2 / 5 / 2 \| **Total TCs:** 9 |
 
@@ -478,7 +478,7 @@
 | :--- | :--- | :--- | :--- |
 | **Function Code** | `UT_DeclineAssignment` | **Function Name** | Decline Assignment (`DeclineAssignmentCommandHandler`) |
 | **Created By** | Dev Team | **Executed By** | xUnit Runner (.NET 9) |
-| **Lines of Code (LOC)**| 85 | **Lack of Test Cases**| 0 |
+| **Lines of Code (LOC)**| 80 | **Lack of Test Cases**| 0 |
 | **Test Requirement** | Decline assignment with reason >= 15 chars, notify Officer to reassign task. |
 | **Test Results** | **Passed:** 8 \| **Failed:** 0 \| **Untested:** 0 \| **N / A / B:** 2 / 5 / 1 \| **Total TCs:** 8 |
 
@@ -510,7 +510,7 @@
 | :--- | :--- | :--- | :--- |
 | **Function Code** | `UT_CheckInCleanup` | **Function Name** | Cleanup Check-In (`CheckInCleanupCommandHandler`) |
 | **Created By** | Dev Team | **Executed By** | xUnit Runner (.NET 9) |
-| **Lines of Code (LOC)**| 110 | **Lack of Test Cases**| 0 |
+| **Lines of Code (LOC)**| 100 | **Lack of Test Cases**| 0 |
 | **Test Requirement** | Check-in at pollution site, PostGIS ST_DWithin distance check <= 200m. |
 | **Test Results** | **Passed:** 10 \| **Failed:** 0 \| **Untested:** 0 \| **N / A / B:** 2 / 6 / 2 \| **Total TCs:** 10 |
 
@@ -541,7 +541,7 @@
 | :--- | :--- | :--- | :--- |
 | **Function Code** | `UT_UploadBefore` | **Function Name** | Upload Before Images (`UploadBeforeImagesCommandHandler`) |
 | **Created By** | Dev Team | **Executed By** | xUnit Runner (.NET 9) |
-| **Lines of Code (LOC)**| 95 | **Lack of Test Cases**| 0 |
+| **Lines of Code (LOC)**| 90 | **Lack of Test Cases**| 0 |
 | **Test Requirement** | Upload initial scene photo before cleanup, verify team leader role, validate R2 CDN URLs. |
 | **Test Results** | **Passed:** 9 \| **Failed:** 0 \| **Untested:** 0 \| **N / A / B:** 2 / 5 / 2 \| **Total TCs:** 9 |
 
@@ -574,7 +574,7 @@
 | :--- | :--- | :--- | :--- |
 | **Function Code** | `UT_UpdateProgress` | **Function Name** | Update Progress (`UpdateProgressCommandHandler`) |
 | **Created By** | Dev Team | **Executed By** | xUnit Runner (.NET 9) |
-| **Lines of Code (LOC)**| 120 | **Lack of Test Cases**| 0 |
+| **Lines of Code (LOC)**| 110 | **Lack of Test Cases**| 0 |
 | **Test Requirement** | Update cleanup progress percentage (0 - 100%), attach progress photos, validate team leader permissions. |
 | **Test Results** | **Passed:** 11 \| **Failed:** 0 \| **Untested:** 0 \| **N / A / B:** 3 / 6 / 2 \| **Total TCs:** 11 |
 
@@ -605,7 +605,7 @@
 | :--- | :--- | :--- | :--- |
 | **Function Code** | `UT_ResolveReport` | **Function Name** | Resolve Report (`ResolveReportCommandHandler`) |
 | **Created By** | Dev Team | **Executed By** | xUnit Runner (.NET 9) |
-| **Lines of Code (LOC)**| 135 | **Lack of Test Cases**| 0 |
+| **Lines of Code (LOC)**| 100 | **Lack of Test Cases**| 0 |
 | **Test Requirement** | Mark cleanup resolved, require at least 1 After photo, pHash difference check vs Before, transition Status -> Resolved. |
 | **Test Results** | **Passed:** 10 \| **Failed:** 0 \| **Untested:** 0 \| **N / A / B:** 2 / 6 / 2 \| **Total TCs:** 10 |
 
@@ -637,7 +637,7 @@
 | :--- | :--- | :--- | :--- |
 | **Function Code** | `UT_EscalateCleanup` | **Function Name** | Escalate Cleanup (`EscalateCleanupCommandHandler`) |
 | **Created By** | Dev Team | **Executed By** | xUnit Runner (.NET 9) |
-| **Lines of Code (LOC)**| 100 | **Lack of Test Cases**| 0 |
+| **Lines of Code (LOC)**| 90 | **Lack of Test Cases**| 0 |
 | **Test Requirement** | Escalate cleanup difficulty/hazard to Officer, require escalation reason >= 20 chars. |
 | **Test Results** | **Passed:** 9 \| **Failed:** 0 \| **Untested:** 0 \| **N / A / B:** 2 / 5 / 2 \| **Total TCs:** 9 |
 
@@ -668,7 +668,7 @@
 | :--- | :--- | :--- | :--- |
 | **Function Code** | `UT_CreateCommunity` | **Function Name** | Create Community Cleanup (`CreateCommunityCleanupCommandHandler`) |
 | **Created By** | Dev Team | **Executed By** | xUnit Runner (.NET 9) |
-| **Lines of Code (LOC)**| 140 | **Lack of Test Cases**| 0 |
+| **Lines of Code (LOC)**| 110 | **Lack of Test Cases**| 0 |
 | **Test Requirement** | LEO creates volunteer community cleanup campaign on Verified report, leader must be Cleaner role, max 1 active campaign per report. |
 | **Test Results** | **Passed:** 11 \| **Failed:** 0 \| **Untested:** 0 \| **N / A / B:** 3 / 6 / 2 \| **Total TCs:** 11 |
 
@@ -701,7 +701,7 @@
 | :--- | :--- | :--- | :--- |
 | **Function Code** | `UT_JoinCommunity` | **Function Name** | Join Community Cleanup (`JoinCommunityCleanupCommandHandler`) |
 | **Created By** | Dev Team | **Executed By** | xUnit Runner (.NET 9) |
-| **Lines of Code (LOC)**| 95 | **Lack of Test Cases**| 0 |
+| **Lines of Code (LOC)**| 100 | **Lack of Test Cases**| 0 |
 | **Test Requirement** | Citizen registers to join volunteer event, check participant quota limit, prevent duplicate registrations. |
 | **Test Results** | **Passed:** 10 \| **Failed:** 0 \| **Untested:** 0 \| **N / A / B:** 2 / 6 / 2 \| **Total TCs:** 10 |
 
@@ -733,7 +733,7 @@
 | :--- | :--- | :--- | :--- |
 | **Function Code** | `UT_VolunteerCheckIn` | **Function Name** | Volunteer Check-In (`CheckInCommunityCleanupCommandHandler`) |
 | **Created By** | Dev Team | **Executed By** | xUnit Runner (.NET 9) |
-| **Lines of Code (LOC)**| 105 | **Lack of Test Cases**| 0 |
+| **Lines of Code (LOC)**| 100 | **Lack of Test Cases**| 0 |
 | **Test Requirement** | Volunteer check-in at event site, GPS distance <= 200m or override reason >= 20 chars required. |
 | **Test Results** | **Passed:** 10 \| **Failed:** 0 \| **Untested:** 0 \| **N / A / B:** 2 / 6 / 2 \| **Total TCs:** 10 |
 
@@ -764,7 +764,7 @@
 | :--- | :--- | :--- | :--- |
 | **Function Code** | `UT_CreateInspection` | **Function Name** | Create Inspection (`CreateInspectionCommandHandler`) |
 | **Created By** | Dev Team | **Executed By** | xUnit Runner (.NET 9) |
-| **Lines of Code (LOC)**| 120 | **Lack of Test Cases**| 0 |
+| **Lines of Code (LOC)**| 100 | **Lack of Test Cases**| 0 |
 | **Test Requirement** | LEO creates inspection report for severe pollution violations. |
 | **Test Results** | **Passed:** 10 \| **Failed:** 0 \| **Untested:** 0 \| **N / A / B:** 3 / 5 / 2 \| **Total TCs:** 10 |
 
@@ -796,7 +796,7 @@
 | :--- | :--- | :--- | :--- |
 | **Function Code** | `UT_AssignInspector` | **Function Name** | Assign Inspector (`AssignInspectionTeamCommandHandler`) |
 | **Created By** | Dev Team | **Executed By** | xUnit Runner (.NET 9) |
-| **Lines of Code (LOC)**| 100 | **Lack of Test Cases**| 0 |
+| **Lines of Code (LOC)**| 90 | **Lack of Test Cases**| 0 |
 | **Test Requirement** | Assign environmental inspection team to inspection task, notify team leader. |
 | **Test Results** | **Passed:** 9 \| **Failed:** 0 \| **Untested:** 0 \| **N / A / B:** 2 / 5 / 2 \| **Total TCs:** 9 |
 
@@ -827,7 +827,7 @@
 | :--- | :--- | :--- | :--- |
 | **Function Code** | `UT_CheckInInspection` | **Function Name** | Inspection Check-In (`CheckInInspectionCommandHandler`) |
 | **Created By** | Dev Team | **Executed By** | xUnit Runner (.NET 9) |
-| **Lines of Code (LOC)**| 95 | **Lack of Test Cases**| 0 |
+| **Lines of Code (LOC)**| 100 | **Lack of Test Cases**| 0 |
 | **Test Requirement** | Inspector check-in at inspection site (soft distance verification <= 200m). |
 | **Test Results** | **Passed:** 10 \| **Failed:** 0 \| **Untested:** 0 \| **N / A / B:** 2 / 6 / 2 \| **Total TCs:** 10 |
 
@@ -858,7 +858,7 @@
 | :--- | :--- | :--- | :--- |
 | **Function Code** | `UT_SubmitInspection` | **Function Name** | Submit Inspection (`SubmitInspectionReportCommandHandler`) |
 | **Created By** | Dev Team | **Executed By** | xUnit Runner (.NET 9) |
-| **Lines of Code (LOC)**| 150 | **Lack of Test Cases**| 0 |
+| **Lines of Code (LOC)**| 110 | **Lack of Test Cases**| 0 |
 | **Test Requirement** | Submit field inspection report, attach checklist evidence items (photo/video/audio), evaluate violation severity. |
 | **Test Results** | **Passed:** 11 \| **Failed:** 0 \| **Untested:** 0 \| **N / A / B:** 3 / 6 / 2 \| **Total TCs:** 11 |
 
@@ -890,7 +890,7 @@
 | :--- | :--- | :--- | :--- |
 | **Function Code** | `UT_IssuePenalty` | **Function Name** | Issue Penalty (`IssuePenaltyDecisionCommandHandler`) |
 | **Created By** | Dev Team | **Executed By** | xUnit Runner (.NET 9) |
-| **Lines of Code (LOC)**| 125 | **Lack of Test Cases**| 0 |
+| **Lines of Code (LOC)**| 100 | **Lack of Test Cases**| 0 |
 | **Test Requirement** | Issue administrative penalty decision, fine amount > 0, payment deadline set. |
 | **Test Results** | **Passed:** 10 \| **Failed:** 0 \| **Untested:** 0 \| **N / A / B:** 2 / 6 / 2 \| **Total TCs:** 10 |
 
@@ -922,7 +922,7 @@
 | :--- | :--- | :--- | :--- |
 | **Function Code** | `UT_RecordPayment` | **Function Name** | Record Payment (`RecordPenaltyPaymentCommandHandler`) |
 | **Created By** | Dev Team | **Executed By** | xUnit Runner (.NET 9) |
-| **Lines of Code (LOC)**| 110 | **Lack of Test Cases**| 0 |
+| **Lines of Code (LOC)**| 90 | **Lack of Test Cases**| 0 |
 | **Test Requirement** | LEO records full fine payment, auto-closes inspection case. |
 | **Test Results** | **Passed:** 9 \| **Failed:** 0 \| **Untested:** 0 \| **N / A / B:** 2 / 5 / 2 \| **Total TCs:** 9 |
 
@@ -953,7 +953,7 @@
 | :--- | :--- | :--- | :--- |
 | **Function Code** | `UT_CreateCompany` | **Function Name** | Create Company (`CreateCompanyCommandHandler`) |
 | **Created By** | Dev Team | **Executed By** | xUnit Runner (.NET 9) |
-| **Lines of Code (LOC)**| 115 | **Lack of Test Cases**| 0 |
+| **Lines of Code (LOC)**| 100 | **Lack of Test Cases**| 0 |
 | **Test Requirement** | Admin/DEO registers environmental company profile, validate tax code uniqueness. |
 | **Test Results** | **Passed:** 10 \| **Failed:** 0 \| **Untested:** 0 \| **N / A / B:** 3 / 5 / 2 \| **Total TCs:** 10 |
 
@@ -1016,7 +1016,7 @@
 | :--- | :--- | :--- | :--- |
 | **Function Code** | `UT_AwardPoints` | **Function Name** | Award Points (`GamificationPointAwarder`) |
 | **Created By** | Dev Team | **Executed By** | xUnit Runner (.NET 9) |
-| **Lines of Code (LOC)**| 110 | **Lack of Test Cases**| 0 |
+| **Lines of Code (LOC)**| 100 | **Lack of Test Cases**| 0 |
 | **Test Requirement** | Award user points on report verification (+50 pts) or volunteer check-in (+20 pts). |
 | **Test Results** | **Passed:** 10 \| **Failed:** 0 \| **Untested:** 0 \| **N / A / B:** 3 / 5 / 2 \| **Total TCs:** 10 |
 
@@ -1047,7 +1047,7 @@
 | :--- | :--- | :--- | :--- |
 | **Function Code** | `UT_EvaluateBadges` | **Function Name** | Evaluate Badges (`BadgeEligibilityEvaluator`) |
 | **Created By** | Dev Team | **Executed By** | xUnit Runner (.NET 9) |
-| **Lines of Code (LOC)**| 125 | **Lack of Test Cases**| 0 |
+| **Lines of Code (LOC)**| 100 | **Lack of Test Cases**| 0 |
 | **Test Requirement** | Evaluate user badge metrics (Eco Sentinel, Cleanup Hero), unlock badge when metrics threshold met. |
 | **Test Results** | **Passed:** 10 \| **Failed:** 0 \| **Untested:** 0 \| **N / A / B:** 3 / 5 / 2 \| **Total TCs:** 10 |
 
@@ -1110,7 +1110,7 @@
 | :--- | :--- | :--- | :--- |
 | **Function Code** | `UT_EvaluateExif` | **Function Name** | Evaluate EXIF (`ExifSuspicionEvaluator`) |
 | **Created By** | Dev Team | **Executed By** | xUnit Runner (.NET 9) |
-| **Lines of Code (LOC)**| 95 | **Lack of Test Cases**| 0 |
+| **Lines of Code (LOC)**| 100 | **Lack of Test Cases**| 0 |
 | **Test Requirement** | Inspect EXIF metadata for suspicion flags (missing GPS, software edited), strip EXIF prior to public display. |
 | **Test Results** | **Passed:** 10 \| **Failed:** 0 \| **Untested:** 0 \| **N / A / B:** 3 / 5 / 2 \| **Total TCs:** 10 |
 
@@ -1142,7 +1142,7 @@
 | :--- | :--- | :--- | :--- |
 | **Function Code** | `UT_GetNearbyMap` | **Function Name** | Get Nearby Map (`GetNearbyReportsQueryHandler`) |
 | **Created By** | Dev Team | **Executed By** | xUnit Runner (.NET 9) |
-| **Lines of Code (LOC)**| 130 | **Lack of Test Cases**| 0 |
+| **Lines of Code (LOC)**| 110 | **Lack of Test Cases**| 0 |
 | **Test Requirement** | Query nearby reports using PostGIS ST_DWithin radius, round GPS to ~10m for public privacy, Redis cache 10m. |
 | **Test Results** | **Passed:** 11 \| **Failed:** 0 \| **Untested:** 0 \| **N / A / B:** 3 / 6 / 2 \| **Total TCs:** 11 |
 
@@ -1174,7 +1174,7 @@
 | :--- | :--- | :--- | :--- |
 | **Function Code** | `UT_GetHeatmap` | **Function Name** | Get Heatmap (`GetHeatmapQueryHandler`) |
 | **Created By** | Dev Team | **Executed By** | xUnit Runner (.NET 9) |
-| **Lines of Code (LOC)**| 105 | **Lack of Test Cases**| 0 |
+| **Lines of Code (LOC)**| 90 | **Lack of Test Cases**| 0 |
 | **Test Requirement** | Query aggregated pollution point weights for heatmap visualization within bounding box. |
 | **Test Results** | **Passed:** 9 \| **Failed:** 0 \| **Untested:** 0 \| **N / A / B:** 3 / 5 / 1 \| **Total TCs:** 9 |
 
@@ -1205,7 +1205,7 @@
 | :--- | :--- | :--- | :--- |
 | **Function Code** | `UT_SendNotification` | **Function Name** | Send Notification (`SendNotificationCommandHandler`) |
 | **Created By** | Dev Team | **Executed By** | xUnit Runner (.NET 9) |
-| **Lines of Code (LOC)**| 115 | **Lack of Test Cases**| 0 |
+| **Lines of Code (LOC)**| 100 | **Lack of Test Cases**| 0 |
 | **Test Requirement** | Create In-app Notification, send FCM Push Notification, aggregate anti-spam digest if >20/day. |
 | **Test Results** | **Passed:** 10 \| **Failed:** 0 \| **Untested:** 0 \| **N / A / B:** 3 / 5 / 2 \| **Total TCs:** 10 |
 
@@ -1268,7 +1268,7 @@
 | :--- | :--- | :--- | :--- |
 | **Function Code** | `UT_UpdateProfile` | **Function Name** | Update Profile (`UpdateProfileCommandHandler`) |
 | **Created By** | Dev Team | **Executed By** | xUnit Runner (.NET 9) |
-| **Lines of Code (LOC)**| 95 | **Lack of Test Cases**| 0 |
+| **Lines of Code (LOC)**| 100 | **Lack of Test Cases**| 0 |
 | **Test Requirement** | Update citizen profile details, validate phone number format (10 digits starting with 0). |
 | **Test Results** | **Passed:** 10 \| **Failed:** 0 \| **Untested:** 0 \| **N / A / B:** 3 / 5 / 2 \| **Total TCs:** 10 |
 
@@ -1331,7 +1331,7 @@
 | :--- | :--- | :--- | :--- |
 | **Function Code** | `UT_UpdateUserRole` | **Function Name** | Update User Role (`UpdateUserRoleCommandHandler`) |
 | **Created By** | Dev Team | **Executed By** | xUnit Runner (.NET 9) |
-| **Lines of Code (LOC)**| 85 | **Lack of Test Cases**| 0 |
+| **Lines of Code (LOC)**| 90 | **Lack of Test Cases**| 0 |
 | **Test Requirement** | Admin changes user role (Citizen, Officer, CleanupTeam, Admin), enforce authorization policy. |
 | **Test Results** | **Passed:** 9 \| **Failed:** 0 \| **Untested:** 0 \| **N / A / B:** 2 / 6 / 1 \| **Total TCs:** 9 |
 
@@ -1362,7 +1362,7 @@
 | :--- | :--- | :--- | :--- |
 | **Function Code** | `UT_GetCategories` | **Function Name** | Get Categories (`GetCategoriesQueryHandler`) |
 | **Created By** | Dev Team | **Executed By** | xUnit Runner (.NET 9) |
-| **Lines of Code (LOC)**| 75 | **Lack of Test Cases**| 0 |
+| **Lines of Code (LOC)**| 80 | **Lack of Test Cases**| 0 |
 | **Test Requirement** | Query reference list of pollution categories, support active-only filter. |
 | **Test Results** | **Passed:** 8 \| **Failed:** 0 \| **Untested:** 0 \| **N / A / B:** 3 / 4 / 1 \| **Total TCs:** 8 |
 
