@@ -194,7 +194,7 @@
 | | Password matches hash | O |   | O | O |   |   |   |   |   | O | O |
 | | Account not locked (LockoutEnd == null or expired) | O | O | O | O | O |   | O | O | O | O | O |
 | | Account not banned (IsBanned == false) | O | O | O | O | O | O |   | O | O | O | O |
-| | Failed attempt count | 0 | 1 | 0 | 0 | 4 | 5 | 0 | 2 | 3 | 0 | 0 |
+| | &nbsp;&nbsp;&nbsp;&nbsp;Failed attempt count within limit (< 5) | O | O | O | O | O |   | O | O | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | | | | |
 | | Success | O | | | | | | | | | O | O |
 | | Controlled failure | | O | O | O | O | O | O | O | O | | |
@@ -393,7 +393,7 @@
 | **Condition** | Precondition | | | | | | | | |
 | | Report Status == Resolved | O |   | O | O | O | O | O | O |
 | | User is report author OR Hangfire System job | O | O |   | O | O | O | O | O |
-| | Time elapsed since Resolved status | 2d | 0d | 1d | 7d | 8d | 0d | 1d | 7d |
+| | &nbsp;&nbsp;&nbsp;&nbsp;Time elapsed >= 7 days auto-close threshold |   |   |   | O | O |   |   | O |
 | **Confirm** | Expected outcome | | | | | | | | |
 | | Success | O | | | O | O | | | O |
 | | Controlled failure | | O | O | | | O | O | |
@@ -520,7 +520,7 @@
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | | | |
 | | Assignment Status == InProgress | O |   | O | O | O | O | O | O | O | O |
-| | Distance between GPS and site <= 200m | 50m | 10m | 250m | 201m | 200m | 0m | 100m | 500m | 300m | 150m |
+| | &nbsp;&nbsp;&nbsp;&nbsp;Distance between GPS and site <= 200m | O | O |   |   | O | O | O |   |   | O |
 | **Confirm** | Expected outcome | | | | | | | | | | |
 | | Success | O | O | | | O | O | O | | | O |
 | | Controlled failure | | | O | O | | | | O | O | |
@@ -584,7 +584,7 @@
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | | | | |
 | | Assignment Status == InProgress | O |   | O | O | O | O | O | O | O | O | O |
-| | ProgressPercent in range [0, 100] | 50% | 10% | -5% | 105% | 0% | 100% | 75% | 30% | 90% | 50% | 80% |
+| | &nbsp;&nbsp;&nbsp;&nbsp;ProgressPercent in range [0, 100] | O | O |   |   | O | O | O | O | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | | | | |
 | | Success | O | O | | | O | O | O | O | O | O | O |
 | | Controlled failure | | | O | O | | | | | | | |
@@ -743,7 +743,7 @@
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | | | |
 | | User registered as Participant | O |   | O | O | O | O | O | O | O | O |
-| | Distance <= 200m OR OverrideReason >= 20 chars | 50m | 100m | >200m | >200m | 200m | 180m | >200m | >200m | >200m | 30m |
+| | &nbsp;&nbsp;&nbsp;&nbsp;Distance <= 200m OR OverrideReason >= 20 chars | O | O |   | O | O | O |   |   |   | O |
 | **Confirm** | Expected outcome | | | | | | | | | | |
 | | Success | O | O | | O | O | O | | | | O |
 | | Controlled failure | | | O | | | | O | O | O | |
@@ -837,7 +837,7 @@
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | | | |
 | | User assigned as Inspector | O |   | O | O | O | O | O | O | O | O |
-| | Distance to site <= 200m | 50m | 100m | 250m | 200m | 0m | 150m | 400m | 300m | 201m | 20m |
+| | &nbsp;&nbsp;&nbsp;&nbsp;Distance to site <= 200m | O | O |   | O | O | O |   |   |   | O |
 | **Confirm** | Expected outcome | | | | | | | | | | |
 | | Success | O | O | | O | O | O | | | | O |
 | | Controlled failure | | | O | | | | O | O | O | |
@@ -1057,7 +1057,7 @@
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | | | |
 | | User metrics calculated | O | O | O | O | O | O | O | O | O | O |
-| | Verified report count >= Badge required count (e.g. 5 reports) | 5 | 1 | 4 | 5 | 10 | 0 | 3 | 5 | 6 | 20 |
+| | &nbsp;&nbsp;&nbsp;&nbsp;Verified report count >= Badge required count (e.g. 5 reports) | O |   |   | O | O |   |   | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | | | |
 | | Success | O | | | O | O | | | O | O | O |
 | | Controlled failure | | O | O | | | O | O | | | |
@@ -1089,7 +1089,7 @@
 | **Condition** | Precondition | | | | | | | | | | | |
 | | User authenticated | O |   | O | O | O | O | O | O | O | O | O |
 | | Content-Type in {image/jpeg, image/png, image/webp} | O | O |   | O | O | O | O | O | O | O | O |
-| | File size <= 10,485,760 bytes (10MB) | 2MB | 1MB | 1MB | 15MB | 10MB | 5MB | 1MB | 2MB | 3MB | 4MB | 5MB |
+| | &nbsp;&nbsp;&nbsp;&nbsp;File size <= 10,485,760 bytes (10MB) | O | O | O |   | O | O | O | O | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | | | | |
 | | Success | O | | | | O | O | O | O | O | O | O |
 | | Controlled failure | | O | O | O | | | | | | | |
@@ -1121,7 +1121,7 @@
 | **Condition** | Precondition | | | | | | | | | | |
 | | Image stream readable | O |   | O | O | O | O | O | O | O | O |
 | | EXIF contains camera make/model & GPS tags | O | O |   | O | O | O | O | O | O | O |
-| | Software editing tags (Photoshop/Canva) | None | None | None | Found | None | None | None | None | None | None |
+| | &nbsp;&nbsp;&nbsp;&nbsp;No software editing tags found (clean EXIF) | O | O | O |   | O | O | O | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | | | |
 | | Success | O | O | O | | O | O | O | O | O | O |
 | | Controlled failure | | | | O | | | | | | |
@@ -1153,7 +1153,7 @@
 | **Condition** | Precondition | | | | | | | | | | | |
 | | PostgreSQL + PostGIS active | O | O | O | O | O | O | O | O | O | O | O |
 | | Center Lat/Lng supplied | O |   | O | O | O | O | O | O | O | O | O |
-| | RadiusKm in range [0.5, 50.0] | 5km | 5km | -1km | 100km | 0.5km | 50km | 2km | 10km | 1km | 5km | 10km |
+| | &nbsp;&nbsp;&nbsp;&nbsp;RadiusKm in range [0.5, 50.0] | O | O |   |   | O | O | O | O | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | | | | |
 | | Success | O | | | | O | O | O | O | O | O | O |
 | | Controlled failure | | O | O | O | | | | | | | |
@@ -1215,7 +1215,7 @@
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | | | |
 | | Recipient User exists | O |   | O | O | O | O | O | O | O | O |
-| | Daily notification count for user | 5 | 0 | 25 | 1 | 2 | 0 | 10 | 20 | 0 | 2 |
+| | &nbsp;&nbsp;&nbsp;&nbsp;Daily notification count <= 20 anti-spam limit | O | O |   | O | O | O | O | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | | | |
 | | Success | O | | O | O | O | O | O | O | O | O |
 | | Controlled failure | | O | | | | | | | | |
@@ -1372,7 +1372,7 @@
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | |
 | | Database active | O | O | O | O | O | O | O | O |
-| | OnlyActive parameter supplied (true/false) | true | false | true | true | false | true | true | false |
+| | &nbsp;&nbsp;&nbsp;&nbsp;OnlyActive parameter supplied | O | O | O | O | O | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | |
 | | Success | O | O | O | O | O | O | O | O |
 | | Controlled failure | | | | | | | | |
