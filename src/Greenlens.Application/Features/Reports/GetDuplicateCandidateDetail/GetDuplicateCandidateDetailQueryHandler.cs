@@ -54,16 +54,6 @@ public sealed class GetDuplicateCandidateDetailQueryHandler(
             return Errors.Reports.NotPossibleDuplicate;
         }
 
-        var accessError = ReportReviewCandidateFilters.ValidateReportAccess(
-            report, user, currentUser.Role);
-        if (accessError is not null)
-        {
-            logger.LogWarning(
-                "User {UserId} denied duplicate detail for report {ReportId}: {ErrorCode}",
-                currentUser.UserId, request.ReportId, accessError.Code);
-            return accessError;
-        }
-
         var primaryId = report.PossibleDuplicateOfReportId.Value;
 
         var primary = await reports.QueryAsNoTracking()
@@ -76,6 +66,16 @@ public sealed class GetDuplicateCandidateDetailQueryHandler(
         {
             logger.LogWarning("Primary report {PrimaryId} not found", primaryId);
             return Errors.Reports.PrimaryReportNotFound;
+        }
+
+        var accessError = ReportReviewCandidateFilters.ValidateDuplicateCandidateAccess(
+            report, primary, user, currentUser.Role);
+        if (accessError is not null)
+        {
+            logger.LogWarning(
+                "User {UserId} denied duplicate detail for report {ReportId}: {ErrorCode}",
+                currentUser.UserId, request.ReportId, accessError.Code);
+            return accessError;
         }
 
         var distance = GeoMath.HaversineMeters(
