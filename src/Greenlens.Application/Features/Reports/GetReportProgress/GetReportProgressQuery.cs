@@ -6,7 +6,7 @@ namespace Greenlens.Application.Features.Reports.GetReportProgress;
 
 public sealed record GetReportProgressQuery(Guid ReportId) : IRequest<Result<ReportProgressResponse>>;
 
-/// <summary>LEO view: full progress breakdown of an InProgress report.</summary>
+/// <summary>LEO view: full progress breakdown of a report with a single assigned team.</summary>
 public sealed record ReportProgressResponse(
     Guid ReportId,
     string Code,
@@ -17,12 +17,16 @@ public sealed record ReportProgressResponse(
     string? WardCode,
     string? Description,
     SlaInfoDto Sla,
-    ProgressSummaryDto Summary,
-    IReadOnlyList<AssignmentProgressDto> Assignments,
+    AssignedCompanyDto? AssignedCompany,
+    AssignmentProgressDto? Assignment,
     ReportMediaGroupDto Media,
-    /// <summary>All report images (citizen submit, before/progress/after, inspection, reopen evidence).</summary>
-    IReadOnlyList<MediaItemDto> Images,
     IReadOnlyList<StatusHistoryItemDto> StatusHistory);
+
+/// <summary>Company dispatched by LEO when report is handled by a company team.</summary>
+public sealed record AssignedCompanyDto(
+    Guid CompanyId,
+    string CompanyName,
+    DateTime? DispatchedAt);
 
 /// <summary>SLA countdown — HoursRemaining is negative when breached.</summary>
 public sealed record SlaInfoDto(
@@ -31,22 +35,17 @@ public sealed record SlaInfoDto(
     bool IsBreached,
     string SeverityLabel);
 
-/// <summary>Aggregated team stats across all assignments on this report.</summary>
-public sealed record ProgressSummaryDto(
-    int TotalTeams,
-    int AcceptedTeams,
-    int CompletedTeams,
-    int DeclinedTeams,
-    int PendingTeams,
-    int OverallProgressPercent,
-    DateTime? StartedAt);
-
-/// <summary>Per-team assignment detail for LEO to monitor each team's work.</summary>
+/// <summary>The single team assignment on this report.</summary>
 public sealed record AssignmentProgressDto(
     Guid AssignmentId,
     Guid TeamId,
     string TeamName,
     string TeamType,
+    bool IsCompanyTeam,
+    Guid? CompanyId,
+    string? CompanyName,
+    Guid? LocalOfficeId,
+    string? LocalOfficeName,
     string? TeamLeaderName,
     Guid AssignedById,
     string AssignedByName,
@@ -58,7 +57,18 @@ public sealed record AssignmentProgressDto(
     int ProgressPercent,
     string? ProgressNote,
     DateTime? ProgressUpdatedAt,
+    IReadOnlyList<AssignmentTeamMemberDto> Members,
     IReadOnlyList<ProgressUpdateItemDto> ProgressUpdates);
+
+/// <summary>Member of the assigned team (community or company).</summary>
+public sealed record AssignmentTeamMemberDto(
+    Guid UserId,
+    string? FullName,
+    string? Email,
+    string? PhoneNumber,
+    string? AvatarUrl,
+    bool IsLeader,
+    DateTime JoinedAt);
 
 /// <summary>One progress update snapshot (percent, note, images) from a team leader.</summary>
 public sealed record ProgressUpdateItemDto(
@@ -70,11 +80,10 @@ public sealed record ProgressUpdateItemDto(
     string? UpdatedByName,
     IReadOnlyList<MediaItemDto> Images);
 
-/// <summary>Report media grouped by phase.</summary>
+/// <summary>Report media grouped by phase (progress images live under assignment.progressUpdates).</summary>
 public sealed record ReportMediaGroupDto(
     IReadOnlyList<MediaItemDto> SubmissionImages,
     IReadOnlyList<MediaItemDto> BeforeImages,
-    IReadOnlyList<MediaItemDto> ProgressImages,
     IReadOnlyList<MediaItemDto> AfterImages,
     IReadOnlyList<MediaItemDto> InspectionImages,
     IReadOnlyList<MediaItemDto> ReopenEvidenceImages);

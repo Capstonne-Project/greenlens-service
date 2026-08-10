@@ -39,8 +39,6 @@ internal static class GamificationSeeder
             "Gửi báo cáo 7 ngày liên tiếp", $"{R2PublicBase}/badges/icons/streak_7d.png", null, null, RequiredStreakDays: 7),
         new("streak_30d", "Kiên Trì 30 Ngày", "30-Day Streak",
             "Gửi báo cáo 30 ngày liên tiếp", $"{R2PublicBase}/badges/icons/streak_30d.png", null, null, RequiredStreakDays: 30),
-        new("hotspot_hunter", "Thợ Săn Điểm Nóng", "Hotspot Hunter",
-            "Gửi 3 báo cáo trong khu vực hotspot ô nhiễm", $"{R2PublicBase}/badges/icons/hotspot_hunter.png", null, null),
         new("duplicate_finder", "Người Phát Hiện Trùng", "Duplicate Finder",
             "5 báo cáo được xác nhận là trùng lặp, hỗ trợ phát hiện ô nhiễm", $"{R2PublicBase}/badges/icons/duplicate_finder.png", null, null),
         new("community_voice", "Tiếng Nói Cộng Đồng", "Community Voice",

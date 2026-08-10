@@ -12,4 +12,12 @@ internal sealed class NoOpAuditLogger : IAuditLogger
         string? oldValues,
         string? newValues,
         CancellationToken ct = default) => Task.CompletedTask;
+
+    public Task EnqueueAsync(
+        string action,
+        string entityType,
+        string? entityId,
+        string? oldValues,
+        string? newValues,
+        CancellationToken ct = default) => Task.CompletedTask;
 }

@@ -47,6 +47,7 @@ internal static class IntegrationTestServiceRegistration
         services.AddScoped<IViolatingEntityRepository, ViolatingEntityRepository>();
         services.AddScoped<IStaffInvitationRepository, StaffInvitationRepository>();
         services.AddScoped<ITeamMemberRepository, TeamMemberRepository>();
+        services.AddScoped<INotificationRepository, NotificationRepository>();
         services.AddScoped<IOtpRepository, OtpRepository>();
         services.AddScoped<IPasswordHasher, BcryptPasswordHasher>();
         services.AddScoped<ILocalOfficeRepository, LocalOfficeRepository>();

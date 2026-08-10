@@ -344,8 +344,9 @@ public sealed class ReportsController(
     [Tags("🏢 Company Dashboard")]
     [SwaggerOperation(
         Summary = "[CompanyManager] Chi tiết tiến độ xử lý báo cáo",
-        Description = "Xem chi tiết 1 báo cáo: thông tin báo cáo, danh sách team được phân công (kèm thành viên, team leader), " +
-            "tiến độ từng team (%), timeline chuyển trạng thái, ảnh/video, và waste tags.")]
+        Description = "Xem chi tiết 1 báo cáo đã dispatch cho công ty: thông tin báo cáo, team được giao (assignment) " +
+            "kèm thành viên, lịch sử cập nhật tiến độ (assignment.progressUpdates), timeline trạng thái, " +
+            "ảnh before/after (media), và waste tags.")]
     [SwaggerResponse(200, "Chi tiết tiến độ báo cáo", typeof(ApiResponse<CompanyReportDetailResponse>))]
     [SwaggerResponse(404, "Báo cáo không tồn tại hoặc không thuộc công ty của bạn", typeof(ApiResponse))]
     public async Task<IActionResult> GetCompanyReportDetailAsync(
@@ -377,11 +378,9 @@ public sealed class ReportsController(
     [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(
         Summary = "[LEO] Tiến trình xử lý báo cáo",
-        Description = "Trả về toàn bộ thông tin tiến trình của một báo cáo đang InProgress trong phạm vi office LEO đăng nhập: " +
-            "trạng thái từng team, người gán team (assignedById/assignedByName), % hoàn thành, lịch sử cập nhật tiến độ (assignments[].progressUpdates), ảnh tiến trình/nghiệm thu, SLA còn lại, và lịch sử status. " +
-            "overallProgressPercent là trung bình của các assignment đang active (Completed = 100%). " +
-            "sla.hoursRemaining âm = đã breach. " +
-            "images = tất cả ảnh của báo cáo (flat). media.*Images = nhóm theo phase (submission/before/progress/after/inspection/reopenEvidence).")]
+        Description = "Trả về tiến trình báo cáo trong phạm vi office LEO: team được giao (assignment), thành viên team, " +
+            "công ty dispatch (assignedCompany nếu có), lịch sử cập nhật tiến độ (assignment.progressUpdates), " +
+            "ảnh theo phase (media.*), SLA, và lịch sử status.")]
     [SwaggerResponse(200, "Tiến trình báo cáo", typeof(ApiResponse<ReportProgressResponse>))]
     [SwaggerResponse(404, "Không tìm thấy báo cáo", typeof(ApiResponse))]
     public async Task<IActionResult> GetProgressAsync([FromRoute] Guid id, CancellationToken ct)
