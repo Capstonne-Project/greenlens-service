@@ -89,6 +89,13 @@ public sealed class RecordPaymentCommandHandler(
             return result;
         }
 
+        // `inspection` được load qua GetByIdAsync (DbSet.FindAsync) không Include(Payments).
+        // PenaltyPayment.Id được sinh sẵn (client-side Guid) nên nếu chỉ dựa vào navigation
+        // fixup từ `inspection.Payments.Add(...)`, EF Core coi entity có key non-default là
+        // "đã tồn tại" → track Modified → UPDATE 0 rows → DbUpdateConcurrencyException giả.
+        // Add tường minh vào DbSet<PenaltyPayment> để EF track đúng là Added (INSERT).
+        inspections.AddPayment(payment);
+
         // LEO ghi nhận nộp đủ và đóng hồ sơ cùng một hành động — không chờ Inspector đóng riêng.
         var closeResult = inspection.Close("Đóng hồ sơ sau khi LEO ghi nhận nộp phạt đủ.");
         if (closeResult.IsFailure)

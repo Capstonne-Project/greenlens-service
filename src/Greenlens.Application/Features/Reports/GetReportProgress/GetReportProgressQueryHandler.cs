@@ -16,7 +16,7 @@ namespace Greenlens.Application.Features.Reports.GetReportProgress;
 /// Includes per-team assignment status, progress images, after images, and status history.
 /// </summary>
 /// <remarks>
-/// Implements: BR-OFF-020 (SLA countdown), BR-OFF-011 (multi-team tracking).
+/// Implements: BR-OFF-020 (SLA countdown), BR-OFF-011 (single-team assignment tracking).
 /// Scope: LEO → assigned office; Admin → all.
 /// </remarks>
 public sealed class GetReportProgressQueryHandler(
@@ -48,6 +48,7 @@ public sealed class GetReportProgressQueryHandler(
 
         var report = await reports.QueryAsNoTracking()
             .Include(x => x.Category)
+            .Include(x => x.AssignedCompany)
             .Include(x => x.Media)
             .Include(x => x.Assignments)
                 .ThenInclude(a => a.AssignedByUser)
@@ -61,6 +62,12 @@ public sealed class GetReportProgressQueryHandler(
                 .ThenInclude(a => a.Team)
                     .ThenInclude(t => t!.Members)
                         .ThenInclude(m => m.User)
+            .Include(x => x.Assignments)
+                .ThenInclude(a => a.Team)
+                    .ThenInclude(t => t!.Company)
+            .Include(x => x.Assignments)
+                .ThenInclude(a => a.Team)
+                    .ThenInclude(t => t!.LocalOffice)
             .Include(x => x.StatusHistory)
                 .ThenInclude(sh => sh.ChangedByUser)
             .FirstOrDefaultAsync(x => x.Id == request.ReportId, ct)
@@ -93,58 +100,24 @@ public sealed class GetReportProgressQueryHandler(
             hoursRemaining.HasValue && hoursRemaining.Value < 0,
             SlaLabels.GetValueOrDefault(report.Severity, report.Severity.ToString()));
         
-        // ── Per-team assignments ───────────────────────────────────
-        var assignmentDtos = report.Assignments
-            .OrderBy(a => a.AssignedAt)
-            .Select(a =>
-            {
-                var leader = a.Team?.Members.FirstOrDefault(m => m.IsLeader);
-                var progressUpdates = MapProgressUpdates(a);
-                return new AssignmentProgressDto(
-                    a.Id,
-                    a.TeamId,
-                    a.Team?.Name ?? string.Empty,
-                    a.Team?.TeamType.ToString() ?? string.Empty,
-                    leader?.User?.FullName,
-                    a.AssignedById,
-                    a.AssignedByUser?.FullName ?? "Unknown",
-                    a.Status.ToString(),
-                    a.AssignedAt,
-                    a.StartedAt,
-                    a.CompletedAt,
-                    a.DeclineReason,
-                    a.ProgressPercent,
-                    a.ProgressNote,
-                    a.ProgressUpdatedAt,
-                    progressUpdates);
-            })
-            .ToList();
+        // ── Single team assignment ─────────────────────────────────
+        var currentAssignment = ResolveCurrentAssignment(report.Assignments);
+        AssignmentProgressDto? assignment = currentAssignment is null
+            ? null
+            : MapAssignment(currentAssignment);
 
-        // ── Aggregate summary ──────────────────────────────────────
-        var allAssignments = report.Assignments.ToList();
-        var activeAssignments = allAssignments
-            .Where(a => a.Status != AssignmentStatus.Declined)
-            .ToList();
-
-        // Completed = 100%, others use their ProgressPercent
-        int overallPercent = activeAssignments.Count > 0
-            ? (int)activeAssignments.Average(a =>
-                a.Status == AssignmentStatus.Completed ? 100 : a.ProgressPercent)
-            : 0;
-
-        var summary = new ProgressSummaryDto(
-            TotalTeams:              allAssignments.Count,
-            AcceptedTeams:           allAssignments.Count(a => a.Status == AssignmentStatus.InProgress),
-            CompletedTeams:          allAssignments.Count(a => a.Status == AssignmentStatus.Completed),
-            DeclinedTeams:           allAssignments.Count(a => a.Status == AssignmentStatus.Declined),
-            PendingTeams:            allAssignments.Count(a => a.Status == AssignmentStatus.Assigned),
-            OverallProgressPercent:  overallPercent,
-            StartedAt:               report.StartedAt);
+        AssignedCompanyDto? assignedCompany = null;
+        if (report.AssignedCompanyId.HasValue && report.AssignedCompany is not null)
+        {
+            assignedCompany = new AssignedCompanyDto(
+                report.AssignedCompanyId.Value,
+                report.AssignedCompany.Name,
+                report.DispatchedToCompanyAt);
+        }
 
         // ── Media grouped by phase ─────────────────────────────────
         var submissionImages = MapMedia(report.Media, MediaType.Image, MediaType.Video);
         var beforeImages = MapMedia(report.Media, MediaType.Before);
-        var progressImages = MapMedia(report.Media, MediaType.Progress);
         var afterImages = MapMedia(report.Media, MediaType.After);
         var inspectionImages = MapMedia(report.Media, MediaType.Inspection);
         var reopenEvidenceImages = MapMedia(report.Media, MediaType.ReopenEvidence);
@@ -152,16 +125,9 @@ public sealed class GetReportProgressQueryHandler(
         var media = new ReportMediaGroupDto(
             submissionImages,
             beforeImages,
-            progressImages,
             afterImages,
             inspectionImages,
             reopenEvidenceImages);
-
-        var allImages = report.Media
-            .Where(m => m.Type != MediaType.Video)
-            .OrderBy(m => m.UploadedAt)
-            .Select(MapMediaItem)
-            .ToList();
 
         // ── Status history (newest first) ─────────────────────────
         var history = report.StatusHistory
@@ -186,12 +152,62 @@ public sealed class GetReportProgressQueryHandler(
             report.WardCode,
             report.Description,
             sla,
-            summary,
-            assignmentDtos,
+            assignedCompany,
+            assignment,
             media,
-            allImages,
             history);
     }
+
+    private static ReportAssignment? ResolveCurrentAssignment(IEnumerable<ReportAssignment> assignments) =>
+        assignments
+            .OrderByDescending(a => a.AssignedAt)
+            .FirstOrDefault(a => a.Status != AssignmentStatus.Declined)
+        ?? assignments.OrderByDescending(a => a.AssignedAt).FirstOrDefault();
+
+    private static AssignmentProgressDto MapAssignment(ReportAssignment a)
+    {
+        var team = a.Team;
+        var leader = team?.Members.FirstOrDefault(m => m.IsLeader);
+        var members = MapTeamMembers(team);
+
+        return new AssignmentProgressDto(
+            a.Id,
+            a.TeamId,
+            team?.Name ?? string.Empty,
+            team?.TeamType.ToString() ?? string.Empty,
+            team?.IsCompanyTeam ?? false,
+            team?.CompanyId,
+            team?.Company?.Name,
+            team?.LocalOfficeId,
+            team?.LocalOffice?.Name,
+            leader?.User?.FullName,
+            a.AssignedById,
+            a.AssignedByUser?.FullName ?? "Unknown",
+            a.Status.ToString(),
+            a.AssignedAt,
+            a.StartedAt,
+            a.CompletedAt,
+            a.DeclineReason,
+            a.ProgressPercent,
+            a.ProgressNote,
+            a.ProgressUpdatedAt,
+            members,
+            MapProgressUpdates(a));
+    }
+
+    private static List<AssignmentTeamMemberDto> MapTeamMembers(EnvironmentalTeam? team) =>
+        team?.Members
+            .OrderByDescending(m => m.IsLeader)
+            .ThenBy(m => m.JoinedAt)
+            .Select(m => new AssignmentTeamMemberDto(
+                m.UserId,
+                m.User?.FullName,
+                m.User?.Email,
+                m.User?.PhoneNumber,
+                m.User?.AvatarUrl,
+                m.IsLeader,
+                m.JoinedAt))
+            .ToList() ?? [];
 
     private static List<ProgressUpdateItemDto> MapProgressUpdates(ReportAssignment assignment)
     {
@@ -214,7 +230,7 @@ public sealed class GetReportProgressQueryHandler(
                 .ToList();
         }
 
-        // Legacy: only latest snapshot on assignment (percent/note); images stay in media.progressImages.
+        // Legacy: only latest snapshot on assignment (percent/note); images in progressUpdates when present.
         if (assignment.ProgressUpdatedAt is null && assignment.ProgressPercent == 0)
             return [];
 

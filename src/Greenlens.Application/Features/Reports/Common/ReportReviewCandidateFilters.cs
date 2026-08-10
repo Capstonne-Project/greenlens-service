@@ -98,6 +98,44 @@ internal static class ReportReviewCandidateFilters
         return null;
     }
 
+    /// <summary>
+    /// Validates access to a duplicate-candidate report for the detail view: allowed if the
+    /// candidate itself OR its primary report belongs to the officer's office/department
+    /// (mirrors <see cref="ApplyDuplicateReviewScope"/> used by the list endpoints, BR-REP-031, BR-ORG-012).
+    /// </summary>
+    public static Error? ValidateDuplicateCandidateAccess(
+        Report candidate, Report primary, User user, string role)
+    {
+        if (role == UserRole.Admin.ToString())
+            return null;
+
+        if (role == UserRole.LEO.ToString())
+        {
+            if (!user.LocalOfficeId.HasValue)
+                return Errors.Organization.OfficerNoOffice;
+
+            if (candidate.AssignedOfficeId != user.LocalOfficeId
+                && primary.AssignedOfficeId != user.LocalOfficeId)
+                return Errors.Reports.OutsideJurisdiction;
+
+            return null;
+        }
+
+        if (role == UserRole.DEO.ToString())
+        {
+            if (!user.DepartmentId.HasValue)
+                return Errors.Reports.OutsideJurisdiction;
+
+            if (candidate.AssignedDepartmentId != user.DepartmentId
+                && primary.AssignedDepartmentId != user.DepartmentId)
+                return Errors.Reports.OutsideJurisdiction;
+
+            return null;
+        }
+
+        return Errors.Reports.OutsideJurisdiction;
+    }
+
     /// <summary>LEO-only scope for progress endpoints (Admin bypasses).</summary>
     public static Error? ValidateLeoReportAccess(Report report, User user, string role)
     {
