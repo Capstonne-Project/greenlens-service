@@ -40,4 +40,6 @@ internal sealed class InspectionReportRepository(ApplicationDbContext context)
             .IgnoreQueryFilters()
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == paymentId, ct);
+
+    public void AddPayment(PenaltyPayment payment) => Context.Set<PenaltyPayment>().Add(payment);
 }
