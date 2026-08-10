@@ -153,21 +153,21 @@
 | Category | Condition / Confirmation Item | UTC01 | UTC02 | UTC03 | UTC04 | UTC05 | UTC06 | UTC07 | UTC08 | UTC09 | UTC10 |
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Database connection active & OTP repository ready | O | O | O | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Request payload supplied (Email, Password, FullName) | O | O | O | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Email format matches RFC 5322 regex | O | O |   | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Email unique (not existing in ASP.NET Core Identity DB) | O | O | O |   | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Password strength valid (>= 8 chars, mixed case, digit, special char) | O | O | O | O |   |   | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;FullName supplied (length >= 2 and <= 100 chars) | O | O | O | O | O | O |   | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Email OTP sender service available (SMTP/SendGrid) | O | O | O | O | O | O | O |   | O | O |
+| | Database connection active & OTP repository ready | O | O | O | O | O | O | O | O | O | O |
+| | Request payload supplied (Email, Password, FullName) | O | O | O | O | O | O | O | O | O | O |
+| | Email format matches RFC 5322 regex | O | O |   | O | O | O | O | O | O | O |
+| | Email unique (not existing in ASP.NET Core Identity DB) | O | O | O |   | O | O | O | O | O | O |
+| | Password strength valid (>= 8 chars, mixed case, digit, special char) | O | O | O | O |   |   | O | O | O | O |
+| | FullName supplied (length >= 2 and <= 100 chars) | O | O | O | O | O | O |   | O | O | O |
+| | Email OTP sender service available (SMTP/SendGrid) | O | O | O | O | O | O | O |   | O | O |
 | **Confirm** | Expected outcome | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Success | O | | | | | O | | | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Controlled failure | | O | O | O | O | | O | O | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Not found | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Quota / limit | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Rollback / no side effect | | O | O | O | O | | O | O | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;State updated | O | | | | | O | | | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Exception / fallback | | O | | | | | | O | | |
+| | Success | O | | | | | O | | | O | O |
+| | Controlled failure | | O | O | O | O | | O | O | | |
+| | Not found | | | | | | | | | | |
+| | Quota / limit | | | | | | | | | | |
+| | Rollback / no side effect | | O | O | O | O | | O | O | | |
+| | State updated | O | | | | | O | | | O | O |
+| | Exception / fallback | | O | | | | | | O | | |
 | **Result** | Type (N: Normal, A: Abnormal, B: Boundary) | N | A | A | A | A | B | A | A | N | B |
 | | Passed / Failed | P | P | P | P | P | P | P | P | P | P |
 | | Executed Date | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 |
@@ -189,20 +189,20 @@
 | Category | Condition / Confirmation Item | UTC01 | UTC02 | UTC03 | UTC04 | UTC05 | UTC06 | UTC07 | UTC08 | UTC09 | UTC10 | UTC11 |
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;User account exists in ASP.NET Core Identity DB | O | O |   | O | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Email parameter supplied & valid format | O | O | O |   | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Password matches stored bcrypt hash | O |   | O | O |   |   |   |   |   | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Account not locked (LockoutEnd is null or expired) | O | O | O | O | O |   | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Account not banned by Admin (IsBanned == false) | O | O | O | O | O | O |   | O | O | O | O |
+| | User account exists in ASP.NET Core Identity DB | O | O |   | O | O | O | O | O | O | O | O |
+| | Email parameter supplied & valid format | O | O | O |   | O | O | O | O | O | O | O |
+| | Password matches stored bcrypt hash | O |   | O | O |   |   |   |   |   | O | O |
+| | Account not locked (LockoutEnd is null or expired) | O | O | O | O | O |   | O | O | O | O | O |
+| | Account not banned by Admin (IsBanned == false) | O | O | O | O | O | O |   | O | O | O | O |
 | | &nbsp;&nbsp;&nbsp;&nbsp;Failed attempt count within limit (< 5) | O | O | O | O | O |   | O | O | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Success | O | | | | | | | | | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Controlled failure | | O | O | O | O | O | O | O | O | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Not found | | | O | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Quota / limit | | | | | | O | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Rollback / no side effect | | O | O | O | O | O | O | O | O | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;State updated | O | O | | | O | O | | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Exception / fallback | | | | | | | | | | | |
+| | Success | O | | | | | | | | | O | O |
+| | Controlled failure | | O | O | O | O | O | O | O | O | | |
+| | Not found | | | O | | | | | | | | |
+| | Quota / limit | | | | | | O | | | | | |
+| | Rollback / no side effect | | O | O | O | O | O | O | O | O | | |
+| | State updated | O | O | | | O | O | | O | O | O | O |
+| | Exception / fallback | | | | | | | | | | | |
 | **Result** | Type (N: Normal, A: Abnormal, B: Boundary) | N | A | A | A | B | B | A | A | A | N | A |
 | | Passed / Failed | P | P | P | P | P | P | P | P | P | P | P |
 | | Executed Date | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 |
@@ -224,19 +224,19 @@
 | Category | Condition / Confirmation Item | UTC01 | UTC02 | UTC03 | UTC04 | UTC05 | UTC06 | UTC07 | UTC08 |
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;User account registered & IsEmailVerified == false | O | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Email OTP record exists in DB for target email | O |   | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Submitted 6-digit OTP code matches stored hash | O | O |   | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;OTP code within valid 15-minute expiration window | O | O | O |   | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;OTP code has not been previously used | O | O | O | O |   | O | O | O |
+| | User account registered & IsEmailVerified == false | O | O | O | O | O | O | O | O |
+| | Email OTP record exists in DB for target email | O |   | O | O | O | O | O | O |
+| | Submitted 6-digit OTP code matches stored hash | O | O |   | O | O | O | O | O |
+| | OTP code within valid 15-minute expiration window | O | O | O |   | O | O | O | O |
+| | OTP code has not been previously used | O | O | O | O |   | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Success | O | | | | | | | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Controlled failure | | O | O | O | O | O | O | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Not found | | O | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Quota / limit | | | | O | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Rollback / no side effect | | O | O | O | O | O | O | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;State updated | O | | | | | | | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Exception / fallback | | | | | | | | |
+| | Success | O | | | | | | | O |
+| | Controlled failure | | O | O | O | O | O | O | |
+| | Not found | | O | | | | | | |
+| | Quota / limit | | | | O | | | | |
+| | Rollback / no side effect | | O | O | O | O | O | O | |
+| | State updated | O | | | | | | | O |
+| | Exception / fallback | | | | | | | | |
 | **Result** | Type (N: Normal, A: Abnormal, B: Boundary) | N | A | A | B | A | A | A | N |
 | | Passed / Failed | P | P | P | P | P | P | P | P |
 | | Executed Date | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 |
@@ -258,21 +258,21 @@
 | Category | Condition / Confirmation Item | UTC01 | UTC02 | UTC03 | UTC04 | UTC05 | UTC06 | UTC07 | UTC08 | UTC09 | UTC10 | UTC11 | UTC12 |
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;User authenticated with active session with Citizen role | O | O | O | O | O | O | O | O |   | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Photo URLs supplied (1 to 5 images from system R2 domain) | O |   | O | O | O | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Pollution category ID exists in active catalog | O | O |   | O | O | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;GPS Latitude within Vietnam bounds (8.0 to 24.0 N) | O | O | O |   | O | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;GPS Longitude within Vietnam bounds (102.0 to 110.0 E) | O | O | O | O |   | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Submission rate limit within quota (<= 5/hour, <= 20/24hours) | O | O | O | O | O |   | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Report description text supplied (length >= 10 chars) | O | O | O | O | O | O |   | O | O | O | O | O |
+| | User authenticated with active session with Citizen role | O | O | O | O | O | O | O | O |   | O | O | O |
+| | Photo URLs supplied (1 to 5 images from system R2 domain) | O |   | O | O | O | O | O | O | O | O | O | O |
+| | Pollution category ID exists in active catalog | O | O |   | O | O | O | O | O | O | O | O | O |
+| | GPS Latitude within Vietnam bounds (8.0 to 24.0 N) | O | O | O |   | O | O | O | O | O | O | O | O |
+| | GPS Longitude within Vietnam bounds (102.0 to 110.0 E) | O | O | O | O |   | O | O | O | O | O | O | O |
+| | Submission rate limit within quota (<= 5/hour, <= 20/24hours) | O | O | O | O | O |   | O | O | O | O | O | O |
+| | Report description text supplied (length >= 10 chars) | O | O | O | O | O | O |   | O | O | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Success | O | | | | | | | | | O | O | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Controlled failure | | O | O | O | O | O | O | O | O | | | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Not found | | | O | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Quota / limit | | | | | | O | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Rollback / no side effect | | O | O | O | O | O | O | O | O | | | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;State updated | O | | | | | | | | | O | O | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Exception / fallback | | | | | | | | | | | | O |
+| | Success | O | | | | | | | | | O | O | |
+| | Controlled failure | | O | O | O | O | O | O | O | O | | | O |
+| | Not found | | | O | | | | | | | | | |
+| | Quota / limit | | | | | | O | | | | | | |
+| | Rollback / no side effect | | O | O | O | O | O | O | O | O | | | O |
+| | State updated | O | | | | | | | | | O | O | |
+| | Exception / fallback | | | | | | | | | | | | O |
 | **Result** | Type (N: Normal, A: Abnormal, B: Boundary) | N | A | A | B | B | A | A | A | A | N | N | A |
 | | Passed / Failed | P | P | P | P | P | P | P | P | P | P | P | P |
 | | Executed Date | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 |
@@ -294,18 +294,18 @@
 | Category | Condition / Confirmation Item | UTC01 | UTC02 | UTC03 | UTC04 | UTC05 | UTC06 | UTC07 | UTC08 | UTC09 | UTC10 |
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;User authenticated with active session with Officer or Admin role | O | O |   | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Report exists in DB & current Status == Submitted | O |   | O | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Severity level specified (Low, Medium, High, Critical) | O | O | O |   | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;SLA target resolution date calculated based on severity | O | O | O | O | O | O | O | O | O | O |
+| | User authenticated with active session with Officer or Admin role | O | O |   | O | O | O | O | O | O | O |
+| | Report exists in DB & current Status == Submitted | O |   | O | O | O | O | O | O | O | O |
+| | Severity level specified (Low, Medium, High, Critical) | O | O | O |   | O | O | O | O | O | O |
+| | SLA target resolution date calculated based on severity | O | O | O | O | O | O | O | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Success | O | | | | | O | | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Controlled failure | | O | O | O | O | | O | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Not found | | O | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Quota / limit | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Rollback / no side effect | | O | O | O | O | | O | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;State updated | O | | | | | O | | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Exception / fallback | | | | | | | | | | |
+| | Success | O | | | | | O | | O | O | O |
+| | Controlled failure | | O | O | O | O | | O | | | |
+| | Not found | | O | | | | | | | | |
+| | Quota / limit | | | | | | | | | | |
+| | Rollback / no side effect | | O | O | O | O | | O | | | |
+| | State updated | O | | | | | O | | O | O | O |
+| | Exception / fallback | | | | | | | | | | |
 | **Result** | Type (N: Normal, A: Abnormal, B: Boundary) | N | A | A | A | A | B | A | B | N | N |
 | | Passed / Failed | P | P | P | P | P | P | P | P | P | P |
 | | Executed Date | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 |
@@ -327,17 +327,17 @@
 | Category | Condition / Confirmation Item | UTC01 | UTC02 | UTC03 | UTC04 | UTC05 | UTC06 | UTC07 | UTC08 |
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;User authenticated with active session with Officer or Admin role | O | O |   | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Report exists in DB & current Status == Submitted | O |   | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Rejection explanation reason supplied (length >= 20 chars) | O | O | O |   |   | O | O | O |
+| | User authenticated with active session with Officer or Admin role | O | O |   | O | O | O | O | O |
+| | Report exists in DB & current Status == Submitted | O |   | O | O | O | O | O | O |
+| | Rejection explanation reason supplied (length >= 20 chars) | O | O | O |   |   | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Success | O | | | | | | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Controlled failure | | O | O | O | O | O | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Not found | | O | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Quota / limit | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Rollback / no side effect | | O | O | O | O | O | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;State updated | O | | | | | | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Exception / fallback | | | | | | | | |
+| | Success | O | | | | | | O | O |
+| | Controlled failure | | O | O | O | O | O | | |
+| | Not found | | O | | | | | | |
+| | Quota / limit | | | | | | | | |
+| | Rollback / no side effect | | O | O | O | O | O | | |
+| | State updated | O | | | | | | O | O |
+| | Exception / fallback | | | | | | | | |
 | **Result** | Type (N: Normal, A: Abnormal, B: Boundary) | N | A | A | B | A | A | B | N |
 | | Passed / Failed | P | P | P | P | P | P | P | P |
 | | Executed Date | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 |
@@ -359,17 +359,17 @@
 | Category | Condition / Confirmation Item | UTC01 | UTC02 | UTC03 | UTC04 | UTC05 | UTC06 | UTC07 | UTC08 | UTC09 |
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Target report & Original report exist in DB | O |   | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;PostGIS spatial distance between reports <= 50m (ST_DWithin) | O | O |   | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Same pollution category ID & created within 24-hour window | O | O | O |   | O | O | O | O | O |
+| | Target report & Original report exist in DB | O |   | O | O | O | O | O | O | O |
+| | PostGIS spatial distance between reports <= 50m (ST_DWithin) | O | O |   | O | O | O | O | O | O |
+| | Same pollution category ID & created within 24-hour window | O | O | O |   | O | O | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Success | O | | | | | | | | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Controlled failure | | O | O | O | O | O | O | O | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Not found | | O | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Quota / limit | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Rollback / no side effect | | O | O | O | O | O | O | O | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;State updated | O | | | | | | | | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Exception / fallback | | | | | | | | | |
+| | Success | O | | | | | | | | O |
+| | Controlled failure | | O | O | O | O | O | O | O | |
+| | Not found | | O | | | | | | | |
+| | Quota / limit | | | | | | | | | |
+| | Rollback / no side effect | | O | O | O | O | O | O | O | |
+| | State updated | O | | | | | | | | O |
+| | Exception / fallback | | | | | | | | | |
 | **Result** | Type (N: Normal, A: Abnormal, B: Boundary) | N | A | B | B | A | A | A | A | N |
 | | Passed / Failed | P | P | P | P | P | P | P | P | P |
 | | Executed Date | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 |
@@ -391,17 +391,17 @@
 | Category | Condition / Confirmation Item | UTC01 | UTC02 | UTC03 | UTC04 | UTC05 | UTC06 | UTC07 | UTC08 |
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Report exists in DB & current Status == Resolved | O |   | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Caller is report author Citizen OR Hangfire AutoCloseResolvedReportJob | O | O |   | O | O | O | O | O |
+| | Report exists in DB & current Status == Resolved | O |   | O | O | O | O | O | O |
+| | Caller is report author Citizen OR Hangfire AutoCloseResolvedReportJob | O | O |   | O | O | O | O | O |
 | | &nbsp;&nbsp;&nbsp;&nbsp;Time elapsed >= 7 days auto-close threshold |   |   |   | O | O |   |   | O |
 | **Confirm** | Expected outcome | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Success | O | | | O | O | | | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Controlled failure | | O | O | | | O | O | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Not found | | O | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Quota / limit | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Rollback / no side effect | | O | O | | | O | O | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;State updated | O | | | O | O | | | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Exception / fallback | | | | | | | | |
+| | Success | O | | | O | O | | | O |
+| | Controlled failure | | O | O | | | O | O | |
+| | Not found | | O | | | | | | |
+| | Quota / limit | | | | | | | | |
+| | Rollback / no side effect | | O | O | | | O | O | |
+| | State updated | O | | | O | O | | | O |
+| | Exception / fallback | | | | | | | | |
 | **Result** | Type (N: Normal, A: Abnormal, B: Boundary) | N | A | A | B | B | A | A | N |
 | | Passed / Failed | P | P | P | P | P | P | P | P |
 | | Executed Date | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 |
@@ -423,18 +423,18 @@
 | Category | Condition / Confirmation Item | UTC01 | UTC02 | UTC03 | UTC04 | UTC05 | UTC06 | UTC07 | UTC08 | UTC09 |
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Report exists in DB & current Status == Resolved, User == Author | O |   | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Reopen count within allowed limit (ReopenCount < 2) | O | O |   | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Reopen evidence image URLs supplied (1 to 5 images) | O | O | O |   | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Reopen explanation reason supplied (length >= 15 chars) | O | O | O | O |   | O | O | O | O |
+| | Report exists in DB & current Status == Resolved, User == Author | O |   | O | O | O | O | O | O | O |
+| | Reopen count within allowed limit (ReopenCount < 2) | O | O |   | O | O | O | O | O | O |
+| | Reopen evidence image URLs supplied (1 to 5 images) | O | O | O |   | O | O | O | O | O |
+| | Reopen explanation reason supplied (length >= 15 chars) | O | O | O | O |   | O | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Success | O | | | | | | | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Controlled failure | | O | O | O | O | O | O | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Not found | | O | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Quota / limit | | | O | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Rollback / no side effect | | O | O | O | O | O | O | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;State updated | O | | | | | | | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Exception / fallback | | | | | | | | | |
+| | Success | O | | | | | | | O | O |
+| | Controlled failure | | O | O | O | O | O | O | | |
+| | Not found | | O | | | | | | | |
+| | Quota / limit | | | O | | | | | | |
+| | Rollback / no side effect | | O | O | O | O | O | O | | |
+| | State updated | O | | | | | | | O | O |
+| | Exception / fallback | | | | | | | | | |
 | **Result** | Type (N: Normal, A: Abnormal, B: Boundary) | N | A | B | A | A | A | A | B | N |
 | | Passed / Failed | P | P | P | P | P | P | P | P | P |
 | | Executed Date | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 |
@@ -456,16 +456,16 @@
 | Category | Condition / Confirmation Item | UTC01 | UTC02 | UTC03 | UTC04 | UTC05 | UTC06 | UTC07 | UTC08 |
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Assignment record exists in DB & current Status == Assigned | O |   | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Current user belongs to target assigned Cleanup Team | O | O |   | O | O | O | O | O |
+| | Assignment record exists in DB & current Status == Assigned | O |   | O | O | O | O | O | O |
+| | Current user belongs to target assigned Cleanup Team | O | O |   | O | O | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Success | O | | | | | O | | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Controlled failure | | O | O | O | O | | O | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Not found | | O | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Quota / limit | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Rollback / no side effect | | O | O | O | O | | O | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;State updated | O | | | | | O | | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Exception / fallback | | | | | | | | |
+| | Success | O | | | | | O | | O |
+| | Controlled failure | | O | O | O | O | | O | |
+| | Not found | | O | | | | | | |
+| | Quota / limit | | | | | | | | |
+| | Rollback / no side effect | | O | O | O | O | | O | |
+| | State updated | O | | | | | O | | O |
+| | Exception / fallback | | | | | | | | |
 | **Result** | Type (N: Normal, A: Abnormal, B: Boundary) | N | A | A | A | A | B | A | N |
 | | Passed / Failed | P | P | P | P | P | P | P | P |
 | | Executed Date | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 |
@@ -487,17 +487,17 @@
 | Category | Condition / Confirmation Item | UTC01 | UTC02 | UTC03 | UTC04 | UTC05 | UTC06 | UTC07 | UTC08 |
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Assignment record exists in DB & current Status == Assigned | O |   | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Current user belongs to assigned Cleanup Team | O | O |   | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Decline explanation reason supplied (length >= 15 chars) | O | O | O |   | O | O | O | O |
+| | Assignment record exists in DB & current Status == Assigned | O |   | O | O | O | O | O | O |
+| | Current user belongs to assigned Cleanup Team | O | O |   | O | O | O | O | O |
+| | Decline explanation reason supplied (length >= 15 chars) | O | O | O |   | O | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Success | O | | | | | | | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Controlled failure | | O | O | O | O | O | O | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Not found | | O | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Quota / limit | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Rollback / no side effect | | O | O | O | O | O | O | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;State updated | O | | | | | | | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Exception / fallback | | | | | | | | |
+| | Success | O | | | | | | | O |
+| | Controlled failure | | O | O | O | O | O | O | |
+| | Not found | | O | | | | | | |
+| | Quota / limit | | | | | | | | |
+| | Rollback / no side effect | | O | O | O | O | O | O | |
+| | State updated | O | | | | | | | O |
+| | Exception / fallback | | | | | | | | |
 | **Result** | Type (N: Normal, A: Abnormal, B: Boundary) | N | A | A | B | A | A | A | N |
 | | Passed / Failed | P | P | P | P | P | P | P | P |
 | | Executed Date | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 |
@@ -519,16 +519,16 @@
 | Category | Condition / Confirmation Item | UTC01 | UTC02 | UTC03 | UTC04 | UTC05 | UTC06 | UTC07 | UTC08 | UTC09 | UTC10 |
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Assignment Status == InProgress | O |   | O | O | O | O | O | O | O | O |
+| | Assignment Status == InProgress | O |   | O | O | O | O | O | O | O | O |
 | | &nbsp;&nbsp;&nbsp;&nbsp;Distance between GPS and site <= 200m | O | O |   |   | O | O | O |   |   | O |
 | **Confirm** | Expected outcome | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Success | O | O | | | O | O | O | | | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Controlled failure | | | O | O | | | | O | O | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Not found | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Quota / limit | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Rollback / no side effect | | | O | O | | | | O | O | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;State updated | O | O | | | O | O | O | | | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Exception / fallback | | | | | | | | | | |
+| | Success | O | O | | | O | O | O | | | O |
+| | Controlled failure | | | O | O | | | | O | O | |
+| | Not found | | | | | | | | | | |
+| | Quota / limit | | | | | | | | | | |
+| | Rollback / no side effect | | | O | O | | | | O | O | |
+| | State updated | O | O | | | O | O | O | | | O |
+| | Exception / fallback | | | | | | | | | | |
 | **Result** | Type (N: Normal, A: Abnormal, B: Boundary) | N | A | A | B | B | A | A | A | A | N |
 | | Passed / Failed | P | P | P | P | P | P | P | P | P | P |
 | | Executed Date | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 |
@@ -550,18 +550,18 @@
 | Category | Condition / Confirmation Item | UTC01 | UTC02 | UTC03 | UTC04 | UTC05 | UTC06 | UTC07 | UTC08 | UTC09 |
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Assignment CheckedIn == true | O |   | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;User is assigned Team Leader | O | O |   | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Image URLs belong to verified system S3/R2 domain | O | O | O |   | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Image count within range (1 to 5 photos) | O | O | O | O |   | O | O | O | O |
+| | Assignment CheckedIn == true | O |   | O | O | O | O | O | O | O |
+| | User is assigned Team Leader | O | O |   | O | O | O | O | O | O |
+| | Image URLs belong to verified system S3/R2 domain | O | O | O |   | O | O | O | O | O |
+| | Image count within range (1 to 5 photos) | O | O | O | O |   | O | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Success | O | | | | | | | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Controlled failure | | O | O | O | O | O | O | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Not found | | O | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Quota / limit | | | | | O | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Rollback / no side effect | | O | O | O | O | O | O | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;State updated | O | | | | | | | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Exception / fallback | | | | | | | | | |
+| | Success | O | | | | | | | O | O |
+| | Controlled failure | | O | O | O | O | O | O | | |
+| | Not found | | O | | | | | | | |
+| | Quota / limit | | | | | O | | | | |
+| | Rollback / no side effect | | O | O | O | O | O | O | | |
+| | State updated | O | | | | | | | O | O |
+| | Exception / fallback | | | | | | | | | |
 | **Result** | Type (N: Normal, A: Abnormal, B: Boundary) | N | A | A | A | B | A | A | B | N |
 | | Passed / Failed | P | P | P | P | P | P | P | P | P |
 | | Executed Date | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 |
@@ -583,16 +583,16 @@
 | Category | Condition / Confirmation Item | UTC01 | UTC02 | UTC03 | UTC04 | UTC05 | UTC06 | UTC07 | UTC08 | UTC09 | UTC10 | UTC11 |
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Assignment Status == InProgress | O |   | O | O | O | O | O | O | O | O | O |
+| | Assignment Status == InProgress | O |   | O | O | O | O | O | O | O | O | O |
 | | &nbsp;&nbsp;&nbsp;&nbsp;Progress percentage value in valid range (0% to 100%) | O | O |   |   | O | O | O | O | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Success | O | O | | | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Controlled failure | | | O | O | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Not found | |   | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Quota / limit | | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Rollback / no side effect | | | O | O | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;State updated | O | O | | | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Exception / fallback | | | | | | | | | | | |
+| | Success | O | O | | | O | O | O | O | O | O | O |
+| | Controlled failure | | | O | O | | | | | | | |
+| | Not found | |   | | | | | | | | | |
+| | Quota / limit | | | | | | | | | | | |
+| | Rollback / no side effect | | | O | O | | | | | | | |
+| | State updated | O | O | | | O | O | O | O | O | O | O |
+| | Exception / fallback | | | | | | | | | | | |
 | **Result** | Type (N: Normal, A: Abnormal, B: Boundary) | N | A | A | A | B | B | A | A | A | N | N |
 | | Passed / Failed | P | P | P | P | P | P | P | P | P | P | P |
 | | Executed Date | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 |
@@ -614,17 +614,17 @@
 | Category | Condition / Confirmation Item | UTC01 | UTC02 | UTC03 | UTC04 | UTC05 | UTC06 | UTC07 | UTC08 | UTC09 | UTC10 |
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Assignment CheckedIn == true | O |   | O | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;"After" photo URLs supplied (>= 1 image) | O | O |   | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;pHash Hamming distance vs "Before" photo >= threshold | O | O | O |   | O | O | O | O | O | O |
+| | Assignment CheckedIn == true | O |   | O | O | O | O | O | O | O | O |
+| | "After" photo URLs supplied (>= 1 image) | O | O |   | O | O | O | O | O | O | O |
+| | pHash Hamming distance vs "Before" photo >= threshold | O | O | O |   | O | O | O | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Success | O | | | | | O | | | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Controlled failure | | O | O | O | O | | O | O | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Not found | | O | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Quota / limit | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Rollback / no side effect | | O | O | O | O | | O | O | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;State updated | O | | | | | O | | | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Exception / fallback | | | | | | | | | | |
+| | Success | O | | | | | O | | | O | O |
+| | Controlled failure | | O | O | O | O | | O | O | | |
+| | Not found | | O | | | | | | | | |
+| | Quota / limit | | | | | | | | | | |
+| | Rollback / no side effect | | O | O | O | O | | O | O | | |
+| | State updated | O | | | | | O | | | O | O |
+| | Exception / fallback | | | | | | | | | | |
 | **Result** | Type (N: Normal, A: Abnormal, B: Boundary) | N | A | A | A | A | B | A | A | B | N |
 | | Passed / Failed | P | P | P | P | P | P | P | P | P | P |
 | | Executed Date | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 |
@@ -646,16 +646,16 @@
 | Category | Condition / Confirmation Item | UTC01 | UTC02 | UTC03 | UTC04 | UTC05 | UTC06 | UTC07 | UTC08 | UTC09 |
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Assignment Status == InProgress | O |   | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Escalation explanation reason length >= 20 chars | O | O |   | O | O | O | O | O | O |
+| | Assignment Status == InProgress | O |   | O | O | O | O | O | O | O |
+| | Escalation explanation reason length >= 20 chars | O | O |   | O | O | O | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Success | O | | | | | | | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Controlled failure | | O | O | O | O | O | O | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Not found | | O | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Quota / limit | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Rollback / no side effect | | O | O | O | O | O | O | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;State updated | O | | | | | | | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Exception / fallback | | | | | | | | | |
+| | Success | O | | | | | | | O | O |
+| | Controlled failure | | O | O | O | O | O | O | | |
+| | Not found | | O | | | | | | | |
+| | Quota / limit | | | | | | | | | |
+| | Rollback / no side effect | | O | O | O | O | O | O | | |
+| | State updated | O | | | | | | | O | O |
+| | Exception / fallback | | | | | | | | | |
 | **Result** | Type (N: Normal, A: Abnormal, B: Boundary) | N | A | B | A | A | A | A | B | N |
 | | Passed / Failed | P | P | P | P | P | P | P | P | P |
 | | Executed Date | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 |
@@ -677,18 +677,18 @@
 | Category | Condition / Confirmation Item | UTC01 | UTC02 | UTC03 | UTC04 | UTC05 | UTC06 | UTC07 | UTC08 | UTC09 | UTC10 | UTC11 |
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Report Status == Verified & User has LEO role | O |   | O | O | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;No active community cleanup campaign currently exists for report | O | O |   | O | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Designated Campaign Leader has active Cleaner role | O | O | O |   | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;MaxParticipants capacity specified (> 0, e.g. 50 volunteers) | O | O | O | O |   | O | O | O | O | O | O |
+| | Report Status == Verified & User has LEO role | O |   | O | O | O | O | O | O | O | O | O |
+| | No active community cleanup campaign currently exists for report | O | O |   | O | O | O | O | O | O | O | O |
+| | Designated Campaign Leader has active Cleaner role | O | O | O |   | O | O | O | O | O | O | O |
+| | MaxParticipants capacity specified (> 0, e.g. 50 volunteers) | O | O | O | O |   | O | O | O | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Success | O | | | | | | | | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Controlled failure | | O | O | O | O | O | O | O | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Not found | | O | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Quota / limit | | | O | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Rollback / no side effect | | O | O | O | O | O | O | O | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;State updated | O | | | | | | | | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Exception / fallback | | | | | | | | | | | |
+| | Success | O | | | | | | | | O | O | O |
+| | Controlled failure | | O | O | O | O | O | O | O | | | |
+| | Not found | | O | | | | | | | | | |
+| | Quota / limit | | | O | | | | | | | | |
+| | Rollback / no side effect | | O | O | O | O | O | O | O | | | |
+| | State updated | O | | | | | | | | O | O | O |
+| | Exception / fallback | | | | | | | | | | | |
 | **Result** | Type (N: Normal, A: Abnormal, B: Boundary) | N | A | A | A | B | A | A | A | B | N | N |
 | | Passed / Failed | P | P | P | P | P | P | P | P | P | P | P |
 | | Executed Date | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 |
@@ -710,17 +710,17 @@
 | Category | Condition / Confirmation Item | UTC01 | UTC02 | UTC03 | UTC04 | UTC05 | UTC06 | UTC07 | UTC08 | UTC09 | UTC10 |
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Community Cleanup Campaign Status == OpenForJoin | O |   | O | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Registered participant count < MaxParticipants quota | O | O |   | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Citizen user not already registered for this campaign | O | O | O |   | O | O | O | O | O | O |
+| | Community Cleanup Campaign Status == OpenForJoin | O |   | O | O | O | O | O | O | O | O |
+| | Registered participant count < MaxParticipants quota | O | O |   | O | O | O | O | O | O | O |
+| | Citizen user not already registered for this campaign | O | O | O |   | O | O | O | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Success | O | | | | | | | | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Controlled failure | | O | O | O | O | O | O | O | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Not found | | O | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Quota / limit | | | O | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Rollback / no side effect | | O | O | O | O | O | O | O | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;State updated | O | | | | | | | | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Exception / fallback | | | | | | | | | | |
+| | Success | O | | | | | | | | O | O |
+| | Controlled failure | | O | O | O | O | O | O | O | | |
+| | Not found | | O | | | | | | | | |
+| | Quota / limit | | | O | | | | | | | |
+| | Rollback / no side effect | | O | O | O | O | O | O | O | | |
+| | State updated | O | | | | | | | | O | O |
+| | Exception / fallback | | | | | | | | | | |
 | **Result** | Type (N: Normal, A: Abnormal, B: Boundary) | N | A | B | A | A | A | A | A | B | N |
 | | Passed / Failed | P | P | P | P | P | P | P | P | P | P |
 | | Executed Date | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 |
@@ -742,16 +742,16 @@
 | Category | Condition / Confirmation Item | UTC01 | UTC02 | UTC03 | UTC04 | UTC05 | UTC06 | UTC07 | UTC08 | UTC09 | UTC10 |
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;User registered as Participant for target campaign | O |   | O | O | O | O | O | O | O | O |
+| | User registered as Participant for target campaign | O |   | O | O | O | O | O | O | O | O |
 | | &nbsp;&nbsp;&nbsp;&nbsp;Distance <= 200m OR OverrideReason >= 20 chars | O | O |   | O | O | O |   |   |   | O |
 | **Confirm** | Expected outcome | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Success | O | O | | O | O | O | | | | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Controlled failure | | | O | | | | O | O | O | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Not found | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Quota / limit | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Rollback / no side effect | | | O | | | | O | O | O | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;State updated | O | O | | O | O | O | | | | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Exception / fallback | | | | | | | | | | |
+| | Success | O | O | | O | O | O | | | | O |
+| | Controlled failure | | | O | | | | O | O | O | |
+| | Not found | | | | | | | | | | |
+| | Quota / limit | | | | | | | | | | |
+| | Rollback / no side effect | | | O | | | | O | O | O | |
+| | State updated | O | O | | O | O | O | | | | O |
+| | Exception / fallback | | | | | | | | | | |
 | **Result** | Type (N: Normal, A: Abnormal, B: Boundary) | N | A | A | B | B | A | A | A | A | N |
 | | Passed / Failed | P | P | P | P | P | P | P | P | P | P |
 | | Executed Date | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 |
@@ -773,17 +773,17 @@
 | Category | Condition / Confirmation Item | UTC01 | UTC02 | UTC03 | UTC04 | UTC05 | UTC06 | UTC07 | UTC08 | UTC09 | UTC10 |
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;User authenticated with active session with LEO role | O | O |   | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Target Report Status in {Verified, InProgress} | O |   | O | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;No existing active inspection case for target report | O | O | O |   | O | O | O | O | O | O |
+| | User authenticated with active session with LEO role | O | O |   | O | O | O | O | O | O | O |
+| | Target Report Status in {Verified, InProgress} | O |   | O | O | O | O | O | O | O | O |
+| | No existing active inspection case for target report | O | O | O |   | O | O | O | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Success | O | | | | | O | | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Controlled failure | | O | O | O | O | | O | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Not found | | O | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Quota / limit | | | | O | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Rollback / no side effect | | O | O | O | O | | O | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;State updated | O | | | | | O | | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Exception / fallback | | | | | | | | | | |
+| | Success | O | | | | | O | | O | O | O |
+| | Controlled failure | | O | O | O | O | | O | | | |
+| | Not found | | O | | | | | | | | |
+| | Quota / limit | | | | O | | | | | | |
+| | Rollback / no side effect | | O | O | O | O | | O | | | |
+| | State updated | O | | | | | O | | O | O | O |
+| | Exception / fallback | | | | | | | | | | |
 | **Result** | Type (N: Normal, A: Abnormal, B: Boundary) | N | A | A | A | A | B | A | B | N | N |
 | | Passed / Failed | P | P | P | P | P | P | P | P | P | P |
 | | Executed Date | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 |
@@ -805,16 +805,16 @@
 | Category | Condition / Confirmation Item | UTC01 | UTC02 | UTC03 | UTC04 | UTC05 | UTC06 | UTC07 | UTC08 | UTC09 |
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Inspection Status == Created & User has LEO/Admin role | O |   | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Target Inspection Team exists & currently active | O | O |   | O | O | O | O | O | O |
+| | Inspection Status == Created & User has LEO/Admin role | O |   | O | O | O | O | O | O | O |
+| | Target Inspection Team exists & currently active | O | O |   | O | O | O | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Success | O | | | | | | | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Controlled failure | | O | O | O | O | O | O | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Not found | | O | O | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Quota / limit | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Rollback / no side effect | | O | O | O | O | O | O | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;State updated | O | | | | | | | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Exception / fallback | | | | | | | | | |
+| | Success | O | | | | | | | O | O |
+| | Controlled failure | | O | O | O | O | O | O | | |
+| | Not found | | O | O | | | | | | |
+| | Quota / limit | | | | | | | | | |
+| | Rollback / no side effect | | O | O | O | O | O | O | | |
+| | State updated | O | | | | | | | O | O |
+| | Exception / fallback | | | | | | | | | |
 | **Result** | Type (N: Normal, A: Abnormal, B: Boundary) | N | A | A | B | A | A | A | B | N |
 | | Passed / Failed | P | P | P | P | P | P | P | P | P |
 | | Executed Date | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 |
@@ -836,16 +836,16 @@
 | Category | Condition / Confirmation Item | UTC01 | UTC02 | UTC03 | UTC04 | UTC05 | UTC06 | UTC07 | UTC08 | UTC09 | UTC10 |
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;User assigned as Inspector on active inspection case | O |   | O | O | O | O | O | O | O | O |
+| | User assigned as Inspector on active inspection case | O |   | O | O | O | O | O | O | O | O |
 | | &nbsp;&nbsp;&nbsp;&nbsp;Distance to site <= 200m | O | O |   | O | O | O |   |   |   | O |
 | **Confirm** | Expected outcome | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Success | O | O | | O | O | O | | | | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Controlled failure | | | O | | | | O | O | O | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Not found | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Quota / limit | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Rollback / no side effect | | | O | | | | O | O | O | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;State updated | O | O | | O | O | O | | | | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Exception / fallback | | | | | | | | | | |
+| | Success | O | O | | O | O | O | | | | O |
+| | Controlled failure | | | O | | | | O | O | O | |
+| | Not found | | | | | | | | | | |
+| | Quota / limit | | | | | | | | | | |
+| | Rollback / no side effect | | | O | | | | O | O | O | |
+| | State updated | O | O | | O | O | O | | | | O |
+| | Exception / fallback | | | | | | | | | | |
 | **Result** | Type (N: Normal, A: Abnormal, B: Boundary) | N | A | A | B | B | A | A | A | A | N |
 | | Passed / Failed | P | P | P | P | P | P | P | P | P | P |
 | | Executed Date | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 |
@@ -867,17 +867,17 @@
 | Category | Condition / Confirmation Item | UTC01 | UTC02 | UTC03 | UTC04 | UTC05 | UTC06 | UTC07 | UTC08 | UTC09 | UTC10 | UTC11 |
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Inspector CheckedIn == true | O |   | O | O | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Evidence checklist items attached (photo/video/audio) | O | O |   | O | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Violation summary text length >= 20 characters | O | O | O |   | O | O | O | O | O | O | O |
+| | Inspector CheckedIn == true | O |   | O | O | O | O | O | O | O | O | O |
+| | Evidence checklist items attached (photo/video/audio) | O | O |   | O | O | O | O | O | O | O | O |
+| | Violation summary text length >= 20 characters | O | O | O |   | O | O | O | O | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Success | O | | | | | | | | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Controlled failure | | O | O | O | O | O | O | O | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Not found | | O | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Quota / limit | | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Rollback / no side effect | | O | O | O | O | O | O | O | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;State updated | O | | | | | | | | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Exception / fallback | | | | | | | | | | | |
+| | Success | O | | | | | | | | O | O | O |
+| | Controlled failure | | O | O | O | O | O | O | O | | | |
+| | Not found | | O | | | | | | | | | |
+| | Quota / limit | | | | | | | | | | | |
+| | Rollback / no side effect | | O | O | O | O | O | O | O | | | |
+| | State updated | O | | | | | | | | O | O | O |
+| | Exception / fallback | | | | | | | | | | | |
 | **Result** | Type (N: Normal, A: Abnormal, B: Boundary) | N | A | A | A | B | A | A | A | B | N | N |
 | | Passed / Failed | P | P | P | P | P | P | P | P | P | P | P |
 | | Executed Date | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 |
@@ -899,17 +899,17 @@
 | Category | Condition / Confirmation Item | UTC01 | UTC02 | UTC03 | UTC04 | UTC05 | UTC06 | UTC07 | UTC08 | UTC09 | UTC10 |
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Inspection Status == SubmittedForReview & User is LEO | O |   | O | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Administrative fine amount > 0 (e.g. 5,000,000 VND) | O | O |   | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Payment due date set in future (+30 days) | O | O | O |   | O | O | O | O | O | O |
+| | Inspection Status == SubmittedForReview & User is LEO | O |   | O | O | O | O | O | O | O | O |
+| | Administrative fine amount > 0 (e.g. 5,000,000 VND) | O | O |   | O | O | O | O | O | O | O |
+| | Payment due date set in future (+30 days) | O | O | O |   | O | O | O | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Success | O | | | | | | | | | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Controlled failure | | O | O | O | O | O | O | O | O | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Not found | | O | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Quota / limit | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Rollback / no side effect | | O | O | O | O | O | O | O | O | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;State updated | O | | | | | | | | | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Exception / fallback | | | | | | | | | | |
+| | Success | O | | | | | | | | | O |
+| | Controlled failure | | O | O | O | O | O | O | O | O | |
+| | Not found | | O | | | | | | | | |
+| | Quota / limit | | | | | | | | | | |
+| | Rollback / no side effect | | O | O | O | O | O | O | O | O | |
+| | State updated | O | | | | | | | | | O |
+| | Exception / fallback | | | | | | | | | | |
 | **Result** | Type (N: Normal, A: Abnormal, B: Boundary) | N | A | A | B | A | A | A | A | B | N |
 | | Passed / Failed | P | P | P | P | P | P | P | P | P | P |
 | | Executed Date | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 |
@@ -931,16 +931,16 @@
 | Category | Condition / Confirmation Item | UTC01 | UTC02 | UTC03 | UTC04 | UTC05 | UTC06 | UTC07 | UTC08 | UTC09 |
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Penalty Decision Status == Issued & User is LEO/Admin | O |   | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Recorded payment amount matches full issued fine amount | O | O |   | O | O | O | O | O | O |
+| | Penalty Decision Status == Issued & User is LEO/Admin | O |   | O | O | O | O | O | O | O |
+| | Recorded payment amount matches full issued fine amount | O | O |   | O | O | O | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Success | O | | | | | | | | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Controlled failure | | O | O | O | O | O | O | O | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Not found | | O | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Quota / limit | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Rollback / no side effect | | O | O | O | O | O | O | O | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;State updated | O | | | | | | | | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Exception / fallback | | | | | | | | | |
+| | Success | O | | | | | | | | O |
+| | Controlled failure | | O | O | O | O | O | O | O | |
+| | Not found | | O | | | | | | | |
+| | Quota / limit | | | | | | | | | |
+| | Rollback / no side effect | | O | O | O | O | O | O | O | |
+| | State updated | O | | | | | | | | O |
+| | Exception / fallback | | | | | | | | | |
 | **Result** | Type (N: Normal, A: Abnormal, B: Boundary) | N | A | B | A | A | A | A | B | N |
 | | Passed / Failed | P | P | P | P | P | P | P | P | P |
 | | Executed Date | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 |
@@ -962,17 +962,17 @@
 | Category | Condition / Confirmation Item | UTC01 | UTC02 | UTC03 | UTC04 | UTC05 | UTC06 | UTC07 | UTC08 | UTC09 | UTC10 |
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;User authenticated with active session with Admin or DEO role | O | O |   | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;TaxCode unique (not existing in company registry) | O |   | O | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Company Name & Address text supplied | O | O | O |   | O | O | O | O | O | O |
+| | User authenticated with active session with Admin or DEO role | O | O |   | O | O | O | O | O | O | O |
+| | TaxCode unique (not existing in company registry) | O |   | O | O | O | O | O | O | O | O |
+| | Company Name & Address text supplied | O | O | O |   | O | O | O | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Success | O | | | | | O | | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Controlled failure | | O | O | O | O | | O | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Not found | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Quota / limit | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Rollback / no side effect | | O | O | O | O | | O | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;State updated | O | | | | | O | | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Exception / fallback | | | | | | | | | | |
+| | Success | O | | | | | O | | O | O | O |
+| | Controlled failure | | O | O | O | O | | O | | | |
+| | Not found | | | | | | | | | | |
+| | Quota / limit | | | | | | | | | | |
+| | Rollback / no side effect | | O | O | O | O | | O | | | |
+| | State updated | O | | | | | O | | O | O | O |
+| | Exception / fallback | | | | | | | | | | |
 | **Result** | Type (N: Normal, A: Abnormal, B: Boundary) | N | A | A | A | A | B | A | B | N | N |
 | | Passed / Failed | P | P | P | P | P | P | P | P | P | P |
 | | Executed Date | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 |
@@ -994,16 +994,16 @@
 | Category | Condition / Confirmation Item | UTC01 | UTC02 | UTC03 | UTC04 | UTC05 | UTC06 | UTC07 | UTC08 | UTC09 |
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Target Team exists & currently active | O |   | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Target staff user not already an active member of another team | O | O |   | O | O | O | O | O | O |
+| | Target Team exists & currently active | O |   | O | O | O | O | O | O | O |
+| | Target staff user not already an active member of another team | O | O |   | O | O | O | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Success | O | | | | | | | | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Controlled failure | | O | O | O | O | O | O | O | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Not found | | O | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Quota / limit | | | O | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Rollback / no side effect | | O | O | O | O | O | O | O | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;State updated | O | | | | | | | | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Exception / fallback | | | | | | | | | |
+| | Success | O | | | | | | | | O |
+| | Controlled failure | | O | O | O | O | O | O | O | |
+| | Not found | | O | | | | | | | |
+| | Quota / limit | | | O | | | | | | |
+| | Rollback / no side effect | | O | O | O | O | O | O | O | |
+| | State updated | O | | | | | | | | O |
+| | Exception / fallback | | | | | | | | | |
 | **Result** | Type (N: Normal, A: Abnormal, B: Boundary) | N | A | A | A | A | A | A | B | N |
 | | Passed / Failed | P | P | P | P | P | P | P | P | P |
 | | Executed Date | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 |
@@ -1025,16 +1025,16 @@
 | Category | Condition / Confirmation Item | UTC01 | UTC02 | UTC03 | UTC04 | UTC05 | UTC06 | UTC07 | UTC08 | UTC09 | UTC10 |
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Target User account exists & active | O |   | O | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Valid gamification event type (ReportVerified +50pts, CleanupJoin +20pts) | O | O |   | O | O | O | O | O | O | O |
+| | Target User account exists & active | O |   | O | O | O | O | O | O | O | O |
+| | Valid gamification event type (ReportVerified +50pts, CleanupJoin +20pts) | O | O |   | O | O | O | O | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Success | O | | | | | O | | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Controlled failure | | O | O | O | O | | O | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Not found | | O | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Quota / limit | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Rollback / no side effect | | O | O | O | O | | O | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;State updated | O | | | | | O | | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Exception / fallback | | | | | | | | | | |
+| | Success | O | | | | | O | | O | O | O |
+| | Controlled failure | | O | O | O | O | | O | | | |
+| | Not found | | O | | | | | | | | |
+| | Quota / limit | | | | | | | | | | |
+| | Rollback / no side effect | | O | O | O | O | | O | | | |
+| | State updated | O | | | | | O | | O | O | O |
+| | Exception / fallback | | | | | | | | | | |
 | **Result** | Type (N: Normal, A: Abnormal, B: Boundary) | N | A | A | A | A | B | A | B | N | N |
 | | Passed / Failed | P | P | P | P | P | P | P | P | P | P |
 | | Executed Date | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 |
@@ -1056,16 +1056,16 @@
 | Category | Condition / Confirmation Item | UTC01 | UTC02 | UTC03 | UTC04 | UTC05 | UTC06 | UTC07 | UTC08 | UTC09 | UTC10 |
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;User activity metrics calculated from DB history | O | O | O | O | O | O | O | O | O | O |
+| | User activity metrics calculated from DB history | O | O | O | O | O | O | O | O | O | O |
 | | &nbsp;&nbsp;&nbsp;&nbsp;Verified report count >= Badge required count (e.g. 5 reports) | O |   |   | O | O |   |   | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Success | O | | | O | O | | | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Controlled failure | | O | O | | | O | O | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Not found | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Quota / limit | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Rollback / no side effect | | O | O | | | O | O | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;State updated | O | | | O | O | | | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Exception / fallback | | | | | | | | | | |
+| | Success | O | | | O | O | | | O | O | O |
+| | Controlled failure | | O | O | | | O | O | | | |
+| | Not found | | | | | | | | | | |
+| | Quota / limit | | | | | | | | | | |
+| | Rollback / no side effect | | O | O | | | O | O | | | |
+| | State updated | O | | | O | O | | | O | O | O |
+| | Exception / fallback | | | | | | | | | | |
 | **Result** | Type (N: Normal, A: Abnormal, B: Boundary) | N | A | B | B | N | A | A | N | A | A |
 | | Passed / Failed | P | P | P | P | P | P | P | P | P | P |
 | | Executed Date | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 |
@@ -1087,17 +1087,17 @@
 | Category | Condition / Confirmation Item | UTC01 | UTC02 | UTC03 | UTC04 | UTC05 | UTC06 | UTC07 | UTC08 | UTC09 | UTC10 | UTC11 |
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;User authenticated with active session | O |   | O | O | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Content-Type in {image/jpeg, image/png, image/webp} | O | O |   | O | O | O | O | O | O | O | O |
+| | User authenticated with active session | O |   | O | O | O | O | O | O | O | O | O |
+| | Content-Type in {image/jpeg, image/png, image/webp} | O | O |   | O | O | O | O | O | O | O | O |
 | | &nbsp;&nbsp;&nbsp;&nbsp;File size <= 10,485,760 bytes (10MB) | O | O | O |   | O | O | O | O | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Success | O | | | | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Controlled failure | | O | O | O | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Not found | | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Quota / limit | | | | O | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Rollback / no side effect | | O | O | O | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;State updated | | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Exception / fallback | | | | | | | | | | | |
+| | Success | O | | | | O | O | O | O | O | O | O |
+| | Controlled failure | | O | O | O | | | | | | | |
+| | Not found | | | | | | | | | | | |
+| | Quota / limit | | | | O | | | | | | | |
+| | Rollback / no side effect | | O | O | O | | | | | | | |
+| | State updated | | | | | | | | | | | |
+| | Exception / fallback | | | | | | | | | | | |
 | **Result** | Type (N: Normal, A: Abnormal, B: Boundary) | N | A | A | A | B | B | A | A | A | N | N |
 | | Passed / Failed | P | P | P | P | P | P | P | P | P | P | P |
 | | Executed Date | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 |
@@ -1119,17 +1119,17 @@
 | Category | Condition / Confirmation Item | UTC01 | UTC02 | UTC03 | UTC04 | UTC05 | UTC06 | UTC07 | UTC08 | UTC09 | UTC10 |
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Uploaded image stream readable | O |   | O | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;EXIF metadata contains camera information & GPS tags | O | O |   | O | O | O | O | O | O | O |
+| | Uploaded image stream readable | O |   | O | O | O | O | O | O | O | O |
+| | EXIF metadata contains camera information & GPS tags | O | O |   | O | O | O | O | O | O | O |
 | | &nbsp;&nbsp;&nbsp;&nbsp;No software editing tags found (clean EXIF) | O | O | O |   | O | O | O | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Success | O | O | O | | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Controlled failure | | | | O | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Not found | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Quota / limit | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Rollback / no side effect | | | | O | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;State updated | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Exception / fallback | | O | | O | | | | | | |
+| | Success | O | O | O | | O | O | O | O | O | O |
+| | Controlled failure | | | | O | | | | | | |
+| | Not found | | | | | | | | | | |
+| | Quota / limit | | | | | | | | | | |
+| | Rollback / no side effect | | | | O | | | | | | |
+| | State updated | | | | | | | | | | |
+| | Exception / fallback | | O | | O | | | | | | |
 | **Result** | Type (N: Normal, A: Abnormal, B: Boundary) | N | A | A | A | A | B | A | B | N | N |
 | | Passed / Failed | P | P | P | P | P | P | P | P | P | P |
 | | Executed Date | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 |
@@ -1151,17 +1151,17 @@
 | Category | Condition / Confirmation Item | UTC01 | UTC02 | UTC03 | UTC04 | UTC05 | UTC06 | UTC07 | UTC08 | UTC09 | UTC10 | UTC11 |
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;PostgreSQL + PostGIS spatial extension active | O | O | O | O | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Center Latitude & Longitude parameters supplied | O |   | O | O | O | O | O | O | O | O | O |
+| | PostgreSQL + PostGIS spatial extension active | O | O | O | O | O | O | O | O | O | O | O |
+| | Center Latitude & Longitude parameters supplied | O |   | O | O | O | O | O | O | O | O | O |
 | | &nbsp;&nbsp;&nbsp;&nbsp;RadiusKm in range [0.5, 50.0] | O | O |   |   | O | O | O | O | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Success | O | | | | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Controlled failure | | O | O | O | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Not found | | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Quota / limit | | | | O | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Rollback / no side effect | | O | O | O | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;State updated | | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Exception / fallback | | | | | | | | | | | |
+| | Success | O | | | | O | O | O | O | O | O | O |
+| | Controlled failure | | O | O | O | | | | | | | |
+| | Not found | | | | | | | | | | | |
+| | Quota / limit | | | | O | | | | | | | |
+| | Rollback / no side effect | | O | O | O | | | | | | | |
+| | State updated | | | | | | | | | | | |
+| | Exception / fallback | | | | | | | | | | | |
 | **Result** | Type (N: Normal, A: Abnormal, B: Boundary) | N | A | A | A | B | B | A | A | A | N | N |
 | | Passed / Failed | P | P | P | P | P | P | P | P | P | P | P |
 | | Executed Date | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 |
@@ -1183,16 +1183,16 @@
 | Category | Condition / Confirmation Item | UTC01 | UTC02 | UTC03 | UTC04 | UTC05 | UTC06 | UTC07 | UTC08 | UTC09 |
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Database connection active & Catalog ready | O | O | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Bounding box coordinates valid (minLat < maxLat, minLng < maxLng) | O |   | O | O | O | O | O | O | O |
+| | Database connection active & Catalog ready | O | O | O | O | O | O | O | O | O |
+| | Bounding box coordinates valid (minLat < maxLat, minLng < maxLng) | O |   | O | O | O | O | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Success | O | | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Controlled failure | | O | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Not found | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Quota / limit | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Rollback / no side effect | | O | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;State updated | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Exception / fallback | | | | | | | | | |
+| | Success | O | | O | O | O | O | O | O | O |
+| | Controlled failure | | O | | | | | | | |
+| | Not found | | | | | | | | | |
+| | Quota / limit | | | | | | | | | |
+| | Rollback / no side effect | | O | | | | | | | |
+| | State updated | | | | | | | | | |
+| | Exception / fallback | | | | | | | | | |
 | **Result** | Type (N: Normal, A: Abnormal, B: Boundary) | N | A | A | A | A | A | B | N | N |
 | | Passed / Failed | P | P | P | P | P | P | P | P | P |
 | | Executed Date | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 |
@@ -1214,16 +1214,16 @@
 | Category | Condition / Confirmation Item | UTC01 | UTC02 | UTC03 | UTC04 | UTC05 | UTC06 | UTC07 | UTC08 | UTC09 | UTC10 |
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Recipient User account exists & FCM token registered | O |   | O | O | O | O | O | O | O | O |
+| | Recipient User account exists & FCM token registered | O |   | O | O | O | O | O | O | O | O |
 | | &nbsp;&nbsp;&nbsp;&nbsp;Daily notification count <= 20 anti-spam limit | O | O |   | O | O | O | O | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Success | O | | O | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Controlled failure | | O | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Not found | | O | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Quota / limit | | | O | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Rollback / no side effect | | O | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;State updated | O | | O | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Exception / fallback | | | O | | | | | | | |
+| | Success | O | | O | O | O | O | O | O | O | O |
+| | Controlled failure | | O | | | | | | | | |
+| | Not found | | O | | | | | | | | |
+| | Quota / limit | | | O | | | | | | | |
+| | Rollback / no side effect | | O | | | | | | | | |
+| | State updated | O | | O | O | O | O | O | O | O | O |
+| | Exception / fallback | | | O | | | | | | | |
 | **Result** | Type (N: Normal, A: Abnormal, B: Boundary) | N | A | B | A | A | A | A | B | N | N |
 | | Passed / Failed | P | P | P | P | P | P | P | P | P | P |
 | | Executed Date | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 |
@@ -1245,17 +1245,17 @@
 | Category | Condition / Confirmation Item | UTC01 | UTC02 | UTC03 | UTC04 | UTC05 | UTC06 | UTC07 | UTC08 | UTC09 | UTC10 | UTC11 |
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Target Report exists in DB & not soft-deleted | O |   | O | O | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Comment text content non-empty & length <= 1000 characters | O | O |   | O | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Comment content contains no blocked words | O | O | O |   | O | O | O | O | O | O | O |
+| | Target Report exists in DB & not soft-deleted | O |   | O | O | O | O | O | O | O | O | O |
+| | Comment text content non-empty & length <= 1000 characters | O | O |   | O | O | O | O | O | O | O | O |
+| | Comment content contains no blocked words | O | O | O |   | O | O | O | O | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Success | O | | | | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Controlled failure | | O | O | O | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Not found | | O | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Quota / limit | | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Rollback / no side effect | | O | O | O | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;State updated | O | | | | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Exception / fallback | | | | | | | | | | | |
+| | Success | O | | | | O | O | O | O | O | O | O |
+| | Controlled failure | | O | O | O | | | | | | | |
+| | Not found | | O | | | | | | | | | |
+| | Quota / limit | | | | | | | | | | | |
+| | Rollback / no side effect | | O | O | O | | | | | | | |
+| | State updated | O | | | | O | O | O | O | O | O | O |
+| | Exception / fallback | | | | | | | | | | | |
 | **Result** | Type (N: Normal, A: Abnormal, B: Boundary) | N | A | A | A | B | B | A | A | A | N | N |
 | | Passed / Failed | P | P | P | P | P | P | P | P | P | P | P |
 | | Executed Date | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 |
@@ -1277,17 +1277,17 @@
 | Category | Condition / Confirmation Item | UTC01 | UTC02 | UTC03 | UTC04 | UTC05 | UTC06 | UTC07 | UTC08 | UTC09 | UTC10 |
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;User authenticated with active session | O |   | O | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Phone number format valid (VN regex: 10 digits starting with 0) | O | O |   | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;FullName supplied (length >= 2 and <= 100 characters) | O | O | O |   | O | O | O | O | O | O |
+| | User authenticated with active session | O |   | O | O | O | O | O | O | O | O |
+| | Phone number format valid (VN regex: 10 digits starting with 0) | O | O |   | O | O | O | O | O | O | O |
+| | FullName supplied (length >= 2 and <= 100 characters) | O | O | O |   | O | O | O | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Success | O | | | | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Controlled failure | | O | O | O | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Not found | | O | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Quota / limit | | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Rollback / no side effect | | O | O | O | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;State updated | O | | | | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Exception / fallback | | | | | | | | | | |
+| | Success | O | | | | O | O | O | O | O | O |
+| | Controlled failure | | O | O | O | | | | | | |
+| | Not found | | O | | | | | | | | |
+| | Quota / limit | | | | | | | | | | |
+| | Rollback / no side effect | | O | O | O | | | | | | |
+| | State updated | O | | | | O | O | O | O | O | O |
+| | Exception / fallback | | | | | | | | | | |
 | **Result** | Type (N: Normal, A: Abnormal, B: Boundary) | N | A | A | A | B | B | A | A | N | N |
 | | Passed / Failed | P | P | P | P | P | P | P | P | P | P |
 | | Executed Date | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 |
@@ -1309,16 +1309,16 @@
 | Category | Condition / Confirmation Item | UTC01 | UTC02 | UTC03 | UTC04 | UTC05 | UTC06 | UTC07 | UTC08 | UTC09 |
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Caller authenticated with Admin role | O |   | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Target User exists & is not self (Admin cannot ban own account) | O | O |   | O | O | O | O | O | O |
+| | Caller authenticated with Admin role | O |   | O | O | O | O | O | O | O |
+| | Target User exists & is not self (Admin cannot ban own account) | O | O |   | O | O | O | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Success | O | | | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Controlled failure | | O | O | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Not found | | | O | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Quota / limit | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Rollback / no side effect | | O | O | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;State updated | O | | | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Exception / fallback | | | | | | | | | |
+| | Success | O | | | O | O | O | O | O | O |
+| | Controlled failure | | O | O | | | | | | |
+| | Not found | | | O | | | | | | |
+| | Quota / limit | | | | | | | | | |
+| | Rollback / no side effect | | O | O | | | | | | |
+| | State updated | O | | | O | O | O | O | O | O |
+| | Exception / fallback | | | | | | | | | |
 | **Result** | Type (N: Normal, A: Abnormal, B: Boundary) | N | A | A | A | A | A | A | B | N |
 | | Passed / Failed | P | P | P | P | P | P | P | P | P |
 | | Executed Date | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 |
@@ -1340,16 +1340,16 @@
 | Category | Condition / Confirmation Item | UTC01 | UTC02 | UTC03 | UTC04 | UTC05 | UTC06 | UTC07 | UTC08 | UTC09 |
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Caller authenticated with Admin role | O |   | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Target role is valid UserRole enum value | O | O |   | O | O | O | O | O | O |
+| | Caller authenticated with Admin role | O |   | O | O | O | O | O | O | O |
+| | Target role is valid UserRole enum value | O | O |   | O | O | O | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Success | O | | | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Controlled failure | | O | O | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Not found | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Quota / limit | | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Rollback / no side effect | | O | O | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;State updated | O | | | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Exception / fallback | | | | | | | | | |
+| | Success | O | | | O | O | O | O | O | O |
+| | Controlled failure | | O | O | | | | | | |
+| | Not found | | | | | | | | | |
+| | Quota / limit | | | | | | | | | |
+| | Rollback / no side effect | | O | O | | | | | | |
+| | State updated | O | | | O | O | O | O | O | O |
+| | Exception / fallback | | | | | | | | | |
 | **Result** | Type (N: Normal, A: Abnormal, B: Boundary) | N | A | A | A | A | A | A | B | N |
 | | Passed / Failed | P | P | P | P | P | P | P | P | P |
 | | Executed Date | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 |
@@ -1371,16 +1371,16 @@
 | Category | Condition / Confirmation Item | UTC01 | UTC02 | UTC03 | UTC04 | UTC05 | UTC06 | UTC07 | UTC08 |
 | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Condition** | Precondition | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Database connection active & Catalog ready | O | O | O | O | O | O | O | O |
+| | Database connection active & Catalog ready | O | O | O | O | O | O | O | O |
 | | &nbsp;&nbsp;&nbsp;&nbsp;OnlyActive parameter supplied | O | O | O | O | O | O | O | O |
 | **Confirm** | Expected outcome | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Success | O | O | O | O | O | O | O | O |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Controlled failure | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Not found | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Quota / limit | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Rollback / no side effect | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;State updated | | | | | | | | |
-| | &nbsp;&nbsp;&nbsp;&nbsp;Exception / fallback | | | | | | | | |
+| | Success | O | O | O | O | O | O | O | O |
+| | Controlled failure | | | | | | | | |
+| | Not found | | | | | | | | |
+| | Quota / limit | | | | | | | | |
+| | Rollback / no side effect | | | | | | | | |
+| | State updated | | | | | | | | |
+| | Exception / fallback | | | | | | | | |
 | **Result** | Type (N: Normal, A: Abnormal, B: Boundary) | N | N | A | A | A | A | B | N |
 | | Passed / Failed | P | P | P | P | P | P | P | P |
 | | Executed Date | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 | 08/10 |
