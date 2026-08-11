@@ -15,7 +15,15 @@ public sealed record GetCompanyAssignmentsQuery(
     int PageSize = 20,
     AssignmentStatus? Status = null,
     ReportStatus? ReportStatus = null,
-    string? Search = null) : IRequest<Result<GetCompanyAssignmentsResponse>>;
+    string? Search = null,
+    Severity? Severity = null,
+    string? WardCode = null,
+    Guid? CategoryId = null,
+    Guid? TeamId = null,
+    DateTime? FromDate = null,
+    DateTime? ToDate = null,
+    string? SortBy = null,
+    bool SortDesc = false) : IRequest<Result<GetCompanyAssignmentsResponse>>;
 
 public sealed record GetCompanyAssignmentsResponse(
     List<CompanyAssignmentItem> Items,

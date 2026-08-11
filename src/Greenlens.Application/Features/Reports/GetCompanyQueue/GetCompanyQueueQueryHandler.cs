@@ -77,6 +77,22 @@ public sealed class GetCompanyQueueQueryHandler(
             baseQuery = baseQuery.Where(r => r.CategoryId == request.CategoryId.Value);
         }
 
+        if (request.FromDate.HasValue)
+        {
+            var from = DateTime.SpecifyKind(request.FromDate.Value.Date, DateTimeKind.Utc);
+            logger.LogInformation("From date: {FromDate}", from);
+            baseQuery = baseQuery.Where(r =>
+                r.DispatchedToCompanyAt != null && r.DispatchedToCompanyAt >= from);
+        }
+
+        if (request.ToDate.HasValue)
+        {
+            var toExclusive = DateTime.SpecifyKind(request.ToDate.Value.Date.AddDays(1), DateTimeKind.Utc);
+            logger.LogInformation("To date (exclusive): {ToDate}", toExclusive);
+            baseQuery = baseQuery.Where(r =>
+                r.DispatchedToCompanyAt != null && r.DispatchedToCompanyAt < toExclusive);
+        }
+
         var total = await baseQuery.CountAsync(ct).ConfigureAwait(false);
         var pagination = PaginationMeta.Create(page, pageSize, total);
 

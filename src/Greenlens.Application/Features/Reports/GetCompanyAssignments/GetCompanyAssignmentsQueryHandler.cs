@@ -37,6 +37,8 @@ public sealed class GetCompanyAssignmentsQueryHandler(
             return companyIdResult.Error!;
 
         var companyId = companyIdResult.Value;
+        var page = Math.Max(1, request.Page);
+        var pageSize = Math.Clamp(request.PageSize, 1, 100);
 
         logger.LogInformation("Company ID: {CompanyId}", companyId);
 
@@ -60,20 +62,99 @@ public sealed class GetCompanyAssignmentsQueryHandler(
 
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
-            logger.LogInformation("Searching by report code or address: {Search}", request.Search);
-            var search = request.Search.Trim().ToLower();
+            var keyword = request.Search.Trim().ToLowerInvariant();
+            logger.LogInformation("Search: {Search}", request.Search);
             baseQuery = baseQuery.Where(a =>
-                a.Report!.Code.ToLower().Contains(search) ||
-                (a.Report.Address != null && a.Report.Address.ToLower().Contains(search)) ||
-                a.Team!.Name.ToLower().Contains(search));
+                a.Report!.Code.ToLower().Contains(keyword) ||
+                (a.Report.Address != null && a.Report.Address.ToLower().Contains(keyword)) ||
+                (a.Report.WardCode != null && a.Report.WardCode.ToLower().Contains(keyword)) ||
+                a.Report.Category.NameVi.ToLower().Contains(keyword) ||
+                a.Report.Category.NameEn.ToLower().Contains(keyword) ||
+                a.Team!.Name.ToLower().Contains(keyword));
+        }
+
+        if (request.Severity.HasValue)
+        {
+            logger.LogInformation("Filtering by severity: {Severity}", request.Severity.Value);
+            baseQuery = baseQuery.Where(a => a.Report!.Severity == request.Severity.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.WardCode))
+        {
+            var ward = request.WardCode.Trim();
+            logger.LogInformation("Filtering by ward: {WardCode}", ward);
+            baseQuery = baseQuery.Where(a => a.Report!.WardCode == ward);
+        }
+
+        if (request.CategoryId.HasValue)
+        {
+            logger.LogInformation("Filtering by category: {CategoryId}", request.CategoryId.Value);
+            baseQuery = baseQuery.Where(a => a.Report!.CategoryId == request.CategoryId.Value);
+        }
+
+        if (request.TeamId.HasValue)
+        {
+            logger.LogInformation("Filtering by team: {TeamId}", request.TeamId.Value);
+            baseQuery = baseQuery.Where(a => a.TeamId == request.TeamId.Value);
+        }
+
+        if (request.FromDate.HasValue)
+        {
+            var from = DateTime.SpecifyKind(request.FromDate.Value.Date, DateTimeKind.Utc);
+            logger.LogInformation("From date: {FromDate}", from);
+            baseQuery = baseQuery.Where(a => a.AssignedAt >= from);
+        }
+
+        if (request.ToDate.HasValue)
+        {
+            var toExclusive = DateTime.SpecifyKind(request.ToDate.Value.Date.AddDays(1), DateTimeKind.Utc);
+            logger.LogInformation("To date (exclusive): {ToDate}", toExclusive);
+            baseQuery = baseQuery.Where(a => a.AssignedAt < toExclusive);
         }
 
         var total = await baseQuery.CountAsync(ct).ConfigureAwait(false);
+        var pagination = PaginationMeta.Create(page, pageSize, total);
 
-        var pageAssignments = await baseQuery
-            .OrderByDescending(a => a.AssignedAt)
-            .Skip((request.Page - 1) * request.PageSize)
-            .Take(request.PageSize)
+        var sortBy = request.SortBy?.Trim().ToLowerInvariant();
+        logger.LogInformation("Sort by: {SortBy}", sortBy);
+        var orderedQuery = sortBy switch
+        {
+            "code" => request.SortDesc
+                ? baseQuery.OrderByDescending(a => a.Report!.Code)
+                : baseQuery.OrderBy(a => a.Report!.Code),
+            "severity" => request.SortDesc
+                ? baseQuery.OrderByDescending(a => a.Report!.Severity)
+                : baseQuery.OrderBy(a => a.Report!.Severity),
+            "reportstatus" => request.SortDesc
+                ? baseQuery.OrderByDescending(a => a.Report!.Status)
+                : baseQuery.OrderBy(a => a.Report!.Status),
+            "status" => request.SortDesc
+                ? baseQuery.OrderByDescending(a => a.Status)
+                : baseQuery.OrderBy(a => a.Status),
+            "progresspercent" => request.SortDesc
+                ? baseQuery.OrderByDescending(a => a.ProgressPercent)
+                : baseQuery.OrderBy(a => a.ProgressPercent),
+            "startedat" => request.SortDesc
+                ? baseQuery.OrderByDescending(a => a.StartedAt)
+                : baseQuery.OrderBy(a => a.StartedAt),
+            "completedat" => request.SortDesc
+                ? baseQuery.OrderByDescending(a => a.CompletedAt)
+                : baseQuery.OrderBy(a => a.CompletedAt),
+            "slaresolvedueat" => request.SortDesc
+                ? baseQuery.OrderByDescending(a => a.Report!.SlaResolveDueAt)
+                : baseQuery.OrderBy(a => a.Report!.SlaResolveDueAt),
+            "teamname" => request.SortDesc
+                ? baseQuery.OrderByDescending(a => a.Team!.Name)
+                : baseQuery.OrderBy(a => a.Team!.Name),
+            "assignedat" => request.SortDesc
+                ? baseQuery.OrderByDescending(a => a.AssignedAt)
+                : baseQuery.OrderBy(a => a.AssignedAt),
+            _ => baseQuery.OrderByDescending(a => a.AssignedAt)
+        };
+
+        var pageAssignments = await orderedQuery
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
@@ -104,8 +185,6 @@ public sealed class GetCompanyAssignmentsQueryHandler(
                 CitizenReportMediaLoader.GetFirstMedia(firstMediaByReportId, a.Report.Id)),
             MapTeam(a.Team!),
             a.AssignedByUser?.FullName ?? "Unknown")).ToList();
-
-        var pagination = PaginationMeta.Create(request.Page, request.PageSize, total);
 
         logger.LogInformation(
             "CM {UserId} viewed company assignments: {Count}/{Total} for company {CompanyId}",
