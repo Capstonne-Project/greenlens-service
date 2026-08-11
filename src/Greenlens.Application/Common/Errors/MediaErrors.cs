@@ -80,6 +80,11 @@ public static partial class Errors
             "PROVINCE_NOT_FOUND",
             "Mã tỉnh/thành không hợp lệ hoặc không tồn tại.",
             ErrorType.NotFound);
+
+        public static Error WardNotFound => new(
+            "WARD_NOT_FOUND",
+            "Mã phường/xã không hợp lệ hoặc không tồn tại.",
+            ErrorType.NotFound);
     }
 
     public static class Ai
