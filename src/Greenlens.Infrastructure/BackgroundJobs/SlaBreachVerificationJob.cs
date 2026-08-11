@@ -9,16 +9,19 @@ namespace Greenlens.Infrastructure.BackgroundJobs;
 
 /// <summary>
 /// BR-OFF-002: Flag reports that have been Submitted for > 24 hours
-/// without LEO verification. SLA breach triggers escalation + notification.
+/// without LEO verification. Keeps report with assigned LEO, notifies LEO,
+/// and boosts queue priority — no DEO escalation.
 /// Runs every 15 minutes.
 /// </summary>
-/// <remarks>Implements: BR-OFF-002, BR-ORG-014, BR-NTF-002.</remarks>
+/// <remarks>Implements: BR-OFF-002, BR-NTF-002.</remarks>
 [AutomaticRetry(Attempts = 2)]
 internal sealed class SlaBreachVerificationJob(
     ApplicationDbContext db,
     INotificationService notificationService,
     ILogger<SlaBreachVerificationJob> logger)
 {
+    private const decimal SlaBreachPriorityBoost = 100m;
+
     public async Task ExecuteAsync()
     {
         logger.LogInformation("SlaBreachVerificationJob: Starting...");
@@ -42,7 +45,13 @@ internal sealed class SlaBreachVerificationJob(
         foreach (var report in breachedReports)
         {
             report.MarkSlaVerifyBreached();
-            report.EscalateToDepartment();
+
+            var ageHours = (decimal)(now - report.CreatedAt).TotalHours;
+            var boostedScore = (int)report.Severity * 3m
+                             + report.ReporterCount * 2m
+                             + ageHours / 24m
+                             + SlaBreachPriorityBoost;
+            report.UpdatePriorityScore(Math.Round(boostedScore, 2));
         }
 
         await db.SaveChangesAsync().ConfigureAwait(false);
@@ -54,47 +63,38 @@ internal sealed class SlaBreachVerificationJob(
                 .EnrichFromWardCodeAsync(db, placeholders, report.WardCode)
                 .ConfigureAwait(false);
 
-            if (report.AssignedOfficeId.HasValue)
+            if (!report.AssignedOfficeId.HasValue)
+                continue;
+
+            Guid? leoId = await db.LocalOffices
+                .AsNoTracking()
+                .Where(o => o.Id == report.AssignedOfficeId)
+                .Select(o => o.OfficerId)
+                .FirstOrDefaultAsync()
+                .ConfigureAwait(false);
+
+            if (leoId is null || leoId == Guid.Empty)
             {
-                var leoId = await db.Users
+                leoId = await db.Users
                     .AsNoTracking()
                     .Where(u => u.LocalOfficeId == report.AssignedOfficeId && !u.IsBanned)
                     .Select(u => u.Id)
                     .FirstOrDefaultAsync()
                     .ConfigureAwait(false);
-
-                if (leoId != Guid.Empty)
-                {
-                    await notificationService.SendFromTemplateAsync(
-                        leoId,
-                        NotificationType.SlaVerificationBreachedLeo,
-                        placeholders,
-                        report.Id).ConfigureAwait(false);
-                }
             }
 
-            if (report.AssignedDepartmentId.HasValue)
+            if (leoId is not null && leoId != Guid.Empty)
             {
-                var deoId = await db.Users
-                    .AsNoTracking()
-                    .Where(u => u.DepartmentId == report.AssignedDepartmentId && !u.IsBanned)
-                    .Select(u => u.Id)
-                    .FirstOrDefaultAsync()
-                    .ConfigureAwait(false);
-
-                if (deoId != Guid.Empty)
-                {
-                    await notificationService.SendFromTemplateAsync(
-                        deoId,
-                        NotificationType.SlaVerificationEscalatedDeo,
-                        placeholders,
-                        report.Id).ConfigureAwait(false);
-                }
+                await notificationService.SendFromTemplateAsync(
+                    leoId.Value,
+                    NotificationType.SlaVerificationBreachedLeo,
+                    placeholders,
+                    report.Id).ConfigureAwait(false);
             }
         }
 
         logger.LogWarning(
-            "SlaBreachVerificationJob: Flagged {Count} reports with SLA verification breach",
+            "SlaBreachVerificationJob: Flagged {Count} reports with SLA verification breach (LEO retained, priority boosted)",
             breachedReports.Count);
     }
 }

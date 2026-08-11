@@ -30,9 +30,9 @@ public sealed class GetCompanyStaffQueryHandler(
         var cmStaff = await companyStaffRepo.GetByUserIdAsync(currentUser.UserId, ct)
             .ConfigureAwait(false);
 
-        if (cmStaff is null)
+        if (cmStaff is null || !cmStaff.IsActive)
         {
-            logger.LogWarning("Company manager not found for user ID {UserId}", currentUser.UserId);
+            logger.LogWarning("Company manager not found or inactive for user ID {UserId}", currentUser.UserId);
             return Errors.Organization.NotCompanyManager;
         }
 

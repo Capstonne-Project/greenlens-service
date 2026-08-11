@@ -41,9 +41,9 @@ public sealed class GetCompanyKpiQueryHandler(
                 .GetByUserIdAsync(currentUser.UserId, cancellationToken)
                 .ConfigureAwait(false);
 
-            if (staff is null)
+            if (staff is null || !staff.IsActive)
             {
-                logger.LogWarning("Company manager not found for user ID {UserId}", currentUser.UserId);
+                logger.LogWarning("Company manager not found or inactive for user ID {UserId}", currentUser.UserId);
                 return Errors.Organization.NotCompanyManager;
             }
 
