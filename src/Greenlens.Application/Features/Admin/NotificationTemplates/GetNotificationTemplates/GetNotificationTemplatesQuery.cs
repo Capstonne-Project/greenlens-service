@@ -7,8 +7,12 @@ namespace Greenlens.Application.Features.Admin.NotificationTemplates.GetNotifica
 public sealed record GetNotificationTemplatesQuery(
     int Page = 1,
     int PageSize = 20,
+    string? Search = null,
     string? Channel = null,
-    bool? IsPublished = null) : IRequest<Result<GetNotificationTemplatesResponse>>;
+    bool? IsPublished = null,
+    bool? IsActive = null,
+    string? SortBy = null,
+    bool SortDesc = false) : IRequest<Result<GetNotificationTemplatesResponse>>;
 
 public sealed record GetNotificationTemplatesResponse(
     List<NotificationTemplateItem> Items,

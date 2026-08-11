@@ -31,6 +31,9 @@ using Greenlens.Application.Features.Admin.ContentModeration.UnhideReport;
 using Greenlens.Application.Features.Admin.SpamDashboard.GetSpamSuspects;
 using Greenlens.Application.Features.Admin.GamificationConfigs.GetGamificationConfigs;
 using Greenlens.Application.Features.Admin.GamificationConfigs.UpdateGamificationConfig;
+using Greenlens.Application.Features.Admin.Badges.GetAdminBadges;
+using Greenlens.Application.Features.Admin.Badges.UpdateBadge;
+using Greenlens.Application.Features.Admin.Badges.ToggleBadge;
 using Greenlens.Application.Features.Admin.NotificationTemplates.CreateNotificationTemplate;
 using Greenlens.Application.Features.Admin.NotificationTemplates.DeleteNotificationTemplate;
 using Greenlens.Application.Features.Admin.NotificationTemplates.GetNotificationTemplateById;
@@ -437,10 +440,19 @@ public sealed class AdminController(ISender sender) : ControllerBase
     // ═══════════════════════════════════════════
 
     [HttpGet("gamification-configs")]
-    [SwaggerOperation(Summary = "[Admin] Cấu hình điểm gamification", Description = "Danh sách cấu hình điểm cho từng hành động (verify, resolve, reject...).")]
-    [SwaggerResponse(200, "Danh sách config", typeof(ApiResponse<List<GamificationConfigItem>>))]
-    public async Task<IActionResult> GetGamificationConfigsAsync(CancellationToken ct)
-        => (await sender.Send(new GetGamificationConfigsQuery(), ct)).ToHttp();
+    [SwaggerOperation(
+        Summary = "[Admin] Cấu hình điểm gamification (phân trang)",
+        Description = "Danh sách cấu hình điểm cho từng hành động. " +
+            "Hỗ trợ tìm kiếm (actionType, mô tả), lọc theo isActive, " +
+            "sắp xếp theo: actionType, points, isActive, createdAt, updatedAt (mặc định: actionType).")]
+    [SwaggerResponse(200, "Danh sách config", typeof(ApiResponse<GetGamificationConfigsResponse>))]
+    public async Task<IActionResult> GetGamificationConfigsAsync(
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
+        [FromQuery] string? search = null, [FromQuery] bool? isActive = null,
+        [FromQuery] string? sortBy = null, [FromQuery] bool sortDesc = false,
+        CancellationToken ct = default)
+        => (await sender.Send(
+            new GetGamificationConfigsQuery(page, pageSize, search, isActive, sortBy, sortDesc), ct)).ToHttp();
 
     [HttpPut("gamification-configs/{id:guid}")]
     [SwaggerOperation(Summary = "[Admin] Cập nhật điểm gamification", Description = "Thay đổi số điểm cho 1 hành động. Bật/tắt hành động.")]
@@ -452,19 +464,64 @@ public sealed class AdminController(ISender sender) : ControllerBase
             new UpdateGamificationConfigCommand(id, request.Points, request.Description, request.IsActive), ct))
             .ToHttpNoContent("Đã cập nhật cấu hình điểm.");
 
+    [HttpGet("badges")]
+    [SwaggerOperation(
+        Summary = "[Admin] Danh sách huy hiệu (badges, phân trang)",
+        Description = "Trả về badge catalog (bao gồm inactive) cho Admin Dashboard. " +
+            "Hỗ trợ tìm kiếm (code, tên VN, tên EN, mô tả), lọc theo isActive, " +
+            "sắp xếp theo: code, nameVi, nameEn, isActive, requiredPoints, requiredReportCount, requiredStreakDays, createdAt (mặc định: code).")]
+    [SwaggerResponse(200, "Danh sách badge", typeof(ApiResponse<GetAdminBadgesResponse>))]
+    public async Task<IActionResult> GetAdminBadgesAsync(
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
+        [FromQuery] string? search = null, [FromQuery] bool? isActive = null,
+        [FromQuery] string? sortBy = null, [FromQuery] bool sortDesc = false,
+        CancellationToken ct = default)
+        => (await sender.Send(
+            new GetAdminBadgesQuery(page, pageSize, search, isActive, sortBy, sortDesc), ct)).ToHttp();
+
+    [HttpPut("badges/{id:guid}")]
+    [SwaggerOperation(
+        Summary = "[Admin] Sửa nội dung huy hiệu",
+        Description = "Cập nhật tên VN/EN, mô tả, icon URL. Không đổi code hoặc ngưỡng điểm/báo cáo.")]
+    [SwaggerResponse(200, "Đã cập nhật", typeof(ApiResponse))]
+    [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
+    public async Task<IActionResult> UpdateBadgeAsync(
+        [FromRoute] Guid id, [FromBody] AdminUpdateBadgeRequest request, CancellationToken ct)
+        => (await sender.Send(
+            new UpdateBadgeCommand(id, request.NameVi, request.NameEn, request.Description, request.IconUrl), ct))
+            .ToHttpNoContent("Đã cập nhật huy hiệu.");
+
+    [HttpPatch("badges/{id:guid}/toggle")]
+    [SwaggerOperation(
+        Summary = "[Admin] Bật/tắt huy hiệu",
+        Description = "Badge inactive sẽ không xuất hiện trong catalog công khai và không được auto-award mới.")]
+    [SwaggerResponse(200, "Đã thay đổi trạng thái", typeof(ApiResponse))]
+    [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
+    public async Task<IActionResult> ToggleBadgeAsync(
+        [FromRoute] Guid id, [FromBody] ToggleBadgeRequest request, CancellationToken ct)
+        => (await sender.Send(new ToggleBadgeCommand(id, request.IsActive), ct))
+            .ToHttpNoContent("Đã thay đổi trạng thái huy hiệu.");
+
     // ═══════════════════════════════════════════
     // ██  NOTIFICATION TEMPLATES (BR-ADM-004)
     // ═══════════════════════════════════════════
 
     [HttpGet("notification-templates")]
-    [SwaggerOperation(Summary = "[Admin] Danh sách template thông báo", Description = "Liệt kê tất cả notification templates. Lọc theo channel, trạng thái publish.")]
+    [SwaggerOperation(
+        Summary = "[Admin] Danh sách template thông báo (phân trang)",
+        Description = "Liệt kê notification templates. Lọc theo channel, isPublished, isActive. " +
+            "Tìm kiếm theo templateKey, titleVi. " +
+            "Sắp xếp theo: templateKey, titleVi, channel, type, isPublished, isActive, createdAt, updatedAt (mặc định: createdAt desc).")]
     [SwaggerResponse(200, "Danh sách template", typeof(ApiResponse<GetNotificationTemplatesResponse>))]
     public async Task<IActionResult> GetNotificationTemplatesAsync(
         [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
-        [FromQuery] string? channel = null, [FromQuery] bool? isPublished = null,
+        [FromQuery] string? search = null, [FromQuery] string? channel = null,
+        [FromQuery] bool? isPublished = null, [FromQuery] bool? isActive = null,
+        [FromQuery] string? sortBy = null, [FromQuery] bool sortDesc = false,
         CancellationToken ct = default)
         => (await sender.Send(
-            new GetNotificationTemplatesQuery(page, pageSize, channel, isPublished), ct)).ToHttp();
+            new GetNotificationTemplatesQuery(
+                page, pageSize, search, channel, isPublished, isActive, sortBy, sortDesc), ct)).ToHttp();
 
     [HttpPost("notification-templates")]
     [SwaggerOperation(Summary = "[Admin] Tạo template thông báo", Description = "Tạo template mới (draft). Cần publish trước khi hệ thống sử dụng.")]
@@ -593,6 +650,8 @@ public sealed record UpdatePenaltyFrameworkRequest(decimal MinAmount, decimal Ma
 public sealed record TogglePenaltyFrameworkRequest(bool Activate);
 public sealed record HideReportRequest(string Reason);
 public sealed record UpdateGamificationConfigRequest(int Points, string Description, bool IsActive);
+public sealed record AdminUpdateBadgeRequest(string NameVi, string NameEn, string? Description, string? IconUrl);
+public sealed record ToggleBadgeRequest(bool IsActive);
 public sealed record PublishTemplateRequest(bool Publish = true);
 public sealed record UpdateTemplateRequest(string TitleVi, string BodyVi, string? TitleEn, string? BodyEn);
 public sealed record CreateBlockedWordRequest(string Word, string? Note);

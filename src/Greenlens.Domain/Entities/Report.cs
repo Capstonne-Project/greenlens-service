@@ -507,8 +507,8 @@ public sealed class Report : SoftDeletableEntity
     public void MarkSlaVerifyBreached() => SlaVerifyBreached = true;
 
     /// <summary>
-    /// BR-ORG-014: Escalate report to Department queue when SLA verification breached.
-    /// Clears LocalOffice assignment so DEO sees it in common queue.
+    /// BR-ORG-014 (legacy): Clears LocalOffice assignment for department queue routing.
+    /// No longer invoked by SLA verification breach — reports stay with assigned LEO.
     /// </summary>
     public void EscalateToDepartment()
     {

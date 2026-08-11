@@ -53,4 +53,17 @@ public sealed class Badge : BaseEntity
             CreatedAt = DateTime.UtcNow
         };
     }
+
+    /// <summary>BR-ADM-005: Admin updates display content (not eligibility thresholds).</summary>
+    public void Update(string nameVi, string nameEn, string? description, string? iconUrl)
+    {
+        NameVi = nameVi;
+        NameEn = nameEn;
+        Description = description;
+        IconUrl = iconUrl;
+    }
+
+    public void Activate() => IsActive = true;
+
+    public void Deactivate() => IsActive = false;
 }
