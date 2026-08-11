@@ -122,6 +122,12 @@ public static partial class Errors
             "Phần trăm tiến độ phải trong khoảng 0–100.",
             ErrorType.Validation);
 
+        /// <summary>BR-CLN-004: progress can only stay the same (correction) or increase, never decrease.</summary>
+        public static Error ProgressCannotDecrease(int currentPercent) => new(
+            "PROGRESS_CANNOT_DECREASE",
+            $"Không thể cập nhật tiến độ thấp hơn {currentPercent}% đã lưu trước đó.",
+            ErrorType.Validation);
+
         public static Error ReportNotAssigned => new(
             "REPORT_NOT_ASSIGNED",
             "Báo cáo chưa được phân công cho team nào.",

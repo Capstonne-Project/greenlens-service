@@ -4,6 +4,7 @@ using Greenlens.Application.Features.Organization.AssignLeoToOffice;
 using Greenlens.Application.Features.Organization.CreateLocalOffice;
 using Greenlens.Application.Features.Organization.GetLocalOfficeById;
 using Greenlens.Application.Features.Organization.GetLocalOffices;
+using Greenlens.Application.Features.Organization.GetMyWardBoundary;
 using Greenlens.Application.Features.Organization.GetOfficeStaff;
 using Greenlens.Application.Features.Organization.LookupCitizenByEmail;
 using Greenlens.Application.Features.Organization.RecruitStaff;
@@ -103,6 +104,21 @@ public sealed class LocalOfficesController(ISender sender) : ControllerBase
         => (await sender.Send(new GetOfficeReportsQuery(
             page, pageSize, search, status, categoryId, severity, assignmentStatus,
             fromDate, toDate, sortBy, sortDesc), ct)).ToHttp();
+
+    /// <summary>Ranh giới (boundary) phường mà LEO đang quản lý, suy trực tiếp từ JWT.</summary>
+    [HttpGet("my/ward-boundary")]
+    [Authorize(Roles = "LEO")]
+    [Tags("📌 LEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO] Ranh giới phường của office mình",
+        Description =
+            "Trả về wardCode/wardName/boundaryUrl của LocalOffice mà LEO đang quản lý — suy từ JWT, " +
+            "không cần truyền tham số. boundaryUrl là link GeoJSON (Polygon/MultiPolygon) để FE vẽ " +
+            "mask/fit-bounds trên bản đồ officer/map; có thể null nếu phường chưa có dữ liệu ranh giới.")]
+    [SwaggerResponse(200, "Ranh giới phường", typeof(ApiResponse<GetMyWardBoundaryResponse>))]
+    [SwaggerResponse(404, "Chưa gán local office", typeof(ApiResponse))]
+    public async Task<IActionResult> GetMyWardBoundaryAsync(CancellationToken ct)
+        => (await sender.Send(new GetMyWardBoundaryQuery(), ct)).ToHttp();
 
     // ═══════════════════════════════════════════
     // ██  STAFF MANAGEMENT
