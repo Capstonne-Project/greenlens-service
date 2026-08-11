@@ -278,17 +278,6 @@ namespace Greenlens.Infrastructure.Migrations
                         },
                         new
                         {
-                            Id = new Guid("a1000001-0000-0000-0000-000000000007"),
-                            Code = "hotspot_hunter",
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Gửi 3 báo cáo trong khu vực hotspot ô nhiễm",
-                            IconUrl = "badges/icons/hotspot_hunter.png",
-                            IsActive = true,
-                            NameEn = "Hotspot Hunter",
-                            NameVi = "Thợ Săn Điểm Nóng"
-                        },
-                        new
-                        {
                             Id = new Guid("a1000001-0000-0000-0000-000000000008"),
                             Code = "duplicate_finder",
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
