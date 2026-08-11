@@ -52,6 +52,13 @@ public sealed class UpdateCleanupProgressCommandHandler(
             return Errors.Cleanup.AssignmentNotInProgress;
         }
 
+        if (request.Percent < assignment.ProgressPercent)
+        {
+            logger.LogWarning("Progress {Percent}% is lower than current {CurrentPercent}% for assignment {AssignmentId}",
+                request.Percent, assignment.ProgressPercent, assignment.Id);
+            return Errors.Cleanup.ProgressCannotDecrease(assignment.ProgressPercent);
+        }
+
         progressUpdates.Add(AssignmentProgressUpdate.Create(
             assignment.Id,
             request.ReportId,

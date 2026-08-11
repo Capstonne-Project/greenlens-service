@@ -78,6 +78,13 @@ public sealed class UpdateProgressCommandHandler(
             return Errors.Reports.AssignmentNotInProgress;
         }
 
+        if (request.ProgressPercent < assignment.ProgressPercent)
+        {
+            logger.LogWarning("Progress {Percent}% is lower than current {CurrentPercent}% for assignment {AssignmentId}",
+                request.ProgressPercent, assignment.ProgressPercent, assignment.Id);
+            return Errors.Reports.ProgressCannotDecrease(assignment.ProgressPercent);
+        }
+
         var progressUpdate = AssignmentProgressUpdate.Create(
             assignment.Id,
             request.ReportId,
