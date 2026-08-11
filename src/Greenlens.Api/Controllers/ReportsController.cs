@@ -314,6 +314,7 @@ public sealed class ReportsController(
         Description = "CompanyManager xem các báo cáo đã được LEO điều phối, chờ phân công team (InProgress + AssignedCompanyId, chưa có assignment). " +
             "Mỗi item kèm ảnh đầu tiên, thời gian/người xác minh. " +
             "Hỗ trợ search (mã, địa chỉ, phường, tên danh mục), filter severity/wardCode/categoryId, " +
+            "fromDate/toDate (theo ngày LEO điều phối — dispatchedAt), " +
             "sort theo: priorityScore, dispatchedAt, verifiedAt, severity, code, createdAt, slaResolveDueAt (mặc định: priorityScore desc).")]
     [SwaggerResponse(200, "Danh sách task", typeof(ApiResponse<GetCompanyQueueResponse>))]
     public async Task<IActionResult> GetCompanyQueueAsync(
@@ -323,11 +324,14 @@ public sealed class ReportsController(
         [FromQuery] Severity? severity = null,
         [FromQuery] string? wardCode = null,
         [FromQuery] Guid? categoryId = null,
+        [FromQuery] DateTime? fromDate = null,
+        [FromQuery] DateTime? toDate = null,
         [FromQuery] string? sortBy = null,
         [FromQuery] bool sortDesc = false,
         CancellationToken ct = default)
         => (await sender.Send(
-            new GetCompanyQueueQuery(page, pageSize, search, severity, wardCode, categoryId, sortBy, sortDesc), ct)).ToHttp();
+            new GetCompanyQueueQuery(
+                page, pageSize, search, severity, wardCode, categoryId, fromDate, toDate, sortBy, sortDesc), ct)).ToHttp();
 
     [HttpGet("company-reports/{reportId:guid}")]
     [Authorize(Roles = "CompanyManager,Admin")]
@@ -352,7 +356,8 @@ public sealed class ReportsController(
             "tiến độ (%), trạng thái assignment (Assigned/InProgress/Completed/Declined), " +
             "SLA deadline, thông tin người phân công, ảnh đại diện báo cáo (report.firstMedia — 1 ảnh citizen đầu tiên), " +
             "team.members (danh sách thành viên team). " +
-            "Lọc theo: assignmentStatus, reportStatus, search (mã báo cáo, địa chỉ, tên team).")]
+            "Lọc theo: assignmentStatus, reportStatus, search (mã báo cáo, địa chỉ, tên team), " +
+            "fromDate/toDate (theo ngày phân công team — assignedAt).")]
     [SwaggerResponse(200, "Danh sách assignment", typeof(ApiResponse<GetCompanyAssignmentsResponse>))]
     public async Task<IActionResult> GetCompanyAssignmentsAsync(
         [FromQuery] int page = 1,
@@ -360,8 +365,11 @@ public sealed class ReportsController(
         [FromQuery] AssignmentStatus? status = null,
         [FromQuery] ReportStatus? reportStatus = null,
         [FromQuery] string? search = null,
+        [FromQuery] DateTime? fromDate = null,
+        [FromQuery] DateTime? toDate = null,
         CancellationToken ct = default)
-        => (await sender.Send(new GetCompanyAssignmentsQuery(page, pageSize, status, reportStatus, search), ct)).ToHttp();
+        => (await sender.Send(
+            new GetCompanyAssignmentsQuery(page, pageSize, status, reportStatus, search, fromDate, toDate), ct)).ToHttp();
 
     [HttpGet("company-assignments/{reportId:guid}")]
     [Authorize(Roles = "CompanyManager,Admin")]

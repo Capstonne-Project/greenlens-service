@@ -17,6 +17,8 @@ public sealed record GetCompanyQueueQuery(
     Severity? Severity = null,
     string? WardCode = null,
     Guid? CategoryId = null,
+    DateTime? FromDate = null,
+    DateTime? ToDate = null,
     string? SortBy = null,
     bool SortDesc = false) : IRequest<Result<GetCompanyQueueResponse>>;
 

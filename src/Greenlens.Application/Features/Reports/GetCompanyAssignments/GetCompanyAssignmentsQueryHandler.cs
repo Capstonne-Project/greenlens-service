@@ -68,6 +68,20 @@ public sealed class GetCompanyAssignmentsQueryHandler(
                 a.Team!.Name.ToLower().Contains(search));
         }
 
+        if (request.FromDate.HasValue)
+        {
+            var from = DateTime.SpecifyKind(request.FromDate.Value.Date, DateTimeKind.Utc);
+            logger.LogInformation("From date: {FromDate}", from);
+            baseQuery = baseQuery.Where(a => a.AssignedAt >= from);
+        }
+
+        if (request.ToDate.HasValue)
+        {
+            var toExclusive = DateTime.SpecifyKind(request.ToDate.Value.Date.AddDays(1), DateTimeKind.Utc);
+            logger.LogInformation("To date (exclusive): {ToDate}", toExclusive);
+            baseQuery = baseQuery.Where(a => a.AssignedAt < toExclusive);
+        }
+
         var total = await baseQuery.CountAsync(ct).ConfigureAwait(false);
 
         var pageAssignments = await baseQuery
