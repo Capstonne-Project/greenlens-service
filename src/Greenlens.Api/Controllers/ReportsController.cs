@@ -32,6 +32,7 @@ using Greenlens.Application.Features.Reports.GetReportById;
 using Greenlens.Application.Features.Reports.GetReportHistory;
 using Greenlens.Application.Features.Reports.GetReports;
 using Greenlens.Application.Features.Reports.GetWasteTags;
+using Greenlens.Application.Features.Reports.ReassignCompanyTeam;
 using Greenlens.Application.Features.Reports.ReassignTeam;
 using Greenlens.Application.Features.Reports.RejectReport;
 using Greenlens.Application.Features.Reports.RateReport;
@@ -306,6 +307,22 @@ public sealed class ReportsController(
             .ToHttpNoContent("Đã phân công team công ty thành công.");
     }
 
+    [HttpPut("{id:guid}/reassign-company-team")]
+    [Authorize(Roles = "CompanyManager,Admin")]
+    [Tags("🏢 Company Dashboard")]
+    [SwaggerOperation(
+        Summary = "[CompanyManager] Phân công lại team sau khi từ chối",
+        Description = "CM chuyển assignment sang team khác trong công ty khi team cũ đã Declined hoặc còn Assigned (chưa accept). " +
+            "Report giữ InProgress; lý do từ chối xem tại GET company-assignments/{reportId} (assignment.declineReason, assignmentHistory). " +
+            "Yêu cầu lý do ≥ 20 ký tự.")]
+    [SwaggerResponse(200, "Đã phân công lại team", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Team không thuộc công ty, workload vượt quá hoặc trạng thái không hợp lệ", typeof(ApiResponse))]
+    public async Task<IActionResult> ReassignCompanyTeamAsync(
+        [FromRoute] Guid id, [FromBody] ReassignCompanyTeamRequest request, CancellationToken ct)
+        => (await sender.Send(
+            new ReassignCompanyTeamCommand(id, request.OldTeamId, request.NewTeamId, request.Reason), ct))
+            .ToHttpNoContent("Đã phân công lại team thành công.");
+
     [HttpGet("company-queue")]
     [Authorize(Roles = "CompanyManager,Admin")]
     [Tags("🏢 Company Dashboard")]
@@ -386,8 +403,9 @@ public sealed class ReportsController(
     [SwaggerOperation(
         Summary = "[CompanyManager] Chi tiết tiến độ xử lý báo cáo",
         Description = "Xem chi tiết 1 báo cáo đã dispatch cho công ty: thông tin báo cáo, team được giao (assignment) " +
-            "kèm thành viên, lịch sử cập nhật tiến độ (assignment.progressUpdates), timeline trạng thái, " +
-            "ảnh before/after (media), và waste tags.")]
+            "kèm acceptedAt, check-in, declineReason, teamLeaderName, thành viên (avatar), lịch sử phân công (assignmentHistory), " +
+            "canReassign (true khi team Declined/Assigned — gọi PUT reassign-company-team), progressUpdates, timeline, " +
+            "ảnh before/after, priorityScore, SLA, waste tags. Không bao gồm thông tin dispatch công ty từ LEO.")]
     [SwaggerResponse(200, "Chi tiết tiến độ báo cáo", typeof(ApiResponse<CompanyReportDetailResponse>))]
     [SwaggerResponse(404, "Báo cáo không tồn tại hoặc không thuộc công ty của bạn", typeof(ApiResponse))]
     public async Task<IActionResult> GetCompanyReportDetailAsync(
@@ -988,6 +1006,7 @@ public sealed record DeclineAssignmentRequest(Guid TeamId, string Reason);
 public sealed record TagWasteRequest(List<Guid> WasteTagIds);
 public sealed record DispatchToCompanyRequest(Guid CompanyId, string? Note);
 public sealed record AssignCompanyTeamRequest(List<AssignTeamItemRequest> Teams);
+public sealed record ReassignCompanyTeamRequest(Guid OldTeamId, Guid NewTeamId, string Reason);
 public sealed record RequestReopenReportRequest(string Reason, List<string>? ImageUrls, string? VideoUrl = null);
 public sealed record RejectReopenRequestRequest(string Reason);
 
