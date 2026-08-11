@@ -1,4 +1,5 @@
 using Greenlens.Application.Common.Models;
+using Greenlens.Application.Features.Reports.Common;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -12,7 +13,12 @@ namespace Greenlens.Application.Features.Reports.GetCompanyQueue;
 public sealed record GetCompanyQueueQuery(
     int Page = 1,
     int PageSize = 20,
-    Severity? Severity = null) : IRequest<Result<GetCompanyQueueResponse>>;
+    string? Search = null,
+    Severity? Severity = null,
+    string? WardCode = null,
+    Guid? CategoryId = null,
+    string? SortBy = null,
+    bool SortDesc = false) : IRequest<Result<GetCompanyQueueResponse>>;
 
 public sealed record GetCompanyQueueResponse(
     List<CompanyQueueItem> Items,
@@ -23,9 +29,13 @@ public sealed record CompanyQueueItem(
     string Code,
     string? Address,
     string? WardCode,
+    string? ProvinceCode,
     decimal Latitude,
     decimal Longitude,
     string CategoryName,
     Severity Severity,
     DateTime? DispatchedAt,
-    DateTime? SlaResolveDueAt);
+    DateTime? VerifiedAt,
+    string? VerifiedByName,
+    DateTime? SlaResolveDueAt,
+    IReadOnlyList<ReportReviewMediaItem> Media);

@@ -1,6 +1,8 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Analytics.Common;
+using Greenlens.Application.Features.Reports.Common;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
@@ -12,10 +14,12 @@ namespace Greenlens.Application.Features.Reports.GetCompanyReportDetail;
 
 /// <summary>
 /// Returns full detail of a report dispatched to the caller's company:
-/// report info, SLA, media (Before/After), assigned team + members + progress history, timeline, waste tags.
+/// report info, citizen media, SLA, cleanup media (Before/After), team + progress, timeline, waste tags.
 /// </summary>
+/// <remarks>Implements: BR-CMP-005, BR-CMP-021.</remarks>
 public sealed class GetCompanyReportDetailQueryHandler(
     IReportRepository reports,
+    IReportMediaRepository reportMedia,
     ICompanyStaffRepository companyStaff,
     ICurrentUser currentUser,
     ILogger<GetCompanyReportDetailQueryHandler> logger)
@@ -32,18 +36,18 @@ public sealed class GetCompanyReportDetailQueryHandler(
     public async Task<Result<CompanyReportDetailResponse>> Handle(
         GetCompanyReportDetailQuery request, CancellationToken ct)
     {
-        var staff = await companyStaff.GetByUserIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
-        if (staff is null || !staff.IsActive)
-        {
-            logger.LogWarning("Staff not found for user {UserId}", currentUser.UserId);
-            return Errors.Reports.ReportNotDispatchedToYourCompany;
-        }
+        var companyIdResult = await CompanyContextResolver
+            .ResolveCompanyIdAsync(companyStaff, currentUser.UserId, ct)
+            .ConfigureAwait(false);
+        if (companyIdResult.IsFailure)
+            return companyIdResult.Error!;
 
-        var companyId = staff.CompanyId;
+        var companyId = companyIdResult.Value;
 
         var r = await reports.QueryAsNoTracking()
             .Include(x => x.Category)
             .Include(x => x.Media)
+            .Include(x => x.VerifiedByUser)
             .Include(x => x.Assignments)
                 .ThenInclude(a => a.Team!)
                     .ThenInclude(t => t.Members)
@@ -81,6 +85,11 @@ public sealed class GetCompanyReportDetailQueryHandler(
             hoursRemaining,
             hoursRemaining.HasValue && hoursRemaining.Value < 0,
             SlaLabels.GetValueOrDefault(r.Severity, r.Severity.ToString()));
+
+        var citizenMediaByReport = await CitizenReportMediaLoader
+            .LoadByReportIdsAsync(reportMedia, [r.Id], ct)
+            .ConfigureAwait(false);
+        var citizenMedia = CitizenReportMediaLoader.GetMediaOrEmpty(citizenMediaByReport, r.Id);
 
         var companyAssignments = r.Assignments
             .Where(a => a.Team?.CompanyId == companyId)
@@ -131,11 +140,15 @@ public sealed class GetCompanyReportDetailQueryHandler(
         return new CompanyReportDetailResponse(
             r.Id, r.Code, r.Status, r.Severity,
             r.Category.NameVi, r.Description,
-            r.Address, r.WardCode, r.Latitude, r.Longitude,
-            r.CreatedAt, r.DispatchedToCompanyAt,
+            r.Address, r.WardCode, r.ProvinceCode,
+            r.Latitude, r.Longitude,
+            r.CreatedAt,
+            r.VerifiedAt,
+            r.VerifiedByUser?.FullName,
+            r.DispatchedToCompanyAt,
             r.ResolvedAt, r.ClosedAt,
             r.ReopenedCount,
-            sla, media, assignment, timeline, wasteTags);
+            sla, citizenMedia, media, assignment, timeline, wasteTags);
     }
 
     private static ReportAssignment? ResolveCurrentAssignment(IEnumerable<ReportAssignment> assignments) =>

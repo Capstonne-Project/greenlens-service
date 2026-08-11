@@ -2,6 +2,7 @@ using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Common.Models;
+using Greenlens.Application.Features.Analytics.Common;
 using Greenlens.Application.Features.Reports.Common;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
@@ -15,6 +16,7 @@ namespace Greenlens.Application.Features.Reports.GetCompanyAssignments;
 /// Returns all assignments for the caller's company, including team info and progress.
 /// CM can see the full picture: which team → which report → status + progress.
 /// </summary>
+/// <remarks>Implements: BR-CMP-021.</remarks>
 public sealed class GetCompanyAssignmentsQueryHandler(
     IReportAssignmentRepository assignments,
     IReportMediaRepository reportMedia,
@@ -28,15 +30,13 @@ public sealed class GetCompanyAssignmentsQueryHandler(
     {
         logger.LogInformation("Getting company assignments for user {UserId}", currentUser.UserId);
 
-        // ── 1. Resolve caller's company ──
-        var staff = await companyStaff.GetByUserIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
-        if (staff is null || !staff.IsActive)
-        {
-            logger.LogWarning("Staff not found for user {UserId}", currentUser.UserId);
-            return Errors.Reports.ReportNotDispatchedToYourCompany;
-        }
+        var companyIdResult = await CompanyContextResolver
+            .ResolveCompanyIdAsync(companyStaff, currentUser.UserId, ct)
+            .ConfigureAwait(false);
+        if (companyIdResult.IsFailure)
+            return companyIdResult.Error!;
 
-        var companyId = staff.CompanyId;
+        var companyId = companyIdResult.Value;
 
         logger.LogInformation("Company ID: {CompanyId}", companyId);
 

@@ -1,3 +1,4 @@
+using Greenlens.Application.Features.Reports.Common;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -19,14 +20,18 @@ public sealed record CompanyReportDetailResponse(
     string? Description,
     string? Address,
     string? WardCode,
+    string? ProvinceCode,
     decimal Latitude,
     decimal Longitude,
     DateTime CreatedAt,
+    DateTime? VerifiedAt,
+    string? VerifiedByName,
     DateTime? DispatchedToCompanyAt,
     DateTime? ResolvedAt,
     DateTime? ClosedAt,
     int ReopenedCount,
     CompanyReportSlaInfo Sla,
+    IReadOnlyList<ReportReviewMediaItem> CitizenMedia,
     CompanyReportMediaGroup Media,
     CompanyReportTeamAssignment? Assignment,
     IReadOnlyList<CompanyReportTimelineEntry> Timeline,
