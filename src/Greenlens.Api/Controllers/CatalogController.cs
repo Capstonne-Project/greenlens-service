@@ -2,6 +2,7 @@ using Greenlens.Api.Extensions;
 using Greenlens.Application.Common.Models;
 using Greenlens.Application.Features.Catalog.GetPollutionCategories;
 using Greenlens.Application.Features.Catalog.GetProvinces;
+using Greenlens.Application.Features.Catalog.GetWardBoundary;
 using Greenlens.Application.Features.Catalog.GetWardsByProvince;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -53,4 +54,21 @@ public sealed class CatalogController(ISender sender) : ControllerBase
         [FromRoute] string provinceCode,
         CancellationToken ct)
         => (await sender.Send(new GetWardsByProvinceQuery(provinceCode.Trim()), ct)).ToHttp();
+
+    /// <summary>Ward boundary lookup directly by ward code (no province code required).</summary>
+    [HttpGet("wards/{wardCode}/boundary")]
+    [AllowAnonymous]
+    [SwaggerOperation(
+        Summary = "Get ward boundary by ward code",
+        Description =
+            "Returns the ward's boundaryUrl (GeoJSON on CDN) for map overlay, looked up directly by " +
+            "wardCode. Used by the LEO map, which only knows wardCode/wardName from the officer's own " +
+            "office, not provinceCode.")]
+    [SwaggerResponse(200, "Ward boundary", typeof(ApiResponse<GetWardBoundaryResponse>))]
+    [SwaggerResponse(404, "Unknown ward code", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Invalid ward code format", typeof(ApiResponse))]
+    public async Task<IActionResult> GetWardBoundaryAsync(
+        [FromRoute] string wardCode,
+        CancellationToken ct)
+        => (await sender.Send(new GetWardBoundaryQuery(wardCode.Trim()), ct)).ToHttp();
 }
