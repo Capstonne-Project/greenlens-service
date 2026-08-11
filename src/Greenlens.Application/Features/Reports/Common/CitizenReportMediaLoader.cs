@@ -86,6 +86,11 @@ internal static class CitizenReportMediaLoader
                 });
     }
 
+    public static ReportReviewMediaItem? GetFirstMedia(
+        IReadOnlyDictionary<Guid, ReportReviewMediaItem> byReportId,
+        Guid reportId) =>
+        byReportId.TryGetValue(reportId, out var media) ? media : null;
+
     public static IReadOnlyList<ReportReviewMediaItem> GetFirstMediaList(
         IReadOnlyDictionary<Guid, ReportReviewMediaItem> byReportId,
         Guid reportId) =>
