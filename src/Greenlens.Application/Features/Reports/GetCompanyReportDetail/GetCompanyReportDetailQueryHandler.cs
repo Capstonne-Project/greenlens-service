@@ -16,7 +16,7 @@ namespace Greenlens.Application.Features.Reports.GetCompanyReportDetail;
 /// Returns full detail of a report dispatched to the caller's company:
 /// report info, citizen media, SLA, cleanup media (Before/After), team + progress, timeline, waste tags.
 /// </summary>
-/// <remarks>Implements: BR-CMP-005, BR-CMP-021.</remarks>
+/// <remarks>Implements: BR-CMP-005, BR-CMP-021, BR-CLN-007.</remarks>
 public sealed class GetCompanyReportDetailQueryHandler(
     IReportRepository reports,
     IReportMediaRepository reportMedia,
@@ -93,6 +93,7 @@ public sealed class GetCompanyReportDetailQueryHandler(
 
         var companyAssignments = r.Assignments
             .Where(a => a.Team?.CompanyId == companyId)
+            .OrderByDescending(a => a.AssignedAt)
             .ToList();
 
         var currentAssignment = ResolveCurrentAssignment(companyAssignments);
@@ -100,16 +101,22 @@ public sealed class GetCompanyReportDetailQueryHandler(
             ? null
             : MapAssignment(currentAssignment);
 
+        var assignmentHistory = companyAssignments
+            .Select(MapHistoryItem)
+            .ToList();
+
+        var canReassign = ComputeCanReassign(r, companyAssignments);
+
         var beforeImages = r.Media
             .Where(m => m.Type == MediaType.Before)
             .OrderBy(m => m.UploadedAt)
-            .Select(m => new CompanyReportMediaItem(m.Url, m.UploadedAt))
+            .Select(MapReportMedia)
             .ToList();
 
         var afterImages = r.Media
             .Where(m => m.Type == MediaType.After)
             .OrderBy(m => m.UploadedAt)
-            .Select(m => new CompanyReportMediaItem(m.Url, m.UploadedAt))
+            .Select(MapReportMedia)
             .ToList();
 
         var media = new CompanyReportMediaGroup(beforeImages, afterImages);
@@ -148,7 +155,20 @@ public sealed class GetCompanyReportDetailQueryHandler(
             r.DispatchedToCompanyAt,
             r.ResolvedAt, r.ClosedAt,
             r.ReopenedCount,
-            sla, citizenMedia, media, assignment, timeline, wasteTags);
+            r.PriorityScore,
+            sla, citizenMedia, media, assignment, assignmentHistory, canReassign, timeline, wasteTags);
+    }
+
+    private static bool ComputeCanReassign(Report report, IReadOnlyList<ReportAssignment> companyAssignments)
+    {
+        if (report.Status != ReportStatus.InProgress)
+            return false;
+
+        if (companyAssignments.Any(a => a.Status == AssignmentStatus.InProgress))
+            return false;
+
+        return companyAssignments.Any(a =>
+            a.Status is AssignmentStatus.Declined or AssignmentStatus.Assigned);
     }
 
     private static ReportAssignment? ResolveCurrentAssignment(IEnumerable<ReportAssignment> assignments) =>
@@ -157,15 +177,35 @@ public sealed class GetCompanyReportDetailQueryHandler(
             .FirstOrDefault(a => a.Status != AssignmentStatus.Declined)
         ?? assignments.OrderByDescending(a => a.AssignedAt).FirstOrDefault();
 
-    private static CompanyReportTeamAssignment MapAssignment(ReportAssignment a) =>
+    private static CompanyReportAssignmentHistoryItem MapHistoryItem(ReportAssignment a) =>
         new(
             a.Id,
+            a.TeamId,
+            a.Team?.Name ?? "Unknown",
             a.Status,
             a.AssignedAt,
             a.StartedAt,
             a.CompletedAt,
+            a.DeclineReason,
+            a.Note);
+
+    private static CompanyReportTeamAssignment MapAssignment(ReportAssignment a)
+    {
+        var leader = a.Team?.Members.FirstOrDefault(m => m.IsLeader);
+
+        return new(
+            a.Id,
+            a.Status,
+            a.AssignedAt,
+            a.StartedAt,
+            a.StartedAt,
+            a.CompletedAt,
             a.Note,
             a.DeclineReason,
+            a.CheckedInAt,
+            a.CheckedInLatitude,
+            a.CheckedInLongitude,
+            a.CheckedInNote,
             a.ProgressPercent,
             a.ProgressNote,
             a.ProgressUpdatedAt,
@@ -174,15 +214,20 @@ public sealed class GetCompanyReportDetailQueryHandler(
                 : null,
             a.TeamId,
             a.Team?.Name ?? "Unknown",
+            leader?.User?.FullName,
             a.Team?.Members
                 .Select(m => new CompanyReportTeamMember(
                     m.UserId,
                     m.User?.FullName ?? "Unknown",
-                    m.IsLeader))
+                    m.User?.AvatarUrl,
+                    m.IsLeader,
+                    m.JoinedAt))
                 .OrderByDescending(m => m.IsLeader)
+                .ThenBy(m => m.FullName)
                 .ToList() ?? [],
             a.AssignedByUser?.FullName ?? "Unknown",
             MapProgressUpdates(a));
+    }
 
     private static List<CompanyReportProgressUpdateItem> MapProgressUpdates(ReportAssignment assignment)
     {
@@ -200,7 +245,7 @@ public sealed class GetCompanyReportDetailQueryHandler(
                     u.Media
                         .Where(m => m.Type != MediaType.Video)
                         .OrderBy(m => m.UploadedAt)
-                        .Select(m => new CompanyReportMediaItem(m.Url, m.UploadedAt))
+                        .Select(MapReportMedia)
                         .ToList()))
                 .ToList();
         }
@@ -220,4 +265,7 @@ public sealed class GetCompanyReportDetailQueryHandler(
                 [])
         ];
     }
+
+    private static CompanyReportMediaItem MapReportMedia(ReportMedia m) =>
+        new(m.Id, m.Type.ToString(), m.Url, m.ThumbnailUrl, m.MimeType, m.SizeBytes, m.UploadedAt);
 }

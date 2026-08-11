@@ -16,8 +16,14 @@ public sealed record GetCompanyAssignmentsQuery(
     AssignmentStatus? Status = null,
     ReportStatus? ReportStatus = null,
     string? Search = null,
+    Severity? Severity = null,
+    string? WardCode = null,
+    Guid? CategoryId = null,
+    Guid? TeamId = null,
     DateTime? FromDate = null,
-    DateTime? ToDate = null) : IRequest<Result<GetCompanyAssignmentsResponse>>;
+    DateTime? ToDate = null,
+    string? SortBy = null,
+    bool SortDesc = false) : IRequest<Result<GetCompanyAssignmentsResponse>>;
 
 public sealed record GetCompanyAssignmentsResponse(
     List<CompanyAssignmentItem> Items,
