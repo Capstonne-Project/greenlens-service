@@ -49,6 +49,9 @@ internal sealed class PriorityScoreRefreshJob(
                           + report.ReporterCount * 2m
                           + ageHours / 24m;
 
+                if (report.SlaVerifyBreached && report.Status == ReportStatus.Submitted)
+                    score += 100m;
+
                 report.UpdatePriorityScore(Math.Round(score, 2));
             }
 

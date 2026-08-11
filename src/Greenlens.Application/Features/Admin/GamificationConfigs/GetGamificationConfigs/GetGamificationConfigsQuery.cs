@@ -1,20 +1,14 @@
 using Greenlens.Domain.Common;
-using Greenlens.Domain.Enums;
 using MediatR;
 
 namespace Greenlens.Application.Features.Admin.GamificationConfigs.GetGamificationConfigs;
 
-/// <summary>
-/// List all gamification point configurations.
-/// </summary>
+/// <summary>List gamification point configurations for Admin Dashboard.</summary>
 /// <remarks>Implements: BR-ADM-005.</remarks>
-public sealed record GetGamificationConfigsQuery() : IRequest<Result<List<GamificationConfigItem>>>;
-
-public sealed record GamificationConfigItem(
-    Guid Id,
-    string ActionType,
-    int Points,
-    string Description,
-    bool IsActive,
-    DateTime CreatedAt,
-    DateTime? UpdatedAt);
+public sealed record GetGamificationConfigsQuery(
+    int Page = 1,
+    int PageSize = 20,
+    string? Search = null,
+    bool? IsActive = null,
+    string? SortBy = null,
+    bool SortDesc = false) : IRequest<Result<GetGamificationConfigsResponse>>;

@@ -114,9 +114,9 @@ internal static class NotificationTemplateSeeder
         Create(
             "sla_verification_breached_leo",
             "Quá hạn xác minh",
-            "Báo cáo {report_code} tại {ward_name} đã vượt thời hạn xác minh 24 giờ và được chuyển lên cấp trên.",
-            "Verification SLA breached",
-            "Report {report_code} exceeded the 24h verification SLA and was escalated.",
+            "Báo cáo {report_code} tại {ward_name} đã quá 24 giờ chưa được xác minh. Vui lòng xử lý ưu tiên.",
+            "Verification SLA overdue",
+            "Report {report_code} at {ward_name} has not been verified within 24 hours. Please prioritize.",
             NotificationType.SlaVerificationBreachedLeo),
 
         Create(

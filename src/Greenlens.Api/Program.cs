@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Greenlens.Api.Configuration;
 using Greenlens.Api.Extensions;
 using Greenlens.Api.Swagger;
 using Greenlens.Api.Middlewares;
@@ -9,6 +10,8 @@ using Hangfire;
 using Microsoft.AspNetCore.HttpOverrides;
 using Serilog;
 using Greenlens.Infrastructure.Notifications.Hubs;
+
+DotEnvLoader.Load();
 
 var builder = WebApplication.CreateBuilder(args);
 

@@ -1,7 +1,8 @@
-using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Common.Models;
+using Greenlens.Application.Features.Analytics.Common;
+using Greenlens.Application.Features.Reports.Common;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -14,8 +15,10 @@ namespace Greenlens.Application.Features.Reports.GetCompanyQueue;
 /// Returns reports dispatched to the caller's company that are awaiting team assignment.
 /// Filters: Status == InProgress AND AssignedCompanyId == caller's companyId AND no active assignments.
 /// </summary>
+/// <remarks>Implements: BR-CMP-005, BR-CMP-021.</remarks>
 public sealed class GetCompanyQueueQueryHandler(
     IReportRepository reports,
+    IReportMediaRepository reportMedia,
     ICompanyStaffRepository companyStaff,
     ICurrentUser currentUser,
     ILogger<GetCompanyQueueQueryHandler> logger) : IRequestHandler<GetCompanyQueueQuery, Result<GetCompanyQueueResponse>>
@@ -24,24 +27,36 @@ public sealed class GetCompanyQueueQueryHandler(
     {
         logger.LogInformation("Getting company queue for user {UserId}", currentUser.UserId);
 
-        // Resolve caller's company
-        var staff = await companyStaff.GetByUserIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
-        if (staff is null || !staff.IsActive)
-        {
-            logger.LogWarning("Staff not found for user {UserId}", currentUser.UserId);
-            return Errors.Reports.ReportNotDispatchedToYourCompany;
-        }
+        var companyIdResult = await CompanyContextResolver
+            .ResolveCompanyIdAsync(companyStaff, currentUser.UserId, ct)
+            .ConfigureAwait(false);
+        if (companyIdResult.IsFailure)
+            return companyIdResult.Error!;
 
-        var companyId = staff.CompanyId;
+        var companyId = companyIdResult.Value;
+        var page = Math.Max(1, request.Page);
+        var pageSize = Math.Clamp(request.PageSize, 1, 100);
 
         logger.LogInformation("Company ID: {CompanyId}", companyId);
 
-        // Query reports dispatched to this company, InProgress, awaiting CM team assignment
         var baseQuery = reports.QueryAsNoTracking()
             .Include(r => r.Category)
+            .Include(r => r.VerifiedByUser)
             .Where(r => r.Status == ReportStatus.InProgress
                         && r.AssignedCompanyId == companyId
                         && !r.Assignments.Any(a => a.Status != AssignmentStatus.Declined));
+
+        if (!string.IsNullOrWhiteSpace(request.Search))
+        {
+            var keyword = request.Search.Trim().ToLowerInvariant();
+            logger.LogInformation("Search: {Search}", request.Search);
+            baseQuery = baseQuery.Where(r =>
+                r.Code.ToLower().Contains(keyword) ||
+                (r.Address != null && r.Address.ToLower().Contains(keyword)) ||
+                (r.WardCode != null && r.WardCode.ToLower().Contains(keyword)) ||
+                r.Category.NameVi.ToLower().Contains(keyword) ||
+                r.Category.NameEn.ToLower().Contains(keyword));
+        }
 
         if (request.Severity.HasValue)
         {
@@ -49,32 +64,111 @@ public sealed class GetCompanyQueueQueryHandler(
             baseQuery = baseQuery.Where(r => r.Severity == request.Severity.Value);
         }
 
-        var total = await baseQuery.CountAsync(ct).ConfigureAwait(false);
+        if (!string.IsNullOrWhiteSpace(request.WardCode))
+        {
+            var ward = request.WardCode.Trim();
+            logger.LogInformation("Filtering by ward: {WardCode}", ward);
+            baseQuery = baseQuery.Where(r => r.WardCode == ward);
+        }
 
-        var items = await baseQuery
-            .OrderByDescending(r => r.PriorityScore)
-            .ThenByDescending(r => r.CreatedAt)
-            .Skip((request.Page - 1) * request.PageSize)
-            .Take(request.PageSize)
-            .Select(r => new CompanyQueueItem(
+        if (request.CategoryId.HasValue)
+        {
+            logger.LogInformation("Filtering by category: {CategoryId}", request.CategoryId.Value);
+            baseQuery = baseQuery.Where(r => r.CategoryId == request.CategoryId.Value);
+        }
+
+        var total = await baseQuery.CountAsync(ct).ConfigureAwait(false);
+        var pagination = PaginationMeta.Create(page, pageSize, total);
+
+        var sortBy = request.SortBy?.Trim().ToLowerInvariant();
+        logger.LogInformation("Sort by: {SortBy}", sortBy);
+        var orderedQuery = sortBy switch
+        {
+            "code" => request.SortDesc
+                ? baseQuery.OrderByDescending(r => r.Code)
+                : baseQuery.OrderBy(r => r.Code),
+            "severity" => request.SortDesc
+                ? baseQuery.OrderByDescending(r => r.Severity)
+                : baseQuery.OrderBy(r => r.Severity),
+            "dispatchedat" => request.SortDesc
+                ? baseQuery.OrderByDescending(r => r.DispatchedToCompanyAt)
+                : baseQuery.OrderBy(r => r.DispatchedToCompanyAt),
+            "verifiedat" => request.SortDesc
+                ? baseQuery.OrderByDescending(r => r.VerifiedAt)
+                : baseQuery.OrderBy(r => r.VerifiedAt),
+            "createdat" => request.SortDesc
+                ? baseQuery.OrderByDescending(r => r.CreatedAt)
+                : baseQuery.OrderBy(r => r.CreatedAt),
+            "slaresolvedueat" => request.SortDesc
+                ? baseQuery.OrderByDescending(r => r.SlaResolveDueAt)
+                : baseQuery.OrderBy(r => r.SlaResolveDueAt),
+            "priorityscore" => request.SortDesc
+                ? baseQuery.OrderByDescending(r => r.PriorityScore)
+                : baseQuery.OrderBy(r => r.PriorityScore),
+            _ => baseQuery.OrderByDescending(r => r.PriorityScore).ThenByDescending(r => r.DispatchedToCompanyAt)
+        };
+
+        var rows = await orderedQuery
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(r => new QueueRow(
                 r.Id,
                 r.Code,
                 r.Address,
                 r.WardCode,
+                r.ProvinceCode,
                 r.Latitude,
                 r.Longitude,
                 r.Category.NameVi,
                 r.Severity,
                 r.DispatchedToCompanyAt,
+                r.VerifiedAt,
+                r.VerifiedByUser != null ? r.VerifiedByUser.FullName : null,
                 r.SlaResolveDueAt))
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
-        var pagination = PaginationMeta.Create(request.Page, request.PageSize, total);
+        var reportIds = rows.Select(r => r.ReportId).ToList();
+        var firstMediaByReportId = await CitizenReportMediaLoader
+            .LoadFirstByReportIdsAsync(reportMedia, reportIds, ct)
+            .ConfigureAwait(false);
 
-        logger.LogInformation("CompanyManager {UserId} viewed queue: {Count} reports for company {CompanyId}",
-            currentUser.UserId, total, companyId);
+        var items = rows.Select(r => new CompanyQueueItem(
+            r.ReportId,
+            r.Code,
+            r.Address,
+            r.WardCode,
+            r.ProvinceCode,
+            r.Latitude,
+            r.Longitude,
+            r.CategoryName,
+            r.Severity,
+            r.DispatchedAt,
+            r.VerifiedAt,
+            r.VerifiedByName,
+            r.SlaResolveDueAt,
+            CitizenReportMediaLoader.GetFirstMediaList(firstMediaByReportId, r.ReportId)))
+            .ToList();
+
+        logger.LogInformation(
+            "CompanyManager {UserId} viewed queue: {Count}/{Total} reports for company {CompanyId}",
+            currentUser.UserId, items.Count, total, companyId);
 
         return new GetCompanyQueueResponse(items, pagination);
     }
+
+    private sealed record QueueRow(
+        Guid ReportId,
+        string Code,
+        string? Address,
+        string? WardCode,
+        string? ProvinceCode,
+        decimal Latitude,
+        decimal Longitude,
+        string CategoryName,
+        Severity Severity,
+        DateTime? DispatchedAt,
+        DateTime? VerifiedAt,
+        string? VerifiedByName,
+        DateTime? SlaResolveDueAt);
 }

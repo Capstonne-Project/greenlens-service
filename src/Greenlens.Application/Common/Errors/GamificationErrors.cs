@@ -25,5 +25,10 @@ public static partial class Errors
             "BADGE_NOT_OWNED",
             "Bạn chưa đạt được huy hiệu này nên không thể chọn để hiển thị.",
             ErrorType.BusinessRule);
+
+        public static Error BadgeNotFound => new(
+            "BADGE_NOT_FOUND",
+            "Không tìm thấy huy hiệu.",
+            ErrorType.NotFound);
     }
 }

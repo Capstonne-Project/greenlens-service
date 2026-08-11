@@ -44,9 +44,16 @@ public sealed record CompanyAssignmentReport(
     Severity Severity,
     ReportStatus Status,
     DateTime? SlaResolveDueAt,
-    IReadOnlyList<ReportReviewMediaItem> Media);
+    ReportReviewMediaItem? FirstMedia);
 
 public sealed record CompanyAssignmentTeam(
     Guid TeamId,
     string TeamName,
-    int MemberCount);
+    int MemberCount,
+    IReadOnlyList<CompanyAssignmentTeamMember> Members);
+
+public sealed record CompanyAssignmentTeamMember(
+    Guid UserId,
+    string? FullName,
+    string? AvatarUrl,
+    bool IsLeader);
