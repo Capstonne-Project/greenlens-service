@@ -356,8 +356,9 @@ public sealed class ReportsController(
             "tiến độ (%), trạng thái assignment (Assigned/InProgress/Completed/Declined), " +
             "SLA deadline, thông tin người phân công, ảnh đại diện báo cáo (report.firstMedia — 1 ảnh citizen đầu tiên), " +
             "team.members (danh sách thành viên team). " +
-            "Lọc theo: assignmentStatus, reportStatus, search (mã báo cáo, địa chỉ, tên team), " +
-            "fromDate/toDate (theo ngày phân công team — assignedAt).")]
+            "Lọc theo: status (AssignmentStatus), reportStatus, severity, wardCode, categoryId, teamId, " +
+            "search (mã báo cáo, địa chỉ, ward, danh mục, tên team), fromDate/toDate (assignedAt). " +
+            "Sắp xếp: sortBy=assignedAt|code|severity|reportStatus|status|progressPercent|startedAt|completedAt|slaResolveDueAt|teamName, sortDesc=true/false.")]
     [SwaggerResponse(200, "Danh sách assignment", typeof(ApiResponse<GetCompanyAssignmentsResponse>))]
     public async Task<IActionResult> GetCompanyAssignmentsAsync(
         [FromQuery] int page = 1,
@@ -365,11 +366,19 @@ public sealed class ReportsController(
         [FromQuery] AssignmentStatus? status = null,
         [FromQuery] ReportStatus? reportStatus = null,
         [FromQuery] string? search = null,
+        [FromQuery] Severity? severity = null,
+        [FromQuery] string? wardCode = null,
+        [FromQuery] Guid? categoryId = null,
+        [FromQuery] Guid? teamId = null,
         [FromQuery] DateTime? fromDate = null,
         [FromQuery] DateTime? toDate = null,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] bool sortDesc = false,
         CancellationToken ct = default)
         => (await sender.Send(
-            new GetCompanyAssignmentsQuery(page, pageSize, status, reportStatus, search, fromDate, toDate), ct)).ToHttp();
+            new GetCompanyAssignmentsQuery(
+                page, pageSize, status, reportStatus, search, severity, wardCode, categoryId, teamId,
+                fromDate, toDate, sortBy, sortDesc), ct)).ToHttp();
 
     [HttpGet("company-assignments/{reportId:guid}")]
     [Authorize(Roles = "CompanyManager,Admin")]
