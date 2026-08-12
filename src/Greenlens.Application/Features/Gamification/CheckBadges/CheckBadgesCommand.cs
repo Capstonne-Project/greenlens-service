@@ -42,11 +42,13 @@ public sealed class CheckBadgesCommandHandler(
             .ConfigureAwait(false);
 
         var allBadges = await badgeRepo.GetAllActiveAsync(ct).ConfigureAwait(false);
-        var earnedBadgeIds = (await userBadgeRepo
+        var ownedBadges = await userBadgeRepo
             .GetByUserIdAsync(request.UserId, ct)
-            .ConfigureAwait(false))
-            .Select(ub => ub.BadgeId)
-            .ToHashSet();
+            .ConfigureAwait(false);
+        var earnedBadgeIds = ownedBadges.Select(ub => ub.BadgeId).ToHashSet();
+        var earnedBadgeCodes = await userBadgeRepo
+            .GetEarnedBadgeCodesAsync(request.UserId, ct)
+            .ConfigureAwait(false);
 
         var newlyAwardedCodes = new List<string>();
         var newlyAwardedBadges = new List<Badge>();
@@ -54,9 +56,11 @@ public sealed class CheckBadgesCommandHandler(
 
         foreach (var badge in allBadges)
         {
-            if (earnedBadgeIds.Contains(badge.Id))
+            if (earnedBadgeIds.Contains(badge.Id) || earnedBadgeCodes.Contains(badge.Code))
             {
-                logger.LogDebug("Badge {BadgeId} already awarded to user {UserId}", badge.Id, request.UserId);
+                logger.LogDebug(
+                    "Badge {BadgeCode} ({BadgeId}) already awarded to user {UserId}",
+                    badge.Code, badge.Id, request.UserId);
                 continue;
             }
 
@@ -88,6 +92,20 @@ public sealed class CheckBadgesCommandHandler(
 
             foreach (var badge in newlyAwardedBadges)
             {
+                var alreadyNotified = await db.Set<Notification>()
+                    .AsNoTracking()
+                    .AnyAsync(n => n.RecipientId == request.UserId
+                                   && n.Type == NotificationType.BadgeEarned
+                                   && n.ReferenceId == badge.Id, ct)
+                    .ConfigureAwait(false);
+                if (alreadyNotified)
+                {
+                    logger.LogDebug(
+                        "BadgeEarned notification already sent for user {UserId}, badge {BadgeCode}",
+                        request.UserId, badge.Code);
+                    continue;
+                }
+
                 await notificationService.SendFromTemplateAsync(
                     request.UserId,
                     NotificationType.BadgeEarned,
