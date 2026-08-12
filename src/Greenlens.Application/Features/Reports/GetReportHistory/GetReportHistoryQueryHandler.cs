@@ -23,7 +23,7 @@ public sealed class GetReportHistoryQueryHandler(
             .Select(h => new StatusHistoryItem(
                 h.Id, h.FromStatus, h.ToStatus,
                 h.ChangedBy, h.ChangedByUser != null ? h.ChangedByUser.FullName : null,
-                h.Reason, h.CreatedAt))
+                h.Reason, h.CreatedAt, h.Metadata))
             .ToListAsync(ct).ConfigureAwait(false);
 
         logger.LogInformation("Lấy lịch sử trạng thái báo cáo thành công. Số lượng: {Count}", items.Count);
