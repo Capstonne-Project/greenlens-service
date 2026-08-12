@@ -1,6 +1,10 @@
+using Greenlens.Application.Common;
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Common.Models;
+using Greenlens.Application.Features.Analytics.Common;
 using Greenlens.Domain.Common;
+using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
@@ -9,16 +13,36 @@ namespace Greenlens.Application.Features.Organization.GetDepartments;
 
 public sealed class GetDepartmentsQueryHandler(
     IDepartmentRepository departments,
+    IUserRepository users,
+    ICurrentUser currentUser,
     ILogger<GetDepartmentsQueryHandler> logger)
     : IRequestHandler<GetDepartmentsQuery, Result<GetDepartmentsResponse>>
 {
     public async Task<Result<GetDepartmentsResponse>> Handle(
         GetDepartmentsQuery request, CancellationToken ct)
     {
+        var actor = await users.GetByIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
+        if (actor is null)
+        {
+            logger.LogWarning("User {UserId} not found", currentUser.UserId);
+            return Errors.Users.UserNotFound;
+        }
+
         var query = departments.QueryAsNoTracking()
             .Include(d => d.Province)
             .Include(d => d.LocalOffices)
             .AsQueryable();
+
+        if (actor.Role == UserRole.DEO)
+        {
+            if (!actor.DepartmentId.HasValue)
+            {
+                logger.LogWarning("User {UserId} denied access to any department", currentUser.UserId);
+                return Errors.Organization.DepartmentNotFound;
+            }
+
+            query = query.Where(d => d.Id == actor.DepartmentId.Value);
+        }
 
         if (request.IsActive.HasValue)
         {

@@ -1,5 +1,7 @@
 using Greenlens.Application.Common;
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Analytics.Common;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -11,12 +13,26 @@ namespace Greenlens.Application.Features.Organization.GetDepartmentById;
 public sealed class GetDepartmentByIdQueryHandler(
     IDepartmentRepository departments,
     IUserRepository users,
+    ICurrentUser currentUser,
     ILogger<GetDepartmentByIdQueryHandler> logger)
     : IRequestHandler<GetDepartmentByIdQuery, Result<DepartmentDetailResponse>>
 {
     public async Task<Result<DepartmentDetailResponse>> Handle(
         GetDepartmentByIdQuery request, CancellationToken ct)
     {
+        var actor = await users.GetByIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
+        if (actor is null)
+            return Errors.Users.UserNotFound;
+
+        var accessError = DepartmentContextResolver.ValidateDeoDepartmentAccess(actor, request.Id);
+        if (accessError is not null)
+        {
+            logger.LogWarning(
+                "User {UserId} denied department {DepartmentId}: {ErrorCode}",
+                currentUser.UserId, request.Id, accessError.Code);
+            return accessError;
+        }
+
         var dept = await departments.QueryAsNoTracking()
             .Include(d => d.Province)
             .Include(d => d.LocalOffices).ThenInclude(o => o.Ward)

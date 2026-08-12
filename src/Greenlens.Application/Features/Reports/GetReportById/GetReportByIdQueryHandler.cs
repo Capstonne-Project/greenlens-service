@@ -27,6 +27,7 @@ public sealed class GetReportByIdQueryHandler(
     IReportSatisfactionRepository satisfactions,
     IInspectionReportRepository inspections,
     IApplicationDbContext db,
+    IUserRepository users,
     ICurrentUser currentUser,
     ILogger<GetReportByIdQueryHandler> logger)
     : IRequestHandler<GetReportByIdQuery, Result<ReportDetailResponse>>
@@ -56,6 +57,25 @@ public sealed class GetReportByIdQueryHandler(
         {
             logger.LogWarning("Report {ReportId} is hidden", request.Id);
             return Errors.Reports.ReportNotFound;
+        }
+
+        if (currentUser.IsAuthenticated && currentUser.Role is "LEO" or "DEO")
+        {
+            var actor = await users.GetByIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
+            if (actor is null)
+            {
+                logger.LogWarning("User {UserId} not found", currentUser.UserId);
+                return Errors.Users.UserNotFound;
+            }
+
+            var accessError = ReportReviewCandidateFilters.ValidateReportAccess(r, actor, currentUser.Role);
+            if (accessError is not null)
+            {
+                logger.LogWarning(
+                    "User {UserId} denied report {ReportId}: {ErrorCode}",
+                    currentUser.UserId, request.Id, accessError.Code);
+                return accessError;
+            }
         }
 
         var media = r.Media.Select(m => new ReportMediaItem(

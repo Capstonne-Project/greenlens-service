@@ -74,6 +74,7 @@ public sealed class GetReportByIdQueryHandlerTests
             new ReportSatisfactionRepository(ctx),
             Substitute.For<IInspectionReportRepository>(),
             ctx,
+            new UserRepository(ctx),
             currentUser,
             NullLogger<GetReportByIdQueryHandler>.Instance);
 

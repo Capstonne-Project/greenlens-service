@@ -4,6 +4,8 @@
 > **Role:** `DEO` (Điều phối viên cấp Tỉnh/TP — Sở TNMT)  
 > **Phạm vi dữ liệu:** Mọi query báo cáo/analytics lọc theo `AssignedDepartmentId` = department của DEO đăng nhập.
 
+**Cơ chế scope (BE):** Department lấy từ `users.department_id` của JWT user — **không** nhận `departmentId` từ query string. Dashboard `/v1/dashboard/deo/*` dùng `DepartmentContextResolver`; báo cáo chi tiết/history dùng `ValidateReportAccess`; công ty dùng `CompanyAccessAuthorization`.
+
 ---
 
 ## 0. Vai trò DEO (2026-08 — read-only báo cáo)
