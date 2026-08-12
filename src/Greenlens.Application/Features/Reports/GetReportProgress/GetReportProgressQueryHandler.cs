@@ -150,6 +150,8 @@ public sealed class GetReportProgressQueryHandler(
             report.Category.NameVi,
             report.Address,
             report.WardCode,
+            report.Latitude,
+            report.Longitude,
             report.Description,
             sla,
             assignedCompany,

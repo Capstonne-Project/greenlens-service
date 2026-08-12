@@ -437,7 +437,7 @@ public sealed class ReportsController(
     [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(
         Summary = "[LEO] Tiến trình xử lý báo cáo",
-        Description = "Trả về tiến trình báo cáo trong phạm vi office LEO: team được giao (assignment), thành viên team, " +
+        Description = "Trả về tiến trình báo cáo trong phạm vi office LEO: vị trí (address, wardCode, latitude, longitude), team được giao (assignment), thành viên team, " +
             "công ty dispatch (assignedCompany nếu có), lịch sử cập nhật tiến độ (assignment.progressUpdates), " +
             "ảnh theo phase (media.*), SLA, và lịch sử status.")]
     [SwaggerResponse(200, "Tiến trình báo cáo", typeof(ApiResponse<ReportProgressResponse>))]

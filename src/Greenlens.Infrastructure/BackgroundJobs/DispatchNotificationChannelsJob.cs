@@ -47,7 +47,8 @@ internal sealed class DispatchNotificationChannelsJob(
         if (row is null)
         {
             logger.LogWarning("DispatchNotificationChannelsJob: notification {Id} not found", notificationId);
-            return;
+            throw new InvalidOperationException(
+                $"Notification {notificationId} not found — may not be committed yet; Hangfire will retry.");
         }
 
         var pushPending = ShouldSendPush(row.Channel, row.PushDispatchedAt);
