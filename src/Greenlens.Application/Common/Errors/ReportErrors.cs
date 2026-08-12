@@ -36,6 +36,11 @@ public static partial class Errors
             "Báo cáo đã được phân công cho team và đang trong quá trình xử lý.",
             ErrorType.Conflict);
 
+        public static Error TeamAlreadyAssignedOnReport => new(
+            "TEAM_ALREADY_ASSIGNED_ON_REPORT",
+            "Team này đã có phân công đang chờ hoặc đang xử lý trên báo cáo.",
+            ErrorType.Conflict);
+
         public static Error ConflictOfInterest => new(
             "CONFLICT_OF_INTEREST",
             "Không thể xử lý báo cáo do bạn tạo.",

@@ -12,12 +12,11 @@ public sealed class MetadataExtractorImageExifAnalyzer : IImageExifAnalyzer
 {
     public ImageExifAnalysis Analyze(
         ReadOnlyMemory<byte> imageBytes,
-        DateTime submittedAtUtc,
         decimal submittedLatitude,
         decimal submittedLongitude)
     {
         if (imageBytes.IsEmpty)
-            return MissingAnalysis(submittedAtUtc, submittedLatitude, submittedLongitude);
+            return MissingAnalysis();
 
         try
         {
@@ -56,18 +55,14 @@ public sealed class MetadataExtractorImageExifAnalyzer : IImageExifAnalyzer
                 }
             }
 
-            var hasTimestamp = capturedAtUtc.HasValue;
             var reasons = ExifSuspicionEvaluator.ResolveSuspiciousReasons(
-                hasTimestamp,
-                capturedAtUtc,
-                submittedAtUtc,
                 submittedLatitude,
                 submittedLongitude,
                 latitude,
                 longitude);
 
             string? exifJson = null;
-            if (hasTimestamp || latitude.HasValue)
+            if (capturedAtUtc.HasValue || latitude.HasValue)
             {
                 exifJson = JsonSerializer.Serialize(new
                 {
@@ -78,7 +73,7 @@ public sealed class MetadataExtractorImageExifAnalyzer : IImageExifAnalyzer
             }
 
             return new ImageExifAnalysis(
-                hasTimestamp,
+                capturedAtUtc.HasValue,
                 capturedAtUtc,
                 latitude,
                 longitude,
@@ -87,17 +82,10 @@ public sealed class MetadataExtractorImageExifAnalyzer : IImageExifAnalyzer
         }
         catch
         {
-            return MissingAnalysis(submittedAtUtc, submittedLatitude, submittedLongitude);
+            return MissingAnalysis();
         }
     }
 
-    private static ImageExifAnalysis MissingAnalysis(
-        DateTime submittedAtUtc,
-        decimal submittedLatitude,
-        decimal submittedLongitude)
-    {
-        var reasons = ExifSuspicionEvaluator.ResolveSuspiciousReasons(
-            false, null, submittedAtUtc, submittedLatitude, submittedLongitude, null, null);
-        return new ImageExifAnalysis(false, null, null, null, null, reasons);
-    }
+    private static ImageExifAnalysis MissingAnalysis() =>
+        new(false, null, null, null, null, []);
 }

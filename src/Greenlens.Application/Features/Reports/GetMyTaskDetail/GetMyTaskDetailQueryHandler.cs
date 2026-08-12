@@ -1,6 +1,7 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Reports.Common;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -39,7 +40,7 @@ public sealed class GetMyTaskDetailQueryHandler(
             return Errors.Reports.NotTeamMember;
         }
 
-        var assignment = await assignments
+        var assignmentRows = await assignments
             .QueryAsNoTracking()
             .Include(a => a.Report)
                 .ThenInclude(r => r!.Category)
@@ -48,9 +49,12 @@ public sealed class GetMyTaskDetailQueryHandler(
             .Include(a => a.Report)
                 .ThenInclude(r => r!.WasteTags)
                     .ThenInclude(wt => wt.WasteTag)
-            .FirstOrDefaultAsync(
-                a => a.ReportId == request.ReportId && myTeamIds.Contains(a.TeamId), ct)
+            .Where(a => a.ReportId == request.ReportId && myTeamIds.Contains(a.TeamId))
+            .OrderByDescending(a => a.AssignedAt)
+            .ToListAsync(ct)
             .ConfigureAwait(false);
+
+        var assignment = ReportAssignmentSelection.SelectLatestForTeams(assignmentRows, myTeamIds);
 
         if (assignment is null)
         {

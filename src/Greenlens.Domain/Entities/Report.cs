@@ -368,6 +368,8 @@ public sealed class Report : SoftDeletableEntity
         AssignedByOfficerId = null;
         AssignedCompanyId = null;
         DispatchedToCompanyAt = null;
+        StartedAt = null;
+        SlaResolveBreached = false;
         UpdatedAt = DateTime.UtcNow;
         _ = leoId;
 

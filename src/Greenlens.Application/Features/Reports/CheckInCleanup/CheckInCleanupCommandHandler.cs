@@ -1,6 +1,7 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Reports.Common;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
@@ -42,7 +43,7 @@ public sealed class CheckInCleanupCommandHandler(
         }
 
         var reportAssignments = await assignments.GetByReportIdAsync(request.ReportId, ct).ConfigureAwait(false);
-        var assignment = reportAssignments.FirstOrDefault(a => a.TeamId == request.TeamId);
+        var assignment = ReportAssignmentSelection.SelectLatestForTeam(reportAssignments, request.TeamId);
 
         if (assignment is null)
         {

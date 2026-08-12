@@ -5,6 +5,7 @@ using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Common.Options;
 using Greenlens.Application.Features.Analytics.Common;
 using Greenlens.Application.Features.Notifications;
+using Greenlens.Application.Features.Reports.Common;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
@@ -97,7 +98,7 @@ public sealed class ReassignCompanyTeamCommandHandler(
         }
 
         var reportAssignments = await assignments.GetByReportIdAsync(request.ReportId, ct).ConfigureAwait(false);
-        var oldAssignment = reportAssignments.FirstOrDefault(a => a.TeamId == request.OldTeamId);
+        var oldAssignment = ReportAssignmentSelection.SelectLatestForTeam(reportAssignments, request.OldTeamId);
 
         if (oldAssignment is null)
         {
@@ -133,16 +134,12 @@ public sealed class ReassignCompanyTeamCommandHandler(
             return Errors.Reports.InvalidStatusTransition;
         }
 
-        if (reportAssignments.Any(a =>
-                a.TeamId == request.NewTeamId
-                && a.Status is AssignmentStatus.Assigned
-                    or AssignmentStatus.InProgress
-                    or AssignmentStatus.Completed))
+        if (ReportAssignmentSelection.HasOpenAssignmentForTeam(reportAssignments, request.NewTeamId))
         {
             logger.LogWarning(
-                "Team {TeamId} already has an active assignment on report {ReportId}",
+                "Team {TeamId} already has an open assignment on report {ReportId}",
                 request.NewTeamId, request.ReportId);
-            return Errors.Reports.InvalidStatusTransition;
+            return Errors.Reports.TeamAlreadyAssignedOnReport;
         }
 
         var newAssignment = ReportAssignment.Create(

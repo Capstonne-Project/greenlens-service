@@ -2,6 +2,7 @@ using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Features.Notifications;
+using Greenlens.Application.Features.Reports.Common;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
@@ -79,7 +80,7 @@ public sealed class ResolveReportCommandHandler(
 
         // Find this team's assignment via token — no need to pass teamId in body
         var reportAssignments = await assignments.GetByReportIdAsync(request.ReportId, ct).ConfigureAwait(false);
-        var assignment = reportAssignments.FirstOrDefault(a => a.TeamId == leader.TeamId);
+        var assignment = ReportAssignmentSelection.SelectLatestForTeam(reportAssignments, leader.TeamId);
         if (assignment is null)
         {
             logger.LogWarning("Assignment not found for report {ReportId} and team {TeamId}", request.ReportId, leader.TeamId);
@@ -107,12 +108,7 @@ public sealed class ResolveReportCommandHandler(
             reportMedia.Add(media);
         }
 
-        // Check if ALL active assignments (non-declined) are completed
-        var activeAssignments = reportAssignments
-            .Where(a => a.Status != AssignmentStatus.Declined)
-            .ToList();
-
-        var allCompleted = activeAssignments.All(a => a.Status == AssignmentStatus.Completed);
+        var allCompleted = ReportAssignmentSelection.AllNonDeclinedCompleted(reportAssignments);
 
         if (allCompleted)
         {

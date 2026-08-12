@@ -2,22 +2,19 @@ using Greenlens.Application.Common;
 
 namespace Greenlens.Application.Features.Reports;
 
-/// <summary>BR-REP-011: pure rules for marking reports suspicious based on EXIF metadata.</summary>
+/// <summary>BR-REP-011: pure rules for marking reports suspicious based on EXIF GPS metadata.</summary>
 public static class ExifSuspicionEvaluator
 {
     public const string StaleTimestampReason = "EXIF_TIMESTAMP_STALE";
     public const string MissingMetadataReason = "EXIF_METADATA_MISSING";
     public const string GpsMismatchReason = "EXIF_GPS_MISMATCH";
-    public const string StaleWarningMessage = "Ảnh có thể không phản ánh hiện trạng thực tế";
+    public const string ExifWarningMessage = "Ảnh có thể không phản ánh hiện trạng thực tế";
+
+    /// <summary>Legacy alias for submit response.</summary>
+    public const string StaleWarningMessage = ExifWarningMessage;
 
     /// <summary>Max distance (m) between submitted pin and EXIF GPS before flagging (BR-CLN-002 parity).</summary>
     public const double GpsMismatchThresholdMeters = 200.0;
-
-    /// <summary>Photo taken more than one day before submit → stale (BR-REP-011).</summary>
-    public static readonly TimeSpan StaleTimestampThreshold = TimeSpan.FromDays(1);
-
-    public static bool IsTimestampStale(DateTime capturedAtUtc, DateTime submittedAtUtc) =>
-        submittedAtUtc - capturedAtUtc > StaleTimestampThreshold;
 
     public static bool IsGpsMismatch(
         decimal submittedLatitude,
@@ -27,28 +24,18 @@ public static class ExifSuspicionEvaluator
         GeoMath.HaversineMeters(submittedLatitude, submittedLongitude, exifLatitude, exifLongitude)
             > GpsMismatchThresholdMeters;
 
-    /// <summary>Returns all applicable suspicion reason codes (may be empty).</summary>
+    /// <summary>Returns applicable suspicion reason codes (may be empty). Timestamp is not checked.</summary>
     public static IReadOnlyList<string> ResolveSuspiciousReasons(
-        bool hasTimestamp,
-        DateTime? capturedAtUtc,
-        DateTime submittedAtUtc,
         decimal submittedLatitude,
         decimal submittedLongitude,
         decimal? exifLatitude,
         decimal? exifLongitude)
     {
-        var reasons = new List<string>();
-
-        if (!hasTimestamp || capturedAtUtc is null)
-            reasons.Add(MissingMetadataReason);
-        else if (IsTimestampStale(capturedAtUtc.Value, submittedAtUtc))
-            reasons.Add(StaleTimestampReason);
-
         if (exifLatitude.HasValue && exifLongitude.HasValue
             && IsGpsMismatch(submittedLatitude, submittedLongitude, exifLatitude.Value, exifLongitude.Value))
-            reasons.Add(GpsMismatchReason);
+            return [GpsMismatchReason];
 
-        return reasons;
+        return [];
     }
 
     /// <summary>Maps persisted reason codes to officer-facing messages (vi-VN, BR-REP-011).</summary>
@@ -57,7 +44,7 @@ public static class ExifSuspicionEvaluator
         {
             MissingMetadataReason => "Ảnh thiếu thông tin thời gian chụp",
             StaleTimestampReason => "Ảnh chụp quá lâu (hơn 1 ngày) so với thời gian gửi",
-            GpsMismatchReason => "Vị trí người dân chọn trên bản đồ khác với vị trí trong ảnh",
+            GpsMismatchReason => "Vị trí người dân gửi báo cáo trên bản đồ khác với vị trí trong ảnh",
             _ => reasonCode
         };
 

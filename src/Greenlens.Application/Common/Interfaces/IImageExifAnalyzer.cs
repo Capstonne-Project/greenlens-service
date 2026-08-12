@@ -5,7 +5,6 @@ public interface IImageExifAnalyzer
 {
     ImageExifAnalysis Analyze(
         ReadOnlyMemory<byte> imageBytes,
-        DateTime submittedAtUtc,
         decimal submittedLatitude,
         decimal submittedLongitude);
 }
