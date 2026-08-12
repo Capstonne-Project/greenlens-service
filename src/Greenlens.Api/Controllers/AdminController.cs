@@ -238,7 +238,17 @@ public sealed class AdminController(ISender sender) : ControllerBase
         var matrix = new List<RolePermissionDto>
         {
             new("Admin", ["*"]),
-            new("DEO", ["GET /departments", "GET /offices", "GET /teams", "GET /reports", "PUT /reports/*/verify", "PUT /reports/*/reject", "POST /reports/*/assign", "PUT /reports/*/reassign", "GET /reports/queue"]),
+            new("DEO", [
+                "GET /dashboard/deo/*",
+                "GET /departments/my/reports",
+                "GET /departments/my-offices",
+                "GET /reports/{id}",
+                "GET /reports/export",
+                "GET /reports/officer-kpi",
+                "GET /reports/duplicate-candidates",
+                "GET /companies",
+                "POST /companies",
+                "GET /companies/{id}/kpi"]),
             new("LEO", ["GET /offices", "GET /teams", "GET /reports", "PUT /reports/*/verify", "PUT /reports/*/reject", "POST /reports/*/assign", "PUT /reports/*/reassign", "GET /reports/queue"]),
             new("Cleaner", ["PUT /reports/*/resolve", "PUT /reports/*/decline"]),
             new("Inspector", ["PUT /reports/*/penalty", "PUT /reports/*/close-no-violation", "PUT /reports/*/decline"]),
@@ -626,7 +636,7 @@ public sealed class AdminController(ISender sender) : ControllerBase
     private static string GetRoleDescription(UserRole role) => role switch
     {
         UserRole.Citizen => "Người dân — tạo và theo dõi báo cáo ô nhiễm",
-        UserRole.DEO => "Điều phối viên cấp Tỉnh — tiếp nhận, xác minh, điều phối task xuống phường/xã",
+        UserRole.DEO => "Điều phối viên cấp Tỉnh — giám sát báo cáo toàn tỉnh và quản lý công ty DVMT",
         UserRole.LEO => "Giám sát viên cấp Phường/Xã — nhận task, phân công và quản lý team",
         UserRole.Cleaner => "Đội dọn dẹp — xử lý ô nhiễm rác/nước/hóa chất",
         UserRole.Inspector => "Đội thanh tra — xử phạt ô nhiễm tiếng ồn/không khí",

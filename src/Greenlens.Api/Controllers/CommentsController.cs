@@ -86,7 +86,7 @@ public sealed class CommentsController(ISender sender) : ControllerBase
         => (await sender.Send(new DeleteCommentCommand(commentId), ct)).ToHttpNoContent("Đã xóa bình luận.");
 
     [HttpPost("comments/{commentId:guid}/hide")]
-    [Authorize(Roles = "LEO,DEO,Admin")]
+    [Authorize(Roles = "LEO,Admin")]
     [SwaggerOperation(
         Summary = "[LEO] Ẩn bình luận vi phạm",
         Description = "Lý do tối thiểu 10 ký tự. BR-CMT-004.")]

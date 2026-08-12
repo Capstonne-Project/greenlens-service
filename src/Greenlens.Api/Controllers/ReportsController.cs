@@ -446,11 +446,11 @@ public sealed class ReportsController(
         => (await sender.Send(new GetReportProgressQuery(id), ct)).ToHttp();
 
     [HttpGet("queue")]
-    [Authorize(Roles = "LEO,DEO,Admin")]
-    [Tags("🔍 DEO Dashboard")]
+    [Authorize(Roles = "LEO,Admin")]
+    [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(
-        Summary = "[LEO/DEO] Xem hàng đợi báo cáo",
-        Description = "Trả về danh sách báo cáo trong phạm vi officer đăng nhập: DEO → hàng đợi fallback department (chưa gán office), LEO → Submitted/Verified/Reopened trong office. " +
+        Summary = "[LEO] Xem hàng đợi báo cáo",
+        Description = "Trả về danh sách báo cáo trong phạm vi officer đăng nhập: LEO → Submitted/Verified/Reopened trong office. " +
             "Hỗ trợ search (code, address, category), filter (status, severity, category, ward, date range, SLA breached, isPossibleDuplicate, isSuspectedViolationRecurrence), " +
             "và sort (priorityScore, createdAt, severity, slaVerifyDueAt, slaResolveDueAt — asc/desc). " +
             "Default sort: priorityScore desc.")]
@@ -553,8 +553,9 @@ public sealed class ReportsController(
     [Authorize(Roles = "LEO,DEO,Admin")]
     [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(
-        Summary = "[LEO/DEO] Danh sách báo cáo nghi ngờ trùng lặp",
+        Summary = "[LEO read / DEO monitor] Danh sách báo cáo nghi ngờ trùng lặp",
         Description = "BR-REP-031: Trả về các báo cáo bị gắn cờ possible_duplicate trong phạm vi LEO (office) / DEO (department). " +
+            "DEO chỉ xem — xử lý gộp/bác bỏ do LEO. " +
             "Tier 1 geo/category hoặc Tier 2 AI — kèm thông tin báo cáo gốc và ảnh thumbnail đầu tiên (media[] tối đa 1 phần tử). " +
             "Hỗ trợ search (code, address, category), filter (status, severity, categoryId, wardCode, fromDate, toDate, duplicateDetectionSource, minAiSimilarityScore), sort.")]
     [SwaggerResponse(200, "Danh sách nghi ngờ trùng lặp", typeof(ApiResponse<GetDuplicateCandidatesResponse>))]
@@ -603,7 +604,7 @@ public sealed class ReportsController(
         => (await sender.Send(new GetDuplicateCandidateDetailQuery(id), ct)).ToHttp();
 
     [HttpPost("{id:guid}/confirm-duplicate")]
-    [Authorize(Roles = "LEO,DEO,Admin")]
+    [Authorize(Roles = "LEO,Admin")]
     [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(
         Summary = "[LEO/DEO] Xác nhận báo cáo trùng lặp",
@@ -619,7 +620,7 @@ public sealed class ReportsController(
             .ToHttpNoContent("Đã gộp báo cáo trùng lặp.");
 
     [HttpPost("{id:guid}/dismiss-duplicate")]
-    [Authorize(Roles = "LEO,DEO,Admin")]
+    [Authorize(Roles = "LEO,Admin")]
     [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(
         Summary = "[LEO/DEO] Bác bỏ cờ nghi ngờ trùng lặp",
@@ -685,7 +686,7 @@ public sealed class ReportsController(
         => (await sender.Send(new GetViolationRecurrenceComparisonQuery(id), ct)).ToHttp();
 
     [HttpPost("{id:guid}/dismiss-violation-recurrence")]
-    [Authorize(Roles = "LEO,DEO,Admin")]
+    [Authorize(Roles = "LEO,Admin")]
     [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(
         Summary = "[LEO/DEO] Bác bỏ cờ nghi ngờ vi phạm tái phát",

@@ -139,5 +139,8 @@ public enum NotificationType
     StaffInvitationAccepted,
 
     /// <summary>BR-ORG-021: Citizen declined a staff invitation.</summary>
-    StaffInvitationDeclined
+    StaffInvitationDeclined,
+
+    /// <summary>BR-CMP-002: CompanyManager account provisioned — email includes login email and temporary password.</summary>
+    CompanyManagerAccountCreated
 }

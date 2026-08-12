@@ -469,7 +469,21 @@ internal static class NotificationTemplateSeeder
             "Bạn đã đạt {current}/{target} cho huy hiệu \"{badge_name}\". Cố gắng thêm chút nữa để nhận huy hiệu!",
             "Almost there for a new badge",
             "You've reached {current}/{target} toward the \"{badge_name}\" badge. Keep going to earn it!",
-            NotificationType.BadgeProgressNear)
+            NotificationType.BadgeProgressNear),
+
+        Create(
+            "company_manager_account_created",
+            "Tài khoản Quản lý công ty GreenLens",
+            "Xin chào {manager_name}, bạn đã được tạo tài khoản Quản lý công ty \"{company_name}\" trên GreenLens.\n\n" +
+            "Email đăng nhập: {email}\n" +
+            "Mật khẩu tạm: {temp_password}\n\n" +
+            "Vui lòng đăng nhập và đổi mật khẩu ngay lần đầu. Sau khi đổi mật khẩu, công ty sẽ được kích hoạt tự động.",
+            "GreenLens company manager account created",
+            "Hello {manager_name}, your Company Manager account for \"{company_name}\" on GreenLens is ready.\n\n" +
+            "Login email: {email}\n" +
+            "Temporary password: {temp_password}\n\n" +
+            "Please sign in and change your password on first login. The company will activate automatically afterward.",
+            NotificationType.CompanyManagerAccountCreated)
     ];
 
     private static NotificationTemplate Create(
