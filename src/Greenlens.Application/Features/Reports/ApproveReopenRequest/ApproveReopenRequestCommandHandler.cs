@@ -77,11 +77,15 @@ public sealed class ApproveReopenRequestCommandHandler(
 
         reopenRequest.Approve(currentUser.UserId);
 
+        // Lưu lý do mở lại (của citizen) vào lịch sử để FE hiển thị lại trong timeline —
+        // không chỉ log chuyển trạng thái mà không rõ nguyên nhân (BR-NTF-002).
         statusHistory.Add(ReportStatusHistory.Create(
             report.Id,
             ReportStatus.Resolved,
             ReportStatus.Reopened,
-            currentUser.UserId));
+            currentUser.UserId,
+            reason: reopenRequest.Reason,
+            metadata: """{"eventType":"ReopenApproved"}"""));
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 

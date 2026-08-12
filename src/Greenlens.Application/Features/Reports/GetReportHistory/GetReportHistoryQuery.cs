@@ -11,4 +11,10 @@ public sealed record GetReportHistoryResponse(IReadOnlyList<StatusHistoryItem> I
 public sealed record StatusHistoryItem(
     Guid Id, ReportStatus? FromStatus, ReportStatus ToStatus,
     Guid? ChangedBy, string? ChangedByName,
-    string? Reason, DateTime CreatedAt);
+    string? Reason, DateTime CreatedAt,
+    /// <summary>
+    /// JSON tuỳ chọn phân loại event khi FromStatus == ToStatus (không có chuyển trạng thái
+    /// thật) — ví dụ {"eventType":"ReopenRequested"|"ReopenRejected"}. FE dùng để render
+    /// đúng nhánh timeline mà không cần suy luận qua so khớp text `Reason`.
+    /// </summary>
+    string? Metadata);

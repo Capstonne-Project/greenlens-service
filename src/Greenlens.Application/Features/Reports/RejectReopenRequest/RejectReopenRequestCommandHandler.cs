@@ -20,6 +20,7 @@ public sealed class RejectReopenRequestCommandHandler(
     IReportRepository reports,
     IApplicationDbContext db,
     IUserRepository users,
+    IReportStatusHistoryRepository statusHistory,
     INotificationService notifications,
     ICurrentUser currentUser,
     IUnitOfWork uow,
@@ -59,6 +60,17 @@ public sealed class RejectReopenRequestCommandHandler(
 
         reopenRequest.Reject(currentUser.UserId, request.Reason);
         report.ClearPendingReopenRequest();
+
+        // Trạng thái báo cáo không đổi (vẫn Resolved) nhưng vẫn cần 1 dòng lịch sử để FE
+        // hiển thị được lý do từ chối trong timeline — nếu không, sự kiện này biến mất
+        // khỏi GET /reports/{id}/history vì không có status transition thật.
+        statusHistory.Add(ReportStatusHistory.Create(
+            report.Id,
+            ReportStatus.Resolved,
+            ReportStatus.Resolved,
+            currentUser.UserId,
+            reason: request.Reason.Trim(),
+            metadata: """{"eventType":"ReopenRejected"}"""));
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 
