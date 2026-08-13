@@ -24,10 +24,11 @@ public sealed class GetDeoReportStatusDistributionQueryHandler(
         if (scopeResult.IsFailure)
             return scopeResult.Error!;
 
+        var scope = scopeResult.Value!;
         var (from, to) = DateRangeDefaults.Resolve(request.From, request.To, clock.UtcNow);
 
         var counts = await DepartmentContextResolver
-            .ApplyDepartmentScope(reports.QueryAsNoTracking(), scopeResult.Value.DepartmentId)
+            .ApplyDepartmentScope(reports.QueryAsNoTracking(), scope.DepartmentId)
             .Where(r => r.CreatedAt >= from && r.CreatedAt <= to)
             .GroupBy(r => r.Status)
             .Select(g => new { Status = g.Key, Count = g.Count() })

@@ -28,10 +28,11 @@ public sealed class GetDeoResolutionDistributionQueryHandler(
         if (scopeResult.IsFailure)
             return scopeResult.Error!;
 
+        var scope = scopeResult.Value!;
         var (from, to) = DateRangeDefaults.Resolve(request.From, request.To, clock.UtcNow);
 
         var samples = await DepartmentContextResolver
-            .ApplyDepartmentScope(reports.QueryAsNoTracking(), scopeResult.Value.DepartmentId)
+            .ApplyDepartmentScope(reports.QueryAsNoTracking(), scope.DepartmentId)
             .Where(r => ResolvedStatuses.Contains(r.Status)
                         && r.VerifiedAt != null && r.ResolvedAt != null
                         && r.ResolvedAt >= from && r.ResolvedAt <= to)

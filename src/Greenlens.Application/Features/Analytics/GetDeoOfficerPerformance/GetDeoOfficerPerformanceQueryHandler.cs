@@ -26,10 +26,11 @@ public sealed class GetDeoOfficerPerformanceQueryHandler(
         if (scopeResult.IsFailure)
             return scopeResult.Error!;
 
+        var scope = scopeResult.Value!;
         var (from, to) = DateRangeDefaults.Resolve(request.From, request.To, clock.UtcNow);
 
         var verified = await DepartmentContextResolver
-            .ApplyDepartmentScope(reports.QueryAsNoTracking(), scopeResult.Value.DepartmentId)
+            .ApplyDepartmentScope(reports.QueryAsNoTracking(), scope.DepartmentId)
             .Where(r => r.VerifiedBy != null && r.VerifiedAt >= from && r.VerifiedAt <= to)
             .Select(r => new { OfficerId = r.VerifiedBy!.Value, r.CreatedAt, r.VerifiedAt, r.SlaVerifyBreached })
             .ToListAsync(ct)
