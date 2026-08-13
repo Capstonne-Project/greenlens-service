@@ -1,9 +1,12 @@
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Analytics.Common;
+using Greenlens.Application.Features.Analytics.GetAdminRecentActivities;
 using Greenlens.Domain.Common;
-using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+
 namespace Greenlens.Application.Features.Analytics.GetAdminRecentActivities;
 
 /// <summary>Recent report lifecycle events (status transitions) across the whole system.</summary>
@@ -17,32 +20,28 @@ public sealed class GetAdminRecentActivitiesQueryHandler(
     {
         logger.LogInformation("Getting admin recent activities");
 
-        var items = await history.QueryAsNoTracking()
-            .Include(h => h.Report)
+        var page = Math.Max(1, request.Page);
+        var pageSize = Math.Clamp(request.PageSize, 1, 100);
+
+        var rows = await history.QueryAsNoTracking()
             .OrderByDescending(h => h.CreatedAt)
-            .Skip((request.Page - 1) * request.PageSize)
-            .Take(request.PageSize)
-            .Select(h => new RecentActivityItem(
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(h => new
+            {
                 h.CreatedAt,
-                DescribeType(h.ToStatus),
-                $"Report #{h.Report.Code} chuyển sang trạng thái {h.ToStatus}"
-                    + (h.Reason != null ? $" ({h.Reason})" : string.Empty)))
+                h.ToStatus,
+                ReportCode = h.Report.Code,
+                h.Reason
+            })
             .ToListAsync(ct)
             .ConfigureAwait(false);
+
+        var items = RecentActivityRowMapper.MapAdminRows(
+            rows.Select(r => new RecentActivityRowMapper.Row(r.CreatedAt, r.ToStatus, r.ReportCode, r.Reason)).ToList());
 
         logger.LogInformation("Admin recent activities retrieved successfully");
 
         return items;
     }
-
-    private static string DescribeType(ReportStatus status) => status switch
-    {
-        ReportStatus.Verified => "OfficerVerified",
-        ReportStatus.InProgress => "TeamAssigned",
-        ReportStatus.Resolved => "ReportResolved",
-        ReportStatus.Closed => "ReportClosed",
-        ReportStatus.Rejected => "ReportRejected",
-        ReportStatus.Duplicate => "ReportMarkedDuplicate",
-        _ => "StatusChanged"
-    };
 }

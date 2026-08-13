@@ -168,6 +168,7 @@ public sealed class RecruitStaffCommandHandler(
             request.TargetRole,
             leoOfficeId,
             assignedTeamId,
-            null); // No teamMemberId yet — user must accept first
+            null,
+            request.IsLeader ?? false);
     }
 }

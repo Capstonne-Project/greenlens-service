@@ -3,13 +3,14 @@ using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Features.Analytics.Common;
 using Greenlens.Application.Features.Analytics.GetAdminRecentActivities;
 using Greenlens.Domain.Common;
-using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Analytics.GetDeoRecentActivities;
 
+/// <summary>Recent report lifecycle events scoped to the DEO's department.</summary>
+/// <remarks>Implements: BR-OFF-010 (monitoring), BR-SYS-001.</remarks>
 public sealed class GetDeoRecentActivitiesQueryHandler(
     IReportStatusHistoryRepository history,
     IUserRepository users,
@@ -28,32 +29,25 @@ public sealed class GetDeoRecentActivitiesQueryHandler(
         var page = Math.Max(1, request.Page);
         var pageSize = Math.Clamp(request.PageSize, 1, 100);
 
-        var items = await history.QueryAsNoTracking()
-            .Include(h => h.Report)
+        var rows = await history.QueryAsNoTracking()
             .Where(h => h.Report.AssignedDepartmentId == deptId)
             .OrderByDescending(h => h.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(h => new RecentActivityItem(
+            .Select(h => new
+            {
                 h.CreatedAt,
-                DescribeType(h.ToStatus),
-                $"Report #{h.Report.Code} chuyển sang trạng thái {h.ToStatus}"
-                    + (h.Reason != null ? $" ({h.Reason})" : string.Empty)))
+                h.ToStatus,
+                ReportCode = h.Report.Code,
+                h.Reason
+            })
             .ToListAsync(ct)
             .ConfigureAwait(false);
+
+        var items = RecentActivityRowMapper.MapAdminRows(
+            rows.Select(r => new RecentActivityRowMapper.Row(r.CreatedAt, r.ToStatus, r.ReportCode, r.Reason)).ToList());
 
         logger.LogInformation("DEO recent activities page {Page}: {Count} items", page, items.Count);
         return items;
     }
-
-    private static string DescribeType(ReportStatus status) => status switch
-    {
-        ReportStatus.Verified => "OfficerVerified",
-        ReportStatus.InProgress => "TeamAssigned",
-        ReportStatus.Resolved => "ReportResolved",
-        ReportStatus.Closed => "ReportClosed",
-        ReportStatus.Rejected => "ReportRejected",
-        ReportStatus.Duplicate => "ReportMarkedDuplicate",
-        _ => "StatusChanged"
-    };
 }

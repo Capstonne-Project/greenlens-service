@@ -1,6 +1,7 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Notifications;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
@@ -13,6 +14,7 @@ namespace Greenlens.Application.Features.Reports.CloseReport;
 public sealed class CloseReportCommandHandler(
     IReportRepository reports,
     IReportStatusHistoryRepository statusHistory,
+    IReportClosedByCitizenNotifier closedNotifier,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     ILogger<CloseReportCommandHandler> logger) : IRequestHandler<CloseReportCommand, Result>
@@ -50,6 +52,8 @@ public sealed class CloseReportCommandHandler(
 
         statusHistory.Add(history);
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        await closedNotifier.NotifyAsync(report, ct).ConfigureAwait(false);
 
         logger.LogInformation("Report {ReportId} closed from {FromStatus}", report.Id, fromStatus);
 

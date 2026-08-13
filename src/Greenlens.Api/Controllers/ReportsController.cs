@@ -451,7 +451,7 @@ public sealed class ReportsController(
     [SwaggerOperation(
         Summary = "[LEO] Xem hàng đợi báo cáo",
         Description = "Trả về danh sách báo cáo trong phạm vi officer đăng nhập: LEO → Submitted/Verified/Reopened trong office. " +
-            "Hỗ trợ search (code, address, category), filter (status, severity, category, ward, date range, SLA breached, isPossibleDuplicate, isSuspectedViolationRecurrence), " +
+            "Hỗ trợ search (code, address, category), filter (status multi: ?status=Submitted&status=Verified, severity, category, ward, date range, SLA breached, isPossibleDuplicate, isSuspectedViolationRecurrence), " +
             "và sort (priorityScore, createdAt, severity, slaVerifyDueAt, slaResolveDueAt — asc/desc). " +
             "Default sort: priorityScore desc.")]
     [SwaggerResponse(200, "Hàng đợi", typeof(ApiResponse<GetOfficerQueueResponse>))]
@@ -459,7 +459,7 @@ public sealed class ReportsController(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         // Filters
-        [FromQuery] ReportStatus? status = null,
+        [FromQuery] ReportStatus[]? status = null,
         [FromQuery] Severity? severity = null,
         [FromQuery] Guid? categoryId = null,
         [FromQuery] string? wardCode = null,

@@ -10,6 +10,8 @@ using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Analytics.GetDeoCompanyPerformance;
 
+/// <summary>Company KPIs for environmental service companies in the DEO's department.</summary>
+/// <remarks>Implements: BR-CMP-020 (company context), BR-OFF-010.</remarks>
 public sealed class GetDeoCompanyPerformanceQueryHandler(
     IReportRepository reports,
     IEnvironmentalServiceCompanyRepository companies,
@@ -29,19 +31,22 @@ public sealed class GetDeoCompanyPerformanceQueryHandler(
         var deptId = scopeResult.Value.DepartmentId;
         var (from, to) = DateRangeDefaults.Resolve(request.From, request.To, clock.UtcNow);
 
-        var companyIds = await companies.QueryAsNoTracking()
+        var companiesInDept = await companies.QueryAsNoTracking()
             .Where(c => c.DepartmentId == deptId)
-            .Select(c => c.Id)
+            .Select(c => new { c.Id, c.Name })
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
-        if (companyIds.Count == 0)
+        if (companiesInDept.Count == 0)
             return new List<CompanyPerformanceItem>();
+
+        var companyIds = companiesInDept.Select(c => c.Id).ToList();
 
         var dispatched = await DepartmentContextResolver
             .ApplyDepartmentScope(reports.QueryAsNoTracking(), deptId)
             .Where(r => r.AssignedCompanyId != null
                         && companyIds.Contains(r.AssignedCompanyId.Value)
+                        && r.DispatchedToCompanyAt != null
                         && r.DispatchedToCompanyAt >= from && r.DispatchedToCompanyAt <= to)
             .Select(r => new
             {
@@ -54,15 +59,9 @@ public sealed class GetDeoCompanyPerformanceQueryHandler(
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
-        var companyNames = await companies.QueryAsNoTracking()
-            .Where(c => companyIds.Contains(c.Id))
-            .Select(c => new { c.Id, c.Name })
-            .ToDictionaryAsync(c => c.Id, c => c.Name, ct)
-            .ConfigureAwait(false);
-
-        var result = dispatched
+        var metricsByCompany = dispatched
             .GroupBy(r => r.CompanyId)
-            .Select(g =>
+            .ToDictionary(g => g.Key, g =>
             {
                 var assigned = g.Count();
                 var completed = g.Count(r => r.Status is ReportStatus.Resolved or ReportStatus.Closed);
@@ -78,14 +77,20 @@ public sealed class GetDeoCompanyPerformanceQueryHandler(
 
                 return new CompanyPerformanceItem(
                     g.Key,
-                    companyNames.GetValueOrDefault(g.Key, "Unknown"),
+                    companiesInDept.First(c => c.Id == g.Key).Name,
                     assigned,
                     completed,
                     onTimeRate,
                     slaRate,
                     performanceScore);
-            })
+            });
+
+        var result = companiesInDept
+            .Select(c => metricsByCompany.TryGetValue(c.Id, out var item)
+                ? item
+                : new CompanyPerformanceItem(c.Id, c.Name, 0, 0, 0m, 0m, 0m))
             .OrderByDescending(i => i.PerformanceScore)
+            .ThenBy(i => i.CompanyName)
             .ToList();
 
         logger.LogInformation("DEO company performance: {CompanyCount} companies", result.Count);

@@ -143,7 +143,157 @@ Click alert → deep link:
 
 **`geographic`** → `{ heatmap: [{ latitude, longitude, weight }], markers: [{ reportId, latitude, longitude, status }] }`
 
-**`company-performance`** / **`officer-performance`**: cùng shape Admin dashboard (xem Swagger tag `📊 DEO Dashboard`).
+### 2.4 Widget công ty & LEO & timeline (cập nhật BE 2026-08-13)
+
+#### `GET /v1/dashboard/deo/company-performance`
+
+Bảng hiệu suất **tất cả công ty DVMT** thuộc Sở của DEO — kể cả công ty chưa nhận task trong khoảng thời gian (metrics = 0).
+
+| Query | Mặc định | Ghi chú |
+|-------|----------|---------|
+| `from` | `to − 30 ngày` | UTC |
+| `to` | `now` | UTC |
+
+**Logic scope:**
+
+- Công ty: `environmental_service_companies.department_id` = department DEO.
+- Task đếm theo báo cáo có `assigned_company_id` + `dispatched_to_company_at` nằm trong `[from, to]` và `assigned_department_id` = department DEO.
+- Công ty chưa có dispatch trong range → vẫn có 1 dòng, KPI = 0.
+
+**Response 200** → `CompanyPerformanceItem[]`:
+
+```json
+[
+  {
+    "companyId": "uuid",
+    "companyName": "CITENCO TP.HCM",
+    "assignedTasks": 12,
+    "completedTasks": 10,
+    "onTimeRate": 90.0,
+    "slaRate": 91.7,
+    "performanceScore": 91.2
+  },
+  {
+    "companyId": "uuid",
+    "companyName": "Green Clean Co.",
+    "assignedTasks": 0,
+    "completedTasks": 0,
+    "onTimeRate": 0,
+    "slaRate": 0,
+    "performanceScore": 0
+  }
+]
+```
+
+| Field | Ý nghĩa |
+|-------|---------|
+| `assignedTasks` | Số báo cáo LEO dispatch cho công ty trong range |
+| `completedTasks` | Trạng thái `Resolved` hoặc `Closed` |
+| `onTimeRate` | % task hoàn thành trước `slaResolveDueAt` |
+| `slaRate` | % task không bị `slaResolveBreached` |
+| `performanceScore` | `0.6 × slaRate + 0.4 × onTimeRate` |
+
+Sắp xếp: `performanceScore` giảm dần, tie-break `companyName` A→Z.
+
+**Empty state FE:**
+
+- `data: []` — Sở chưa có công ty nào (không phải lỗi).
+- `data: [{ …, assignedTasks: 0, … }]` — có công ty nhưng chưa dispatch trong range → hiển thị bảng với số 0.
+
+---
+
+#### `GET /v1/dashboard/deo/officer-performance`
+
+Bảng xếp hạng **LEO** theo báo cáo đã verify trong phạm vi tỉnh (widget “Top LEO” trên dashboard).
+
+| Query | Mặc định | Ghi chú |
+|-------|----------|---------|
+| `from` | `to − 30 ngày` | UTC |
+| `to` | `now` | UTC |
+
+**Logic scope:** Chỉ báo cáo `assigned_department_id` = department DEO, có `verified_by` + `verified_at` trong `[from, to]`.
+
+**Response 200** → `OfficerPerformanceItem[]`:
+
+```json
+[
+  {
+    "officerId": "uuid",
+    "officerName": "Trần Văn B",
+    "verifiedReports": 45,
+    "averageHours": 4.5,
+    "slaRate": 98.0,
+    "score": 96.2
+  }
+]
+```
+
+| Field | Ý nghĩa |
+|-------|---------|
+| `verifiedReports` | Số báo cáo LEO đã verify |
+| `averageHours` | TB giờ từ `createdAt` → `verifiedAt` |
+| `slaRate` | % verify không `slaVerifyBreached` |
+| `score` | `0.7 × slaRate + 0.3 × speedScore` (speed từ TB giờ vs SLA 24h) |
+
+Chỉ LEO **có ít nhất 1 verify** trong range mới xuất hiện. Drill-down chi tiết: `GET /v1/reports/officer-kpi?officerId={uuid}` (mục 6).
+
+---
+
+#### `GET /v1/dashboard/deo/recent-activities`
+
+Timeline sự kiện đổi trạng thái báo cáo trong tỉnh (đọc từ `report_status_history`).
+
+| Query | Mặc định | Ghi chú |
+|-------|----------|---------|
+| `page` | `1` | ≥ 1 |
+| `pageSize` | `20` | 1–100 |
+
+**Logic scope:** History của báo cáo có `reports.assigned_department_id` = department DEO. Sắp xếp `createdAt` mới nhất trước.
+
+**Response 200** → `RecentActivityItem[]`:
+
+```json
+[
+  {
+    "time": "2026-08-13T10:30:00Z",
+    "type": "TeamAssigned",
+    "description": "Report #REP-2026-0042 chuyển sang trạng thái InProgress"
+  },
+  {
+    "time": "2026-08-12T08:00:00Z",
+    "type": "OfficerVerified",
+    "description": "Report #REP-2026-0041 chuyển sang trạng thái Verified (Đã xác minh hiện trường)"
+  }
+]
+```
+
+| `type` | Khi `toStatus` = |
+|--------|------------------|
+| `OfficerVerified` | `Verified` |
+| `TeamAssigned` | `InProgress` |
+| `ReportResolved` | `Resolved` |
+| `ReportClosed` | `Closed` |
+| `ReportRejected` | `Rejected` |
+| `ReportMarkedDuplicate` | `Duplicate` |
+| `StatusChanged` | Các trạng thái khác (`Submitted`, `Reopened`, …) |
+
+**Lưu ý FE:**
+
+- Dữ liệu history cũ (workflow v2: `Dispatched`, `Assigned`, …) BE map sang trạng thái v3 khi đọc — FE **chỉ** nhận enum hiện tại trong `description`, không cần xử lý `Dispatched`.
+- `data: []` hợp lệ khi chưa có history trong tỉnh.
+- Widget dashboard gợi ý `pageSize=10`; màn full timeline có thể `pageSize=20` + nút “Xem thêm”.
+
+---
+
+#### Lỗi chung (3 endpoint trên)
+
+| HTTP | `code` | Khi nào |
+|------|--------|---------|
+| 401 | `UNAUTHORIZED` | Thiếu / hết hạn token |
+| 403 | `FORBIDDEN` | Token không phải role `DEO` |
+| 404 | `DEPARTMENT_NOT_FOUND` | User DEO chưa được gán `department_id` |
+
+FE: 404 department → full-page “Chưa được gán Sở TNMT, liên hệ Admin” (không retry vô hạn).
 
 ---
 
@@ -301,10 +451,12 @@ Badge trạng thái: `PendingActivation`, `Active`, `Suspended`, `Expired`, `Ter
 
 | API | Khi nào dùng |
 |-----|--------------|
-| `GET /v1/dashboard/deo/officer-performance` | Bảng xếp hạng trên dashboard |
+| `GET /v1/dashboard/deo/officer-performance` | Bảng xếp hạng trên dashboard (xem §2.4) |
 | `GET /v1/reports/officer-kpi?officerId={uuid}` | Drill-down 1 LEO (preset `period` hoặc `from`/`to`) |
 
 **UI drill-down:** Click tên LEO → drawer KPI chi tiết (verified count, avg hours, SLA rate).
+
+**Khác với bảng công ty:** LEO chỉ xuất hiện khi đã verify ≥ 1 báo cáo trong range — không có dòng “placeholder” score 0 như `company-performance`.
 
 ---
 
@@ -342,11 +494,11 @@ DEO **xem** queue, không approve/reject (LEO/Admin).
 | 5 | GET | `/v1/dashboard/deo/pollution-analytics` | Bar category |
 | 6 | GET | `/v1/dashboard/deo/geographic` | Heatmap + markers |
 | 7 | GET | `/v1/dashboard/deo/report-funnel` | Funnel |
-| 8 | GET | `/v1/dashboard/deo/company-performance` | Bảng công ty |
-| 9 | GET | `/v1/dashboard/deo/officer-performance` | Bảng LEO |
+| 8 | GET | `/v1/dashboard/deo/company-performance` | Bảng công ty (luôn list công ty Sở, §2.4) |
+| 9 | GET | `/v1/dashboard/deo/officer-performance` | Bảng LEO verify KPI (§2.4) |
 | 10 | GET | `/v1/dashboard/deo/queue-aging` | Tuổi pending |
 | 11 | GET | `/v1/dashboard/deo/resolution-distribution` | Histogram XL |
-| 12 | GET | `/v1/dashboard/deo/recent-activities` | Timeline |
+| 12 | GET | `/v1/dashboard/deo/recent-activities` | Timeline status history (§2.4) |
 
 ### 9.2 Báo cáo (read + export)
 
@@ -420,9 +572,11 @@ DEO **xem** queue, không approve/reject (LEO/Admin).
 
 1. **Lazy load widgets:** Gọi `overview` + `alerts` trước; chart/map load khi scroll vào viewport.
 2. **Shared date filter:** Context `DeoDateRange` sync `from`/`to` cho mọi widget dashboard.
-3. **Empty department:** Nếu `overview` trả 404 department → hiển thị “Chưa được gán Sở TNMT, liên hệ Admin”.
+3. **Empty department:** Nếu bất kỳ widget nào trả `404 DEPARTMENT_NOT_FOUND` → hiển thị “Chưa được gán Sở TNMT, liên hệ Admin”.
 4. **Báo cáo không có `AssignedDepartmentId`:** Không xuất hiện trong analytics DEO (edge case Admin cần assign office).
-5. **Swagger:** Tag `📊 DEO Dashboard` trên Swagger UI — source of truth cho schema chi tiết.
+5. **Widget công ty vs LEO:** `company-performance` luôn trả đủ công ty Sở (KPI 0 nếu chưa dispatch); `officer-performance` chỉ LEO có verify trong range.
+6. **Timeline:** `recent-activities` paginate bằng `page`/`pageSize`; không có `totalCount` — FE “load more” tăng `page` khi `data.length === pageSize`.
+7. **Swagger:** Tag `🔍 DEO Dashboard` trên Swagger UI — schema OpenAPI bổ sung.
 
 ---
 
@@ -440,4 +594,4 @@ DEO **xem** queue, không approve/reject (LEO/Admin).
 
 ---
 
-**Cập nhật:** 2026-08-12 · Backend: `DeoDashboardController`, `DepartmentContextResolver`
+**Cập nhật:** 2026-08-13 · Backend: `DeoDashboardController`, `DepartmentContextResolver`, `GetDeoCompanyPerformanceQueryHandler`, `GetDeoRecentActivitiesQueryHandler`, `LegacyReportStatusValueConverter`
