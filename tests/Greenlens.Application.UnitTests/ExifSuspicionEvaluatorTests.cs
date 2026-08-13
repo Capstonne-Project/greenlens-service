@@ -48,7 +48,7 @@ public sealed class ReportSuspiciousReasonsParserTests
 
         Assert.Equal(
             [
-                "Vị trí người dân chọn trên bản đồ khác với vị trí trong ảnh",
+                "Vị trí người dân gửi báo cáo trên bản đồ khác với vị trí trong ảnh",
                 "Ảnh chụp quá lâu (hơn 1 ngày) so với thời gian gửi"
             ],
             messages);
