@@ -28,8 +28,9 @@ public sealed class GetDeoReportTrendQueryHandler(
         if (scopeResult.IsFailure)
             return scopeResult.Error!;
 
+        var scope = scopeResult.Value!;
         var deptReports = DepartmentContextResolver.ApplyDepartmentScope(
-            reports.QueryAsNoTracking(), scopeResult.Value.DepartmentId);
+            reports.QueryAsNoTracking(), scope.DepartmentId);
 
         var (from, to) = DateRangeDefaults.Resolve(request.From, request.To, clock.UtcNow);
 

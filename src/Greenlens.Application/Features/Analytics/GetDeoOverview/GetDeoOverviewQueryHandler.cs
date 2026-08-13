@@ -39,7 +39,7 @@ public sealed class GetDeoOverviewQueryHandler(
         if (scopeResult.IsFailure)
             return scopeResult.Error!;
 
-        var scope = scopeResult.Value;
+        var scope = scopeResult.Value!;
         var (from, to) = DateRangeDefaults.Resolve(request.From, request.To, clock.UtcNow);
 
         var deptReports = DepartmentContextResolver.ApplyDepartmentScope(

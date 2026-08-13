@@ -28,7 +28,8 @@ public sealed class GetDeoCompanyPerformanceQueryHandler(
         if (scopeResult.IsFailure)
             return scopeResult.Error!;
 
-        var deptId = scopeResult.Value.DepartmentId;
+        var scope = scopeResult.Value!;
+        var deptId = scope.DepartmentId;
         var (from, to) = DateRangeDefaults.Resolve(request.From, request.To, clock.UtcNow);
 
         var companiesInDept = await companies.QueryAsNoTracking()

@@ -25,7 +25,8 @@ public sealed class GetDeoRecentActivitiesQueryHandler(
         if (scopeResult.IsFailure)
             return scopeResult.Error!;
 
-        var deptId = scopeResult.Value.DepartmentId;
+        var scope = scopeResult.Value!;
+        var deptId = scope.DepartmentId;
         var page = Math.Max(1, request.Page);
         var pageSize = Math.Clamp(request.PageSize, 1, 100);
 

@@ -24,10 +24,11 @@ public sealed class GetDeoReportFunnelQueryHandler(
         if (scopeResult.IsFailure)
             return scopeResult.Error!;
 
+        var scope = scopeResult.Value!;
         var (from, to) = DateRangeDefaults.Resolve(request.From, request.To, clock.UtcNow);
 
         var reportsInRange = DepartmentContextResolver
-            .ApplyDepartmentScope(reports.QueryAsNoTracking(), scopeResult.Value.DepartmentId)
+            .ApplyDepartmentScope(reports.QueryAsNoTracking(), scope.DepartmentId)
             .Where(r => r.CreatedAt >= from && r.CreatedAt <= to);
 
         var submitted = await reportsInRange.CountAsync(ct).ConfigureAwait(false);
@@ -36,7 +37,7 @@ public sealed class GetDeoReportFunnelQueryHandler(
         var resolved = await reportsInRange.CountAsync(r => r.ResolvedAt != null, ct).ConfigureAwait(false);
         var closed = await reportsInRange.CountAsync(r => r.ClosedAt != null, ct).ConfigureAwait(false);
 
-        logger.LogInformation("DEO report funnel for department {DepartmentId}", scopeResult.Value.DepartmentId);
+        logger.LogInformation("DEO report funnel for department {DepartmentId}", scope.DepartmentId);
 
         return new List<ReportFunnelStage>
         {
