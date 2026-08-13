@@ -4,6 +4,7 @@ using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
+using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -15,7 +16,7 @@ namespace Greenlens.Application.Features.Organization.CreateCompany;
 /// Optionally creates a CM account and/or assigns ward service areas at the same time.
 /// Company starts as PendingActivation. If CM is created, they must change password on first login → company auto-activates.
 /// </summary>
-/// <remarks>Implements: BR-CMP-001, BR-CMP-002, BR-ADM-010.</remarks>
+/// <remarks>Implements: BR-CMP-001, BR-CMP-002, BR-NTF-002, BR-ADM-010.</remarks>
 public sealed class CreateCompanyCommandHandler(
     IEnvironmentalServiceCompanyRepository companies,
     IDepartmentRepository departments,
@@ -25,6 +26,7 @@ public sealed class CreateCompanyCommandHandler(
     IWardRepository wards,
     IUnitOfWork uow,
     IPasswordHasher passwordHasher,
+    INotificationService notifications,
     ICurrentUser currentUser,
     IAuditLogger auditLogger,
     ILogger<CreateCompanyCommandHandler> logger)
@@ -176,6 +178,20 @@ public sealed class CreateCompanyCommandHandler(
                 ManagerUserId = managerUser?.Id
             }),
             ct).ConfigureAwait(false);
+
+        if (managerUser is not null && tempPassword is not null)
+        {
+            await notifications.SendFromTemplateAsync(
+                managerUser.Id,
+                NotificationType.CompanyManagerAccountCreated,
+                CompanyManagerAccountNotificationPlaceholders.ForCreated(
+                    company.Name,
+                    managerUser.FullName,
+                    managerUser.Email,
+                    tempPassword),
+                company.Id,
+                ct).ConfigureAwait(false);
+        }
 
         return new CreateCompanyResponse(
             company.Id,

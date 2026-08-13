@@ -38,6 +38,33 @@ public sealed class GetOfficerKpiQueryHandler(
             return Errors.Users.UserNotFound;
         }
 
+        var actor = await users.GetByIdAsync(currentUser.UserId, cancellationToken)
+            .ConfigureAwait(false);
+        if (actor is null)
+        {
+            logger.LogWarning("User {UserId} not found", currentUser.UserId);
+            return Errors.Users.UserNotFound;
+        }
+
+        Guid? deoDepartmentId = null;
+        if (currentUser.Role == UserRole.DEO.ToString())
+        {
+            if (!actor.DepartmentId.HasValue)
+                return Errors.Organization.DepartmentNotFound;
+
+            deoDepartmentId = actor.DepartmentId;
+
+            var officerDepartmentId = officer.DepartmentId
+                ?? await users.QueryAsNoTracking()
+                    .Where(u => u.Id == officerId)
+                    .Select(u => u.LocalOffice != null ? u.LocalOffice.DepartmentId : (Guid?)null)
+                    .FirstOrDefaultAsync(cancellationToken)
+                    .ConfigureAwait(false);
+
+            if (officerDepartmentId != deoDepartmentId)
+                return Errors.Reports.OutsideJurisdiction;
+        }
+
         // Resolve period
         var (from, to) = ResolvePeriod(request);
 
@@ -46,6 +73,13 @@ public sealed class GetOfficerKpiQueryHandler(
             .Where(h => h.ChangedBy == officerId
                      && h.CreatedAt >= from
                      && h.CreatedAt <= to);
+
+        if (deoDepartmentId.HasValue)
+        {
+            histories = histories.Where(h =>
+                reports.QueryAsNoTracking().Any(r =>
+                    r.Id == h.ReportId && r.AssignedDepartmentId == deoDepartmentId));
+        }
 
         // Verified: Submitted → Verified
         var verifiedHistory = await histories

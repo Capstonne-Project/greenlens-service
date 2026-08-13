@@ -23,4 +23,16 @@ internal sealed class UserBadgeRepository(ApplicationDbContext db)
             .AnyAsync(ub => ub.UserId == userId && ub.BadgeId == badgeId, ct)
             .ConfigureAwait(false);
     }
+
+    public async Task<HashSet<string>> GetEarnedBadgeCodesAsync(Guid userId, CancellationToken ct = default)
+    {
+        var codes = await Context.UserBadges
+            .AsNoTracking()
+            .Where(ub => ub.UserId == userId)
+            .Select(ub => ub.Badge!.Code)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        return codes.ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
 }

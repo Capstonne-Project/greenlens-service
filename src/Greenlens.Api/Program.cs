@@ -81,7 +81,13 @@ builder.Services.AddControllers(options =>
     });
 
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddSignalR();
+// KeepAlive/ClientTimeout tăng so với default (15s/30s) — mobile network (4G/WiFi chuyển
+// cell, NAT/proxy) hay trễ 1 nhịp ping khiến client bị coi mất kết nối dù đường truyền vẫn ổn.
+builder.Services.AddSignalR(options =>
+{
+    options.KeepAliveInterval = TimeSpan.FromSeconds(15);
+    options.ClientTimeoutInterval = TimeSpan.FromSeconds(60);
+});
 
 // ── Swagger ──────────────────────────────────────────
 builder.Services.AddEndpointsApiExplorer();

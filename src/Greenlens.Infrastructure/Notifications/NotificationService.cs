@@ -28,6 +28,8 @@ internal sealed class NotificationService(
     ApplicationDbContext db,
     IChangeTrackerCleaner changeTrackerCleaner,
     INotificationDispatchScheduler dispatchScheduler,
+    INotificationDispatchCollector dispatchCollector,
+    ITransactionManager transactionManager,
     IHubContext<NotificationHub, INotificationClient> hubContext,
     ILogger<NotificationService> logger) : INotificationService
 {
@@ -160,8 +162,11 @@ internal sealed class NotificationService(
             logger.LogError(ex, "SignalR notification failed for user {UserId}", recipientId);
         }
 
-        // 7. Enqueue FCM + SMTP (background — do not block HTTP)
-        dispatchScheduler.Enqueue(notification.Id);
+        // 7. Enqueue FCM + SMTP after commit when inside a command transaction
+        if (transactionManager.HasActiveTransaction)
+            dispatchCollector.Enqueue(notification.Id);
+        else
+            dispatchScheduler.Enqueue(notification.Id);
 
         logger.LogInformation(
             "Notification persisted: {Type} to user {UserId} via {Channel}; channel dispatch enqueued",

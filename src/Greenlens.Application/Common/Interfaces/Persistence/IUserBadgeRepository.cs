@@ -6,4 +6,5 @@ public interface IUserBadgeRepository : IGenericRepository<UserBadge>
 {
     Task<List<UserBadge>> GetByUserIdAsync(Guid userId, CancellationToken ct = default);
     Task<bool> HasBadgeAsync(Guid userId, Guid badgeId, CancellationToken ct = default);
+    Task<HashSet<string>> GetEarnedBadgeCodesAsync(Guid userId, CancellationToken ct = default);
 }

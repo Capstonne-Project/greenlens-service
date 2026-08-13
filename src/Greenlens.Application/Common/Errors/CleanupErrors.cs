@@ -30,5 +30,11 @@ public static partial class Errors
             "CLEANUP_NOT_IN_PROGRESS",
             "Assignment không ở trạng thái InProgress.",
             ErrorType.BusinessRule);
+
+        /// <summary>BR-CLN-004: progress can only stay the same (correction) or increase, never decrease.</summary>
+        public static Error ProgressCannotDecrease(int currentPercent) => new(
+            "CLEANUP_PROGRESS_CANNOT_DECREASE",
+            $"Không thể cập nhật tiến độ thấp hơn {currentPercent}% đã lưu trước đó.",
+            ErrorType.Validation);
     }
 }

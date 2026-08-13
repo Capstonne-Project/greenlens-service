@@ -257,6 +257,24 @@ public sealed class ReportTests
         Assert.Equal(1, report.ReopenedCount);
         Assert.False(report.HasPendingReopenRequest);
         Assert.Null(report.ResolvedAt);
+        Assert.Null(report.StartedAt);
+        Assert.False(report.SlaResolveBreached);
+    }
+
+    [Fact]
+    public void ApproveReopen_ResetsStartedAtAndSlaFlag_BR_REP_026()
+    {
+        var report = CreateTestReport();
+        report.Verify(Guid.NewGuid());
+        report.Assign(Guid.NewGuid());
+        report.MarkStarted();
+        report.MarkSlaResolveBreached();
+        report.Resolve();
+
+        report.ApproveReopen(Guid.NewGuid());
+
+        Assert.Null(report.StartedAt);
+        Assert.False(report.SlaResolveBreached);
     }
 
     [Fact]

@@ -155,6 +155,9 @@ internal sealed class GetMyNotificationsQueryHandler(
         NotificationType.CleanupTaskDeclined or
         NotificationType.CleanupProgressUpdated or
         NotificationType.CleanupTaskCompleted or
+        NotificationType.CleanupTeamCheckedIn or
+        NotificationType.CleanupBeforeImagesUploaded or
+        NotificationType.ReportClosedByCitizen or
         NotificationType.CompanyReportDispatched or
         NotificationType.CompanyTeamAssigned or
         NotificationType.DuplicateReviewNeeded or

@@ -1,4 +1,5 @@
 using Greenlens.Application.Features.Reports;
+using Greenlens.Application.Features.Reports.Common;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
@@ -14,8 +15,9 @@ namespace Greenlens.Application.Features.Reports.GetReportById;
 /// Return full report detail including satisfaction, pending reopen request, and merged-duplicate thumbs.
 /// </summary>
 /// <remarks>
-/// Implements: BR-REP-012 (ẩn danh người gửi), BR-REP-015 (pending reopen in response),
-/// BR-REP-018 (satisfaction in response), BR-REP-032 (mergedReports + SourceReportId thumbs),
+/// Implements: BR-REP-012 (ẩn danh người gửi), BR-REP-015 (pending reopen + reopen history),
+/// BR-REP-018 (satisfaction in response), BR-REP-026 (assignment history across reopen cycles),
+/// BR-REP-032 (mergedReports + SourceReportId thumbs),
 /// BR-AUTH-022 (reporter đã xóa tài khoản → ẩn danh tính),
 /// BR-REP-011 (EXIF suspicion warnings for LEO/DEO/Admin only).
 /// </remarks>
@@ -25,6 +27,7 @@ public sealed class GetReportByIdQueryHandler(
     IReportSatisfactionRepository satisfactions,
     IInspectionReportRepository inspections,
     IApplicationDbContext db,
+    IUserRepository users,
     ICurrentUser currentUser,
     ILogger<GetReportByIdQueryHandler> logger)
     : IRequestHandler<GetReportByIdQuery, Result<ReportDetailResponse>>
@@ -36,6 +39,7 @@ public sealed class GetReportByIdQueryHandler(
             .Include(x => x.Category)
             .Include(x => x.Media)
             .Include(x => x.Assignments).ThenInclude(a => a.Team)
+            .Include(x => x.Assignments).ThenInclude(a => a.AssignedByUser)
             .Include(x => x.WasteTags).ThenInclude(wt => wt.WasteTag)
             .Include(x => x.ParentReport)
             .Include(x => x.Reporter)
@@ -55,14 +59,45 @@ public sealed class GetReportByIdQueryHandler(
             return Errors.Reports.ReportNotFound;
         }
 
+        if (currentUser.IsAuthenticated && currentUser.Role is "LEO" or "DEO")
+        {
+            var actor = await users.GetByIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
+            if (actor is null)
+            {
+                logger.LogWarning("User {UserId} not found", currentUser.UserId);
+                return Errors.Users.UserNotFound;
+            }
+
+            var accessError = ReportReviewCandidateFilters.ValidateReportAccess(r, actor, currentUser.Role);
+            if (accessError is not null)
+            {
+                logger.LogWarning(
+                    "User {UserId} denied report {ReportId}: {ErrorCode}",
+                    currentUser.UserId, request.Id, accessError.Code);
+                return accessError;
+            }
+        }
+
         var media = r.Media.Select(m => new ReportMediaItem(
             m.Id, m.Type.ToString(), m.Url, m.MimeType, m.SizeBytes)).ToList();
 
-        var assignments = r.Assignments.Select(a => new ReportAssignmentItem(
-            a.Id, a.TeamId, a.Team?.Name, a.Team?.TeamType.ToString() ?? "",
-            a.Status.ToString(), a.Note, a.AssignedAt,
-            a.StartedAt, a.CompletedAt,
-            a.ProgressPercent, a.ProgressNote, a.ProgressUpdatedAt)).ToList();
+        var currentAssignmentEntity = ReportAssignmentSelection.ResolveCurrentAssignment(r.Assignments);
+
+        var assignments = r.Assignments
+            .OrderByDescending(a => a.AssignedAt)
+            .Select(MapAssignmentItem)
+            .ToList();
+
+        var assignmentHistory = r.Assignments
+            .OrderByDescending(a => a.AssignedAt)
+            .Select(a => MapAssignmentHistoryItem(a, currentAssignmentEntity?.Id))
+            .ToList();
+
+        var currentAssignment = currentAssignmentEntity is null
+            ? null
+            : MapAssignmentItem(currentAssignmentEntity);
+
+        var reopenHistory = await LoadReopenHistoryAsync(r, ct).ConfigureAwait(false);
 
         var wasteTagItems = r.WasteTags
             .Where(wt => wt.WasteTag is not null)
@@ -191,7 +226,7 @@ public sealed class GetReportByIdQueryHandler(
             r.PriorityScore, r.ReporterCount, r.ReopenedCount,
             r.AiClassifiedType, r.AiConfidence,
             r.VerifiedBy, r.AssignedByOfficerId, r.AssignedOfficeId,
-            media, assignments, wasteTagItems,
+            media, assignments, currentAssignment, assignmentHistory, reopenHistory, wasteTagItems,
             r.AiSuggestedWasteTagCodes,
             r.CreatedAt, r.VerifiedAt, r.StartedAt,
             r.ResolvedAt, r.ClosedAt,
@@ -212,4 +247,100 @@ public sealed class GetReportByIdQueryHandler(
 
     private static bool CanViewExifSuspicionWarnings(string role) =>
         role is "LEO" or "DEO" or "Admin";
+
+    private async Task<IReadOnlyList<ReportReopenHistoryItem>> LoadReopenHistoryAsync(
+        Domain.Entities.Report report,
+        CancellationToken ct)
+    {
+        var reopenRequests = await db.Set<Domain.Entities.ReportReopenRequest>()
+            .AsNoTracking()
+            .Include(x => x.Media)
+            .Include(x => x.Requester)
+            .Where(x => x.ReportId == report.Id)
+            .OrderByDescending(x => x.RequestedAt)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        if (reopenRequests.Count == 0)
+            return [];
+
+        var reviewerIds = reopenRequests
+            .Where(x => x.ReviewedBy.HasValue)
+            .Select(x => x.ReviewedBy!.Value)
+            .Distinct()
+            .ToList();
+
+        var reviewerNames = reviewerIds.Count == 0
+            ? new Dictionary<Guid, string>()
+            : await db.Set<Domain.Entities.User>()
+                .AsNoTracking()
+                .Where(u => reviewerIds.Contains(u.Id))
+                .Select(u => new { u.Id, u.FullName })
+                .ToDictionaryAsync(x => x.Id, x => x.FullName, ct)
+                .ConfigureAwait(false);
+
+        var showRequesterName = !report.HideReporterName
+            || (currentUser.IsAuthenticated && currentUser.UserId == report.ReporterId);
+
+        return reopenRequests
+            .Select(req =>
+            {
+                var evidence = req.Media
+                    .Select(m => new ReportMediaItem(
+                        m.Id, m.Type.ToString(), m.Url, m.MimeType, m.SizeBytes))
+                    .ToList();
+
+                return new ReportReopenHistoryItem(
+                    req.Id,
+                    req.Reason,
+                    req.Status.ToString(),
+                    req.RequestedAt,
+                    req.RequestedBy,
+                    showRequesterName ? req.Requester?.FullName : null,
+                    req.ReviewedAt,
+                    req.ReviewedBy,
+                    req.ReviewedBy.HasValue
+                        ? reviewerNames.GetValueOrDefault(req.ReviewedBy.Value)
+                        : null,
+                    req.RejectionReason,
+                    evidence);
+            })
+            .ToList();
+    }
+
+    private static ReportAssignmentItem MapAssignmentItem(Domain.Entities.ReportAssignment a) =>
+        new(
+            a.Id,
+            a.TeamId,
+            a.Team?.Name,
+            a.Team?.TeamType.ToString() ?? string.Empty,
+            a.Status.ToString(),
+            a.Note,
+            a.AssignedAt,
+            a.StartedAt,
+            a.CompletedAt,
+            a.ProgressPercent,
+            a.ProgressNote,
+            a.ProgressUpdatedAt);
+
+    private static ReportAssignmentHistoryItem MapAssignmentHistoryItem(
+        Domain.Entities.ReportAssignment a,
+        Guid? currentAssignmentId) =>
+        new(
+            a.Id,
+            a.TeamId,
+            a.Team?.Name,
+            a.Team?.TeamType.ToString() ?? string.Empty,
+            a.Status.ToString(),
+            a.Note,
+            a.DeclineReason,
+            a.AssignedAt,
+            a.StartedAt,
+            a.CompletedAt,
+            a.AssignedById,
+            a.AssignedByUser?.FullName,
+            a.ProgressPercent,
+            a.ProgressNote,
+            a.ProgressUpdatedAt,
+            currentAssignmentId.HasValue && a.Id == currentAssignmentId.Value);
 }

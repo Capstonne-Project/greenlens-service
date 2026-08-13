@@ -4,6 +4,7 @@ using Greenlens.Application.Features.Organization.AssignLeoToOffice;
 using Greenlens.Application.Features.Organization.CreateLocalOffice;
 using Greenlens.Application.Features.Organization.GetLocalOfficeById;
 using Greenlens.Application.Features.Organization.GetLocalOffices;
+using Greenlens.Application.Features.Organization.GetMyWardBoundary;
 using Greenlens.Application.Features.Organization.GetOfficeStaff;
 using Greenlens.Application.Features.Organization.LookupCitizenByEmail;
 using Greenlens.Application.Features.Organization.RecruitStaff;
@@ -87,14 +88,14 @@ public sealed class LocalOfficesController(ISender sender) : ControllerBase
             "Mỗi báo cáo kèm danh sách team đã được gán (assignment progress): " +
             "tên team, loại team, trạng thái assignment, phần trăm tiến độ, ghi chú, thời gian. " +
             "Mỗi item có `thumbnails` (mảng URL ảnh đầu tiên của báo cáo, MediaType=Image). " +
-            "Hỗ trợ tìm kiếm (mã báo cáo, mô tả, địa chỉ), lọc theo status/category/severity/assignmentStatus, " +
+            "Hỗ trợ tìm kiếm (mã báo cáo, mô tả, địa chỉ), lọc theo status (multi: ?status=Submitted&status=Verified)/category/severity/assignmentStatus, " +
             "khoảng ngày tạo (fromDate, toDate — ISO date, inclusive theo ngày UTC), " +
             "sắp xếp theo: code, status, severity, priority, createdAt, assignmentCount (mặc định: mới nhất).")]
     [SwaggerResponse(200, "Danh sách báo cáo kèm tiến độ", typeof(ApiResponse<GetOfficeReportsResponse>))]
     [SwaggerResponse(404, "Chưa gán local office", typeof(ApiResponse))]
     public async Task<IActionResult> GetOfficeReportsAsync(
         [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
-        [FromQuery] string? search = null, [FromQuery] ReportStatus? status = null,
+        [FromQuery] string? search = null, [FromQuery] ReportStatus[]? status = null,
         [FromQuery] Guid? categoryId = null, [FromQuery] Severity? severity = null,
         [FromQuery] AssignmentStatus? assignmentStatus = null,
         [FromQuery] DateTime? fromDate = null, [FromQuery] DateTime? toDate = null,
@@ -103,6 +104,21 @@ public sealed class LocalOfficesController(ISender sender) : ControllerBase
         => (await sender.Send(new GetOfficeReportsQuery(
             page, pageSize, search, status, categoryId, severity, assignmentStatus,
             fromDate, toDate, sortBy, sortDesc), ct)).ToHttp();
+
+    /// <summary>Ranh giới (boundary) phường mà LEO đang quản lý, suy trực tiếp từ JWT.</summary>
+    [HttpGet("my/ward-boundary")]
+    [Authorize(Roles = "LEO")]
+    [Tags("📌 LEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO] Ranh giới phường của office mình",
+        Description =
+            "Trả về wardCode/wardName/boundaryUrl của LocalOffice mà LEO đang quản lý — suy từ JWT, " +
+            "không cần truyền tham số. boundaryUrl là link GeoJSON (Polygon/MultiPolygon) để FE vẽ " +
+            "mask/fit-bounds trên bản đồ officer/map; có thể null nếu phường chưa có dữ liệu ranh giới.")]
+    [SwaggerResponse(200, "Ranh giới phường", typeof(ApiResponse<GetMyWardBoundaryResponse>))]
+    [SwaggerResponse(404, "Chưa gán local office", typeof(ApiResponse))]
+    public async Task<IActionResult> GetMyWardBoundaryAsync(CancellationToken ct)
+        => (await sender.Send(new GetMyWardBoundaryQuery(), ct)).ToHttp();
 
     // ═══════════════════════════════════════════
     // ██  STAFF MANAGEMENT

@@ -2,6 +2,7 @@ using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Features.CommunityCleanup.Common;
+using Greenlens.Application.Features.Reports.Common;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
@@ -58,7 +59,7 @@ public sealed class CreateCommunityCleanupCommandHandler(
         }
 
         var existingAssignments = await assignments.GetByReportIdAsync(request.ReportId, ct).ConfigureAwait(false);
-        var hasActiveAssignment = existingAssignments.Any(a => a.Status != AssignmentStatus.Declined)
+        var hasActiveAssignment = ReportAssignmentSelection.HasOpenAssignment(existingAssignments)
             || report.AssignedCompanyId.HasValue;
         if (hasActiveAssignment)
         {

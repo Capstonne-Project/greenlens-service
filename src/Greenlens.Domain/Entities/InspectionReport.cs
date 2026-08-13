@@ -258,6 +258,12 @@ public sealed class InspectionReport : SoftDeletableEntity
                 "Progress must be 0–100.",
                 ErrorType.Validation));
 
+        if (percent < ProgressPercent)
+            return Result.Failure(new Error(
+                "INSPECTION_PROGRESS_CANNOT_DECREASE",
+                $"Không thể cập nhật tiến độ thấp hơn {ProgressPercent}% đã lưu trước đó.",
+                ErrorType.Validation));
+
         ProgressPercent = percent;
         ProgressNote = note;
         ProgressUpdatedAt = DateTime.UtcNow;

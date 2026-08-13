@@ -121,6 +121,32 @@ internal static class NotificationPlaceholders
                 : string.Empty
         };
 
+    internal static Dictionary<string, string> ForCleanupTeamCheckedIn(
+        string reportCode,
+        string teamName) =>
+        new(StringComparer.Ordinal)
+        {
+            ["report_code"] = reportCode,
+            ["team_name"] = teamName
+        };
+
+    internal static Dictionary<string, string> ForCleanupBeforeImagesUploaded(
+        string reportCode,
+        string teamName,
+        int imageCount) =>
+        new(StringComparer.Ordinal)
+        {
+            ["report_code"] = reportCode,
+            ["team_name"] = teamName,
+            ["image_count"] = imageCount.ToString(CultureInfo.InvariantCulture)
+        };
+
+    internal static Dictionary<string, string> ForReportClosedByCitizen(string reportCode) =>
+        new(StringComparer.Ordinal)
+        {
+            ["report_code"] = reportCode
+        };
+
     internal static Dictionary<string, string> ForInspectionTaskAssigned(string reportCode, string teamName) =>
         new(StringComparer.Ordinal)
         {

@@ -36,6 +36,11 @@ public static partial class Errors
             "Báo cáo đã được phân công cho team và đang trong quá trình xử lý.",
             ErrorType.Conflict);
 
+        public static Error TeamAlreadyAssignedOnReport => new(
+            "TEAM_ALREADY_ASSIGNED_ON_REPORT",
+            "Team này đã có phân công đang chờ hoặc đang xử lý trên báo cáo.",
+            ErrorType.Conflict);
+
         public static Error ConflictOfInterest => new(
             "CONFLICT_OF_INTEREST",
             "Không thể xử lý báo cáo do bạn tạo.",
@@ -120,6 +125,12 @@ public static partial class Errors
         public static Error InvalidProgressPercent => new(
             "INVALID_PROGRESS_PERCENT",
             "Phần trăm tiến độ phải trong khoảng 0–100.",
+            ErrorType.Validation);
+
+        /// <summary>BR-CLN-004: progress can only stay the same (correction) or increase, never decrease.</summary>
+        public static Error ProgressCannotDecrease(int currentPercent) => new(
+            "PROGRESS_CANNOT_DECREASE",
+            $"Không thể cập nhật tiến độ thấp hơn {currentPercent}% đã lưu trước đó.",
             ErrorType.Validation);
 
         public static Error ReportNotAssigned => new(

@@ -139,5 +139,17 @@ public enum NotificationType
     StaffInvitationAccepted,
 
     /// <summary>BR-ORG-021: Citizen declined a staff invitation.</summary>
-    StaffInvitationDeclined
+    StaffInvitationDeclined,
+
+    /// <summary>BR-CMP-002: CompanyManager account provisioned — email includes login email and temporary password.</summary>
+    CompanyManagerAccountCreated,
+
+    /// <summary>BR-CLN-003: LEO/CM — cleanup team checked in at the report site.</summary>
+    CleanupTeamCheckedIn,
+
+    /// <summary>BR-REP-014: LEO/CM — cleanup team uploaded before (on-site) images.</summary>
+    CleanupBeforeImagesUploaded,
+
+    /// <summary>BR-REP-016: LEO/CM — citizen confirmed and closed a resolved report.</summary>
+    ReportClosedByCitizen
 }

@@ -23,7 +23,7 @@ namespace Greenlens.Application.Features.Reports.SubmitPollutionReport;
 /// <remarks>
 /// Implements: BR-REP-001 (≥1 photo), BR-REP-003 (GPS bounds — validator),
 /// BR-REP-004 (description length + profanity), BR-REP-005 (category),
-/// BR-REP-010 (submit rate limit), BR-REP-011 (EXIF timestamp quality),
+/// BR-REP-010 (submit rate limit), BR-REP-011 (EXIF GPS quality),
 /// BR-REP-013 (initial Submitted state),
 /// BR-AI-001 (optional pre-submit AI decision),
 /// BR-ORG-010, BR-ORG-011 (auto-routing to LocalOffice by GPS).
@@ -48,7 +48,6 @@ public sealed class SubmitPollutionReportCommandHandler(
     IIdempotencyContext idempotencyContext,
     IImageExifAnalyzer exifAnalyzer,
     IImageBytesFetcher imageBytesFetcher,
-    IDateTimeProvider clock,
     ILogger<SubmitPollutionReportCommandHandler> logger)
     : IRequestHandler<SubmitPollutionReportCommand, Result<SubmitPollutionReportResponse>>
 {
@@ -317,15 +316,13 @@ public sealed class SubmitPollutionReportCommandHandler(
             reporterId);
         reportMedia.Add(primaryMedia);
 
-        // ── BR-REP-011: EXIF timestamp/GPS quality check on primary image ───
+        // ── BR-REP-011: EXIF GPS quality check on primary image ─────────────
         string? exifWarning = null;
         if (resolvedImage.ImageBytes is { Length: > 0 } bytes)
         {
             var swExif = System.Diagnostics.Stopwatch.StartNew();
-            var submittedAtUtc = clock.UtcNow;
             var exif = exifAnalyzer.Analyze(
                 bytes,
-                submittedAtUtc,
                 request.Latitude,
                 request.Longitude);
             swExif.Stop();

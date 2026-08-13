@@ -48,12 +48,28 @@ public interface ICleanupAssignmentActivityNotifier
         string reportCode,
         bool reportFullyResolved,
         CancellationToken ct = default);
+
+    Task NotifyCheckedInAsync(
+        Guid assignerUserId,
+        Guid teamId,
+        Guid reportId,
+        string reportCode,
+        CancellationToken ct = default);
+
+    Task NotifyBeforeImagesUploadedAsync(
+        Guid assignerUserId,
+        Guid teamId,
+        Guid reportId,
+        string reportCode,
+        int imageCount,
+        CancellationToken ct = default);
 }
 
 public sealed class CleanupAssignmentActivityNotifier(
     INotificationService notificationService,
     IEnvironmentalTeamRepository teams,
     IEnvironmentalServiceCompanyRepository companies,
+    ICompanyManagerRecipientQuery companyManagers,
     IApplicationDbContext db,
     ILogger<CleanupAssignmentActivityNotifier> logger) : ICleanupAssignmentActivityNotifier
 {
@@ -133,6 +149,40 @@ public sealed class CleanupAssignmentActivityNotifier(
             "completed",
             ct);
 
+    public Task NotifyCheckedInAsync(
+        Guid assignerUserId,
+        Guid teamId,
+        Guid reportId,
+        string reportCode,
+        CancellationToken ct = default) =>
+        SendAsync(
+            assignerUserId,
+            teamId,
+            reportId,
+            reportCode,
+            NotificationType.CleanupTeamCheckedIn,
+            teamName => NotificationPlaceholders.ForCleanupTeamCheckedIn(reportCode, teamName),
+            "checked in",
+            ct);
+
+    public Task NotifyBeforeImagesUploadedAsync(
+        Guid assignerUserId,
+        Guid teamId,
+        Guid reportId,
+        string reportCode,
+        int imageCount,
+        CancellationToken ct = default) =>
+        SendAsync(
+            assignerUserId,
+            teamId,
+            reportId,
+            reportCode,
+            NotificationType.CleanupBeforeImagesUploaded,
+            teamName => NotificationPlaceholders.ForCleanupBeforeImagesUploaded(
+                reportCode, teamName, imageCount),
+            "uploaded before images",
+            ct);
+
     private async Task SendAsync(
         Guid assignerUserId,
         Guid teamId,
@@ -143,70 +193,108 @@ public sealed class CleanupAssignmentActivityNotifier(
         string activityLabel,
         CancellationToken ct)
     {
-        var (teamName, companyName) = await ResolveTeamInfoAsync(teamId, ct).ConfigureAwait(false);
+        var (teamName, companyName, companyId) = await ResolveTeamInfoAsync(teamId, ct).ConfigureAwait(false);
+        var notifiedUserIds = new HashSet<Guid> { assignerUserId };
 
-        // 1. Always notify the assigner (LEO for community teams, CM for company teams)
-        var placeholders = buildPlaceholders(teamName);
-        placeholders = await NotificationLocalityQueries
-            .EnrichFromReportIdAsync(db, placeholders, reportId, ct)
-            .ConfigureAwait(false);
-
-        await notificationService.SendFromTemplateAsync(
+        await SendToUserAsync(
             assignerUserId,
-            type,
-            placeholders,
+            teamName,
             reportId,
+            reportCode,
+            type,
+            buildPlaceholders,
             ct).ConfigureAwait(false);
 
         logger.LogInformation(
             "Notified assigner {UserId} that team {TeamId} {Activity} report {ReportCode}",
             assignerUserId, teamId, activityLabel, reportCode);
 
-        // 2. Company team → also notify the LEO who verified/dispatched the report
-        if (companyName is not null)
+        if (companyId is null)
+            return;
+
+        var teamNameWithCompany = $"{teamName} ({companyName})";
+
+        var leoId = await GetVerifyingLeoIdAsync(reportId, ct).ConfigureAwait(false);
+        if (leoId.HasValue && notifiedUserIds.Add(leoId.Value))
         {
-            var leoId = await GetVerifyingLeoIdAsync(reportId, ct).ConfigureAwait(false);
-            if (leoId.HasValue && leoId.Value != assignerUserId)
-            {
-                var teamNameWithCompany = $"{teamName} ({companyName})";
-                var leoPlaceholders = buildPlaceholders(teamNameWithCompany);
-                leoPlaceholders = await NotificationLocalityQueries
-                    .EnrichFromReportIdAsync(db, leoPlaceholders, reportId, ct)
-                    .ConfigureAwait(false);
+            await SendToUserAsync(
+                leoId.Value,
+                teamNameWithCompany,
+                reportId,
+                reportCode,
+                type,
+                buildPlaceholders,
+                ct).ConfigureAwait(false);
 
-                await notificationService.SendFromTemplateAsync(
-                    leoId.Value,
-                    type,
-                    leoPlaceholders,
-                    reportId,
-                    ct).ConfigureAwait(false);
+            logger.LogInformation(
+                "Notified LEO {LeoId} that company team {TeamId} ({CompanyName}) {Activity} report {ReportCode}",
+                leoId.Value, teamId, companyName, activityLabel, reportCode);
+        }
 
-                logger.LogInformation(
-                    "Notified LEO {LeoId} that company team {TeamId} ({CompanyName}) {Activity} report {ReportCode}",
-                    leoId.Value, teamId, companyName, activityLabel, reportCode);
-            }
+        var managerIds = await companyManagers
+            .GetActiveManagerIdsByCompanyAsync(companyId.Value, ct)
+            .ConfigureAwait(false);
+
+        foreach (var managerId in managerIds)
+        {
+            if (!notifiedUserIds.Add(managerId))
+                continue;
+
+            await SendToUserAsync(
+                managerId,
+                teamNameWithCompany,
+                reportId,
+                reportCode,
+                type,
+                buildPlaceholders,
+                ct).ConfigureAwait(false);
+
+            logger.LogInformation(
+                "Notified CompanyManager {ManagerId} that team {TeamId} ({CompanyName}) {Activity} report {ReportCode}",
+                managerId, teamId, companyName, activityLabel, reportCode);
         }
     }
 
+    private async Task SendToUserAsync(
+        Guid userId,
+        string teamName,
+        Guid reportId,
+        string reportCode,
+        NotificationType type,
+        Func<string, Dictionary<string, string>> buildPlaceholders,
+        CancellationToken ct)
+    {
+        var placeholders = buildPlaceholders(teamName);
+        placeholders = await NotificationLocalityQueries
+            .EnrichFromReportIdAsync(db, placeholders, reportId, ct)
+            .ConfigureAwait(false);
+
+        await notificationService.SendFromTemplateAsync(
+            userId,
+            type,
+            placeholders,
+            reportId,
+            ct).ConfigureAwait(false);
+    }
+
     /// <summary>
-    /// Resolves team name and, if it's a company team, the company name.
-    /// Returns (teamName, null) for community teams, (teamName, companyName) for company teams.
+    /// Resolves team name and, if it's a company team, the company name and id.
     /// </summary>
-    private async Task<(string teamName, string? companyName)> ResolveTeamInfoAsync(
+    private async Task<(string teamName, string? companyName, Guid? companyId)> ResolveTeamInfoAsync(
         Guid teamId, CancellationToken ct)
     {
         var team = await teams.GetByIdAsync(teamId, ct).ConfigureAwait(false);
         if (team is null)
         {
             logger.LogWarning("Cleanup activity notification: team {TeamId} not found", teamId);
-            return ("đội xử lý", null);
+            return ("đội xử lý", null, null);
         }
 
         if (!team.IsCompanyTeam)
-            return (team.Name, null);
+            return (team.Name, null, null);
 
         var company = await companies.GetByIdAsync(team.CompanyId!.Value, ct).ConfigureAwait(false);
-        return (team.Name, company?.Name ?? "công ty");
+        return (team.Name, company?.Name ?? "công ty", team.CompanyId);
     }
 
     /// <summary>

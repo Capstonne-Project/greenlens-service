@@ -44,7 +44,9 @@ public sealed class GetCompanyQueueQueryHandler(
             .Include(r => r.VerifiedByUser)
             .Where(r => r.Status == ReportStatus.InProgress
                         && r.AssignedCompanyId == companyId
-                        && !r.Assignments.Any(a => a.Status != AssignmentStatus.Declined));
+                        && !r.Assignments.Any(a =>
+                            a.Status == AssignmentStatus.Assigned
+                            || a.Status == AssignmentStatus.InProgress));
 
         if (!string.IsNullOrWhiteSpace(request.Search))
         {

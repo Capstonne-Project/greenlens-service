@@ -109,6 +109,7 @@ public static class DependencyInjection
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<ITransactionManager, TransactionManager>();
         services.AddScoped<IDomainEventCollector, DomainEventCollector>();
+        services.AddScoped<INotificationDispatchCollector, NotificationDispatchCollector>();
         services.AddScoped<IChangeTrackerCleaner, ChangeTrackerCleaner>();
 
         // ── Identity & Auth ──────────────────────────────
@@ -140,6 +141,7 @@ public static class DependencyInjection
         services.AddScoped<ICleanupTaskAssignedNotifier, CleanupTaskAssignedNotifier>();
         services.AddScoped<ICompanyTeamAssignedLeoNotifier, CompanyTeamAssignedLeoNotifier>();
         services.AddScoped<ICleanupAssignmentActivityNotifier, CleanupAssignmentActivityNotifier>();
+        services.AddScoped<IReportClosedByCitizenNotifier, ReportClosedByCitizenNotifier>();
         services.AddScoped<IInspectionTaskAssignedNotifier, InspectionTaskAssignedNotifier>();
         services.AddScoped<IInspectionAssignmentActivityNotifier, InspectionAssignmentActivityNotifier>();
         services.AddScoped<IInspectionTaskDeclinedNotifier, InspectionTaskDeclinedNotifier>();

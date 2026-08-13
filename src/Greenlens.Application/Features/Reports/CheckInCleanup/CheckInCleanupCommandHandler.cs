@@ -1,6 +1,8 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Notifications;
+using Greenlens.Application.Features.Reports.Common;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
@@ -18,6 +20,7 @@ public sealed class CheckInCleanupCommandHandler(
     IReportRepository reports,
     IReportAssignmentRepository assignments,
     IGeoDistanceService geoDistance,
+    ICleanupAssignmentActivityNotifier activityNotifier,
     IUnitOfWork uow,
     ILogger<CheckInCleanupCommandHandler> logger)
     : IRequestHandler<CheckInCleanupCommand, Result>
@@ -42,7 +45,7 @@ public sealed class CheckInCleanupCommandHandler(
         }
 
         var reportAssignments = await assignments.GetByReportIdAsync(request.ReportId, ct).ConfigureAwait(false);
-        var assignment = reportAssignments.FirstOrDefault(a => a.TeamId == request.TeamId);
+        var assignment = ReportAssignmentSelection.SelectLatestForTeam(reportAssignments, request.TeamId);
 
         if (assignment is null)
         {
@@ -71,6 +74,13 @@ public sealed class CheckInCleanupCommandHandler(
         assignment.CheckIn(request.Latitude, request.Longitude, request.Note);
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        await activityNotifier.NotifyCheckedInAsync(
+            assignment.AssignedById,
+            request.TeamId,
+            report.Id,
+            report.Code,
+            ct).ConfigureAwait(false);
 
         logger.LogInformation(
             "Team {TeamId} checked in for report {ReportId} at {Distance:F1}m",

@@ -77,7 +77,7 @@ public sealed class DepartmentsController(ISender sender) : ControllerBase
     [SwaggerOperation(
         Summary = "[Admin] Gán DEO cho department",
         Description = "Gán 1 user có role DEO làm điều phối viên cho Sở TNMT. " +
-            "DEO sẽ tiếp nhận, xác minh và điều phối tất cả báo cáo trong tỉnh.")]
+            "DEO giám sát báo cáo và quản lý công ty DVMT trong phạm vi tỉnh/thành.")]
     [SwaggerResponse(200, "Đã gán", typeof(ApiResponse))]
     [SwaggerResponse(404, "Department hoặc User không tồn tại", typeof(ApiResponse))]
     [SwaggerResponse(422, "User không có role DEO", typeof(ApiResponse))]

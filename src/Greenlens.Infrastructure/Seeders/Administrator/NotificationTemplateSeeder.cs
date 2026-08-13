@@ -368,6 +368,30 @@ internal static class NotificationTemplateSeeder
             NotificationType.CleanupTaskCompleted),
 
         Create(
+            "cleanup_team_checked_in",
+            "Đội đã check-in hiện trường",
+            "Đội {team_name} đã check-in tại hiện trường báo cáo {report_code} tại {ward_name}.",
+            "Cleanup team checked in on site",
+            "Team {team_name} checked in on site for report {report_code}.",
+            NotificationType.CleanupTeamCheckedIn),
+
+        Create(
+            "cleanup_before_images_uploaded",
+            "Đội đã tải ảnh hiện trường",
+            "Đội {team_name} đã tải {image_count} ảnh hiện trường cho báo cáo {report_code} tại {ward_name}.",
+            "Cleanup team uploaded before images",
+            "Team {team_name} uploaded {image_count} before image(s) for report {report_code}.",
+            NotificationType.CleanupBeforeImagesUploaded),
+
+        Create(
+            "report_closed_by_citizen",
+            "Công dân đã đóng báo cáo",
+            "Công dân đã xác nhận và đóng báo cáo {report_code} tại {ward_name}.",
+            "Citizen closed report",
+            "The citizen confirmed and closed report {report_code}.",
+            NotificationType.ReportClosedByCitizen),
+
+        Create(
             "report_verification_needed",
             "Báo cáo mới cần xác minh",
             "Báo cáo {report_code} tại {ward_name} ({province_name}) vừa được gửi và đang chờ bạn xác minh.",
@@ -469,7 +493,21 @@ internal static class NotificationTemplateSeeder
             "Bạn đã đạt {current}/{target} cho huy hiệu \"{badge_name}\". Cố gắng thêm chút nữa để nhận huy hiệu!",
             "Almost there for a new badge",
             "You've reached {current}/{target} toward the \"{badge_name}\" badge. Keep going to earn it!",
-            NotificationType.BadgeProgressNear)
+            NotificationType.BadgeProgressNear),
+
+        Create(
+            "company_manager_account_created",
+            "Tài khoản Quản lý công ty GreenLens",
+            "Xin chào {manager_name}, bạn đã được tạo tài khoản Quản lý công ty \"{company_name}\" trên GreenLens.\n\n" +
+            "Email đăng nhập: {email}\n" +
+            "Mật khẩu tạm: {temp_password}\n\n" +
+            "Vui lòng đăng nhập và đổi mật khẩu ngay lần đầu. Sau khi đổi mật khẩu, công ty sẽ được kích hoạt tự động.",
+            "GreenLens company manager account created",
+            "Hello {manager_name}, your Company Manager account for \"{company_name}\" on GreenLens is ready.\n\n" +
+            "Login email: {email}\n" +
+            "Temporary password: {temp_password}\n\n" +
+            "Please sign in and change your password on first login. The company will activate automatically afterward.",
+            NotificationType.CompanyManagerAccountCreated)
     ];
 
     private static NotificationTemplate Create(

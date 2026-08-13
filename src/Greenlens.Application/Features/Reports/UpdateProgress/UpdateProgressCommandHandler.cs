@@ -2,6 +2,7 @@ using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Features.Notifications;
+using Greenlens.Application.Features.Reports.Common;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
@@ -64,7 +65,7 @@ public sealed class UpdateProgressCommandHandler(
         }
 
         var reportAssignments = await assignments.GetByReportIdAsync(request.ReportId, ct).ConfigureAwait(false);
-        var assignment = reportAssignments.FirstOrDefault(a => a.TeamId == leader.TeamId);
+        var assignment = ReportAssignmentSelection.SelectLatestForTeam(reportAssignments, leader.TeamId);
 
         if (assignment is null)
         {
@@ -76,6 +77,13 @@ public sealed class UpdateProgressCommandHandler(
         {
             logger.LogWarning("Assignment {AssignmentId} is not in a valid status for progress update", assignment.Id);
             return Errors.Reports.AssignmentNotInProgress;
+        }
+
+        if (request.ProgressPercent < assignment.ProgressPercent)
+        {
+            logger.LogWarning("Progress {Percent}% is lower than current {CurrentPercent}% for assignment {AssignmentId}",
+                request.ProgressPercent, assignment.ProgressPercent, assignment.Id);
+            return Errors.Reports.ProgressCannotDecrease(assignment.ProgressPercent);
         }
 
         var progressUpdate = AssignmentProgressUpdate.Create(

@@ -101,7 +101,7 @@ public sealed class GetReportProgressQueryHandler(
             SlaLabels.GetValueOrDefault(report.Severity, report.Severity.ToString()));
         
         // ── Single team assignment ─────────────────────────────────
-        var currentAssignment = ResolveCurrentAssignment(report.Assignments);
+        var currentAssignment = ReportAssignmentSelection.ResolveCurrentAssignment(report.Assignments);
         AssignmentProgressDto? assignment = currentAssignment is null
             ? null
             : MapAssignment(currentAssignment);
@@ -150,6 +150,8 @@ public sealed class GetReportProgressQueryHandler(
             report.Category.NameVi,
             report.Address,
             report.WardCode,
+            report.Latitude,
+            report.Longitude,
             report.Description,
             sla,
             assignedCompany,
@@ -157,12 +159,6 @@ public sealed class GetReportProgressQueryHandler(
             media,
             history);
     }
-
-    private static ReportAssignment? ResolveCurrentAssignment(IEnumerable<ReportAssignment> assignments) =>
-        assignments
-            .OrderByDescending(a => a.AssignedAt)
-            .FirstOrDefault(a => a.Status != AssignmentStatus.Declined)
-        ?? assignments.OrderByDescending(a => a.AssignedAt).FirstOrDefault();
 
     private static AssignmentProgressDto MapAssignment(ReportAssignment a)
     {

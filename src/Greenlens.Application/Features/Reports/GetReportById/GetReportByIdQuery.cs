@@ -21,7 +21,14 @@ public sealed record ReportDetailResponse(
     string? AiClassifiedType, decimal? AiConfidence,
     Guid? VerifiedBy, Guid? AssignedByOfficerId, Guid? AssignedOfficeId,
     IReadOnlyList<ReportMediaItem> Media,
+    /// <summary>All team assignments, newest first (legacy — prefer assignmentHistory).</summary>
     IReadOnlyList<ReportAssignmentItem> Assignments,
+    /// <summary>Current open assignment cycle (newest non-declined), if any.</summary>
+    ReportAssignmentItem? CurrentAssignment,
+    /// <summary>Full assignment history across reopen cycles (BR-REP-015, BR-REP-026).</summary>
+    IReadOnlyList<ReportAssignmentHistoryItem> AssignmentHistory,
+    /// <summary>All citizen reopen requests for this report, newest first (BR-REP-015).</summary>
+    IReadOnlyList<ReportReopenHistoryItem> ReopenHistory,
     IReadOnlyList<ReportWasteTagItem> WasteTags,
     string? AiSuggestedWasteTagCodes,
     DateTime CreatedAt, DateTime? VerifiedAt, DateTime? StartedAt,
@@ -72,6 +79,39 @@ public sealed record ReportAssignmentItem(
     string Status, string? Note, DateTime AssignedAt,
     DateTime? StartedAt, DateTime? CompletedAt,
     int ProgressPercent, string? ProgressNote, DateTime? ProgressUpdatedAt);
+
+/// <summary>One assignment row in report history (includes reopen cycles).</summary>
+public sealed record ReportAssignmentHistoryItem(
+    Guid AssignmentId,
+    Guid TeamId,
+    string? TeamName,
+    string TeamType,
+    string Status,
+    string? Note,
+    string? DeclineReason,
+    DateTime AssignedAt,
+    DateTime? StartedAt,
+    DateTime? CompletedAt,
+    Guid AssignedById,
+    string? AssignedByName,
+    int ProgressPercent,
+    string? ProgressNote,
+    DateTime? ProgressUpdatedAt,
+    bool IsCurrent);
+
+/// <summary>One citizen reopen request (pending, approved, or rejected).</summary>
+public sealed record ReportReopenHistoryItem(
+    Guid RequestId,
+    string Reason,
+    string Status,
+    DateTime RequestedAt,
+    Guid RequestedById,
+    string? RequestedByName,
+    DateTime? ReviewedAt,
+    Guid? ReviewedById,
+    string? ReviewedByName,
+    string? RejectionReason,
+    IReadOnlyList<ReportMediaItem> EvidenceMedia);
 
 public sealed record ReportWasteTagItem(
     Guid TagId, string Code, string NameVi, string NameEn, string? IconUrl);

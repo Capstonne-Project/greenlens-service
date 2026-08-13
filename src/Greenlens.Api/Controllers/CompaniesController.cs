@@ -48,7 +48,8 @@ public sealed class CompaniesController(ISender sender) : ControllerBase
             "Có thể truyền WardCodes để gán phường/xã phụ trách ngay khi tạo. " +
             "ManagerEmail + ManagerFullName là tuỳ chọn — bỏ trống để tạo công ty trước, tạo CM sau qua POST /{id}/manager. " +
             "Nếu có CM: trạng thái ban đầu PendingActivation; CM đăng nhập bằng MK tạm → đổi MK → công ty tự động Active. " +
-            "⚠️ TempPassword chỉ hiển thị 1 lần — DEO cần gửi cho CM.")]
+            "Hệ thống gửi email thông tin đăng nhập + MK tạm tới managerEmail (BR-CMP-002, BR-NTF-002). " +
+            "⚠️ TempPassword vẫn trả trong response 1 lần — backup nếu email không tới.")]
     [SwaggerResponse(200, "Đã tạo công ty", typeof(ApiResponse<CreateCompanyResponse>))]
     [SwaggerResponse(404, "Department hoặc WardCode không tồn tại", typeof(ApiResponse))]
     [SwaggerResponse(409, "Số hợp đồng hoặc email CM đã tồn tại", typeof(ApiResponse))]
@@ -65,7 +66,8 @@ public sealed class CompaniesController(ISender sender) : ControllerBase
         Description = "Tạo tài khoản CompanyManager cho công ty đã tồn tại. " +
             "Dùng khi công ty được tạo trước mà chưa có CM, hoặc muốn thêm CM. " +
             "CM đăng nhập bằng MK tạm → đổi MK → công ty tự động Active. " +
-            "⚠️ TempPassword chỉ hiển thị 1 lần — DEO cần gửi cho CM.")]
+            "Hệ thống gửi email thông tin đăng nhập + MK tạm (BR-CMP-002, BR-NTF-002). " +
+            "⚠️ TempPassword vẫn trả trong response 1 lần — backup nếu email không tới.")]
     [SwaggerResponse(200, "Đã tạo tài khoản CM", typeof(ApiResponse<CreateCompanyManagerResponse>))]
     [SwaggerResponse(404, "Công ty không tồn tại", typeof(ApiResponse))]
     [SwaggerResponse(409, "Email CM đã tồn tại", typeof(ApiResponse))]

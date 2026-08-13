@@ -16,6 +16,8 @@ namespace Greenlens.Application.Common.Behaviors;
 public sealed class TransactionBehavior<TRequest, TResponse>(
     ITransactionManager transactionManager,
     IDomainEventCollector eventCollector,
+    INotificationDispatchCollector notificationDispatchCollector,
+    INotificationDispatchScheduler notificationDispatchScheduler,
     IChangeTrackerCleaner changeTrackerCleaner,
     IPublisher publisher,
     ILogger<TransactionBehavior<TRequest, TResponse>> logger)
@@ -50,6 +52,8 @@ public sealed class TransactionBehavior<TRequest, TResponse>(
             // tracked entities from the committed command — avoids DbUpdateConcurrencyException.
             changeTrackerCleaner.ClearTrackedEntities();
 
+            FlushDeferredNotificationDispatches();
+
             try
             {
                 await PublishDeferredDomainEventsAsync(cancellationToken).ConfigureAwait(false);
@@ -67,6 +71,7 @@ public sealed class TransactionBehavior<TRequest, TResponse>(
         catch
         {
             eventCollector.Clear();
+            notificationDispatchCollector.Clear();
 
             await transactionManager.RollbackAsync(cancellationToken).ConfigureAwait(false);
 
@@ -74,6 +79,12 @@ public sealed class TransactionBehavior<TRequest, TResponse>(
 
             throw;
         }
+    }
+
+    private void FlushDeferredNotificationDispatches()
+    {
+        foreach (var notificationId in notificationDispatchCollector.DrainAll())
+            notificationDispatchScheduler.Enqueue(notificationId);
     }
 
     private async Task PublishDeferredDomainEventsAsync(CancellationToken ct)

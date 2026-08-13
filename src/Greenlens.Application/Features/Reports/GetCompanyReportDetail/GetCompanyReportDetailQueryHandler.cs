@@ -96,7 +96,7 @@ public sealed class GetCompanyReportDetailQueryHandler(
             .OrderByDescending(a => a.AssignedAt)
             .ToList();
 
-        var currentAssignment = ResolveCurrentAssignment(companyAssignments);
+        var currentAssignment = ReportAssignmentSelection.ResolveCurrentAssignment(companyAssignments);
         CompanyReportTeamAssignment? assignment = currentAssignment is null
             ? null
             : MapAssignment(currentAssignment);
@@ -170,12 +170,6 @@ public sealed class GetCompanyReportDetailQueryHandler(
         return companyAssignments.Any(a =>
             a.Status is AssignmentStatus.Declined or AssignmentStatus.Assigned);
     }
-
-    private static ReportAssignment? ResolveCurrentAssignment(IEnumerable<ReportAssignment> assignments) =>
-        assignments
-            .OrderByDescending(a => a.AssignedAt)
-            .FirstOrDefault(a => a.Status != AssignmentStatus.Declined)
-        ?? assignments.OrderByDescending(a => a.AssignedAt).FirstOrDefault();
 
     private static CompanyReportAssignmentHistoryItem MapHistoryItem(ReportAssignment a) =>
         new(

@@ -17,7 +17,7 @@ namespace Greenlens.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.18")
+                .HasAnnotation("ProductVersion", "9.0.19")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "postgis");
@@ -275,17 +275,6 @@ namespace Greenlens.Infrastructure.Migrations
                             NameEn = "30-Day Streak",
                             NameVi = "Kiên Trì 30 Ngày",
                             RequiredStreakDays = 30
-                        },
-                        new
-                        {
-                            Id = new Guid("a1000001-0000-0000-0000-000000000007"),
-                            Code = "hotspot_hunter",
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Gửi 3 báo cáo trong khu vực hotspot ô nhiễm",
-                            IconUrl = "badges/icons/hotspot_hunter.png",
-                            IsActive = true,
-                            NameEn = "Hotspot Hunter",
-                            NameVi = "Thợ Săn Điểm Nóng"
                         },
                         new
                         {

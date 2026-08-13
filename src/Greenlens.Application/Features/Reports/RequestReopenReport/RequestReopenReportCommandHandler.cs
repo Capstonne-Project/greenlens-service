@@ -24,6 +24,7 @@ public sealed class RequestReopenReportCommandHandler(
     IReportMediaRepository reportMedia,
     IApplicationDbContext db,
     IFileStorageService fileStorage,
+    IReportStatusHistoryRepository statusHistory,
     INotificationService notifications,
     IOfficerRecipientQuery officerRecipients,
     ICurrentUser currentUser,
@@ -85,6 +86,17 @@ public sealed class RequestReopenReportCommandHandler(
 
         db.Set<ReportReopenRequest>().Add(reopenRequest);
         report.MarkPendingReopenRequest();
+
+        // Trạng thái không đổi (vẫn Resolved) nhưng ghi 1 dòng lịch sử để timeline của
+        // citizen thấy được chính họ đã gửi yêu cầu mở lại khi nào, lý do gì. `metadata`
+        // đánh dấu loại event tường minh — FE không cần suy luận qua so khớp chuỗi `reason`.
+        statusHistory.Add(ReportStatusHistory.Create(
+            report.Id,
+            ReportStatus.Resolved,
+            ReportStatus.Resolved,
+            currentUser.UserId,
+            reason: reopenRequest.Reason,
+            metadata: """{"eventType":"ReopenRequested"}"""));
 
         var mediaItems = new List<ReportMedia>();
         foreach (var url in request.ImageUrls)

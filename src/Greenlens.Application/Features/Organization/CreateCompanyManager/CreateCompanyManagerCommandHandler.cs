@@ -4,6 +4,7 @@ using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
+using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -14,13 +15,14 @@ namespace Greenlens.Application.Features.Organization.CreateCompanyManager;
 /// DEO creates a CompanyManager account for an existing company.
 /// Supports deferred onboarding: company can be created first, CM account created later.
 /// </summary>
-/// <remarks>Implements: BR-CMP-001, BR-CMP-002, BR-ADM-010.</remarks>
+/// <remarks>Implements: BR-CMP-001, BR-CMP-002, BR-NTF-002, BR-ADM-010.</remarks>
 public sealed class CreateCompanyManagerCommandHandler(
     IEnvironmentalServiceCompanyRepository companies,
     IUserRepository users,
     ICompanyStaffRepository companyStaff,
     IUnitOfWork uow,
     IPasswordHasher passwordHasher,
+    INotificationService notifications,
     IAuditLogger auditLogger,
     ILogger<CreateCompanyManagerCommandHandler> logger)
     : IRequestHandler<CreateCompanyManagerCommand, Result<CreateCompanyManagerResponse>>
@@ -98,6 +100,17 @@ public sealed class CreateCompanyManagerCommandHandler(
                 managerUser.Email,
                 managerUser.FullName
             }),
+            ct).ConfigureAwait(false);
+
+        await notifications.SendFromTemplateAsync(
+            managerUser.Id,
+            NotificationType.CompanyManagerAccountCreated,
+            CompanyManagerAccountNotificationPlaceholders.ForCreated(
+                company.Name,
+                managerUser.FullName,
+                managerUser.Email,
+                tempPassword),
+            company.Id,
             ct).ConfigureAwait(false);
 
         return new CreateCompanyManagerResponse(

@@ -10,7 +10,7 @@ public sealed record GetOfficerQueueQuery(
     int Page = 1,
     int PageSize = 20,
     // ── Filters ──
-    ReportStatus? StatusFilter = null,
+    IReadOnlyList<ReportStatus>? Statuses = null,
     Severity? SeverityFilter = null,
     Guid? CategoryId = null,
     string? WardCode = null,

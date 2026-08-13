@@ -1,6 +1,8 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Notifications;
+using Greenlens.Application.Features.Reports.Common;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
@@ -22,6 +24,7 @@ public sealed class UploadBeforeImagesCommandHandler(
     IReportMediaRepository reportMedia,
     ITeamMemberRepository teamMembers,
     IFileStorageService fileStorage,
+    ICleanupAssignmentActivityNotifier activityNotifier,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     ILogger<UploadBeforeImagesCommandHandler> logger)
@@ -80,7 +83,7 @@ public sealed class UploadBeforeImagesCommandHandler(
 
         var reportAssignments = await assignments.GetByReportIdAsync(request.ReportId, ct)
             .ConfigureAwait(false);
-        var assignment = reportAssignments.FirstOrDefault(a => a.TeamId == leader.TeamId);
+        var assignment = ReportAssignmentSelection.SelectLatestForTeam(reportAssignments, leader.TeamId);
         if (assignment is null)
         {
             logger.LogWarning("Assignment not found for report {ReportId} and team {TeamId}", request.ReportId, leader.TeamId);
@@ -109,6 +112,14 @@ public sealed class UploadBeforeImagesCommandHandler(
         }
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        await activityNotifier.NotifyBeforeImagesUploadedAsync(
+            assignment.AssignedById,
+            leader.TeamId,
+            report.Id,
+            report.Code,
+            savedUrls.Count,
+            ct).ConfigureAwait(false);
 
         logger.LogInformation(
             "Saved {Count} before image URLs for report {ReportId} by team {TeamId}",

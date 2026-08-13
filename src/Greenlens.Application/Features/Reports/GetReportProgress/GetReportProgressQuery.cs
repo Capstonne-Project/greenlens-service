@@ -15,6 +15,8 @@ public sealed record ReportProgressResponse(
     string CategoryName,
     string? Address,
     string? WardCode,
+    decimal Latitude,
+    decimal Longitude,
     string? Description,
     SlaInfoDto Sla,
     AssignedCompanyDto? AssignedCompany,

@@ -4,6 +4,7 @@ using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Common.Options;
 using Greenlens.Application.Features.Notifications;
+using Greenlens.Application.Features.Reports.Common;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
@@ -110,6 +111,18 @@ public sealed class AssignCompanyTeamCommandHandler(
         }
 
         // Create assignments
+        var existingAssignments = await assignments.GetByReportIdAsync(request.ReportId, ct).ConfigureAwait(false);
+        foreach (var item in request.Teams)
+        {
+            if (ReportAssignmentSelection.HasOpenAssignmentForTeam(existingAssignments, item.TeamId))
+            {
+                logger.LogWarning(
+                    "Team {TeamId} already has an open assignment on report {ReportId}",
+                    item.TeamId, request.ReportId);
+                return Errors.Reports.TeamAlreadyAssignedOnReport;
+            }
+        }
+
         foreach (var item in request.Teams)
         {
             var assignment = ReportAssignment.Create(
