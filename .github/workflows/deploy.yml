@@ -218,8 +218,8 @@ jobs:
               rollback "Smoke test failed"
             fi
 
-            # Record successful deploy for future rollbacks
-            echo "${FULL_IMAGE}" | sudo tee "${STATE_FILE}" >/dev/null
+            # Record successful deploy for future rollbacks (no sudo — CI user owns /opt/greenlens)
+            printf '%s\n' "${FULL_IMAGE}" > "${STATE_FILE}"
 
             # Cleanup old images (keep last 3 days) — only after verified success
             sudo docker image prune -f --filter "until=72h"
