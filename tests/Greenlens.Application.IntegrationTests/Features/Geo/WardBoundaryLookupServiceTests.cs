@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.IntegrationTests.Fixtures;
+using Greenlens.Domain.Entities.Location;
 using Greenlens.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -83,30 +84,21 @@ public sealed class WardBoundaryLookupServiceTests(PostgresContainerFixture fixt
 
         const string provinceCode = "01";
 
-        await db.Database.ExecuteSqlInterpolatedAsync(
-            $"""
-            INSERT INTO administrative_regions (id, name, name_en, code_name, code_name_en)
-            VALUES (1, 'Test Region', 'Test Region', 'test_region', 'test_region')
-            ON CONFLICT (id) DO NOTHING
-            """);
-        await db.Database.ExecuteSqlInterpolatedAsync(
-            $"""
-            INSERT INTO administrative_units (id, full_name, full_name_en, short_name, short_name_en, code_name, code_name_en)
-            VALUES (1, 'Tỉnh', 'Province', 'Tỉnh', 'Province', 'tinh', 'province'),
-                   (3, 'Phường', 'Ward', 'Phường', 'Ward', 'phuong', 'ward')
-            ON CONFLICT (id) DO NOTHING
-            """);
-        await db.Database.ExecuteSqlInterpolatedAsync(
-            $"""
-            INSERT INTO provinces (code, name, administrative_region_id, administrative_unit_id)
-            VALUES ({provinceCode}, 'Test Province', 1, 1)
-            ON CONFLICT (code) DO NOTHING
-            """);
-        await db.Database.ExecuteSqlInterpolatedAsync(
-            $"""
-            INSERT INTO wards (code, name, province_code, administrative_unit_id)
-            VALUES ({wardCode}, 'Test Ward', {provinceCode}, 3)
-            ON CONFLICT (code) DO NOTHING
-            """);
+        if (!await db.Set<AdministrativeRegion>().AnyAsync(r => r.Id == 1))
+            db.Set<AdministrativeRegion>().Add(AdministrativeRegion.Seed(1, "Test Region"));
+
+        if (!await db.Set<AdministrativeUnit>().AnyAsync(u => u.Id == 1))
+            db.Set<AdministrativeUnit>().Add(AdministrativeUnit.Seed(1, "Tỉnh", "Tỉnh"));
+
+        if (!await db.Set<AdministrativeUnit>().AnyAsync(u => u.Id == 3))
+            db.Set<AdministrativeUnit>().Add(AdministrativeUnit.Seed(3, "Phường", "Phường"));
+
+        if (!await db.Set<Province>().AnyAsync(p => p.Code == provinceCode))
+            db.Set<Province>().Add(Province.Seed(provinceCode, "Test Province", 1, 1));
+
+        if (!await db.Set<Ward>().AnyAsync(w => w.Code == wardCode))
+            db.Set<Ward>().Add(Ward.Seed(wardCode, "Test Ward", provinceCode, 3));
+
+        await db.SaveChangesAsync();
     }
 }
