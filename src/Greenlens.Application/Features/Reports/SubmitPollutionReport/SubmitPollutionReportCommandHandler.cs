@@ -26,7 +26,8 @@ namespace Greenlens.Application.Features.Reports.SubmitPollutionReport;
 /// BR-REP-010 (submit rate limit), BR-REP-011 (EXIF GPS quality),
 /// BR-REP-013 (initial Submitted state),
 /// BR-AI-001 (optional pre-submit AI decision),
-/// BR-ORG-010, BR-ORG-011 (auto-routing to LocalOffice by GPS).
+/// BR-ORG-004, BR-ORG-010, BR-ORG-011, BR-ORG-016 (WardCode xác định bằng
+/// point-in-polygon từ GPS, không phụ thuộc client gửi WardCode/ProvinceCode).
 /// </remarks>
 public sealed class SubmitPollutionReportCommandHandler(
     IPollutionCategoryRepository categories,
@@ -39,6 +40,7 @@ public sealed class SubmitPollutionReportCommandHandler(
     IWardRepository wards,
     IDepartmentRepository departments,
     ILocalOfficeRepository localOffices,
+    IWardBoundaryLookupService wardBoundaryLookup,
     IUnitOfWork unitOfWork,
     ICurrentUser currentUser,
     ITempImageStore tempStore,
@@ -116,19 +118,33 @@ public sealed class SubmitPollutionReportCommandHandler(
             return Errors.Reports.CategoryNotFound;
         }
 
-        // ── Validate ward/province pair ─────────────────────────────────────
-        var provinceCode = request.ProvinceCode?.Trim();
-        var wardCode = request.WardCode?.Trim();
-        if (!string.IsNullOrEmpty(provinceCode) && !string.IsNullOrEmpty(wardCode))
+        // ── BR-ORG-004, BR-ORG-010, BR-ORG-016: xác định WardCode bằng point-in-polygon từ GPS ──
+        // GPS đã qua validator (BR-REP-003, khung lãnh thổ VN) nên luôn dùng làm nguồn xác định
+        // WardCode/ProvinceCode — không tin WardCode/ProvinceCode do client tự gửi (legacy field,
+        // vẫn được validator chấp nhận nhưng không còn quyết định business logic).
+        string? provinceCode = null;
+        string? wardCode = null;
+
+        var detectedWardCode = await wardBoundaryLookup
+            .FindWardCodeByPointAsync(request.Latitude, request.Longitude, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (detectedWardCode is not null)
         {
-            var wardOk = await wards.ExistsAsync(
-                    w => w.Code == wardCode && w.ProvinceCode == provinceCode, cancellationToken)
+            var detectedWard = await wards.GetByCodeAsync(detectedWardCode, cancellationToken)
                 .ConfigureAwait(false);
-            if (!wardOk)
+            if (detectedWard is not null)
             {
-                logger.LogWarning("Invalid ward/province pair for report {WardCode} and {ProvinceCode}", wardCode, provinceCode);
-                return Errors.Reports.InvalidWardProvincePair;
+                wardCode = detectedWard.Code;
+                provinceCode = detectedWard.ProvinceCode;
             }
+        }
+
+        if (wardCode is null)
+        {
+            logger.LogInformation(
+                "No ward boundary contains point ({Lat}, {Lng}) — report routed to Department Common Queue (BR-ORG-011)",
+                request.Latitude, request.Longitude);
         }
 
         var reporterId = currentUser.UserId;
