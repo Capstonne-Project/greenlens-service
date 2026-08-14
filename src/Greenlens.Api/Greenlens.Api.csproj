@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
     <ProjectReference Include="..\Greenlens.Application\Greenlens.Application.csproj" />
@@ -20,6 +20,7 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>90242cfd-3c31-4402-b7d6-8a73ff78c1dd</UserSecretsId>
   </PropertyGroup>
 
   <!--
