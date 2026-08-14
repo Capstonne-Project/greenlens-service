@@ -1,6 +1,7 @@
 using Greenlens.Api.Extensions;
 using Greenlens.Application.Common.Models;
 using Greenlens.Application.Features.Catalog.GetPollutionCategories;
+using Greenlens.Application.Features.Catalog.GetProvinceBoundary;
 using Greenlens.Application.Features.Catalog.GetProvinces;
 using Greenlens.Application.Features.Catalog.GetWardBoundary;
 using Greenlens.Application.Features.Catalog.GetWardsByProvince;
@@ -54,6 +55,22 @@ public sealed class CatalogController(ISender sender) : ControllerBase
         [FromRoute] string provinceCode,
         CancellationToken ct)
         => (await sender.Send(new GetWardsByProvinceQuery(provinceCode.Trim()), ct)).ToHttp();
+
+    /// <summary>Province boundary lookup directly by province code.</summary>
+    [HttpGet("provinces/{provinceCode}/boundary")]
+    [AllowAnonymous]
+    [SwaggerOperation(
+        Summary = "Get province boundary by province code",
+        Description =
+            "Returns the province's geoJson (GeoJSON geometry from PostGIS) for map overlay, looked up " +
+            "directly by provinceCode.")]
+    [SwaggerResponse(200, "Province boundary", typeof(ApiResponse<GetProvinceBoundaryResponse>))]
+    [SwaggerResponse(404, "Unknown province code", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Invalid province code format", typeof(ApiResponse))]
+    public async Task<IActionResult> GetProvinceBoundaryAsync(
+        [FromRoute] string provinceCode,
+        CancellationToken ct)
+        => (await sender.Send(new GetProvinceBoundaryQuery(provinceCode.Trim()), ct)).ToHttp();
 
     /// <summary>Ward boundary lookup directly by ward code (no province code required).</summary>
     [HttpGet("wards/{wardCode}/boundary")]

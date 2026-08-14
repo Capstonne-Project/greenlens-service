@@ -93,3 +93,6 @@ docker-compose.override.yml
 *.orig
 .angular/
 node_modules/
+
+## Boundary GeoJSON source data (large, one-time import — see data/boundary-source/README.md)
+data/boundary-source/*.geojson

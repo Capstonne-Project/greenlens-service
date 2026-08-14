@@ -164,6 +164,9 @@ public static class DependencyInjection
         services.AddScoped<IGeoDistanceService, Geo.PostGisDistanceService>();
         services.AddScoped<INearbyCitizenQuery, Geo.NearbyCitizenQuery>();
 
+        // ── Geo / PostGIS (BR-ORG-004, BR-ORG-010, BR-ORG-016) ──
+        services.AddScoped<IWardBoundaryLookupService, Geo.WardBoundaryLookupService>();
+
         // ── AI Classification ─────────────────────────
         services.AddOptions<AiOptions>()
             .Bind(configuration.GetSection("Ai"))

@@ -12,8 +12,10 @@ namespace Greenlens.Application.Features.Organization.GetMyWardBoundary;
 /// Resolves the ward boundary for the LEO's own office from the JWT, for the officer map
 /// to mask everything outside the ward polygon without needing provinceCode.
 /// </summary>
+/// <remarks>Implements: BR-ORG-004 (LocalOffice gắn WardCode → polygon GeoJSON).</remarks>
 public sealed class GetMyWardBoundaryQueryHandler(
     IUserRepository users,
+    IWardBoundaryLookupService boundaryLookup,
     ICurrentUser currentUser,
     ILogger<GetMyWardBoundaryQueryHandler> logger)
     : IRequestHandler<GetMyWardBoundaryQuery, Result<GetMyWardBoundaryResponse>>
@@ -29,9 +31,7 @@ public sealed class GetMyWardBoundaryQueryHandler(
                 HasOffice = u.LocalOfficeId.HasValue,
                 WardCode = u.LocalOffice != null ? u.LocalOffice.WardCode : null,
                 WardName = u.LocalOffice != null && u.LocalOffice.Ward != null
-                    ? u.LocalOffice.Ward.Name : null,
-                BoundaryUrl = u.LocalOffice != null && u.LocalOffice.Ward != null
-                    ? u.LocalOffice.Ward.BoundaryUrl : null
+                    ? u.LocalOffice.Ward.Name : null
             })
             .FirstOrDefaultAsync(ct)
             .ConfigureAwait(false);
@@ -42,6 +42,9 @@ public sealed class GetMyWardBoundaryQueryHandler(
             return Errors.Organization.OfficeNotFound;
         }
 
-        return new GetMyWardBoundaryResponse(officeInfo.WardCode, officeInfo.WardName, officeInfo.BoundaryUrl);
+        var geoJson = await boundaryLookup.GetWardBoundaryGeoJsonAsync(officeInfo.WardCode, ct)
+            .ConfigureAwait(false);
+
+        return new GetMyWardBoundaryResponse(officeInfo.WardCode, officeInfo.WardName, geoJson, BoundaryUrl: null);
     }
 }

@@ -3,6 +3,7 @@ using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Features.Notifications;
 using Greenlens.Application.Features.Organization;
+using Greenlens.Application.Features.Organization.Common;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
@@ -24,6 +25,7 @@ public sealed class RecruitStaffCommandHandler(
     IUserRepository users,
     IEnvironmentalTeamRepository teams,
     IStaffInvitationRepository invitations,
+    ITeamMemberRepository teamMembers,
     IApplicationDbContext db,
     INotificationService notifications,
     ICurrentUser currentUser,
@@ -129,13 +131,32 @@ public sealed class RecruitStaffCommandHandler(
             assignedTeamName = team.Name;
         }
 
-        // ── 8. Create invitation instead of instant recruit ──
+        // ── 8. IsLeader can only be requested together with a team, and a team can have only one leader ──
+        var isLeader = request.IsLeader ?? false;
+        if (isLeader)
+        {
+            if (!assignedTeamId.HasValue)
+            {
+                logger.LogWarning("IsLeader requested without a team for user {UserId}", targetUser.Id);
+                return Errors.Organization.InvalidRoleForTeamMember;
+            }
+
+            if (await TeamMembershipRules.TeamHasLeaderAsync(teamMembers, assignedTeamId.Value, excludeUserId: null, ct)
+                .ConfigureAwait(false))
+            {
+                logger.LogWarning("Team {TeamId} already has a leader", assignedTeamId.Value);
+                return Errors.Organization.TeamAlreadyHasLeader;
+            }
+        }
+
+        // ── 9. Create invitation instead of instant recruit ──
         var invitation = StaffInvitation.Create(
             invitedByUserId: currentUser.UserId,
             invitedUserId: targetUser.Id,
             localOfficeId: leoOfficeId,
             targetRole: request.TargetRole,
-            teamId: assignedTeamId);
+            teamId: assignedTeamId,
+            isLeader: isLeader);
 
         invitations.Add(invitation);
 
@@ -169,6 +190,6 @@ public sealed class RecruitStaffCommandHandler(
             leoOfficeId,
             assignedTeamId,
             null,
-            request.IsLeader ?? false);
+            isLeader);
     }
 }

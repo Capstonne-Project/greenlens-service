@@ -31,6 +31,9 @@ public sealed class StaffInvitation : AuditableEntity
     /// <summary>Target role after acceptance: Cleaner or Inspector.</summary>
     public UserRole TargetRole { get; private set; }
 
+    /// <summary>Whether the invited user should become the team's Leader on acceptance.</summary>
+    public bool IsLeader { get; private set; }
+
     /// <summary>Current invitation status.</summary>
     public InvitationStatus Status { get; private set; } = InvitationStatus.Pending;
 
@@ -55,7 +58,8 @@ public sealed class StaffInvitation : AuditableEntity
         Guid invitedUserId,
         Guid localOfficeId,
         UserRole targetRole,
-        Guid? teamId = null)
+        Guid? teamId = null,
+        bool isLeader = false)
     {
         return new()
         {
@@ -64,6 +68,7 @@ public sealed class StaffInvitation : AuditableEntity
             LocalOfficeId = localOfficeId,
             TargetRole = targetRole,
             TeamId = teamId,
+            IsLeader = isLeader,
             Status = InvitationStatus.Pending,
             ExpiresAt = DateTime.UtcNow.AddDays(ExpiryDays),
             Token = Guid.NewGuid().ToString("N")

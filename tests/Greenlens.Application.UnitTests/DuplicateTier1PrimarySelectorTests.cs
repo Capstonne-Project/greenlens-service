@@ -8,6 +8,8 @@ public sealed class DuplicateTier1PrimarySelectorTests
 {
     private static readonly decimal Lat = 10.7626m;
     private static readonly decimal Lng = 106.6602m;
+    private const string WardCode = "26808";
+    private const string ProvinceCode = "79";
 
     [Fact]
     public void SelectPrimary_TenDuplicates_AllResolveToSameVerifiedPrimary_BR_REP_030()
@@ -16,17 +18,18 @@ public sealed class DuplicateTier1PrimarySelectorTests
         var t0 = DateTime.UtcNow.AddHours(-2);
         var nearby = new List<DuplicateNearbyReport>
         {
-            new(primaryId, Lat, Lng, ReportStatus.Verified, t0),
+            new(primaryId, Lat, Lng, WardCode, ProvinceCode, ReportStatus.Verified, t0),
         };
 
         for (var i = 1; i <= 10; i++)
         {
-            nearby.Add(new(Guid.NewGuid(), Lat, Lng, ReportStatus.Submitted, t0.AddMinutes(i)));
+            nearby.Add(new(Guid.NewGuid(), Lat, Lng, WardCode, ProvinceCode, ReportStatus.Submitted, t0.AddMinutes(i)));
         }
 
         foreach (var duplicate in nearby.Skip(1))
         {
-            var selected = DuplicateTier1PrimarySelector.SelectPrimary(Lat, Lng, nearby.Where(n => n.Id != duplicate.Id));
+            var selected = DuplicateTier1PrimarySelector.SelectPrimary(
+                Lat, Lng, WardCode, ProvinceCode, nearby.Where(n => n.Id != duplicate.Id));
             selected.Should().Be(primaryId);
         }
     }
@@ -40,11 +43,11 @@ public sealed class DuplicateTier1PrimarySelectorTests
 
         var nearby = new[]
         {
-            new DuplicateNearbyReport(olderSubmitted, Lat, Lng, ReportStatus.Submitted, t0),
-            new DuplicateNearbyReport(verifiedPrimary, Lat, Lng, ReportStatus.Verified, t0.AddHours(1)),
+            new DuplicateNearbyReport(olderSubmitted, Lat, Lng, WardCode, ProvinceCode, ReportStatus.Submitted, t0),
+            new DuplicateNearbyReport(verifiedPrimary, Lat, Lng, WardCode, ProvinceCode, ReportStatus.Verified, t0.AddHours(1)),
         };
 
-        DuplicateTier1PrimarySelector.SelectPrimary(Lat, Lng, nearby)
+        DuplicateTier1PrimarySelector.SelectPrimary(Lat, Lng, WardCode, ProvinceCode, nearby)
             .Should().Be(verifiedPrimary);
     }
 
@@ -57,11 +60,11 @@ public sealed class DuplicateTier1PrimarySelectorTests
 
         var nearby = new[]
         {
-            new DuplicateNearbyReport(newer, Lat, Lng, ReportStatus.Submitted, t0.AddMinutes(30)),
-            new DuplicateNearbyReport(oldest, Lat, Lng, ReportStatus.Submitted, t0),
+            new DuplicateNearbyReport(newer, Lat, Lng, WardCode, ProvinceCode, ReportStatus.Submitted, t0.AddMinutes(30)),
+            new DuplicateNearbyReport(oldest, Lat, Lng, WardCode, ProvinceCode, ReportStatus.Submitted, t0),
         };
 
-        DuplicateTier1PrimarySelector.SelectPrimary(Lat, Lng, nearby)
+        DuplicateTier1PrimarySelector.SelectPrimary(Lat, Lng, WardCode, ProvinceCode, nearby)
             .Should().Be(oldest);
     }
 
@@ -74,11 +77,12 @@ public sealed class DuplicateTier1PrimarySelectorTests
 
         var nearby = new[]
         {
-            new DuplicateNearbyReport(primaryId, Lat, Lng, ReportStatus.InProgress, t0),
-            new DuplicateNearbyReport(newDuplicateId, Lat, Lng, ReportStatus.Submitted, t0.AddMinutes(5)),
+            new DuplicateNearbyReport(primaryId, Lat, Lng, WardCode, ProvinceCode, ReportStatus.InProgress, t0),
+            new DuplicateNearbyReport(newDuplicateId, Lat, Lng, WardCode, ProvinceCode, ReportStatus.Submitted, t0.AddMinutes(5)),
         };
 
-        DuplicateTier1PrimarySelector.SelectPrimary(Lat, Lng, nearby.Where(n => n.Id != newDuplicateId))
+        DuplicateTier1PrimarySelector.SelectPrimary(
+                Lat, Lng, WardCode, ProvinceCode, nearby.Where(n => n.Id != newDuplicateId))
             .Should().Be(primaryId);
     }
 
@@ -88,10 +92,10 @@ public sealed class DuplicateTier1PrimarySelectorTests
         var t0 = DateTime.UtcNow.AddDays(-30);
         var nearby = new[]
         {
-            new DuplicateNearbyReport(Guid.NewGuid(), Lat, Lng, ReportStatus.Closed, t0),
+            new DuplicateNearbyReport(Guid.NewGuid(), Lat, Lng, WardCode, ProvinceCode, ReportStatus.Closed, t0),
         };
 
-        DuplicateTier1PrimarySelector.SelectPrimary(Lat, Lng, nearby)
+        DuplicateTier1PrimarySelector.SelectPrimary(Lat, Lng, WardCode, ProvinceCode, nearby)
             .Should().BeNull();
     }
 
@@ -103,11 +107,41 @@ public sealed class DuplicateTier1PrimarySelectorTests
 
         var nearby = new[]
         {
-            new DuplicateNearbyReport(Guid.NewGuid(), Lat, Lng, ReportStatus.Closed, t0),
-            new DuplicateNearbyReport(activePrimary, Lat, Lng, ReportStatus.Verified, t0.AddDays(1)),
+            new DuplicateNearbyReport(Guid.NewGuid(), Lat, Lng, WardCode, ProvinceCode, ReportStatus.Closed, t0),
+            new DuplicateNearbyReport(activePrimary, Lat, Lng, WardCode, ProvinceCode, ReportStatus.Verified, t0.AddDays(1)),
         };
 
-        DuplicateTier1PrimarySelector.SelectPrimary(Lat, Lng, nearby)
+        DuplicateTier1PrimarySelector.SelectPrimary(Lat, Lng, WardCode, ProvinceCode, nearby)
             .Should().Be(activePrimary);
+    }
+
+    [Fact]
+    public void SelectPrimary_DifferentWardWithin25m_ReturnsNull_BR_REP_030()
+    {
+        var primaryId = Guid.NewGuid();
+        var t0 = DateTime.UtcNow.AddHours(-2);
+
+        var nearby = new[]
+        {
+            new DuplicateNearbyReport(primaryId, Lat, Lng, "26809", ProvinceCode, ReportStatus.Verified, t0),
+        };
+
+        DuplicateTier1PrimarySelector.SelectPrimary(Lat, Lng, WardCode, ProvinceCode, nearby)
+            .Should().BeNull();
+    }
+
+    [Fact]
+    public void SelectPrimary_MissingWardCode_ReturnsNull_BR_REP_030()
+    {
+        var primaryId = Guid.NewGuid();
+        var t0 = DateTime.UtcNow.AddHours(-2);
+
+        var nearby = new[]
+        {
+            new DuplicateNearbyReport(primaryId, Lat, Lng, WardCode, ProvinceCode, ReportStatus.Verified, t0),
+        };
+
+        DuplicateTier1PrimarySelector.SelectPrimary(Lat, Lng, null, ProvinceCode, nearby)
+            .Should().BeNull();
     }
 }

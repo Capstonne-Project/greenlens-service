@@ -1,6 +1,7 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Organization.Common;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
@@ -67,6 +68,7 @@ public sealed class AcceptInvitationCommandHandler(
         user.ChangeRole(invitation.TargetRole);
         user.AssignToLocalOffice(invitation.LocalOfficeId);
 
+        var isLeader = false;
         if (invitation.TeamId.HasValue)
         {
             var alreadyMember = await teamMembers
@@ -78,7 +80,19 @@ public sealed class AcceptInvitationCommandHandler(
                 return Errors.Organization.MemberAlreadyInTeam;
             }
 
-            var member = TeamMember.Create(invitation.TeamId.Value, user.Id, isLeader: false);
+            isLeader = invitation.IsLeader
+                && !await TeamMembershipRules
+                    .TeamHasLeaderAsync(teamMembers, invitation.TeamId.Value, excludeUserId: null, ct)
+                    .ConfigureAwait(false);
+
+            if (invitation.IsLeader && !isLeader)
+            {
+                logger.LogWarning(
+                    "Invitation {InvitationId} requested leader but team {TeamId} already has one; joining as regular member",
+                    invitation.Id, invitation.TeamId.Value);
+            }
+
+            var member = TeamMember.Create(invitation.TeamId.Value, user.Id, isLeader);
             teamMembers.Add(member);
         }
 
@@ -126,6 +140,7 @@ public sealed class AcceptInvitationCommandHandler(
             user.Id,
             invitation.TargetRole,
             invitation.LocalOfficeId,
-            invitation.TeamId);
+            invitation.TeamId,
+            isLeader);
     }
 }

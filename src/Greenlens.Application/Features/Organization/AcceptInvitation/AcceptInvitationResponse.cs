@@ -6,4 +6,5 @@ public sealed record AcceptInvitationResponse(
     Guid UserId,
     UserRole NewRole,
     Guid LocalOfficeId,
-    Guid? TeamId);
+    Guid? TeamId,
+    bool IsLeader);

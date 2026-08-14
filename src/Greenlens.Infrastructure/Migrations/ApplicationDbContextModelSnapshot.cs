@@ -3368,6 +3368,10 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("invited_user_id");
 
+                    b.Property<bool>("IsLeader")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_leader");
+
                     b.Property<Guid>("LocalOfficeId")
                         .HasColumnType("uuid")
                         .HasColumnName("local_office_id");

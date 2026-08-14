@@ -26,7 +26,8 @@ namespace Greenlens.Application.Features.Reports.SubmitPollutionReport;
 /// BR-REP-010 (submit rate limit), BR-REP-011 (EXIF GPS quality),
 /// BR-REP-013 (initial Submitted state),
 /// BR-AI-001 (optional pre-submit AI decision),
-/// BR-ORG-010, BR-ORG-011 (auto-routing to LocalOffice by GPS).
+/// BR-ORG-004, BR-ORG-010, BR-ORG-011, BR-ORG-016 (WardCode xác định bằng
+/// point-in-polygon từ GPS, không phụ thuộc client gửi WardCode/ProvinceCode).
 /// </remarks>
 public sealed class SubmitPollutionReportCommandHandler(
     IPollutionCategoryRepository categories,
@@ -39,6 +40,7 @@ public sealed class SubmitPollutionReportCommandHandler(
     IWardRepository wards,
     IDepartmentRepository departments,
     ILocalOfficeRepository localOffices,
+    IWardBoundaryLookupService wardBoundaryLookup,
     IUnitOfWork unitOfWork,
     ICurrentUser currentUser,
     ITempImageStore tempStore,
@@ -116,19 +118,33 @@ public sealed class SubmitPollutionReportCommandHandler(
             return Errors.Reports.CategoryNotFound;
         }
 
-        // ── Validate ward/province pair ─────────────────────────────────────
-        var provinceCode = request.ProvinceCode?.Trim();
-        var wardCode = request.WardCode?.Trim();
-        if (!string.IsNullOrEmpty(provinceCode) && !string.IsNullOrEmpty(wardCode))
+        // ── BR-ORG-004, BR-ORG-010, BR-ORG-016: xác định WardCode bằng point-in-polygon từ GPS ──
+        // GPS đã qua validator (BR-REP-003, khung lãnh thổ VN) nên luôn dùng làm nguồn xác định
+        // WardCode/ProvinceCode — không tin WardCode/ProvinceCode do client tự gửi (legacy field,
+        // vẫn được validator chấp nhận nhưng không còn quyết định business logic).
+        string? provinceCode = null;
+        string? wardCode = null;
+
+        var detectedWardCode = await wardBoundaryLookup
+            .FindWardCodeByPointAsync(request.Latitude, request.Longitude, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (detectedWardCode is not null)
         {
-            var wardOk = await wards.ExistsAsync(
-                    w => w.Code == wardCode && w.ProvinceCode == provinceCode, cancellationToken)
+            var detectedWard = await wards.GetByCodeAsync(detectedWardCode, cancellationToken)
                 .ConfigureAwait(false);
-            if (!wardOk)
+            if (detectedWard is not null)
             {
-                logger.LogWarning("Invalid ward/province pair for report {WardCode} and {ProvinceCode}", wardCode, provinceCode);
-                return Errors.Reports.InvalidWardProvincePair;
+                wardCode = detectedWard.Code;
+                provinceCode = detectedWard.ProvinceCode;
             }
+        }
+
+        if (wardCode is null)
+        {
+            logger.LogInformation(
+                "No ward boundary contains point ({Lat}, {Lng}) — report routed to Department Common Queue (BR-ORG-011)",
+                request.Latitude, request.Longitude);
         }
 
         var reporterId = currentUser.UserId;
@@ -447,13 +463,17 @@ public sealed class SubmitPollutionReportCommandHandler(
 
     /// <summary>
     /// BR-REP-030: Tier 1 duplicate check — find the canonical primary (Verified/InProgress first,
-    /// else oldest) with the same category within ~25m, then flag this report as a possible duplicate.
+    /// else oldest) with the same category, ward, province, and within ~25m, then flag this report
+    /// as a possible duplicate.
     /// Closed reports (BR-REP-016 auto-close) are excluded — new submissions at the same spot
     /// start a fresh report, not a duplicate of a finished case.
     /// Each flagged report gets its own Tier 2 AI job vs that primary.
     /// </summary>
     private async Task FlagPossibleDuplicateAsync(Report report, CancellationToken ct)
     {
+        if (!AdministrativeUnitMatch.HasWardAndProvince(report.WardCode, report.ProvinceCode))
+            return;
+
         const double radiusMeters = DuplicateTier1PrimarySelector.DefaultRadiusMeters;
         var latDelta = (decimal)(radiusMeters / 111_320.0);
         var cosLat = Math.Max(Math.Cos((double)report.Latitude * Math.PI / 180.0), 1e-6);
@@ -461,6 +481,7 @@ public sealed class SubmitPollutionReportCommandHandler(
 
         var candidates = await reports.QueryAsNoTracking()
             .Where(r => r.CategoryId == report.CategoryId)
+            .Where(r => r.WardCode == report.WardCode && r.ProvinceCode == report.ProvinceCode)
             .Where(r => r.Id != report.Id)
             .Where(r => r.Status != ReportStatus.Duplicate
                      && r.Status != ReportStatus.Rejected
@@ -472,24 +493,29 @@ public sealed class SubmitPollutionReportCommandHandler(
                 || r.Status == ReportStatus.InProgress
                 || r.Status == ReportStatus.Reopened)
             .ThenBy(r => r.CreatedAt)
-            .Select(r => new DuplicateNearbyReport(r.Id, r.Latitude, r.Longitude, r.Status, r.CreatedAt))
+            .Select(r => new DuplicateNearbyReport(
+                r.Id, r.Latitude, r.Longitude, r.WardCode, r.ProvinceCode, r.Status, r.CreatedAt))
             .Take(20)
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
         var primaryId = DuplicateTier1PrimarySelector.SelectPrimary(
-            report.Latitude, report.Longitude, candidates, radiusMeters);
+            report.Latitude, report.Longitude, report.WardCode, report.ProvinceCode, candidates, radiusMeters);
 
         if (primaryId is not null)
             report.MarkPossibleDuplicate(primaryId.Value, DuplicateTier1PrimarySelector.Tier1Source);
     }
 
     /// <summary>
-    /// BR-REP-034: flag when a recently Closed report (≤30 days) exists at the same spot and category.
+    /// BR-REP-034: flag when a recently Closed report (≤30 days) exists at the same spot, ward,
+    /// province, and category.
     /// Skipped when duplicate is flagged or when another report is InProgress nearby (cleanup underway).
     /// </summary>
     private async Task FlagSuspectedViolationRecurrenceAsync(Report report, CancellationToken ct)
     {
+        if (!AdministrativeUnitMatch.HasWardAndProvince(report.WardCode, report.ProvinceCode))
+            return;
+
         const double radiusMeters = ViolationRecurrencePrimarySelector.DefaultRadiusMeters;
         var latDelta = (decimal)(radiusMeters / 111_320.0);
         var cosLat = Math.Max(Math.Cos((double)report.Latitude * Math.PI / 180.0), 1e-6);
@@ -501,6 +527,7 @@ public sealed class SubmitPollutionReportCommandHandler(
 
         var candidates = await reports.QueryAsNoTracking()
             .Where(r => r.CategoryId == report.CategoryId)
+            .Where(r => r.WardCode == report.WardCode && r.ProvinceCode == report.ProvinceCode)
             .Where(r => r.Id != report.Id)
             .Where(r => r.Status == ReportStatus.Closed)
             .Where(r => r.ClosedAt >= cutoff)
@@ -508,13 +535,13 @@ public sealed class SubmitPollutionReportCommandHandler(
             .Where(r => r.Longitude >= report.Longitude - lngDelta && r.Longitude <= report.Longitude + lngDelta)
             .OrderByDescending(r => r.ClosedAt)
             .Select(r => new ViolationRecurrenceNearbyReport(
-                r.Id, r.Latitude, r.Longitude, r.ClosedAt!.Value))
+                r.Id, r.Latitude, r.Longitude, r.WardCode, r.ProvinceCode, r.ClosedAt!.Value))
             .Take(20)
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
         var priorId = ViolationRecurrencePrimarySelector.SelectPrimary(
-            report.Latitude, report.Longitude, candidates, radiusMeters);
+            report.Latitude, report.Longitude, report.WardCode, report.ProvinceCode, candidates, radiusMeters);
 
         if (priorId is not null)
             report.MarkSuspectedViolationRecurrence(priorId.Value);
@@ -537,6 +564,7 @@ public sealed class SubmitPollutionReportCommandHandler(
     {
         var nearby = await reports.QueryAsNoTracking()
             .Where(r => r.CategoryId == report.CategoryId)
+            .Where(r => r.WardCode == report.WardCode && r.ProvinceCode == report.ProvinceCode)
             .Where(r => r.Id != report.Id)
             .Where(r => r.Status == ReportStatus.Verified || r.Status == ReportStatus.InProgress || r.Status == ReportStatus.Reopened)
             .Where(r => r.Latitude >= report.Latitude - latDelta && r.Latitude <= report.Latitude + latDelta)

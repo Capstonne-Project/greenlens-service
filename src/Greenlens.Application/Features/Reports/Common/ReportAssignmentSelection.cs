@@ -42,11 +42,32 @@ internal static class ReportAssignmentSelection
             .All(a => a.Status == AssignmentStatus.Completed);
 
     /// <summary>
-    /// Current assignment for display (newest non-declined, else newest overall).
+    /// Current assignment for display — active cycle only after reopen (BR-REP-015).
+    /// Prefers open rows (Assigned/InProgress); while Reopened/InProgress with no open row,
+    /// returns null so completed history from a prior cycle is not shown as "current".
     /// </summary>
-    internal static ReportAssignment? ResolveCurrentAssignment(IEnumerable<ReportAssignment> assignments) =>
-        assignments
+    internal static ReportAssignment? ResolveCurrentAssignment(
+        IEnumerable<ReportAssignment> assignments,
+        ReportStatus reportStatus)
+    {
+        var list = assignments as IReadOnlyList<ReportAssignment> ?? assignments.ToList();
+        if (list.Count == 0)
+            return null;
+
+        var open = list
+            .Where(a => a.Status is AssignmentStatus.Assigned or AssignmentStatus.InProgress)
             .OrderByDescending(a => a.AssignedAt)
-            .FirstOrDefault(a => a.Status != AssignmentStatus.Declined)
-        ?? assignments.OrderByDescending(a => a.AssignedAt).FirstOrDefault();
+            .FirstOrDefault();
+
+        if (open is not null)
+            return open;
+
+        if (reportStatus is ReportStatus.Reopened or ReportStatus.InProgress)
+            return null;
+
+        return list
+                .OrderByDescending(a => a.AssignedAt)
+                .FirstOrDefault(a => a.Status != AssignmentStatus.Declined)
+            ?? list.OrderByDescending(a => a.AssignedAt).FirstOrDefault();
+    }
 }

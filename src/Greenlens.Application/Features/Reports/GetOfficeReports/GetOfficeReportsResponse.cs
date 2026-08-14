@@ -40,7 +40,16 @@ public sealed record OfficeReportItem(
     DateTime? SlaResolveDueAt,
     /// <summary>First report image URL (ThumbnailUrl ?? Url). Empty when the report has no Image media.</summary>
     IReadOnlyList<string> Thumbnails,
+    /// <summary>Company dispatched after reopen / new cycle (BR-CMP-005).</summary>
+    OfficeAssignedCompanyItem? AssignedCompany,
+    /// <summary>Current-cycle assignment only (newest open row after reopen re-assign).</summary>
     IReadOnlyList<AssignmentProgressItem> Assignments);
+
+/// <summary>Environmental service company dispatched by LEO for this report.</summary>
+public sealed record OfficeAssignedCompanyItem(
+    Guid CompanyId,
+    string CompanyName,
+    DateTime? DispatchedAt);
 
 /// <summary>Team assignment progress detail for a report.</summary>
 public sealed record AssignmentProgressItem(
