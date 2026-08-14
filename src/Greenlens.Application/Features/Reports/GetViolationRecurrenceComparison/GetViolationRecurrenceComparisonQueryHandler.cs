@@ -80,6 +80,11 @@ public sealed class GetViolationRecurrenceComparisonQueryHandler(
             return Errors.Reports.ReportNotFound;
         }
 
+        var currentInspections = await inspections.GetByReportIdAsync(current.Id, ct).ConfigureAwait(false);
+        var currentInspection = currentInspections
+            .OrderByDescending(ir => ir.CreatedAt)
+            .FirstOrDefault();
+
         var priorInspections = await inspections.GetByReportIdAsync(priorId, ct).ConfigureAwait(false);
         var priorInspection = priorInspections
             .OrderByDescending(ir => ir.CreatedAt)
@@ -94,8 +99,8 @@ public sealed class GetViolationRecurrenceComparisonQueryHandler(
             : 0;
 
         return new ViolationRecurrenceComparisonResponse(
-            MapSide(current),
-            MapSide(prior, priorInspection?.Id, priorInspection?.Status.ToString()),
+            MapSide(current, hasInspection: currentInspection is not null),
+            MapSide(prior, priorInspection?.Id, priorInspection?.Status.ToString(), priorInspection is not null),
             daysSinceClosed,
             distance);
     }
@@ -103,7 +108,8 @@ public sealed class GetViolationRecurrenceComparisonQueryHandler(
     private static ViolationRecurrenceReportSide MapSide(
         Domain.Entities.Report report,
         Guid? inspectionId = null,
-        string? inspectionStatus = null)
+        string? inspectionStatus = null,
+        bool hasInspection = false)
     {
         var media = report.Media
             .OrderBy(m => m.UploadedAt)
@@ -127,6 +133,7 @@ public sealed class GetViolationRecurrenceComparisonQueryHandler(
             media,
             inspectionId.HasValue,
             inspectionId,
-            inspectionStatus);
+            inspectionStatus,
+            hasInspection);
     }
 }
