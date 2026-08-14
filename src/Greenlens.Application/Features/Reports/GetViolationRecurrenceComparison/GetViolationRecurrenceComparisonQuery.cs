@@ -30,7 +30,8 @@ public sealed record ViolationRecurrenceReportSide(
     IReadOnlyList<ViolationRecurrenceMediaItem> Media,
     bool HadPriorInspection,
     Guid? PriorInspectionId,
-    string? PriorInspectionFinalStatus);
+    string? PriorInspectionFinalStatus,
+    bool HasInspection);
 
 public sealed record ViolationRecurrenceMediaItem(
     Guid Id,
