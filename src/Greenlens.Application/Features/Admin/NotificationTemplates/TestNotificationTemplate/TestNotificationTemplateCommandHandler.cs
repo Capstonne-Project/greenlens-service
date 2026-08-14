@@ -1,7 +1,7 @@
-using System.Text.RegularExpressions;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Notifications;
 using Greenlens.Domain.Common;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -19,8 +19,6 @@ public sealed class TestNotificationTemplateCommandHandler(
     ILogger<TestNotificationTemplateCommandHandler> logger)
     : IRequestHandler<TestNotificationTemplateCommand, Result<TestNotificationTemplateResponse>>
 {
-    private static readonly Regex PlaceholderPattern = new(@"\{[a-z_]+\}", RegexOptions.Compiled);
-
     public async Task<Result<TestNotificationTemplateResponse>> Handle(
         TestNotificationTemplateCommand request,
         CancellationToken ct)
@@ -38,8 +36,8 @@ public sealed class TestNotificationTemplateCommandHandler(
         }
         logger.LogInformation("Notification template found: {Id}", request.TemplateId);
         // Render placeholders
-        var renderedTitle = RenderPlaceholders(template.TitleVi, request.SampleData);
-        var renderedBody = RenderPlaceholders(template.BodyVi, request.SampleData);
+        var renderedTitle = NotificationTemplateRenderer.Render(template.TitleVi, request.SampleData);
+        var renderedBody = NotificationTemplateRenderer.Render(template.BodyVi, request.SampleData);
         logger.LogInformation("Rendered title: {RenderedTitle}", renderedTitle);
         logger.LogInformation("Rendered body: {RenderedBody}", renderedBody);
         // Send test notification to the requesting admin
@@ -56,14 +54,5 @@ public sealed class TestNotificationTemplateCommandHandler(
             renderedTitle,
             renderedBody,
             currentUser.Email);
-    }
-
-    private static string RenderPlaceholders(string template, Dictionary<string, string> data)
-    {
-        return PlaceholderPattern.Replace(template, match =>
-        {
-            var key = match.Value.Trim('{', '}');
-            return data.TryGetValue(key, out var value) ? value : match.Value;
-        });
     }
 }

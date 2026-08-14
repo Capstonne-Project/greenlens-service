@@ -4,6 +4,8 @@
 > **Role:** `DEO` (Điều phối viên cấp Tỉnh/TP — Sở TNMT)  
 > **Phạm vi dữ liệu:** Mọi query báo cáo/analytics lọc theo `AssignedDepartmentId` = department của DEO đăng nhập.
 
+**Tài liệu bổ sung:** [fe-deo-operations-api-guide.md](./fe-deo-operations-api-guide.md) — báo cáo (read-only), văn phòng MT, công ty DVMT (CRUD), export, duplicate/tái phạm, KPI LEO drill-down.
+
 **Cơ chế scope (BE):** Department lấy từ `users.department_id` của JWT user — **không** nhận `departmentId` từ query string. Dashboard `/v1/dashboard/deo/*` dùng `DepartmentContextResolver`; báo cáo chi tiết/history dùng `ValidateReportAccess`; công ty dùng `CompanyAccessAuthorization`.
 
 ---

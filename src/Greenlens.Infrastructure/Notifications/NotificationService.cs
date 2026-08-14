@@ -1,4 +1,5 @@
 using Greenlens.Application.Common.Interfaces;
+using Greenlens.Application.Features.Notifications;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using Greenlens.Infrastructure.Persistence;
@@ -34,7 +35,6 @@ internal sealed class NotificationService(
     ILogger<NotificationService> logger) : INotificationService
 {
     private const int MaxNotificationsPerTypePerDay = 20;
-    private static readonly System.Text.RegularExpressions.Regex PlaceholderPattern = new(@"\{[a-z_]+\}", System.Text.RegularExpressions.RegexOptions.Compiled);
 
     public async Task SendFromTemplateAsync(
         Guid recipientId,
@@ -59,20 +59,11 @@ internal sealed class NotificationService(
         }
         else
         {
-            title = RenderPlaceholders(template.TitleVi, placeholders);
-            message = RenderPlaceholders(template.BodyVi, placeholders);
+            title = NotificationTemplateRenderer.Render(template.TitleVi, placeholders);
+            message = NotificationTemplateRenderer.Render(template.BodyVi, placeholders);
         }
 
         await SendRawAsync(recipientId, type, title, message, referenceId, ct).ConfigureAwait(false);
-    }
-
-    private static string RenderPlaceholders(string template, Dictionary<string, string> data)
-    {
-        return PlaceholderPattern.Replace(template, match =>
-        {
-            var key = match.Value.Trim('{', '}');
-            return data.TryGetValue(key, out var value) ? value : match.Value;
-        });
     }
 
     public async Task SendRawAsync(

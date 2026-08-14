@@ -66,6 +66,65 @@ public sealed class ReportAssignmentSelectionTests
         ReportAssignmentSelection.AllNonDeclinedCompleted([oldCompleted, newAssigned]).Should().BeTrue();
     }
 
+    [Fact]
+    public void ResolveCurrentAssignment_AfterReopenBeforeReassign_ReturnsNull_NotOldCompleted_BR_REP_015()
+    {
+        var teamId = Guid.NewGuid();
+        var oldCompleted = ReportAssignment.Create(Guid.NewGuid(), teamId, Guid.NewGuid());
+        oldCompleted.Accept();
+        oldCompleted.Complete();
+        SetAssignedAt(oldCompleted, DateTime.UtcNow.AddDays(-2));
+
+        ReportAssignmentSelection.ResolveCurrentAssignment(
+                [oldCompleted], ReportStatus.Reopened)
+            .Should().BeNull();
+    }
+
+    [Fact]
+    public void ResolveCurrentAssignment_AfterReopenWithNewTeam_ReturnsNewAssignment_BR_REP_015()
+    {
+        var oldTeamId = Guid.NewGuid();
+        var newTeamId = Guid.NewGuid();
+
+        var oldCompleted = ReportAssignment.Create(Guid.NewGuid(), oldTeamId, Guid.NewGuid());
+        oldCompleted.Accept();
+        oldCompleted.Complete();
+        SetAssignedAt(oldCompleted, DateTime.UtcNow.AddDays(-5));
+
+        var newAssigned = ReportAssignment.Create(Guid.NewGuid(), newTeamId, Guid.NewGuid());
+        SetAssignedAt(newAssigned, DateTime.UtcNow);
+
+        var selected = ReportAssignmentSelection.ResolveCurrentAssignment(
+            [oldCompleted, newAssigned], ReportStatus.InProgress);
+
+        selected.Should().BeSameAs(newAssigned);
+    }
+
+    [Fact]
+    public void ResolveCurrentAssignment_AfterReopenCompanyDispatchOnly_ReturnsNull_BR_REP_015()
+    {
+        var oldCompleted = ReportAssignment.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        oldCompleted.Accept();
+        oldCompleted.Complete();
+
+        ReportAssignmentSelection.ResolveCurrentAssignment(
+                [oldCompleted], ReportStatus.InProgress)
+            .Should().BeNull();
+    }
+
+    [Fact]
+    public void ResolveCurrentAssignment_WhenResolved_ReturnsLastCompletedForDisplay()
+    {
+        var teamId = Guid.NewGuid();
+        var completed = ReportAssignment.Create(Guid.NewGuid(), teamId, Guid.NewGuid());
+        completed.Accept();
+        completed.Complete();
+
+        ReportAssignmentSelection.ResolveCurrentAssignment(
+                [completed], ReportStatus.Resolved)
+            .Should().BeSameAs(completed);
+    }
+
     private static void SetAssignedAt(ReportAssignment assignment, DateTime assignedAt)
     {
         typeof(ReportAssignment)

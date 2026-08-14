@@ -101,7 +101,8 @@ public sealed class GetReportProgressQueryHandler(
             SlaLabels.GetValueOrDefault(report.Severity, report.Severity.ToString()));
         
         // ── Single team assignment ─────────────────────────────────
-        var currentAssignment = ReportAssignmentSelection.ResolveCurrentAssignment(report.Assignments);
+        var currentAssignment = ReportAssignmentSelection.ResolveCurrentAssignment(
+            report.Assignments, report.Status);
         AssignmentProgressDto? assignment = currentAssignment is null
             ? null
             : MapAssignment(currentAssignment);
