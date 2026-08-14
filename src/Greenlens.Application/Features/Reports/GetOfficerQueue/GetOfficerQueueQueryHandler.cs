@@ -74,8 +74,8 @@ public sealed class GetOfficerQueueQueryHandler(
         }
 
         // ── Filters ──
-        if (request.StatusFilter.HasValue)
-            query = query.Where(r => r.Status == request.StatusFilter.Value);
+        if (request.Statuses is { Count: > 0 })
+            query = query.Where(r => request.Statuses.Contains(r.Status));
 
         if (request.SeverityFilter.HasValue)
             query = query.Where(r => r.Severity == request.SeverityFilter.Value);

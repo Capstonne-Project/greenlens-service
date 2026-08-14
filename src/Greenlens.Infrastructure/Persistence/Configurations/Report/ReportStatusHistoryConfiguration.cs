@@ -1,4 +1,5 @@
 using Greenlens.Domain.Entities;
+using Greenlens.Infrastructure.Persistence.Converters;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -12,8 +13,12 @@ internal sealed class ReportStatusHistoryConfiguration : IEntityTypeConfiguratio
 
         builder.HasKey(h => h.Id);
 
-        builder.Property(h => h.FromStatus).HasConversion<string>().HasMaxLength(20);
-        builder.Property(h => h.ToStatus).HasConversion<string>().HasMaxLength(20);
+        builder.Property(h => h.FromStatus)
+            .HasConversion(new LegacyNullableReportStatusValueConverter())
+            .HasMaxLength(20);
+        builder.Property(h => h.ToStatus)
+            .HasConversion(new LegacyReportStatusValueConverter())
+            .HasMaxLength(20);
         builder.Property(h => h.Reason).HasMaxLength(2000);
         builder.Property(h => h.Metadata).HasColumnType("jsonb");
 

@@ -63,8 +63,8 @@ public sealed class GetOfficeReportsQueryHandler(
         }
 
         // 4. Apply filters
-        if (request.Status.HasValue)
-            baseQuery = baseQuery.Where(r => r.Status == request.Status.Value);
+        if (request.Statuses is { Count: > 0 })
+            baseQuery = baseQuery.Where(r => request.Statuses.Contains(r.Status));
         if (request.CategoryId.HasValue)
             baseQuery = baseQuery.Where(r => r.CategoryId == request.CategoryId.Value);
         if (request.Severity.HasValue)

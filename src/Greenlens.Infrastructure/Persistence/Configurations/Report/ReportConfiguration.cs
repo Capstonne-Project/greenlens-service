@@ -1,4 +1,5 @@
 using Greenlens.Domain.Entities;
+using Greenlens.Infrastructure.Persistence.Converters;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -26,7 +27,9 @@ internal sealed class ReportConfiguration : IEntityTypeConfiguration<Report>
 
         builder.Property(r => r.Severity).HasConversion<string>().HasMaxLength(20);
         builder.Property(r => r.SeveritySetBy).HasConversion<string>().HasMaxLength(20);
-        builder.Property(r => r.Status).HasConversion<string>().HasMaxLength(20);
+        builder.Property(r => r.Status)
+            .HasConversion(new LegacyReportStatusValueConverter())
+            .HasMaxLength(20);
         builder.Property(r => r.AiEstimatedSeverity).HasConversion<string>().HasMaxLength(20);
 
         builder.Property(r => r.AiClassifiedType).HasMaxLength(50);

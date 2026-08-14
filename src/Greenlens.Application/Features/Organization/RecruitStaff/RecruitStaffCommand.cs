@@ -22,4 +22,5 @@ public sealed record RecruitStaffResponse(
     UserRole AssignedRole,
     Guid LocalOfficeId,
     Guid? TeamId,
-    Guid? TeamMemberId);
+    Guid? TeamMemberId,
+    bool IsLeader);

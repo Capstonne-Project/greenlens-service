@@ -10,6 +10,9 @@
 #   VPS_HOST           e.g. 203.0.113.42
 #   VPS_USER           appuser
 #   VPS_SSH_KEY        private key (ed25519)
+#
+# Rollback: deploy script snapshots :latest before update. If health/smoke
+# test fails, it re-tags the previous image and restarts API automatically.
 # =============================================================================
 
 name: Deploy to VPS
@@ -134,39 +137,92 @@ jobs:
             set -euo pipefail
             cd /opt/greenlens
 
+            STATE_FILE="/opt/greenlens/.last-good-image"
+            IMAGE_REPO="${FULL_IMAGE%%:*}"
+
+            rollback() {
+              local reason="${1:-Deploy verification failed}"
+              echo "❌ ${reason}"
+              echo "─── Failed container logs (last 80 lines) ───"
+              sudo docker logs greenlens-api --tail 80 2>&1 || true
+
+              if [ -n "${PREV_LATEST_ID:-}" ]; then
+                echo "Rolling back to previous :latest image (${PREV_LATEST_ID})"
+                sudo docker tag "${PREV_LATEST_ID}" "${IMAGE_REPO}:latest"
+              elif [ -f "${STATE_FILE}" ]; then
+                local last_good
+                last_good="$(cat "${STATE_FILE}")"
+                echo "Rolling back to last known good: ${last_good}"
+                sudo docker pull "${last_good}" || true
+                sudo docker tag "${last_good}" "${IMAGE_REPO}:latest"
+              else
+                echo "⚠️ No rollback target — manual fix required on VPS"
+                exit 1
+              fi
+
+              sudo docker compose --env-file .env.production up -d --no-deps api
+
+              echo "Waiting for rollback to become healthy..."
+              for i in $(seq 1 30); do
+                status=$(sudo docker inspect --format='{{.State.Health.Status}}' greenlens-api 2>/dev/null || echo "starting")
+                if [ "$status" = "healthy" ]; then
+                  break
+                fi
+                echo "Rollback health ($i/30)... status=${status}"
+                sleep 2
+              done
+
+              if curl -fsS http://localhost:8080/health >/dev/null; then
+                echo "✅ Rollback succeeded — API restored on previous image"
+              else
+                echo "❌ Rollback attempted but API still down — check VPS manually"
+              fi
+              exit 1
+            }
+
             # Login to GHCR (requires a PAT stored in .env.production as GHCR_TOKEN)
             source .env.production
             echo "${GHCR_TOKEN}" \
               | sudo docker login ghcr.io -u "${GHCR_USER}" --password-stdin
 
-            # Pull new image using the exact reference built by CI
-            sudo docker pull "${FULL_IMAGE}"
+            # Snapshot current :latest BEFORE overwriting — used for instant rollback
+            PREV_LATEST_ID="$(sudo docker images --no-trunc --format '{{.ID}}' "${IMAGE_REPO}:latest" 2>/dev/null | head -1 || true)"
+            echo "Previous :latest image ID: ${PREV_LATEST_ID:-none}"
+            echo "Deploying: ${FULL_IMAGE}"
 
-            # Tag it as the "latest" so compose always resolves
-            sudo docker tag "${FULL_IMAGE}" "$(echo ${FULL_IMAGE} | cut -d: -f1):latest"
+            sudo docker pull "${FULL_IMAGE}"
+            sudo docker tag "${FULL_IMAGE}" "${IMAGE_REPO}:latest"
 
             # Bring up API only (postgres/redis untouched)
             sudo docker compose --env-file .env.production up -d --no-deps api
 
-            # Wait for healthcheck
+            # Wait for healthcheck — must pass before we accept the deploy
+            HEALTH_OK=false
             for i in $(seq 1 30); do
               status=$(sudo docker inspect --format='{{.State.Health.Status}}' greenlens-api 2>/dev/null || echo "starting")
               if [ "$status" = "healthy" ]; then
                 echo "✅ API healthy"
+                HEALTH_OK=true
                 break
               fi
-              echo "Waiting for healthy ($i/30)... status=$status"
+              running=$(sudo docker inspect --format='{{.State.Status}}' greenlens-api 2>/dev/null || echo "unknown")
+              echo "Waiting for healthy ($i/30)... status=${status} running=${running}"
               sleep 2
             done
 
-            # Smoke test
-            curl -fsS http://localhost:8080/health || {
-              echo "❌ Smoke test failed"
-              exit 1
-            }
+            if [ "${HEALTH_OK}" != "true" ]; then
+              rollback "Health check did not pass within 60s"
+            fi
 
-            # Cleanup old images (keep last 3 days)
+            if ! curl -fsS http://localhost:8080/health; then
+              rollback "Smoke test failed"
+            fi
+
+            # Record successful deploy for future rollbacks (no sudo — CI user owns /opt/greenlens)
+            printf '%s\n' "${FULL_IMAGE}" > "${STATE_FILE}"
+
+            # Cleanup old images (keep last 3 days) — only after verified success
             sudo docker image prune -f --filter "until=72h"
 
-            echo "✅ Deploy succeeded"
+            echo "✅ Deploy succeeded: ${FULL_IMAGE}"
 

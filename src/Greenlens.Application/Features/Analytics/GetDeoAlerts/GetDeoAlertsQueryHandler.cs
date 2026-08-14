@@ -31,7 +31,8 @@ public sealed class GetDeoAlertsQueryHandler(
         if (scopeResult.IsFailure)
             return scopeResult.Error!;
 
-        var deptId = scopeResult.Value.DepartmentId;
+        var scope = scopeResult.Value!;
+        var deptId = scope.DepartmentId;
         var deptReports = DepartmentContextResolver.ApplyDepartmentScope(
             reports.QueryAsNoTracking(), deptId);
 

@@ -88,14 +88,14 @@ public sealed class LocalOfficesController(ISender sender) : ControllerBase
             "Mỗi báo cáo kèm danh sách team đã được gán (assignment progress): " +
             "tên team, loại team, trạng thái assignment, phần trăm tiến độ, ghi chú, thời gian. " +
             "Mỗi item có `thumbnails` (mảng URL ảnh đầu tiên của báo cáo, MediaType=Image). " +
-            "Hỗ trợ tìm kiếm (mã báo cáo, mô tả, địa chỉ), lọc theo status/category/severity/assignmentStatus, " +
+            "Hỗ trợ tìm kiếm (mã báo cáo, mô tả, địa chỉ), lọc theo status (multi: ?status=Submitted&status=Verified)/category/severity/assignmentStatus, " +
             "khoảng ngày tạo (fromDate, toDate — ISO date, inclusive theo ngày UTC), " +
             "sắp xếp theo: code, status, severity, priority, createdAt, assignmentCount (mặc định: mới nhất).")]
     [SwaggerResponse(200, "Danh sách báo cáo kèm tiến độ", typeof(ApiResponse<GetOfficeReportsResponse>))]
     [SwaggerResponse(404, "Chưa gán local office", typeof(ApiResponse))]
     public async Task<IActionResult> GetOfficeReportsAsync(
         [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
-        [FromQuery] string? search = null, [FromQuery] ReportStatus? status = null,
+        [FromQuery] string? search = null, [FromQuery] ReportStatus[]? status = null,
         [FromQuery] Guid? categoryId = null, [FromQuery] Severity? severity = null,
         [FromQuery] AssignmentStatus? assignmentStatus = null,
         [FromQuery] DateTime? fromDate = null, [FromQuery] DateTime? toDate = null,

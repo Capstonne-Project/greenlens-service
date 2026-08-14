@@ -368,6 +368,30 @@ internal static class NotificationTemplateSeeder
             NotificationType.CleanupTaskCompleted),
 
         Create(
+            "cleanup_team_checked_in",
+            "Đội đã check-in hiện trường",
+            "Đội {team_name} đã check-in tại hiện trường báo cáo {report_code} tại {ward_name}.",
+            "Cleanup team checked in on site",
+            "Team {team_name} checked in on site for report {report_code}.",
+            NotificationType.CleanupTeamCheckedIn),
+
+        Create(
+            "cleanup_before_images_uploaded",
+            "Đội đã tải ảnh hiện trường",
+            "Đội {team_name} đã tải {image_count} ảnh hiện trường cho báo cáo {report_code} tại {ward_name}.",
+            "Cleanup team uploaded before images",
+            "Team {team_name} uploaded {image_count} before image(s) for report {report_code}.",
+            NotificationType.CleanupBeforeImagesUploaded),
+
+        Create(
+            "report_closed_by_citizen",
+            "Công dân đã đóng báo cáo",
+            "Công dân đã xác nhận và đóng báo cáo {report_code} tại {ward_name}.",
+            "Citizen closed report",
+            "The citizen confirmed and closed report {report_code}.",
+            NotificationType.ReportClosedByCitizen),
+
+        Create(
             "report_verification_needed",
             "Báo cáo mới cần xác minh",
             "Báo cáo {report_code} tại {ward_name} ({province_name}) vừa được gửi và đang chờ bạn xác minh.",

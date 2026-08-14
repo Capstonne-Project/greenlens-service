@@ -15,7 +15,7 @@ public sealed record GetOfficeReportsQuery(
     int Page = 1,
     int PageSize = 20,
     string? Search = null,
-    ReportStatus? Status = null,
+    IReadOnlyList<ReportStatus>? Statuses = null,
     Guid? CategoryId = null,
     Severity? Severity = null,
     AssignmentStatus? AssignmentStatus = null,
