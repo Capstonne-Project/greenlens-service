@@ -3,6 +3,7 @@ using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Infrastructure;
 using Greenlens.Infrastructure.DomainEvents;
+using Greenlens.Infrastructure.Geo;
 using Greenlens.Infrastructure.Notifications;
 using Greenlens.Infrastructure.Identity;
 using Greenlens.Infrastructure.Persistence;
@@ -52,6 +53,7 @@ internal static class IntegrationTestServiceRegistration
         services.AddScoped<IOtpRepository, OtpRepository>();
         services.AddScoped<IPasswordHasher, BcryptPasswordHasher>();
         services.AddScoped<ILocalOfficeRepository, LocalOfficeRepository>();
+        services.AddScoped<IWardBoundaryLookupService, WardBoundaryLookupService>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<ITransactionManager, TransactionManager>();
         services.AddScoped<IDomainEventCollector, DomainEventCollector>();
