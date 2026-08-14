@@ -1,42 +1,84 @@
-# GreenLens — Conceptual ERD (v2.0)
+# GreenLens — Conceptual ERD (v2.1)
 
 > **Dự án:** SU26SE049 — Crowdsourced Application for Reporting Environmental Pollution
-> **Loại:** Conceptual ERD — Object + Relationship (không attribute) + Actor-Entity interaction
-> **Cập nhật:** 2026-08-07 · **Nguồn:** Domain entities + BR v2.0
-> **Tổng:** 48 entities · 7 actors
+> **Loại:** Conceptual model — domain entity + **User/Role** (không attribute chi tiết)
+> **Cập nhật:** 2026-08-14 · **Nguồn:** Domain entities + BR v2.0 + `UserRole` enum
+> **Tổng:** 48 domain entities · 8 roles · 7 use-case actors
 
 ---
 
-## Actors
+## User & Role mapping
 
-| Actor                           | Role                                                              | Entities chính tương tác                                                                    |
-| ------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| 🟢 **Citizen**                  | Gửi báo cáo, bình luận, flag, đánh giá, tham gia dọn dẹp cộng đồng, gamification | Report, Comment, CommentLike, ReportFlag, ReportSatisfaction, ReportReopenRequest, CommunityCleanupParticipant, UserPoints, Badge |
-| 🔵 **LEO** (Local Env. Officer) | Xác minh, assign team, tạo biên bản kiểm tra, mở chương trình community cleanup, mời nhân sự, moderate | Report, ReportAssignment, InspectionReport, CommunityCleanupEvent, StaffInvitation, Comment (hide) |
-| 🟣 **DEO** (Dept Env. Officer)  | Quản lý cấp tỉnh, tạo company, gia hạn hợp đồng                 | Department, EnvironmentalServiceCompany, ContractPeriod                                     |
-| 🟠 **Cleanup Team**             | Nhận task, check-in, cập nhật tiến độ, resolve                    | ReportAssignment, EnvironmentalTeam, TeamMember                                             |
-| 🔴 **Inspection Team**          | Checklist workflow, xử phạt, thu tiền phạt                       | InspectionReport, InspectionEvidence, ViolatingEntity, PenaltyPayment                       |
-| 🟡 **Company Manager**          | Quản lý nhân sự công ty, nhận task dispatch                      | EnvironmentalServiceCompany, CompanyStaff, ReportAssignment                                 |
-| ⚫ **System Administrator**     | Quản lý user/role, danh mục, cấu hình, audit, content mod        | AuditLog, PenaltyFramework, BlockedWord, GamificationConfig, NotificationTemplate           |
+Mọi người dùng hệ thống là **một thực thể `User`**. Actor trong use case map tới **`UserRole`** (vai trò), không phải entity riêng.
+
+| Actor (Use Case)              | `UserRole`                         | Liên kết tổ chức / tập thể                                      |
+| ----------------------------- | ---------------------------------- | --------------------------------------------------------------- |
+| 🟢 **Citizen**                | `Citizen`                          | —                                                               |
+| 🔵 **LEO**                    | `LEO`                              | `LocalOffice` (cấp phường/xã)                                   |
+| 🟣 **DEO**                    | `DEO`                              | `Department` (cấp tỉnh)                                         |
+| 🟠 **Cleanup Team**           | `Cleaner`, `CompanyStaff`          | `EnvironmentalTeam` (`TeamType = Cleanup`) qua `TeamMember`     |
+| 🔴 **Inspection Team**        | `Inspector`                        | `EnvironmentalTeam` (`TeamType = Inspection`) qua `TeamMember`    |
+| 🟡 **Company Manager**        | `CompanyManager`                   | `CompanyStaff` (quản lý nhân sự công ty)                        |
+| ⚫ **System Administrator**   | `Admin`                            | —                                                               |
+
+> **Actor tập thể** (Cleanup Team, Inspection Team) không phải User entity riêng — mô hình hóa qua **`EnvironmentalTeam` + `TeamMember` → `User`**.
 
 ---
 
-## ER Diagram — Actor-Entity Interaction
+## Conceptual Model — User & Role (core)
 
-> Diagram này mô tả **actor nào tương tác với thực thể nào** — tất cả actor là thực thể riêng, nối tới các domain entity bằng nhãn hành vi.
+```mermaid
+erDiagram
+    User ||--o{ TeamMember : "joins"
+    EnvironmentalTeam ||--o{ TeamMember : "contains"
+    User ||--o| CompanyStaff : "may be"
+    EnvironmentalServiceCompany ||--o{ CompanyStaff : "employs"
+    User ||--o| UserPoints : "earns (Citizen)"
+    Department ||--o{ User : "employs (DEO)"
+    LocalOffice ||--o{ User : "employs (LEO/Cleaner/Inspector)"
+
+    User {
+        UserRole Role "1 role per account — NOT a separate entity"
+    }
+    EnvironmentalTeam {
+        TeamType TeamType "Cleanup or Inspection"
+    }
+```
+
+---
+
+## Conceptual Model — User, Role & Domain Interaction
+
+> **`User`** là thực thể identity duy nhất. Nhãn `(Role)` trên cạnh mô tả hành vi theo vai trò.
+> **`EnvironmentalTeam`** mô hình hóa actor tập thể (Cleanup / Inspection Team).
 
 ```mermaid
 %%{init: {'flowchart': {'curve': 'stepBefore', 'nodeSpacing': 25, 'rankSpacing': 50, 'padding': 10}}}%%
 flowchart TB
-    subgraph ACTORS["🎭 Actors"]
-        Citizen["🟢 Citizen"]
-        LEO["🔵 LEO"]
-        DEO["🟣 DEO"]
-        CleanupTeam["🟠 Cleanup Team"]
-        InspectionTeam["🔴 Inspection Team"]
-        CompanyMgr["🟡 Company Manager"]
-        Admin["⚫ System Admin"]
+    subgraph IDENTITY["👤 Identity"]
+        User["User\n«entity»"]
     end
+
+    subgraph ROLES["«Role» UserRole — vai trò, không lưu trữ riêng"]
+        direction LR
+        roleCitizen["🟢 Citizen"]
+        roleLEO["🔵 LEO"]
+        roleDEO["🟣 DEO"]
+        roleCleaner["🟠 Cleaner"]
+        roleStaff["🟠 CompanyStaff"]
+        roleInspector["🔴 Inspector"]
+        roleCM["🟡 CompanyManager"]
+        roleAdmin["⚫ Admin"]
+    end
+
+    subgraph COLLECTIVE["«Collective» Actor tập thể"]
+        EnvTeam["EnvironmentalTeam\nCleanup | Inspection"]
+        TeamMember["TeamMember"]
+    end
+
+    User -. "has exactly one role" .-> ROLES
+    User --> TeamMember
+    TeamMember --> EnvTeam
 
     subgraph REPORT_CORE["📝 Report"]
         Report["Report"]
@@ -76,7 +118,6 @@ flowchart TB
     subgraph ORGANIZATION["🏛️ Organization"]
         Department["Department"]
         LocalOffice["LocalOffice"]
-        EnvironmentalTeam["EnvironmentalTeam"]
         StaffInvitation["StaffInvitation"]
     end
 
@@ -94,57 +135,53 @@ flowchart TB
         NotificationTemplate["NotificationTemplate"]
     end
 
-    %% ══════ Citizen interactions ══════
-    Citizen -- "submits" --> Report
-    Citizen -- "uploads" --> ReportMedia
-    Citizen -- "flags" --> ReportFlag
-    Citizen -- "rates" --> ReportSatisfaction
-    Citizen -- "requests reopen" --> ReportReopenRequest
-    Citizen -- "saves draft" --> ReportDraft
-    Citizen -- "comments" --> Comment
-    Citizen -- "likes" --> CommentLike
-    Citizen -- "joins" --> CommunityCleanupParticipant
-    Citizen -- "earns" --> UserPoints
-    Citizen -- "receives" --> Badge
+    %% ══════ User interactions by role ══════
+    User -- "submits (Citizen)" --> Report
+    User -- "uploads (Citizen)" --> ReportMedia
+    User -- "flags (Citizen)" --> ReportFlag
+    User -- "rates (Citizen)" --> ReportSatisfaction
+    User -- "requests reopen (Citizen)" --> ReportReopenRequest
+    User -- "saves draft (Citizen)" --> ReportDraft
+    User -- "comments (Citizen)" --> Comment
+    User -- "likes (Citizen)" --> CommentLike
+    User -- "joins (Citizen)" --> CommunityCleanupParticipant
+    User -- "earns (Citizen)" --> UserPoints
+    User -- "receives (Citizen)" --> Badge
 
-    %% ══════ LEO interactions ══════
-    LEO -- "verifies / rejects" --> Report
-    LEO -- "assigns team" --> ReportAssignment
-    LEO -- "creates inspection" --> InspectionReport
-    LEO -- "opens program" --> CommunityCleanupEvent
-    LEO -- "invites staff" --> StaffInvitation
-    LEO -- "hides" --> Comment
-    LEO -- "approves reopen" --> ReportReopenRequest
+    User -- "verifies / rejects (LEO)" --> Report
+    User -- "assigns team (LEO)" --> ReportAssignment
+    User -- "creates inspection (LEO)" --> InspectionReport
+    User -- "opens program (LEO)" --> CommunityCleanupEvent
+    User -- "invites staff (LEO)" --> StaffInvitation
+    User -- "hides (LEO/Admin)" --> Comment
+    User -- "approves reopen (LEO)" --> ReportReopenRequest
 
-    %% ══════ DEO interactions ══════
-    DEO -- "manages" --> Department
-    DEO -- "creates / manages" --> ESC
-    DEO -- "renews" --> ContractPeriod
+    User -- "manages (DEO)" --> Department
+    User -- "creates / manages (DEO)" --> ESC
+    User -- "renews (DEO)" --> ContractPeriod
 
-    %% ══════ Cleanup Team interactions ══════
-    CleanupTeam -- "executes" --> ReportAssignment
-    CleanupTeam -- "belongs to" --> EnvironmentalTeam
-    CleanupTeam -- "leads" --> CommunityCleanupEvent
+    User -- "manages staff (CompanyManager)" --> CompanyStaff
+    User -- "accepts dispatch (CompanyManager)" --> ReportAssignment
 
-    %% ══════ Inspection Team interactions ══════
-    InspectionTeam -- "investigates" --> InspectionReport
-    InspectionTeam -- "uploads evidence" --> InspectionEvidence
-    InspectionTeam -- "identifies" --> ViolatingEntity
-    InspectionTeam -- "records payment" --> PenaltyPayment
+    User -- "reviews (Admin)" --> AuditLog
+    User -- "configures (Admin)" --> PenaltyFramework
+    User -- "manages (Admin)" --> BlockedWord
+    User -- "configures (Admin)" --> GamificationConfig
+    User -- "manages (Admin)" --> NotificationTemplate
+    User -- "manages offices (Admin)" --> LocalOffice
 
-    %% ══════ Company Manager interactions ══════
-    CompanyMgr -- "manages staff" --> CompanyStaff
-    CompanyMgr -- "accepts dispatch" --> ReportAssignment
+    User -- "investigates (Inspector)" --> InspectionReport
+    User -- "uploads evidence (Inspector)" --> InspectionEvidence
+    User -- "identifies (Inspector)" --> ViolatingEntity
+    User -- "records payment (Inspector)" --> PenaltyPayment
 
-    %% ══════ Admin interactions ══════
-    Admin -- "reviews" --> AuditLog
-    Admin -- "configures" --> PenaltyFramework
-    Admin -- "manages" --> BlockedWord
-    Admin -- "configures" --> GamificationConfig
-    Admin -- "manages" --> NotificationTemplate
-    Admin -- "manages offices" --> LocalOffice
+    %% ══════ Collective team interactions ══════
+    EnvTeam -- "executes (Cleanup Team)" --> ReportAssignment
+    EnvTeam -- "leads (Cleanup Team)" --> CommunityCleanupEvent
 
-    style ACTORS fill:#f5f5f5,stroke:#424242,stroke-width:3px
+    style IDENTITY fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
+    style ROLES fill:#f5f5f5,stroke:#757575,stroke-width:2px,stroke-dasharray:5
+    style COLLECTIVE fill:#fff3e0,stroke:#e65100,stroke-width:2px
     style REPORT_CORE fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
     style CLEANUP fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
     style COMMUNITY fill:#e0f2f1,stroke:#00695c,stroke-width:2px
@@ -160,8 +197,71 @@ flowchart TB
 
 ## ER Diagram — Entity Relationships
 
+> **Cách biểu diễn Actor trong ERD (theo yêu cầu GV):**
+>
+> | Cách | Ký hiệu trong diagram | Ý nghĩa |
+> | ---- | --------------------- | ------- |
+> | **Individual actor** | `User` + nhãn cạnh `(Citizen)`, `(LEO)`… | Actor = **`User` đang giữ `UserRole`** — không vẽ 7 entity User riêng |
+> | **Collective actor** | `EnvironmentalTeam` + `TeamMember` → `User` | Cleanup Team / Inspection Team = tập thể, không phải bảng actor |
+> | **Role storage** | `User { UserRole Role }` trong entity block | Role là **thuộc tính enum**, không phải entity/FK riêng |
+>
+> Diagram **2a** (dưới) tóm tắt actor ↔ entity. Diagram **2b** là ERD đầy đủ 48 entities — mọi nhãn `(Role)` trên cạnh chính là actor tương ứng.
+
+### 2a. Actor-Entity Relationships (ERD view)
+
 ```mermaid
 erDiagram
+    User {
+        UserRole Role "Citizen DEO LEO Cleaner CompanyManager CompanyStaff Inspector Admin"
+    }
+    EnvironmentalTeam {
+        TeamType TeamType "Cleanup or Inspection"
+    }
+
+    User ||--o{ Report : "Citizen submits"
+    User ||--o{ Report : "LEO verifies assigns"
+    User ||--o{ ReportFlag : "Citizen flags"
+    User ||--o{ ReportSatisfaction : "Citizen rates"
+    User ||--o{ ReportReopenRequest : "Citizen requests LEO reviews"
+    User ||--o{ ReportDraft : "Citizen drafts"
+    User ||--o{ Comment : "Citizen authors LEO Admin hides"
+    User ||--o{ CommentLike : "Citizen likes"
+    User ||--o{ CommunityCleanupParticipant : "Citizen joins"
+    User ||--o{ UserPoints : "Citizen earns"
+    User ||--o{ UserBadge : "Citizen receives"
+
+    User ||--o{ ReportAssignment : "LEO assigns CompanyManager accepts"
+    User ||--o{ InspectionReport : "LEO creates Inspector investigates"
+    User ||--o{ InspectionEvidence : "Inspector uploads"
+    User ||--o{ PenaltyPayment : "Inspector records"
+    User ||--o{ CommunityCleanupEvent : "LEO creates Cleaner leads"
+    User ||--o{ StaffInvitation : "LEO invites"
+    User ||--o{ Department : "DEO manages"
+    User ||--o{ EnvironmentalServiceCompany : "DEO creates manages"
+    User ||--o{ ContractPeriod : "DEO renews"
+    User ||--o{ CompanyStaff : "CompanyManager manages"
+    User ||--o{ AuditLog : "Admin all roles generate"
+    User ||--o{ BlockedWord : "Admin manages"
+    User ||--o{ GamificationConfig : "Admin configures"
+    User ||--o{ PenaltyFramework : "Admin configures"
+    User ||--o{ NotificationTemplate : "Admin manages"
+    User ||--o{ LocalOffice : "Admin manages"
+
+    EnvironmentalTeam ||--o{ TeamMember : "contains"
+    TeamMember }o--|| User : "Cleaner Inspector CompanyStaff"
+    EnvironmentalTeam ||--o{ ReportAssignment : "Cleanup Team executes"
+    EnvironmentalTeam ||--o{ InspectionReport : "Inspection Team assigned"
+    EnvironmentalTeam ||--o{ CommunityCleanupEvent : "Cleanup Team leads"
+```
+
+### 2b. Entity Relationships (full domain)
+
+```mermaid
+erDiagram
+
+    User {
+        UserRole Role "maps to use-case actor"
+    }
 
     %% ════════════════════════════════════════════
     %% LOCATION (Administrative Division)
@@ -219,7 +319,8 @@ erDiagram
 
     %% ════════════════════════════════════════════
     %% USER & AUTH
-    %% All actors authenticate via this module
+    %% User = single identity entity; Role = UserRole enum (not a separate table)
+    %% All use-case actors map to User.Role + optional TeamMember / CompanyStaff
     %% ════════════════════════════════════════════
 
     User ||--o{ RefreshToken : "authenticates"
@@ -338,17 +439,26 @@ erDiagram
 | `}o--o\|`    | Many-to-Zero-or-One (N → 0..1) | N InspectionReport → 0..1 Team |
 | `\|\|--o\|`  | One-to-Zero-or-One (1 → 0..1)  | 1 User → 0..1 UserPoints       |
 
-### Actor color legend
+### Role color legend (UserRole)
 
-| Color | Actor                        |
-| ----- | ---------------------------- |
-| 🟢    | Citizen                      |
-| 🔵    | LEO (Local Env. Officer)     |
-| 🟣    | DEO (Dept Env. Officer)      |
-| 🟠    | Cleanup Team                 |
-| 🔴    | Inspection Team              |
-| 🟡    | Company Manager              |
-| ⚫    | System Administrator         |
+| Color | `UserRole` | Use-case actor        |
+| ----- | ---------- | --------------------- |
+| 🟢    | `Citizen`  | Citizen               |
+| 🔵    | `LEO`      | LEO                   |
+| 🟣    | `DEO`      | DEO                   |
+| 🟠    | `Cleaner`, `CompanyStaff` | Cleanup Team |
+| 🔴    | `Inspector`| Inspection Team       |
+| 🟡    | `CompanyManager` | Company Manager |
+| ⚫    | `Admin`    | System Administrator  |
+
+### Conceptual notation
+
+| Ký hiệu | Nghĩa |
+| ------- | ----- |
+| `User` «entity» | Thực thể identity duy nhất — lưu trữ trong DB |
+| `«Role» UserRole` | Vai trò — enum trên `User`, **không** phải entity/bảng riêng |
+| `«Collective» EnvironmentalTeam` | Actor tập thể — Cleanup / Inspection Team |
+| `(Role)` trên cạnh | Hành vi của User khi giữ vai trò đó |
 
 ---
 
@@ -402,10 +512,11 @@ erDiagram
 | 27  | **Company** → **ContractPeriod**                 | 1 : N       | `ContractPeriod.CompanyId` → `EnvironmentalServiceCompany.Id`     | 🟣    | Lịch sử kỳ hợp đồng. DEO gia hạn/tái ký (BR-CMP-006)                  |
 | 28  | **ContractPeriod** → **User** (RenewedBy)        | N : 1       | `ContractPeriod.RenewedByUserId` → `User.Id`                     | 🟣    | DEO/Admin thực hiện gia hạn                                             |
 
-### 👤 Module 5: User & Auth — All actors
+### 👤 Module 5: User & Auth — User + UserRole
 
 | #   | Quan hệ                                     | Cardinality | FK / Cách liên kết                            | Ghi chú                                                              |
 | --- | ------------------------------------------- | ----------- | --------------------------------------------- | -------------------------------------------------------------------- |
+| —   | **User** → **UserRole** (attribute)         | 1 : 1       | `User.Role` (enum)                            | 8 roles; không tạo bảng role riêng. Actor = role + context tổ chức |
 | 29  | **User** → **RefreshToken**                 | 1 : N       | `RefreshToken.UserId` → `User.Id`             | Mỗi device/session tạo 1 refresh token. Rotation: revoke cũ khi dùng |
 | 30  | **User** → **PasswordHistory**              | 1 : N       | `PasswordHistory.UserId` → `User.Id`          | Lưu 3 password hash gần nhất. Chặn re-use (BR-AUTH-012)              |
 | 31  | **User** → **OtpCode**                      | 1 : N       | `OtpCode.UserId` → `User.Id`                  | OTP cho xác thực email/phone. Có TTL + purpose                       |
@@ -565,18 +676,18 @@ erDiagram
 
 ## Tổng hợp: User là "hub" trung tâm
 
-`User` có quan hệ với **28 entities khác** — là node kết nối lớn nhất trong hệ thống:
+`User` có quan hệ với **28 entities khác** — là node kết nối lớn nhất. **Actor** trong use case = **`User` + `UserRole`** (và tùy ngữ cảnh: `TeamMember`, `CompanyStaff`).
 
-| Vai trò của User (Actor) | Entities liên quan                                                                                                                    |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
-| 🟢 **Citizen**           | Report (submitter), ReportMedia, ReportFlag (flagger), ReportSatisfaction (rater), ReportReopenRequest, Comment (author), CommentLike, CommunityCleanupParticipant, ReportDraft |
-| 🔵 **LEO**               | Report (verifier, assigner), ReportAssignment (assigner), InspectionReport (creator), CommunityCleanupEvent (creator, verifier), ReportReopenRequest (reviewer), StaffInvitation (inviter), Comment (hider) |
-| 🟣 **DEO**               | Department, EnvironmentalServiceCompany (creator), ContractPeriod (renewer)                                                           |
-| 🟠 **Cleanup Team**      | TeamMember, ReportAssignment (executor), CommunityCleanupEvent (leader)                                                               |
-| 🔴 **Inspection Team**   | TeamMember, InspectionReport (issuer), InspectionEvidence (uploader), PenaltyPayment (recorder)                                       |
-| 🟡 **Company Manager**   | CompanyStaff (manager), ReportAssignment (accepts dispatch)                                                                           |
-| ⚫ **Admin**              | AuditLog, BlockedWord, GamificationConfig, PenaltyFramework, NotificationTemplate, LocalOffice                                        |
-| **Auth** (all actors)    | RefreshToken, PasswordHistory, OtpCode                                                                                                |
-| **Gamification**         | UserPoints, UserBadge                                                                                                                 |
-| **Notification**         | Notification (recipient), NotificationPreference                                                                                      |
-| **Organization**         | Department (DEO), LocalOffice (LEO/Cleaner/Inspector), LocalOffice.OfficerId                                                          |
+| `UserRole` / Actor tập thể | Entities liên quan                                                                                                                    |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| 🟢 **Citizen**             | Report (submitter), ReportMedia, ReportFlag, ReportSatisfaction, ReportReopenRequest, Comment, CommentLike, CommunityCleanupParticipant, ReportDraft |
+| 🔵 **LEO**                 | Report (verifier, assigner), ReportAssignment, InspectionReport (creator), CommunityCleanupEvent, ReportReopenRequest (reviewer), StaffInvitation, Comment (hider) |
+| 🟣 **DEO**                 | Department, EnvironmentalServiceCompany, ContractPeriod                                                                               |
+| 🟠 **Cleaner / CompanyStaff** (+ Cleanup Team) | TeamMember, ReportAssignment, CommunityCleanupEvent (via EnvironmentalTeam)                                            |
+| 🔴 **Inspector** (+ Inspection Team) | TeamMember, InspectionReport, InspectionEvidence, PenaltyPayment (via EnvironmentalTeam)                                      |
+| 🟡 **CompanyManager**      | CompanyStaff, ReportAssignment (accepts dispatch)                                                                                     |
+| ⚫ **Admin**                | AuditLog, BlockedWord, GamificationConfig, PenaltyFramework, NotificationTemplate, LocalOffice                                        |
+| **Auth** (mọi role)        | RefreshToken, PasswordHistory, OtpCode                                                                                                |
+| **Gamification**           | UserPoints, UserBadge                                                                                                                 |
+| **Notification**           | Notification, NotificationPreference                                                                                                  |
+| **Organization**           | Department (DEO), LocalOffice (LEO/Cleaner/Inspector)                                                                                 |

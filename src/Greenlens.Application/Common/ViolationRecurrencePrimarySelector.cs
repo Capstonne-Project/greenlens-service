@@ -7,6 +7,8 @@ public readonly record struct ViolationRecurrenceNearbyReport(
     Guid Id,
     decimal Latitude,
     decimal Longitude,
+    string? WardCode,
+    string? ProvinceCode,
     DateTime ClosedAt);
 
 /// <summary>
@@ -24,10 +26,17 @@ public static class ViolationRecurrencePrimarySelector
     public static Guid? SelectPrimary(
         decimal reportLatitude,
         decimal reportLongitude,
+        string? reportWardCode,
+        string? reportProvinceCode,
         IEnumerable<ViolationRecurrenceNearbyReport> nearby,
         double radiusMeters = DefaultRadiusMeters)
     {
+        if (!AdministrativeUnitMatch.HasWardAndProvince(reportWardCode, reportProvinceCode))
+            return null;
+
         var match = nearby
+            .Where(c => AdministrativeUnitMatch.SameWardAndProvince(
+                reportWardCode, reportProvinceCode, c.WardCode, c.ProvinceCode))
             .Where(c => GeoMath.HaversineMeters(reportLatitude, reportLongitude, c.Latitude, c.Longitude) <= radiusMeters)
             .OrderByDescending(c => c.ClosedAt)
             .FirstOrDefault();

@@ -6,6 +6,9 @@ namespace Greenlens.Application.UnitTests.Reports;
 
 public sealed class ViolationRecurrencePrimarySelectorTests
 {
+    private const string WardCode = "26808";
+    private const string ProvinceCode = "79";
+
     [Fact]
     public void SelectPrimary_Within25m_Included_BR_REP_034()
     {
@@ -16,10 +19,12 @@ public sealed class ViolationRecurrencePrimarySelectorTests
 
         var nearby = new[]
         {
-            new ViolationRecurrenceNearbyReport(id, baseLat + offset25m, baseLng, DateTime.UtcNow.AddDays(-5)),
+            new ViolationRecurrenceNearbyReport(
+                id, baseLat + offset25m, baseLng, WardCode, ProvinceCode, DateTime.UtcNow.AddDays(-5)),
         };
 
-        var selected = ViolationRecurrencePrimarySelector.SelectPrimary(baseLat, baseLng, nearby);
+        var selected = ViolationRecurrencePrimarySelector.SelectPrimary(
+            baseLat, baseLng, WardCode, ProvinceCode, nearby);
 
         Assert.Equal(id, selected);
     }
@@ -34,10 +39,12 @@ public sealed class ViolationRecurrencePrimarySelectorTests
 
         var nearby = new[]
         {
-            new ViolationRecurrenceNearbyReport(id, baseLat + offset26m, baseLng, DateTime.UtcNow.AddDays(-5)),
+            new ViolationRecurrenceNearbyReport(
+                id, baseLat + offset26m, baseLng, WardCode, ProvinceCode, DateTime.UtcNow.AddDays(-5)),
         };
 
-        var selected = ViolationRecurrencePrimarySelector.SelectPrimary(baseLat, baseLng, nearby);
+        var selected = ViolationRecurrencePrimarySelector.SelectPrimary(
+            baseLat, baseLng, WardCode, ProvinceCode, nearby);
 
         Assert.Null(selected);
     }
@@ -62,11 +69,14 @@ public sealed class ViolationRecurrencePrimarySelectorTests
 
         var nearby = new[]
         {
-            new ViolationRecurrenceNearbyReport(olderId, 21.0285m, 105.8542m, now.AddDays(-10)),
-            new ViolationRecurrenceNearbyReport(newerId, 21.0286m, 105.8543m, now.AddDays(-3)),
+            new ViolationRecurrenceNearbyReport(
+                olderId, 21.0285m, 105.8542m, WardCode, ProvinceCode, now.AddDays(-10)),
+            new ViolationRecurrenceNearbyReport(
+                newerId, 21.0286m, 105.8543m, WardCode, ProvinceCode, now.AddDays(-3)),
         };
 
-        var selected = ViolationRecurrencePrimarySelector.SelectPrimary(21.0285m, 105.8542m, nearby);
+        var selected = ViolationRecurrencePrimarySelector.SelectPrimary(
+            21.0285m, 105.8542m, WardCode, ProvinceCode, nearby);
 
         Assert.Equal(newerId, selected);
     }
@@ -77,10 +87,31 @@ public sealed class ViolationRecurrencePrimarySelectorTests
         var farId = Guid.NewGuid();
         var nearby = new[]
         {
-            new ViolationRecurrenceNearbyReport(farId, 21.10m, 106.00m, DateTime.UtcNow.AddDays(-5)),
+            new ViolationRecurrenceNearbyReport(
+                farId, 21.10m, 106.00m, WardCode, ProvinceCode, DateTime.UtcNow.AddDays(-5)),
         };
 
-        var selected = ViolationRecurrencePrimarySelector.SelectPrimary(21.0285m, 105.8542m, nearby);
+        var selected = ViolationRecurrencePrimarySelector.SelectPrimary(
+            21.0285m, 105.8542m, WardCode, ProvinceCode, nearby);
+
+        Assert.Null(selected);
+    }
+
+    [Fact]
+    public void SelectPrimary_DifferentWardWithin25m_ReturnsNull_BR_REP_034()
+    {
+        var id = Guid.NewGuid();
+        var baseLat = 21.0285m;
+        var baseLng = 105.8542m;
+
+        var nearby = new[]
+        {
+            new ViolationRecurrenceNearbyReport(
+                id, baseLat, baseLng, "26809", ProvinceCode, DateTime.UtcNow.AddDays(-5)),
+        };
+
+        var selected = ViolationRecurrencePrimarySelector.SelectPrimary(
+            baseLat, baseLng, WardCode, ProvinceCode, nearby);
 
         Assert.Null(selected);
     }
