@@ -57,4 +57,22 @@ internal static class TeamMembershipRules
 
         return query.AnyAsync(ct);
     }
+
+    /// <summary>True when another pending invitation already reserves the team leader slot.</summary>
+    public static Task<bool> TeamHasPendingLeaderInvitationAsync(
+        IStaffInvitationRepository invitations,
+        Guid teamId,
+        Guid? excludeInvitationId,
+        CancellationToken ct)
+    {
+        var query = invitations.QueryAsNoTracking()
+            .Where(i => i.TeamId == teamId
+                        && i.Status == InvitationStatus.Pending
+                        && i.IsLeader);
+
+        if (excludeInvitationId.HasValue)
+            query = query.Where(i => i.Id != excludeInvitationId.Value);
+
+        return query.AnyAsync(ct);
+    }
 }

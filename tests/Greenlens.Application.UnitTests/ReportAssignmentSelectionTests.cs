@@ -67,6 +67,58 @@ public sealed class ReportAssignmentSelectionTests
     }
 
     [Fact]
+    public void AllCurrentCycleNonDeclinedCompleted_IgnoresStaleTeamAfterReopen_BR_REP_015()
+    {
+        var teamA = Guid.NewGuid();
+        var teamB = Guid.NewGuid();
+
+        var teamAOld = ReportAssignment.Create(Guid.NewGuid(), teamA, Guid.NewGuid());
+        teamAOld.Accept();
+        teamAOld.Complete();
+        SetAssignedAt(teamAOld, DateTime.UtcNow.AddDays(-10));
+
+        var teamBOld = ReportAssignment.Create(Guid.NewGuid(), teamB, Guid.NewGuid());
+        teamBOld.Accept();
+        teamBOld.Complete();
+        SetAssignedAt(teamBOld, DateTime.UtcNow.AddDays(-10));
+
+        var teamANew = ReportAssignment.Create(Guid.NewGuid(), teamA, Guid.NewGuid());
+        SetAssignedAt(teamANew, DateTime.UtcNow);
+
+        ReportAssignmentSelection.AllCurrentCycleNonDeclinedCompleted(
+                [teamAOld, teamBOld, teamANew], ReportStatus.InProgress)
+            .Should().BeFalse();
+
+        teamANew.Accept();
+        teamANew.Complete();
+
+        ReportAssignmentSelection.AllCurrentCycleNonDeclinedCompleted(
+                [teamAOld, teamBOld, teamANew], ReportStatus.InProgress)
+            .Should().BeTrue();
+    }
+
+    [Fact]
+    public void AllCurrentCycleEscalatedOrCompleted_IgnoresPriorCycleCompleted_BR_REP_015()
+    {
+        var teamA = Guid.NewGuid();
+        var teamB = Guid.NewGuid();
+
+        var teamBOld = ReportAssignment.Create(Guid.NewGuid(), teamB, Guid.NewGuid());
+        teamBOld.Accept();
+        teamBOld.Complete();
+        SetAssignedAt(teamBOld, DateTime.UtcNow.AddDays(-10));
+
+        var teamANew = ReportAssignment.Create(Guid.NewGuid(), teamA, Guid.NewGuid());
+        teamANew.Accept();
+        SetAssignedAt(teamANew, DateTime.UtcNow);
+        teamANew.Escalate("Need heavy equipment support beyond team capability.");
+
+        ReportAssignmentSelection.AllCurrentCycleEscalatedOrCompleted(
+                [teamBOld, teamANew], ReportStatus.InProgress)
+            .Should().BeTrue();
+    }
+
+    [Fact]
     public void ResolveCurrentAssignment_AfterReopenBeforeReassign_ReturnsNull_NotOldCompleted_BR_REP_015()
     {
         var teamId = Guid.NewGuid();
@@ -123,6 +175,27 @@ public sealed class ReportAssignmentSelectionTests
         ReportAssignmentSelection.ResolveCurrentAssignment(
                 [completed], ReportStatus.Resolved)
             .Should().BeSameAs(completed);
+    }
+
+    [Fact]
+    public void MatchesCurrentAssignmentStatusFilter_IgnoresHistoricalCompletedAfterReopen_BR_REP_015()
+    {
+        var teamId = Guid.NewGuid();
+        var oldCompleted = ReportAssignment.Create(Guid.NewGuid(), teamId, Guid.NewGuid());
+        oldCompleted.Accept();
+        oldCompleted.Complete();
+        SetAssignedAt(oldCompleted, DateTime.UtcNow.AddDays(-5));
+
+        var newAssigned = ReportAssignment.Create(Guid.NewGuid(), teamId, Guid.NewGuid());
+        SetAssignedAt(newAssigned, DateTime.UtcNow);
+
+        ReportAssignmentSelection.MatchesCurrentAssignmentStatusFilter(
+                [oldCompleted, newAssigned], ReportStatus.InProgress, AssignmentStatus.Completed)
+            .Should().BeFalse();
+
+        ReportAssignmentSelection.MatchesCurrentAssignmentStatusFilter(
+                [oldCompleted, newAssigned], ReportStatus.InProgress, AssignmentStatus.Assigned)
+            .Should().BeTrue();
     }
 
     private static void SetAssignedAt(ReportAssignment assignment, DateTime assignedAt)

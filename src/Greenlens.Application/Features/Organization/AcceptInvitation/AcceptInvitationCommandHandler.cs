@@ -83,6 +83,10 @@ public sealed class AcceptInvitationCommandHandler(
             isLeader = invitation.IsLeader
                 && !await TeamMembershipRules
                     .TeamHasLeaderAsync(teamMembers, invitation.TeamId.Value, excludeUserId: null, ct)
+                    .ConfigureAwait(false)
+                && !await TeamMembershipRules
+                    .TeamHasPendingLeaderInvitationAsync(
+                        invitations, invitation.TeamId.Value, excludeInvitationId: invitation.Id, ct)
                     .ConfigureAwait(false);
 
             if (invitation.IsLeader && !isLeader)

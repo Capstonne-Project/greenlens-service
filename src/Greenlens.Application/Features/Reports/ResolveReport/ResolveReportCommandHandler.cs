@@ -68,16 +68,6 @@ public sealed class ResolveReportCommandHandler(
             return Errors.Reports.InvalidStatusTransition;
         }
 
-        // BR-REP-014: Must have ≥ 1 before image uploaded during check-in
-        var hasBeforeImage = await reportMedia.QueryAsNoTracking()
-            .AnyAsync(m => m.ReportId == request.ReportId && m.Type == MediaType.Before, ct)
-            .ConfigureAwait(false);
-        if (!hasBeforeImage)
-        {
-            logger.LogWarning("Missing before image for report {ReportId}", request.ReportId);
-            return Errors.Reports.MissingBeforeImages;
-        }
-
         // Find this team's assignment via token — no need to pass teamId in body
         var reportAssignments = await assignments.GetByReportIdAsync(request.ReportId, ct).ConfigureAwait(false);
         var assignment = ReportAssignmentSelection.SelectLatestForTeam(reportAssignments, leader.TeamId);
@@ -91,6 +81,18 @@ public sealed class ResolveReportCommandHandler(
         {
             logger.LogWarning("Assignment {AssignmentId} is not in a valid status for resolution", assignment.Id);
             return Errors.Reports.InvalidStatusTransition;
+        }
+
+        // BR-REP-014: ≥ 1 before image for the current assignment cycle (not prior reopen cycle)
+        var beforeMedia = await reportMedia.QueryAsNoTracking()
+            .Where(m => m.ReportId == request.ReportId && m.Type == MediaType.Before)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+        if (ReportAssignmentMediaScope.FilterForAssignment(beforeMedia, assignment, MediaType.Before).Count == 0)
+        {
+            logger.LogWarning("Missing before image for report {ReportId} assignment {AssignmentId}",
+                request.ReportId, assignment.Id);
+            return Errors.Reports.MissingBeforeImages;
         }
 
         assignment.Complete();
@@ -108,7 +110,8 @@ public sealed class ResolveReportCommandHandler(
             reportMedia.Add(media);
         }
 
-        var allCompleted = ReportAssignmentSelection.AllNonDeclinedCompleted(reportAssignments);
+        var allCompleted = ReportAssignmentSelection.AllCurrentCycleNonDeclinedCompleted(
+            reportAssignments, report.Status);
 
         if (allCompleted)
         {

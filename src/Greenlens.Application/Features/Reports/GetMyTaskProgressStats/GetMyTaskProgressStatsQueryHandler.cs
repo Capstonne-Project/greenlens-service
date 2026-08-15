@@ -1,5 +1,6 @@
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Reports.Common;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -37,10 +38,12 @@ public sealed class GetMyTaskProgressStatsQueryHandler(
             return new MyTaskProgressStatsResponse(0, [], [], 0, BuildEmptyTrend(utcNow));
         }
 
-        var baseQuery = assignments
-            .QueryAsNoTracking()
-            .Include(a => a.Report)
-            .Where(a => myTeamIds.Contains(a.TeamId));
+        var assignmentScope = assignments.QueryAsNoTracking();
+
+        var baseQuery = ReportAssignmentSelection.WhereLatestPerReportTeam(
+            assignmentScope.Where(a => myTeamIds.Contains(a.TeamId)),
+            assignmentScope)
+            .Include(a => a.Report);
 
         var totalCount = await baseQuery.CountAsync(ct).ConfigureAwait(false);
 

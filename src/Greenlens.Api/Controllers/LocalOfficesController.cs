@@ -89,8 +89,10 @@ public sealed class LocalOfficesController(ISender sender) : ControllerBase
             "tên team, loại team, trạng thái assignment, phần trăm tiến độ, ghi chú, thời gian. " +
             "Mỗi item có `thumbnails` (mảng URL ảnh đầu tiên của báo cáo, MediaType=Image). " +
             "Hỗ trợ tìm kiếm (mã báo cáo, mô tả, địa chỉ), lọc theo status (multi: ?status=Submitted&status=Verified)/category/severity/assignmentStatus, " +
+            "teamScope (company | community — lọc báo cáo đang do đội công ty hoặc đội phường xử lý), " +
             "khoảng ngày tạo (fromDate, toDate — ISO date, inclusive theo ngày UTC), " +
-            "sắp xếp theo: code, status, severity, priority, createdAt, assignmentCount (mặc định: mới nhất).")]
+            "sắp xếp theo: code, status, severity, priority, createdAt, assignmentCount (mặc định: mới nhất). " +
+            "Mỗi assignment trả beforeImageUrls/afterImageUrls và progressNote mới nhất của chu kỳ phân công hiện tại.")]
     [SwaggerResponse(200, "Danh sách báo cáo kèm tiến độ", typeof(ApiResponse<GetOfficeReportsResponse>))]
     [SwaggerResponse(404, "Chưa gán local office", typeof(ApiResponse))]
     public async Task<IActionResult> GetOfficeReportsAsync(
@@ -100,10 +102,11 @@ public sealed class LocalOfficesController(ISender sender) : ControllerBase
         [FromQuery] AssignmentStatus? assignmentStatus = null,
         [FromQuery] DateTime? fromDate = null, [FromQuery] DateTime? toDate = null,
         [FromQuery] string? sortBy = null, [FromQuery] bool sortDesc = false,
+        [FromQuery] OfficeReportTeamScope teamScope = OfficeReportTeamScope.All,
         CancellationToken ct = default)
         => (await sender.Send(new GetOfficeReportsQuery(
             page, pageSize, search, status, categoryId, severity, assignmentStatus,
-            fromDate, toDate, sortBy, sortDesc), ct)).ToHttp();
+            fromDate, toDate, sortBy, sortDesc, teamScope), ct)).ToHttp();
 
     /// <summary>Ranh giới (boundary) phường mà LEO đang quản lý, suy trực tiếp từ JWT.</summary>
     [HttpGet("my/ward-boundary")]

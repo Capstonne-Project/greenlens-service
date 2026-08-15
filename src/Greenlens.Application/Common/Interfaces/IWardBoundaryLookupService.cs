@@ -12,6 +12,11 @@ public interface IWardBoundaryLookupService
     /// <summary>Tìm ward mà polygon ranh giới chứa điểm GPS này, hoặc null nếu không có ward nào khớp.</summary>
     Task<string?> FindWardCodeByPointAsync(decimal latitude, decimal longitude, CancellationToken ct = default);
 
+    /// <summary>
+    /// Tìm tỉnh chứa điểm GPS khi ward lookup thất bại — dùng cho BR-ORG-011 Department queue fallback.
+    /// </summary>
+    Task<string?> FindProvinceCodeByPointAsync(decimal latitude, decimal longitude, CancellationToken ct = default);
+
     /// <summary>Trả về ranh giới ward dạng GeoJSON geometry (qua ST_AsGeoJSON), hoặc null nếu chưa có boundary.</summary>
     Task<string?> GetWardBoundaryGeoJsonAsync(string wardCode, CancellationToken ct = default);
 

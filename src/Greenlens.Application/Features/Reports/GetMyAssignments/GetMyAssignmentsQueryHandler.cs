@@ -2,7 +2,9 @@ using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Common.Models;
+using Greenlens.Application.Features.Reports.Common;
 using Greenlens.Domain.Common;
+using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -42,16 +44,18 @@ public sealed class GetMyAssignmentsQueryHandler(
             return new GetMyAssignmentsResponse([], PaginationMeta.Create(request.Page, request.PageSize, 0));
         }
 
-        var query = assignments
-            .QueryAsNoTracking()
+        var assignmentScope = assignments.QueryAsNoTracking();
+
+        IQueryable<ReportAssignment> query = ReportAssignmentSelection.WhereLatestPerReportTeam(
+                assignmentScope.Where(a => myTeamIds.Contains(a.TeamId)),
+                assignmentScope)
             .Include(a => a.Report)
                 .ThenInclude(r => r!.Category)
             .Include(a => a.Report)
                 .ThenInclude(r => r!.Media)
             .Include(a => a.Report)
                 .ThenInclude(r => r!.WasteTags)
-                    .ThenInclude(wt => wt.WasteTag)
-            .Where(a => myTeamIds.Contains(a.TeamId));
+                    .ThenInclude(wt => wt.WasteTag);
 
         if (request.AssignmentStatus.HasValue)
         {

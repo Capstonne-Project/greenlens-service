@@ -3,6 +3,7 @@ using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Features.Reports.Common;
 using Greenlens.Domain.Common;
+using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -49,6 +50,8 @@ public sealed class GetMyTaskDetailQueryHandler(
             .Include(a => a.Report)
                 .ThenInclude(r => r!.WasteTags)
                     .ThenInclude(wt => wt.WasteTag)
+            .Include(a => a.ProgressUpdates)
+                .ThenInclude(u => u.Media)
             .Where(a => a.ReportId == request.ReportId && myTeamIds.Contains(a.TeamId))
             .OrderByDescending(a => a.AssignedAt)
             .ToListAsync(ct)
@@ -75,11 +78,15 @@ public sealed class GetMyTaskDetailQueryHandler(
         var canDecline = assignment.Status == AssignmentStatus.Assigned
             && now <= declineDeadlineAt;
 
-        var beforeImageCount = report.Media.Count(m => m.Type == MediaType.Before);
+        var beforeMedia = ReportAssignmentMediaScope.FilterForAssignment(
+            report.Media, assignment, MediaType.Before);
+        var afterMedia = ReportAssignmentMediaScope.FilterForAssignment(
+            report.Media, assignment, MediaType.After);
+
+        var beforeImageCount = beforeMedia.Count;
         var hasBeforeImages = beforeImageCount > 0;
 
         var canUpdateProgress = assignment.Status == AssignmentStatus.InProgress;
-        // Resolve requires before images (BR-REP-014) — surface that in the flag for FE
         var canResolve = assignment.Status == AssignmentStatus.InProgress && hasBeforeImages;
 
         DateTime? progressRequiredByAt = null;
@@ -94,6 +101,18 @@ public sealed class GetMyTaskDetailQueryHandler(
             .OrderBy(m => m.UploadedAt)
             .Select(m => new TaskImageItem(m.Url, m.MimeType))
             .ToList();
+
+        var beforeImages = beforeMedia
+            .Select(m => new TaskImageItem(m.Url, m.MimeType))
+            .ToList();
+
+        var afterImages = afterMedia
+            .Select(m => new TaskImageItem(m.Url, m.MimeType))
+            .ToList();
+
+        var progressUpdates = MapProgressUpdates(assignment);
+
+        var latestProgressNote = ReportAssignmentMediaScope.ResolveLatestProgressNote(assignment);
 
         var wasteTagItems = report.WasteTags
             .Where(wt => wt.WasteTag is not null)
@@ -130,7 +149,7 @@ public sealed class GetMyTaskDetailQueryHandler(
             ReportImages: images,
 
             ProgressPercent: assignment.ProgressPercent,
-            ProgressNote: assignment.ProgressNote,
+            ProgressNote: latestProgressNote,
             ProgressUpdatedAt: assignment.ProgressUpdatedAt,
             ProgressUpdatedByUserId: assignment.ProgressUpdatedByUserId,
 
@@ -141,7 +160,43 @@ public sealed class GetMyTaskDetailQueryHandler(
             DeclineDeadlineAt: declineDeadlineAt,
             HasBeforeImages: hasBeforeImages,
             BeforeImageCount: beforeImageCount,
+            BeforeImages: beforeImages,
+            AfterImages: afterImages,
+            ProgressUpdates: progressUpdates,
             ProgressRequiredByAt: progressRequiredByAt
         );
+    }
+
+    private static List<TaskProgressUpdateItem> MapProgressUpdates(ReportAssignment assignment)
+    {
+        if (assignment.ProgressUpdates.Count > 0)
+        {
+            return assignment.ProgressUpdates
+                .OrderBy(u => u.CreatedAt)
+                .Select(u => new TaskProgressUpdateItem(
+                    u.Id,
+                    u.ProgressPercent,
+                    u.ProgressNote,
+                    u.CreatedAt,
+                    u.Media
+                        .Where(m => m.Type != MediaType.Video)
+                        .OrderBy(m => m.UploadedAt)
+                        .Select(m => new TaskImageItem(m.Url, m.MimeType))
+                        .ToList()))
+                .ToList();
+        }
+
+        if (assignment.ProgressUpdatedAt is null && assignment.ProgressPercent == 0)
+            return [];
+
+        return
+        [
+            new TaskProgressUpdateItem(
+                assignment.Id,
+                assignment.ProgressPercent,
+                assignment.ProgressNote,
+                assignment.ProgressUpdatedAt ?? assignment.StartedAt ?? assignment.AssignedAt,
+                [])
+        ];
     }
 }

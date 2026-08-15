@@ -147,6 +147,14 @@ public sealed class RecruitStaffCommandHandler(
                 logger.LogWarning("Team {TeamId} already has a leader", assignedTeamId.Value);
                 return Errors.Organization.TeamAlreadyHasLeader;
             }
+
+            if (await TeamMembershipRules.TeamHasPendingLeaderInvitationAsync(
+                    invitations, assignedTeamId.Value, excludeInvitationId: null, ct)
+                .ConfigureAwait(false))
+            {
+                logger.LogWarning("Team {TeamId} already has a pending leader invitation", assignedTeamId.Value);
+                return Errors.Organization.TeamAlreadyHasLeader;
+            }
         }
 
         // ── 9. Create invitation instead of instant recruit ──

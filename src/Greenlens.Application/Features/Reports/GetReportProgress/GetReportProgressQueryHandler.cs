@@ -116,10 +116,12 @@ public sealed class GetReportProgressQueryHandler(
                 report.DispatchedToCompanyAt);
         }
 
-        // ── Media grouped by phase ─────────────────────────────────
+        // ── Media grouped by phase (before/after scoped to current assignment cycle) ──
         var submissionImages = MapMedia(report.Media, MediaType.Image, MediaType.Video);
-        var beforeImages = MapMedia(report.Media, MediaType.Before);
-        var afterImages = MapMedia(report.Media, MediaType.After);
+        var beforeImages = MapMedia(
+            ReportAssignmentMediaScope.FilterForAssignment(report.Media, currentAssignment, MediaType.Before));
+        var afterImages = MapMedia(
+            ReportAssignmentMediaScope.FilterForAssignment(report.Media, currentAssignment, MediaType.After));
         var inspectionImages = MapMedia(report.Media, MediaType.Inspection);
         var reopenEvidenceImages = MapMedia(report.Media, MediaType.ReopenEvidence);
 
@@ -244,14 +246,13 @@ public sealed class GetReportProgressQueryHandler(
         ];
     }
 
+    private static List<MediaItemDto> MapMedia(IEnumerable<ReportMedia> media) =>
+        media.Select(MapMediaItem).ToList();
+
     private static List<MediaItemDto> MapMedia(
         IEnumerable<ReportMedia> media,
         params MediaType[] types) =>
-        media
-            .Where(m => types.Contains(m.Type))
-            .OrderBy(m => m.UploadedAt)
-            .Select(MapMediaItem)
-            .ToList();
+        MapMedia(media.Where(m => types.Contains(m.Type)).OrderBy(m => m.UploadedAt));
 
     private static MediaItemDto MapMediaItem(ReportMedia m) =>
         new(m.Id, m.Type.ToString(), m.Url, m.ThumbnailUrl, m.MimeType, m.SizeBytes, m.UploadedAt);
