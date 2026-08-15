@@ -26,10 +26,13 @@ public sealed class CommunityCleanupParticipationPointsHandler(
             .GetConfiguredPointsAsync(db, PointReason.CommunityCleanupParticipation, 15, ct)
             .ConfigureAwait(false);
 
+        // Chỉ thưởng điểm/badge cho Member (citizen tham gia) — Leader được giao phụ trách
+        // event, không phải đối tượng của phần thưởng "tham gia dọn dẹp cộng đồng".
         var checkedInParticipants = (await participants
             .GetByEventIdAsync(notification.EventId, ct)
             .ConfigureAwait(false))
-            .Where(p => p.Status == CommunityCleanupParticipantStatus.CheckedIn)
+            .Where(p => p.Status == CommunityCleanupParticipantStatus.CheckedIn
+                && p.Role == CommunityCleanupParticipantRole.Member)
             .ToList();
 
         if (points == 0)
