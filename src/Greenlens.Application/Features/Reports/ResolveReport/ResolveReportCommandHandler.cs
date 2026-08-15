@@ -95,9 +95,7 @@ public sealed class ResolveReportCommandHandler(
             return Errors.Reports.MissingBeforeImages;
         }
 
-        assignment.Complete();
-
-        // Persist after images as ReportMedia (Type = After) for LEO visibility
+        // Persist after images before Complete() so UploadedAt <= CompletedAt for progress scope (BR-CLN-005).
         foreach (var url in request.AfterImageUrls)
         {
             var media = ReportMedia.Create(
@@ -109,6 +107,8 @@ public sealed class ResolveReportCommandHandler(
                 currentUser.UserId);
             reportMedia.Add(media);
         }
+
+        assignment.Complete();
 
         var allCompleted = ReportAssignmentSelection.AllCurrentCycleNonDeclinedCompleted(
             reportAssignments,

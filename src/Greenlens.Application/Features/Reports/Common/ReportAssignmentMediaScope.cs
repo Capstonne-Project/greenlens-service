@@ -17,11 +17,16 @@ internal static class ReportAssignmentMediaScope
             return [];
 
         var cycleStart = assignment.AssignedAt;
+        var includesAfter = types.Contains(MediaType.After);
 
         return media
             .Where(m => types.Contains(m.Type))
             .Where(m => m.UploadedAt >= cycleStart)
-            .Where(m => assignment.CompletedAt is null || m.UploadedAt <= assignment.CompletedAt)
+            // After images are saved at resolve time (same instant as Complete()). Do not upper-bound
+            // by CompletedAt — legacy rows may have UploadedAt slightly after CompletedAt.
+            .Where(m => includesAfter && m.Type == MediaType.After
+                || assignment.CompletedAt is null
+                || m.UploadedAt <= assignment.CompletedAt)
             .OrderBy(m => m.UploadedAt)
             .ToList();
     }
