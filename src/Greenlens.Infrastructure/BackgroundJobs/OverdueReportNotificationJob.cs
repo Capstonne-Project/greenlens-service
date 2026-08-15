@@ -11,9 +11,11 @@ namespace Greenlens.Infrastructure.BackgroundJobs;
 /// <summary>
 /// BR-REP-008: Flag reports pending > 72h as Overdue and notify LEO/DEO.
 /// BR-REP-009: Notify LEO when Verified reports are unassigned > 24h.
+/// Reports with an active InspectionReport (parallel sub-process) are excluded —
+/// inspection assignment does not set AssignedByOfficerId on the parent Report.
 /// Runs hourly. Idempotent — only flags/notifies once per report.
 /// </summary>
-/// <remarks>Implements: BR-REP-008, BR-REP-009, BR-NTF-002.</remarks>
+/// <remarks>Implements: BR-REP-008, BR-REP-009, BR-INS-001, BR-NTF-002.</remarks>
 [AutomaticRetry(Attempts = 2)]
 internal sealed class OverdueReportNotificationJob(
     ApplicationDbContext db,
@@ -21,6 +23,12 @@ internal sealed class OverdueReportNotificationJob(
     ILogger<OverdueReportNotificationJob> logger)
 {
     private const int BatchSize = 200;
+
+    private static readonly InspectionStatus[] TerminalInspectionStatuses =
+    [
+        InspectionStatus.Closed,
+        InspectionStatus.ClosedNoViolation
+    ];
 
     public async Task ExecuteAsync()
     {
@@ -41,7 +49,9 @@ internal sealed class OverdueReportNotificationJob(
         var reports = await db.Reports
             .Where(r => (r.Status == ReportStatus.Submitted || r.Status == ReportStatus.Verified)
                         && r.CreatedAt <= cutoff
-                        && !r.IsOverdue)
+                        && !r.IsOverdue
+                        && !db.InspectionReports.Any(ir =>
+                            ir.ReportId == r.Id && !TerminalInspectionStatuses.Contains(ir.Status)))
             .OrderBy(r => r.Id)
             .Take(BatchSize)
             .ToListAsync()
@@ -88,7 +98,9 @@ internal sealed class OverdueReportNotificationJob(
             .Where(r => r.Status == ReportStatus.Verified
                         && r.VerifiedAt != null
                         && r.VerifiedAt <= cutoff
-                        && r.AssignedByOfficerId == null)
+                        && r.AssignedByOfficerId == null
+                        && !db.InspectionReports.Any(ir =>
+                            ir.ReportId == r.Id && !TerminalInspectionStatuses.Contains(ir.Status)))
             .OrderBy(r => r.Id)
             .Take(BatchSize)
             .ToListAsync()

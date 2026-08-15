@@ -13,7 +13,7 @@ namespace Greenlens.Application.Features.Inspection.AssignInspectionTeam;
 
 /// <summary>
 /// LEO assigns an Inspector Team to an existing InspectionReport.
-/// If the parent Report is still Verified, transitions it to InProgress.
+/// Parent Report.Status is unchanged — inspection lifecycle is independent.
 /// </summary>
 /// <remarks>Implements: BR-INS-001, BR-OFF-005, BR-ADM-010.</remarks>
 public sealed class AssignInspectionTeamCommandHandler(
@@ -21,7 +21,6 @@ public sealed class AssignInspectionTeamCommandHandler(
     IReportRepository reports,
     IEnvironmentalTeamRepository teams,
     ITeamMemberRepository teamMembers,
-    IReportStatusHistoryRepository statusHistory,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     IAuditLogger auditLogger,
@@ -71,22 +70,8 @@ public sealed class AssignInspectionTeamCommandHandler(
             return assignResult;
         }
 
-        // 4. Transition parent Report: Verified → InProgress (if still Verified)
         var report = await reports.GetByIdAsync(inspection.ReportId, ct).ConfigureAwait(false);
-        if (report is not null && report.Status == ReportStatus.Verified)
-        {
-            report.Assign(currentUser.UserId);
 
-            var history = ReportStatusHistory.Create(
-                report.Id,
-                ReportStatus.Verified,
-                ReportStatus.InProgress,
-                currentUser.UserId);
-
-            statusHistory.Add(history);
-        }
-
-        // 5. Persist
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 
         await auditLogger.LogAsync(
