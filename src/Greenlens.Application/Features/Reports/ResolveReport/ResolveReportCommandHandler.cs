@@ -111,7 +111,10 @@ public sealed class ResolveReportCommandHandler(
         }
 
         var allCompleted = ReportAssignmentSelection.AllCurrentCycleNonDeclinedCompleted(
-            reportAssignments, report.Status);
+            reportAssignments,
+            report.Status,
+            report.ReopenedCount,
+            report.StatusHistory);
 
         if (allCompleted)
         {

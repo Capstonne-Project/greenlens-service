@@ -160,6 +160,7 @@ public sealed class GetOfficeReportsQueryHandler(
                 .ThenInclude(a => a.Team)
             .Include(r => r.Assignments)
                 .ThenInclude(a => a.ProgressUpdates)
+            .Include(r => r.StatusHistory)
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
             .ToListAsync(ct)
@@ -182,8 +183,17 @@ public sealed class GetOfficeReportsQueryHandler(
 
     private static OfficeReportItem MapOfficeReportItem(Report r)
     {
-        var currentAssignment = ReportAssignmentSelection.ResolveCurrentAssignment(
-            r.Assignments, r.Status);
+        var latestPerTeam = ReportAssignmentSelection.SelectLatestPerTeam(r.Assignments);
+        var cycleStartAt = ReportAssignmentSelection.ResolveCycleStartAt(
+            r.ReopenedCount,
+            r.StatusHistory,
+            latestPerTeam);
+
+        var currentAssignment = ReportAssignmentSelection.ResolveProgressAssignment(
+            r.Assignments,
+            r.Status,
+            r.ReopenedCount,
+            r.StatusHistory);
 
         IReadOnlyList<AssignmentProgressItem> assignments = currentAssignment is null
             ? []
@@ -196,7 +206,10 @@ public sealed class GetOfficeReportsQueryHandler(
                 : currentAssignment.ProgressPercent;
 
         OfficeAssignedCompanyItem? assignedCompany = null;
-        if (r.AssignedCompanyId.HasValue && r.AssignedCompany is not null)
+        if (r.AssignedCompanyId.HasValue
+            && r.AssignedCompany is not null
+            && ReportAssignmentSelection.IsCompanyDispatchInCurrentCycle(
+                r.ReopenedCount, r.DispatchedToCompanyAt, cycleStartAt))
         {
             assignedCompany = new OfficeAssignedCompanyItem(
                 r.AssignedCompanyId.Value,

@@ -52,16 +52,75 @@ internal static class ReportAssignmentSelection
             .ToList();
 
     /// <summary>
-    /// Assignments in the active report cycle (BR-REP-015). Excludes prior-cycle Completed rows
-    /// when a newer cycle has open assignments on the same report.
+    /// Cycle boundary for BR-REP-015 reopen. First cycle uses earliest assignment batch;
+    /// subsequent cycles use the latest Reopened status history entry.
+    /// </summary>
+    internal static DateTime? ResolveCycleStartAt(
+        int reopenedCount,
+        IEnumerable<ReportStatusHistory> statusHistory,
+        IReadOnlyList<ReportAssignment> latestPerTeamAssignments)
+    {
+        if (reopenedCount > 0)
+        {
+            var fromHistory = statusHistory
+                .Where(h => h.ToStatus == ReportStatus.Reopened)
+                .MaxBy(h => h.CreatedAt)?.CreatedAt;
+
+            if (fromHistory.HasValue)
+                return fromHistory;
+
+            return latestPerTeamAssignments
+                .Where(a => a.CompletedAt.HasValue)
+                .MaxBy(a => a.CompletedAt)?.CompletedAt;
+        }
+
+        return latestPerTeamAssignments.Count > 0
+            ? latestPerTeamAssignments.Min(a => a.AssignedAt)
+            : null;
+    }
+
+    /// <summary>
+    /// True when company dispatch belongs to the active report cycle (BR-REP-015 / BR-CMP-005).
+    /// </summary>
+    internal static bool IsCompanyDispatchInCurrentCycle(
+        int reopenedCount,
+        DateTime? dispatchedToCompanyAt,
+        DateTime? cycleStartAt) =>
+        reopenedCount == 0
+        || (cycleStartAt.HasValue
+            && dispatchedToCompanyAt.HasValue
+            && dispatchedToCompanyAt >= cycleStartAt);
+
+    /// <summary>
+    /// Assignments in the active report cycle (BR-REP-015). Excludes prior-cycle rows after reopen.
     /// </summary>
     internal static IReadOnlyList<ReportAssignment> SelectCurrentCycleAssignments(
         IEnumerable<ReportAssignment> assignments,
-        ReportStatus reportStatus)
+        ReportStatus reportStatus,
+        int reopenedCount = 0,
+        IEnumerable<ReportStatusHistory>? statusHistory = null)
     {
         var latestPerTeam = SelectLatestPerTeam(assignments);
         if (latestPerTeam.Count == 0)
             return [];
+
+        if (reopenedCount > 0)
+        {
+            var cycleStartAt = ResolveCycleStartAt(
+                reopenedCount,
+                statusHistory ?? [],
+                latestPerTeam);
+
+            if (cycleStartAt.HasValue)
+            {
+                latestPerTeam = latestPerTeam
+                    .Where(a => a.AssignedAt >= cycleStartAt.Value)
+                    .ToList();
+            }
+
+            if (latestPerTeam.Count == 0)
+                return [];
+        }
 
         var openAssignments = latestPerTeam
             .Where(a => a.Status is AssignmentStatus.Assigned or AssignmentStatus.InProgress)
@@ -79,6 +138,9 @@ internal static class ReportAssignmentSelection
         if (reportStatus is ReportStatus.Reopened)
             return [];
 
+        if (reportStatus is ReportStatus.InProgress)
+            return latestPerTeam;
+
         return latestPerTeam
             .Where(a => a.Status != AssignmentStatus.Declined)
             .ToList();
@@ -86,9 +148,12 @@ internal static class ReportAssignmentSelection
 
     internal static bool AllCurrentCycleNonDeclinedCompleted(
         IEnumerable<ReportAssignment> assignments,
-        ReportStatus reportStatus)
+        ReportStatus reportStatus,
+        int reopenedCount = 0,
+        IEnumerable<ReportStatusHistory>? statusHistory = null)
     {
-        var current = SelectCurrentCycleAssignments(assignments, reportStatus);
+        var current = SelectCurrentCycleAssignments(
+            assignments, reportStatus, reopenedCount, statusHistory);
         if (current.Count == 0)
             return false;
 
@@ -99,15 +164,61 @@ internal static class ReportAssignmentSelection
 
     internal static bool AllCurrentCycleEscalatedOrCompleted(
         IEnumerable<ReportAssignment> assignments,
-        ReportStatus reportStatus)
+        ReportStatus reportStatus,
+        int reopenedCount = 0,
+        IEnumerable<ReportStatusHistory>? statusHistory = null)
     {
-        var current = SelectCurrentCycleAssignments(assignments, reportStatus);
+        var current = SelectCurrentCycleAssignments(
+            assignments, reportStatus, reopenedCount, statusHistory);
         if (current.Count == 0)
             return false;
 
         return current
             .Where(a => a.Status != AssignmentStatus.Declined)
             .All(a => a.Status is AssignmentStatus.Escalated or AssignmentStatus.Completed);
+    }
+
+    /// <summary>
+    /// Assignment for GET /progress and office list — cycle-aware with decline/reassign UX (BR-CLN-007, BR-OFF-012).
+    /// </summary>
+    internal static ReportAssignment? ResolveProgressAssignment(
+        IEnumerable<ReportAssignment> assignments,
+        ReportStatus reportStatus,
+        int reopenedCount = 0,
+        IEnumerable<ReportStatusHistory>? statusHistory = null)
+    {
+        var cycle = SelectCurrentCycleAssignments(
+            assignments, reportStatus, reopenedCount, statusHistory);
+
+        var open = cycle
+            .Where(a => a.Status is AssignmentStatus.Assigned or AssignmentStatus.InProgress)
+            .MaxBy(a => a.AssignedAt);
+        if (open is not null)
+            return open;
+
+        if (reportStatus == ReportStatus.InProgress)
+        {
+            var nonDeclined = cycle
+                .Where(a => a.Status != AssignmentStatus.Declined)
+                .ToList();
+
+            if (nonDeclined.Count > 0
+                && nonDeclined.All(a => a.Status == AssignmentStatus.Completed))
+            {
+                return nonDeclined.MaxBy(a => a.CompletedAt ?? a.AssignedAt);
+            }
+
+            return cycle
+                .Where(a => a.Status == AssignmentStatus.Declined)
+                .MaxBy(a => a.AssignedAt);
+        }
+
+        if (reportStatus == ReportStatus.Reopened)
+            return null;
+
+        return cycle
+            .Where(a => a.Status != AssignmentStatus.Declined)
+            .MaxBy(a => a.CompletedAt ?? a.AssignedAt);
     }
 
     /// <summary>
