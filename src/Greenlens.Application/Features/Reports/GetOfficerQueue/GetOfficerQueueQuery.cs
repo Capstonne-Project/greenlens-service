@@ -60,6 +60,7 @@ public sealed record OfficerQueueItem(
     string? WardCode,
     decimal PriorityScore,
     DateTime CreatedAt,
+    DateTime? VerifiedAt,
     DateTime? SlaVerifyDueAt,
     DateTime? SlaResolveDueAt,
     string? FirstImageUrl,
