@@ -1,3 +1,4 @@
+using Greenlens.Application.Features.Notifications;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using Greenlens.Infrastructure.Persistence;
@@ -54,7 +55,10 @@ internal static class NotificationTemplateSeeder
             if (template is null)
                 continue;
 
-            if (template.TitleVi == titleVi && template.BodyVi == bodyVi)
+            if (template.TitleVi == titleVi
+                && template.BodyVi == bodyVi
+                && !NotificationTemplateRenderer.ContainsLegacyPlaceholders(template.TitleVi)
+                && !NotificationTemplateRenderer.ContainsLegacyPlaceholders(template.BodyVi))
                 continue;
 
             template.Update(titleVi, bodyVi, titleEn, bodyEn);

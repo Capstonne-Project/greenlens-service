@@ -8,6 +8,8 @@ public readonly record struct DuplicateNearbyReport(
     Guid Id,
     decimal Latitude,
     decimal Longitude,
+    string? WardCode,
+    string? ProvinceCode,
     ReportStatus Status,
     DateTime CreatedAt);
 
@@ -33,11 +35,18 @@ public static class DuplicateTier1PrimarySelector
     public static Guid? SelectPrimary(
         decimal reportLatitude,
         decimal reportLongitude,
+        string? reportWardCode,
+        string? reportProvinceCode,
         IEnumerable<DuplicateNearbyReport> nearby,
         double radiusMeters = DefaultRadiusMeters)
     {
+        if (!AdministrativeUnitMatch.HasWardAndProvince(reportWardCode, reportProvinceCode))
+            return null;
+
         var match = nearby
             .Where(c => IsEligibleCandidateStatus(c.Status))
+            .Where(c => AdministrativeUnitMatch.SameWardAndProvince(
+                reportWardCode, reportProvinceCode, c.WardCode, c.ProvinceCode))
             .Where(c => GeoMath.HaversineMeters(reportLatitude, reportLongitude, c.Latitude, c.Longitude) <= radiusMeters)
             .OrderByDescending(c => c.Status is ReportStatus.Verified or ReportStatus.InProgress or ReportStatus.Reopened)
             .ThenBy(c => c.CreatedAt)

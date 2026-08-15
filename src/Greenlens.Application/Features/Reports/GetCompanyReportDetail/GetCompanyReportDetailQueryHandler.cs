@@ -96,7 +96,8 @@ public sealed class GetCompanyReportDetailQueryHandler(
             .OrderByDescending(a => a.AssignedAt)
             .ToList();
 
-        var currentAssignment = ReportAssignmentSelection.ResolveCurrentAssignment(companyAssignments);
+        var currentAssignment = ReportAssignmentSelection.ResolveCurrentAssignment(
+            companyAssignments, r.Status);
         CompanyReportTeamAssignment? assignment = currentAssignment is null
             ? null
             : MapAssignment(currentAssignment);

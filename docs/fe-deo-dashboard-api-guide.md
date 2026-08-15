@@ -4,6 +4,8 @@
 > **Role:** `DEO` (Điều phối viên cấp Tỉnh/TP — Sở TNMT)  
 > **Phạm vi dữ liệu:** Mọi query báo cáo/analytics lọc theo `AssignedDepartmentId` = department của DEO đăng nhập.
 
+**Tài liệu bổ sung:** [fe-deo-operations-api-guide.md](./fe-deo-operations-api-guide.md) — báo cáo (read-only), văn phòng MT, công ty DVMT (CRUD), export, duplicate/tái phạm, KPI LEO drill-down.
+
 **Cơ chế scope (BE):** Department lấy từ `users.department_id` của JWT user — **không** nhận `departmentId` từ query string. Dashboard `/v1/dashboard/deo/*` dùng `DepartmentContextResolver`; báo cáo chi tiết/history dùng `ValidateReportAccess`; công ty dùng `CompanyAccessAuthorization`.
 
 ---
@@ -24,80 +26,247 @@
 
 ## 1. Cấu trúc navigation đề xuất
 
+Sidebar chỉ điều hướng **module nghiệp vụ** — **không** tách từng widget dashboard thành menu riêng. Toàn bộ **12 API** `/v1/dashboard/deo/*` nằm trên **một trang Overview** duy nhất (`/deo/dashboard`), scroll dọc + lazy-load.
+
 ```
 DEO Portal
-├── 📊 Tổng quan          → /deo/dashboard
+├── 📊 Tổng quan          → /deo/dashboard     ← 12 widget analytics (§2)
 ├── 📋 Báo cáo            → /deo/reports
-│   └── Chi tiết          → /deo/reports/:id
 ├── 🏢 Công ty DVMT       → /deo/companies
-│   └── Chi tiết          → /deo/companies/:id
 ├── 🏛 Văn phòng MT       → /deo/offices
-├── 👮 Hiệu suất LEO      → /deo/officers
-├── ⚠️ Cảnh báo           → /deo/alerts (hoặc panel trên dashboard)
-└── 📥 Export             → modal trên /deo/reports
+└── … (module khác — xem fe-deo-operations-api-guide.md)
 ```
+
+**Sidebar item "Tổng quan":** badge optional = số alert `severity: High` từ `GET /v1/dashboard/deo/alerts` (widget panel §2.6 **trong** trang Overview, không phải route riêng).
 
 ---
 
-## 2. Màn hình Dashboard — `/deo/dashboard`
+## 2. Trang Overview — `/deo/dashboard` (duy nhất)
 
-**Mục tiêu:** Một trang tổng hợp, lazy-load từng widget (12 API). Dùng **cùng bộ lọc thời gian** `from` / `to` (UTC, mặc định 30 ngày gần nhất) cho các widget có date range.
+**Mục tiêu:** Một trang scroll dọc, **monitoring read-only**, gom **12 endpoint** dashboard. Không tab con, không route phụ — mọi chart/bảng/cảnh báo đều trên trang này.
 
-### 2.1 Layout wireframe
+**Shared filter:** Context `DeoDateRange` — `from` / `to` (UTC, mặc định 30 ngày) áp dụng cho widget có date range. Header cố định (sticky) khi scroll.
+
+**Màu sắc gợi ý:** primary `#16A34A`, accent `#0D9488`, cảnh báo High `#DC2626` / Medium `#EA580C`, nền `#F8FAF9`, card `#FFFFFF`.
+
+### 2.1 Wireframe — full page (mockup healthcare → GreenLens)
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│ [Tên Sở TNMT]  Bộ lọc: [30 ngày ▼] [Từ] [Đến] [Áp dụng]            │
-├─────────────────────────────────────────────────────────────────────┤
-│ KPI Cards (overview)                                                │
-│ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ │
-│ │ Tổng BC│ │ Chờ XL │ │ Đã XL  │ │ SLA ⚠ │ │ Trùng  │ │ Tái phạm│ │
-│ └────────┘ └────────┘ └────────┘ └────────┘ └────────┘ └────────┘ │
-│ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐                         │
-│ │ SLA %  │ │ TG XL  │ │ Cty ⚡ │ │ VP MT  │                         │
-│ └────────┘ └────────┘ └────────┘ └────────┘                         │
-├──────────────────────────────┬──────────────────────────────────────┤
-│ Cảnh báo (alerts) — list     │ Phân bổ trạng thái (donut)           │
-│ [High] SLA breach…           │ GET report-status                    │
-│ [Med]  HĐ sắp hết hạn…       │                                      │
-├──────────────────────────────┴──────────────────────────────────────┤
-│ Xu hướng (line chart) — report-trend  groupBy=Day|Week|Month          │
-├──────────────────────────────┬──────────────────────────────────────┤
-│ Loại ô nhiễm (bar)           │ Funnel vòng đời (funnel chart)       │
-│ pollution-analytics          │ report-funnel                        │
-├──────────────────────────────┴──────────────────────────────────────┤
-│ Bản đồ nhiệt (geographic) — heatmap + markers, click → /reports/:id   │
-├──────────────────────────────┬──────────────────────────────────────┤
-│ Tuổi hàng đợi (bar)          │ Phân bổ thời gian XL (histogram)     │
-│ queue-aging                  │ resolution-distribution              │
-├──────────────────────────────┴──────────────────────────────────────┤
-│ Top công ty (table)          │ Top LEO (table)                      │
-│ company-performance          │ officer-performance                  │
-├──────────────────────────────────────────────────────────────────────┤
-│ Hoạt động gần đây (timeline) — recent-activities, page=1 pageSize=10  │
-└──────────────────────────────────────────────────────────────────────┘
+┌──────────┬──────────────────────────────────────────────────────────────┐
+│ Sidebar  │ ┌─ Sticky header ─────────────────────────────────────────┐ │
+│ (§1)     │ │ Tổng quan · {departmentName}                            │ │
+│          │ │ [7d][30d][90d][1y]  [Từ] [Đến] [Áp dụng]   🔔  Avatar   │ │
+│          │ │ Anchor: KPI · Xu hướng · Cảnh báo · Bản đồ · Hiệu suất  │ │
+│          │ └─────────────────────────────────────────────────────────┘ │
+│          ├──────────────────────────────────────────────────────────────┤
+│          │ §2.2  ROW KPI — 4 cards (mockup top row)                   │
+│          │ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐       │
+│          │ │ Tổng BC  │ │ Mới tuần │ │ SLA ⚠    │ │ Chờ XL   │       │
+│          │ └──────────┘ └──────────┘ └──────────┘ └──────────┘       │
+│          │ (optional chips: SLA%, trùng lặp, tái phạm, cty, VP MT)    │
+│          ├────────────────────────────┬─────────────────────────────────┤
+│          │ §2.3 Chart xu hướng        │ §2.4 Donut trạng thái          │
+│          │ report-trend [1M][3M][6M][1Y]│ report-status                │
+│          ├────────────────────────────┼─────────────────────────────────┤
+│          │ §2.5 Cảnh báo                │ §2.6 Hoạt động gần đây          │
+│          │ alerts                       │ recent-activities              │
+│          ├────────────────────────────┴─────────────────────────────────┤
+│          │ §2.7  Bar loại ô nhiễm  │  Funnel vòng đời                   │
+│          │ pollution-analytics     │  report-funnel                     │
+│          ├──────────────────────────────────────────────────────────────┤
+│          │ §2.8  Bản đồ nhiệt (full width) — geographic                 │
+│          ├────────────────────────────┬─────────────────────────────────┤
+│          │ §2.9 Tuổi hàng đợi        │ §2.10 Histogram thời gian XL      │
+│          │ queue-aging               │ resolution-distribution          │
+│          ├────────────────────────────┴─────────────────────────────────┤
+│          │ §2.11 Top công ty (table)  │ §2.12 Top LEO (table)            │
+│          │ company-performance        │ officer-performance              │
+│          └────────────────────────────┴─────────────────────────────────┘
 ```
 
-### 2.2 Widget → API mapping
+**Nguyên tắc:** Mockup healthcare chỉ tham chiếu **above-the-fold** (4 KPI + chart + donut + 2 panel dưới). Phần §2.7–§2.12 **vẫn cùng trang Overview**, user scroll xuống — không tách sang menu sidebar hay tab riêng.
 
-| Widget | Method | Endpoint | Query |
-|--------|--------|----------|-------|
-| KPI cards | GET | `/v1/dashboard/deo/overview` | `from`, `to` |
-| Cảnh báo | GET | `/v1/dashboard/deo/alerts` | — |
-| Donut trạng thái | GET | `/v1/dashboard/deo/report-status` | `from`, `to` |
-| Line trend | GET | `/v1/dashboard/deo/report-trend` | `groupBy`, `from`, `to` |
-| Bar category | GET | `/v1/dashboard/deo/pollution-analytics` | `from`, `to` |
-| Funnel | GET | `/v1/dashboard/deo/report-funnel` | `from`, `to` |
-| Map | GET | `/v1/dashboard/deo/geographic` | `from`, `to` |
-| Queue aging | GET | `/v1/dashboard/deo/queue-aging` | — |
-| Resolution hist | GET | `/v1/dashboard/deo/resolution-distribution` | `from`, `to` |
-| Bảng công ty | GET | `/v1/dashboard/deo/company-performance` | `from`, `to` |
-| Bảng LEO | GET | `/v1/dashboard/deo/officer-performance` | `from`, `to` |
-| Timeline | GET | `/v1/dashboard/deo/recent-activities` | `page`, `pageSize` |
+### 2.2 Header trang Overview
 
-**Auth:** Tất cả endpoint trên yêu cầu `Authorization: Bearer {token}` role `DEO`.
+| Thành phần | Hành vi | API |
+|------------|---------|-----|
+| Title | **Tổng quan** + subtitle `{departmentName}` | `GET /v1/dashboard/deo/overview` → `departmentName` |
+| Date preset | `[7d] [30d] [90d] [1y]` + custom Từ/Đến | Sync `DeoDateRange` → mọi widget §2.2–§2.12 |
+| Anchor nav (optional) | Jump tới `#kpi`, `#trend`, `#alerts`, `#map`, `#performance` | In-page scroll — **không** đổi route |
+| 🔔 | Thông báo hệ thống (ngoài dashboard) | API notifications chung |
+| Avatar | Menu profile / đăng xuất | `GET /v1/auth/me` |
 
-### 2.3 Response shapes (tóm tắt)
+**Không có** tab header kiểu mockup (Medical Reports / Patients…) — mockup đó map vào **section anchor** trên cùng trang hoặc bỏ qua.
+
+### 2.3 §2.2 Row KPI — 4 cards (mockup top row)
+
+Mỗi card: **số lớn + sparkline mini + badge % Δ**.
+
+| Card | Label VI | API chính | Field |
+|------|----------|-----------|-------|
+| 1 | **Tổng báo cáo** | `GET /v1/dashboard/deo/overview` | `totalReports` |
+| 2 | **Mới tuần này** | `GET /v1/dashboard/deo/report-trend?groupBy=Day` | Sum `created` 7 ngày |
+| 3 | **Cảnh báo SLA** | `overview` | `slaBreachedCount` |
+| 4 | **Đang chờ xử lý** | `overview` | `pendingReports` |
+
+**Sparkline:** `report-trend` → plot `created` theo ngày.
+
+**% Δ:** gọi `overview` 2 lần (kỳ hiện tại 30d vs kỳ trước 30d): `(current − previous) / max(previous, 1) × 100`.
+
+**Chips phụ (collapse, cùng `overview`):** `resolvedReports`, `slaComplianceRate`, `duplicateFlagCount`, `recurrenceFlagCount`, `activeCompanies`, `localOfficeCount`.
+
+**Click card →** navigate sang `/deo/reports` với filter tương ứng (module Báo cáo — **ngoài** trang Overview).
+
+| Card | Filter link |
+|------|-------------|
+| Tổng BC | `/deo/reports` |
+| Mới tuần này | `/deo/reports?fromDate={7d}&toDate={today}` |
+| SLA | `/deo/reports?slaBreached=true` |
+| Chờ XL | `/deo/reports?status=Verified,InProgress,Reopened` |
+
+### 2.4 §2.3 Chart xu hướng (mockup bar chart giữa trái)
+
+**API:** `GET /v1/dashboard/deo/report-trend`
+
+| Preset chart | `groupBy` | `from` |
+|--------------|-----------|--------|
+| 1 tháng | `Day` | `now − 30d` |
+| 3 tháng | `Week` | `now − 90d` |
+| 6 tháng | `Week` | `now − 180d` |
+| 1 năm | `Month` | `now − 365d` |
+
+**Series:** `created` (xanh đậm — Báo cáo mới) · `resolved` (xanh nhạt — Đã xử lý xong).
+
+**Subtitle:** `overview.averageResolutionHours` → *"TB thời gian xử lý: {n} giờ"*.
+
+### 2.5 §2.4 Donut phân bổ trạng thái (mockup giữa phải)
+
+**API:** `GET /v1/dashboard/deo/report-status?from=&to=`
+
+**Center:** tổng = sum `count`.
+
+| Slice gộp | Status | Label |
+|-----------|--------|-------|
+| Xanh | Verified, InProgress, Reopened | Đang xử lý |
+| Teal | Resolved, Closed | Hoàn thành |
+| Cam | Submitted, Rejected, Duplicate | Chờ / khác |
+
+### 2.6 §2.5 Panel cảnh báo (mockup "Today Schedule")
+
+**API:** `GET /v1/dashboard/deo/alerts`
+
+List card theo `severity` (High → Medium). Click → filter `/deo/reports` hoặc `/deo/companies` (bảng deep link §2.17).
+
+Badge sidebar menu **Tổng quan** = count alert `severity: High` (cùng API này).
+
+### 2.7 §2.6 Hoạt động gần đây (mockup "Latest Visits")
+
+**API:** `GET /v1/dashboard/deo/recent-activities?page=1&pageSize=5`
+
+| UI | Field |
+|----|-------|
+| Icon | `type` |
+| Dòng chính | `description` |
+| Thời gian | `time` |
+
+**Load more:** tăng `page` (cùng section, không rời trang). Click → `/deo/reports/{id}`.
+
+### 2.8 §2.7 Bar loại ô nhiễm + Funnel
+
+| Widget | API |
+|--------|-----|
+| Bar ngang loại ô nhiễm | `GET /v1/dashboard/deo/pollution-analytics?from=&to=` |
+| Funnel vòng đời | `GET /v1/dashboard/deo/report-funnel?from=&to=` |
+
+Layout 2 cột 50/50. Lazy-load khi scroll tới `#analytics`.
+
+### 2.9 §2.8 Bản đồ nhiệt (full width)
+
+**API:** `GET /v1/dashboard/deo/geographic?from=&to=`
+
+Heatmap + markers. Click marker → `/deo/reports/{reportId}`. Chiều cao gợi ý 360–420px.
+
+### 2.10 §2.9 Tuổi hàng đợi + §2.10 Histogram XL
+
+| Widget | API | Ghi chú |
+|--------|-----|---------|
+| Tuổi hàng đợi | `GET /v1/dashboard/deo/queue-aging` | Không cần `from`/`to` |
+| Phân bổ thời gian xử lý | `GET /v1/dashboard/deo/resolution-distribution?from=&to=` | Histogram |
+
+Layout 2 cột. Lazy-load `#queue`.
+
+### 2.11 §2.11 Bảng Top công ty + §2.12 Top LEO
+
+| Bảng | API | UI |
+|------|-----|-----|
+| Top công ty DVMT | `GET /v1/dashboard/deo/company-performance?from=&to=` | 5–10 dòng, cột: tên, task, SLA%, score |
+| Top LEO | `GET /v1/dashboard/deo/officer-performance?from=&to=` | 5–10 dòng, cột: tên, verified, avg h, score |
+
+Click tên → `/deo/companies/{id}` hoặc drawer KPI LEO (`GET /v1/reports/officer-kpi?officerId=`). Lazy-load `#performance`.
+
+### 2.13 Catalog 12 API → vị trí trên trang Overview
+
+| # | Endpoint | Section Overview |
+|---|----------|------------------|
+| 1 | `/v1/dashboard/deo/overview` | §2.3 KPI + chips |
+| 2 | `/v1/dashboard/deo/report-trend` | §2.3 sparkline + §2.4 chart |
+| 3 | `/v1/dashboard/deo/report-status` | §2.5 donut |
+| 4 | `/v1/dashboard/deo/alerts` | §2.6 panel + sidebar badge |
+| 5 | `/v1/dashboard/deo/recent-activities` | §2.7 list |
+| 6 | `/v1/dashboard/deo/pollution-analytics` | §2.8 bar |
+| 7 | `/v1/dashboard/deo/report-funnel` | §2.8 funnel |
+| 8 | `/v1/dashboard/deo/geographic` | §2.9 map |
+| 9 | `/v1/dashboard/deo/queue-aging` | §2.10 trái |
+| 10 | `/v1/dashboard/deo/resolution-distribution` | §2.10 phải |
+| 11 | `/v1/dashboard/deo/company-performance` | §2.11 trái |
+| 12 | `/v1/dashboard/deo/officer-performance` | §2.11 phải |
+
+**Auth:** `Authorization: Bearer {token}` · role `DEO`.
+
+### 2.14 Mapping mockup healthcare → section Overview
+
+| Mockup | Section Overview | API |
+|--------|------------------|-----|
+| 4 KPI cards | §2.3 | `overview`, `report-trend` |
+| Bar chart Overview | §2.4 | `report-trend` |
+| Donut Avg Diagnose | §2.5 | `report-status` |
+| Today Schedule | §2.6 | `alerts` |
+| Latest Visits | §2.7 | `recent-activities` |
+| *(không có trong mockup)* | §2.8–§2.12 scroll | 7 API còn lại |
+
+### 2.15 Component tree (1 page)
+
+```
+DeoOverviewPage (/deo/dashboard)
+├── OverviewStickyHeader       (title, DeoDateRange, anchor nav)
+├── KpiSection                 ← overview + report-trend
+├── TrendDonutSection          ← report-trend + report-status
+├── AlertsActivitiesSection    ← alerts + recent-activities
+├── AnalyticsSection           ← pollution-analytics + report-funnel  [lazy]
+├── MapSection                 ← geographic                           [lazy]
+├── QueueResolutionSection     ← queue-aging + resolution-distribution [lazy]
+└── PerformanceTablesSection   ← company-performance + officer-performance [lazy]
+```
+
+### 2.16 Thứ tự gọi API
+
+```
+Mount (above the fold — user thấy ngay):
+  1. overview
+  2. alerts
+  3. report-trend?groupBy=Month
+  4. report-status
+  5. recent-activities?pageSize=5
+  (+ overview kỳ trước song song nếu cần Δ KPI)
+
+IntersectionObserver (khi section vào viewport):
+  6. pollution-analytics + report-funnel
+  7. geographic
+  8. queue-aging + resolution-distribution
+  9. company-performance + officer-performance
+```
+
+### 2.17 Response shapes (tóm tắt)
 
 **`overview`** → `DeoOverviewResponse`:
 
@@ -131,19 +300,23 @@ DEO Portal
 
 Mã alert: `SLA_BREACH`, `OVERDUE_REPORTS`, `POSSIBLE_DUPLICATES`, `VIOLATION_RECURRENCE`, `PENDING_REOPEN`, `CONTRACT_EXPIRY`, `COMPANY_PENDING_ACTIVATION`.
 
-Click alert → deep link:
+**Deep link khi click alert (panel §2.6 trên trang Overview):**
 
 | Code | Link UI |
 |------|---------|
 | `SLA_BREACH` | `/deo/reports?slaBreached=true` |
+| `OVERDUE_REPORTS` | `/deo/reports?status=Verified,InProgress` (sort theo tuổi) |
 | `POSSIBLE_DUPLICATES` | `/deo/reports?isPossibleDuplicate=true` |
+| `VIOLATION_RECURRENCE` | `/deo/reports?isSuspectedViolationRecurrence=true` |
+| `PENDING_REOPEN` | `/deo/reports?hasPendingReopenRequest=true` |
 | `CONTRACT_EXPIRY` | `/deo/companies?status=Active` (highlight sắp hết hạn ở FE) |
+| `COMPANY_PENDING_ACTIVATION` | `/deo/companies?status=PendingActivation` |
 
 **`report-trend`** → `ReportTrendItem[]`: `{ date, created, resolved }`
 
 **`geographic`** → `{ heatmap: [{ latitude, longitude, weight }], markers: [{ reportId, latitude, longitude, status }] }`
 
-### 2.4 Widget công ty & LEO & timeline (cập nhật BE 2026-08-13)
+### 2.18 Widget công ty & LEO & timeline — chi tiết response (BE 2026-08-13)
 
 #### `GET /v1/dashboard/deo/company-performance`
 
@@ -451,7 +624,7 @@ Badge trạng thái: `PendingActivation`, `Active`, `Suspended`, `Expired`, `Ter
 
 | API | Khi nào dùng |
 |-----|--------------|
-| `GET /v1/dashboard/deo/officer-performance` | Bảng xếp hạng trên dashboard (xem §2.4) |
+| `GET /v1/dashboard/deo/officer-performance` | Bảng §2.11 trên trang Overview (xem §2.18) |
 | `GET /v1/reports/officer-kpi?officerId={uuid}` | Drill-down 1 LEO (preset `period` hoặc `from`/`to`) |
 
 **UI drill-down:** Click tên LEO → drawer KPI chi tiết (verified count, avg hours, SLA rate).
@@ -494,11 +667,11 @@ DEO **xem** queue, không approve/reject (LEO/Admin).
 | 5 | GET | `/v1/dashboard/deo/pollution-analytics` | Bar category |
 | 6 | GET | `/v1/dashboard/deo/geographic` | Heatmap + markers |
 | 7 | GET | `/v1/dashboard/deo/report-funnel` | Funnel |
-| 8 | GET | `/v1/dashboard/deo/company-performance` | Bảng công ty (luôn list công ty Sở, §2.4) |
-| 9 | GET | `/v1/dashboard/deo/officer-performance` | Bảng LEO verify KPI (§2.4) |
-| 10 | GET | `/v1/dashboard/deo/queue-aging` | Tuổi pending |
-| 11 | GET | `/v1/dashboard/deo/resolution-distribution` | Histogram XL |
-| 12 | GET | `/v1/dashboard/deo/recent-activities` | Timeline status history (§2.4) |
+| 8 | GET | `/v1/dashboard/deo/company-performance` | §2.11 Overview (§2.18) |
+| 9 | GET | `/v1/dashboard/deo/officer-performance` | §2.11 Overview (§2.18) |
+| 10 | GET | `/v1/dashboard/deo/queue-aging` | §2.10 Overview |
+| 11 | GET | `/v1/dashboard/deo/resolution-distribution` | §2.10 Overview |
+| 12 | GET | `/v1/dashboard/deo/recent-activities` | §2.7 Overview (§2.18) |
 
 ### 9.2 Báo cáo (read + export)
 
@@ -568,30 +741,31 @@ DEO **xem** queue, không approve/reject (LEO/Admin).
 
 ---
 
-## 10. Chiến lược FE kỹ thuật
+## 10. Chiến lược FE kỹ thuật (trang Overview)
 
-1. **Lazy load widgets:** Gọi `overview` + `alerts` trước; chart/map load khi scroll vào viewport.
-2. **Shared date filter:** Context `DeoDateRange` sync `from`/`to` cho mọi widget dashboard.
-3. **Empty department:** Nếu bất kỳ widget nào trả `404 DEPARTMENT_NOT_FOUND` → hiển thị “Chưa được gán Sở TNMT, liên hệ Admin”.
-4. **Báo cáo không có `AssignedDepartmentId`:** Không xuất hiện trong analytics DEO (edge case Admin cần assign office).
-5. **Widget công ty vs LEO:** `company-performance` luôn trả đủ công ty Sở (KPI 0 nếu chưa dispatch); `officer-performance` chỉ LEO có verify trong range.
-6. **Timeline:** `recent-activities` paginate bằng `page`/`pageSize`; không có `totalCount` — FE “load more” tăng `page` khi `data.length === pageSize`.
-7. **Swagger:** Tag `🔍 DEO Dashboard` trên Swagger UI — schema OpenAPI bổ sung.
-
----
-
-## 11. Checklist triển khai FE
-
-- [ ] Route guard role `DEO`
-- [ ] Dashboard 12 widget + date filter
-- [ ] Reports table + export (no action buttons)
-- [ ] Report detail read-only
-- [ ] Companies CRUD + contract flows
-- [ ] Offices list + link filter reports
-- [ ] Officer KPI drill-down
-- [ ] Ẩn/disable mọi endpoint 403 ở mục 9.6
-- [ ] Alert deep links
+1. **Một trang duy nhất:** 12 API dashboard chỉ mount tại `/deo/dashboard` — không route/widget riêng trên sidebar.
+2. **Load theo viewport:** Phase 1 (§2.16) khi mount; Phase 2 qua `IntersectionObserver` khi scroll tới section.
+3. **Shared date filter:** Context `DeoDateRange` sync `from`/`to` cho widget §2.3–§2.11 (trừ `alerts`, `queue-aging`).
+4. **KPI delta:** Gọi `overview` 2 lần (kỳ hiện tại + kỳ trước) cho badge Δ trên 4 KPI cards.
+5. **Sticky header + anchor:** Jump in-page `#kpi`, `#trend`, `#alerts`, `#map`, `#performance` — không đổi route.
+6. **Empty department:** `404 DEPARTMENT_NOT_FOUND` → full-page “Chưa được gán Sở TNMT”.
+7. **Timeline load more:** `recent-activities` tăng `page` trong cùng section §2.7.
+8. **Click-through:** KPI/alert/chart/marker → navigate sang module `/deo/reports` hoặc `/deo/companies` (rời Overview).
 
 ---
 
-**Cập nhật:** 2026-08-13 · Backend: `DeoDashboardController`, `DepartmentContextResolver`, `GetDeoCompanyPerformanceQueryHandler`, `GetDeoRecentActivitiesQueryHandler`, `LegacyReportStatusValueConverter`
+## 11. Checklist triển khai FE — trang Overview
+
+- [ ] Route `/deo/dashboard` — single page, 12 widget
+- [ ] Sticky header + `DeoDateRange` preset `[7d][30d][90d][1y]`
+- [ ] §2.3 — 4 KPI cards + sparkline + Δ
+- [ ] §2.4 + §2.5 — chart trend + donut status
+- [ ] §2.6 + §2.7 — panel cảnh báo + hoạt động gần đây (+ load more)
+- [ ] §2.8–§2.12 — 7 section scroll + lazy-load
+- [ ] Sidebar badge trên menu **Tổng quan** (alert High count)
+- [ ] Alert deep links §2.17
+- [ ] Không tạo menu sidebar riêng cho từng widget dashboard
+
+---
+
+**Cập nhật:** 2026-08-15 · Overview single-page layout (12 API) · Backend: `DeoDashboardController`

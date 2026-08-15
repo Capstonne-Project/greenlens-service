@@ -1,15 +1,5 @@
 using Greenlens.Api.Extensions;
-using Greenlens.Application.Features.Analytics.GetAdminAlerts;
-using Greenlens.Application.Features.Analytics.GetAdminCompanyPerformance;
-using Greenlens.Application.Features.Analytics.GetAdminGeographic;
-using Greenlens.Application.Features.Analytics.GetAdminOfficerPerformance;
-using Greenlens.Application.Features.Analytics.GetAdminPollutionAnalytics;
-using Greenlens.Application.Features.Analytics.GetAdminQueueAging;
-using Greenlens.Application.Features.Analytics.GetAdminRecentActivities;
-using Greenlens.Application.Features.Analytics.GetAdminReportFunnel;
-using Greenlens.Application.Features.Analytics.GetAdminReportStatusDistribution;
 using Greenlens.Application.Features.Analytics.GetAdminReportTrend;
-using Greenlens.Application.Features.Analytics.GetAdminResolutionDistribution;
 using Greenlens.Application.Features.Analytics.GetDeoAlerts;
 using Greenlens.Application.Features.Analytics.GetDeoCompanyPerformance;
 using Greenlens.Application.Features.Analytics.GetDeoGeographic;

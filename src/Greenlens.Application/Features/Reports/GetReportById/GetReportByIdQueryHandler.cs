@@ -81,7 +81,8 @@ public sealed class GetReportByIdQueryHandler(
         var media = r.Media.Select(m => new ReportMediaItem(
             m.Id, m.Type.ToString(), m.Url, m.MimeType, m.SizeBytes)).ToList();
 
-        var currentAssignmentEntity = ReportAssignmentSelection.ResolveCurrentAssignment(r.Assignments);
+        var currentAssignmentEntity = ReportAssignmentSelection.ResolveCurrentAssignment(
+            r.Assignments, r.Status);
 
         var assignments = r.Assignments
             .OrderByDescending(a => a.AssignedAt)
