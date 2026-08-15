@@ -98,11 +98,14 @@ public sealed class GetViolationRecurrenceComparisonQueryHandler(
             ? (int)Math.Floor((DateTime.UtcNow - prior.ClosedAt.Value).TotalDays)
             : 0;
 
+        var hasInspection = currentInspection is not null;
+
         return new ViolationRecurrenceComparisonResponse(
-            MapSide(current, hasInspection: currentInspection is not null),
+            MapSide(current, currentInspection?.Id, currentInspection?.Status.ToString(), hasInspection),
             MapSide(prior, priorInspection?.Id, priorInspection?.Status.ToString(), priorInspection is not null),
             daysSinceClosed,
-            distance);
+            distance,
+            hasInspection);
     }
 
     private static ViolationRecurrenceReportSide MapSide(

@@ -16,7 +16,10 @@ namespace Greenlens.Application.Features.Reports.GetCompanyReportDetail;
 /// Returns full detail of a report dispatched to the caller's company:
 /// report info, citizen media, SLA, cleanup media (Before/After), team + progress, timeline, waste tags.
 /// </summary>
-/// <remarks>Implements: BR-CMP-005, BR-CMP-021, BR-CLN-007.</remarks>
+/// <remarks>
+/// Implements: BR-CMP-005, BR-CMP-021, BR-REP-015 (reopen cycle), BR-OFF-012 (reassign after decline),
+/// BR-CLN-007 (decline reason on assignment).
+/// </remarks>
 public sealed class GetCompanyReportDetailQueryHandler(
     IReportRepository reports,
     IReportMediaRepository reportMedia,
@@ -93,30 +96,37 @@ public sealed class GetCompanyReportDetailQueryHandler(
 
         var companyAssignments = r.Assignments
             .Where(a => a.Team?.CompanyId == companyId)
-            .OrderByDescending(a => a.AssignedAt)
             .ToList();
 
-        var currentAssignment = ReportAssignmentSelection.ResolveCurrentAssignment(
-            companyAssignments, r.Status);
+        var currentAssignment = ReportAssignmentSelection.ResolveProgressAssignment(
+            companyAssignments,
+            r.Status,
+            r.ReopenedCount,
+            r.StatusHistory);
         CompanyReportTeamAssignment? assignment = currentAssignment is null
             ? null
             : MapAssignment(currentAssignment);
 
-        var assignmentHistory = companyAssignments
+        var cycleCompanyAssignments = ReportAssignmentSelection.SelectCurrentCycleAssignments(
+            companyAssignments,
+            r.Status,
+            r.ReopenedCount,
+            r.StatusHistory);
+
+        var assignmentHistory = cycleCompanyAssignments
+            .OrderByDescending(a => a.AssignedAt)
             .Select(MapHistoryItem)
             .ToList();
 
-        var canReassign = ComputeCanReassign(r, companyAssignments);
+        var canReassign = ComputeCanReassign(r, cycleCompanyAssignments);
 
-        var beforeImages = r.Media
-            .Where(m => m.Type == MediaType.Before)
-            .OrderBy(m => m.UploadedAt)
+        var beforeImages = ReportAssignmentMediaScope
+            .FilterForAssignment(r.Media, currentAssignment, MediaType.Before)
             .Select(MapReportMedia)
             .ToList();
 
-        var afterImages = r.Media
-            .Where(m => m.Type == MediaType.After)
-            .OrderBy(m => m.UploadedAt)
+        var afterImages = ReportAssignmentMediaScope
+            .FilterForAssignment(r.Media, currentAssignment, MediaType.After)
             .Select(MapReportMedia)
             .ToList();
 
