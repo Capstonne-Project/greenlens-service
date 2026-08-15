@@ -22,4 +22,6 @@ public sealed record GetOfficeReportsQuery(
     DateTime? FromDate = null,
     DateTime? ToDate = null,
     string? SortBy = null,
-    bool SortDesc = false) : IRequest<Result<GetOfficeReportsResponse>>;
+    bool SortDesc = false,
+    /// <summary>Filter by active handler: company team vs community (ward) team.</summary>
+    OfficeReportTeamScope TeamScope = OfficeReportTeamScope.All) : IRequest<Result<GetOfficeReportsResponse>>;

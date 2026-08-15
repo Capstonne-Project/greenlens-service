@@ -142,9 +142,22 @@ public sealed class SubmitPollutionReportCommandHandler(
 
         if (wardCode is null)
         {
-            logger.LogInformation(
-                "No ward boundary contains point ({Lat}, {Lng}) — report routed to Department Common Queue (BR-ORG-011)",
-                request.Latitude, request.Longitude);
+            provinceCode = await wardBoundaryLookup
+                .FindProvinceCodeByPointAsync(request.Latitude, request.Longitude, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (provinceCode is not null)
+            {
+                logger.LogInformation(
+                    "No ward boundary contains point ({Lat}, {Lng}) — province {ProvinceCode} detected for Department queue (BR-ORG-011)",
+                    request.Latitude, request.Longitude, provinceCode);
+            }
+            else
+            {
+                logger.LogInformation(
+                    "No ward or province boundary contains point ({Lat}, {Lng}) — report cannot be auto-routed (BR-ORG-011)",
+                    request.Latitude, request.Longitude);
+            }
         }
 
         var reporterId = currentUser.UserId;

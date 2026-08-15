@@ -73,7 +73,24 @@ public sealed class GetOfficeReportsQueryHandler(
         {
             var statusFilter = request.AssignmentStatus.Value;
             baseQuery = baseQuery.Where(r =>
-                r.Assignments.Any(a => a.Status == statusFilter));
+                // Active open assignment (current cycle)
+                r.Assignments.Any(a =>
+                    (a.Status == AssignmentStatus.Assigned || a.Status == AssignmentStatus.InProgress)
+                    && a.Status == statusFilter
+                    && !r.Assignments.Any(a2 =>
+                        (a2.Status == AssignmentStatus.Assigned || a2.Status == AssignmentStatus.InProgress)
+                        && a2.AssignedAt > a.AssignedAt))
+                ||
+                // Display cycle when no open assignment and not awaiting re-assign (BR-REP-015)
+                (r.Status != ReportStatus.Reopened
+                 && r.Status != ReportStatus.InProgress
+                 && !r.Assignments.Any(a =>
+                     a.Status == AssignmentStatus.Assigned || a.Status == AssignmentStatus.InProgress)
+                 && r.Assignments
+                     .Where(a => a.Status != AssignmentStatus.Declined)
+                     .OrderByDescending(a => a.AssignedAt)
+                     .Select(a => a.Status)
+                     .FirstOrDefault() == statusFilter));
         }
 
         if (request.FromDate.HasValue)
@@ -86,6 +103,25 @@ public sealed class GetOfficeReportsQueryHandler(
         {
             var toExclusive = DateTime.SpecifyKind(request.ToDate.Value.Date.AddDays(1), DateTimeKind.Utc);
             baseQuery = baseQuery.Where(r => r.CreatedAt < toExclusive);
+        }
+
+        if (request.TeamScope == OfficeReportTeamScope.Company)
+        {
+            baseQuery = baseQuery.Where(r =>
+                r.AssignedCompanyId != null ||
+                r.Assignments.Any(a =>
+                    (a.Status == AssignmentStatus.Assigned || a.Status == AssignmentStatus.InProgress) &&
+                    a.Team != null &&
+                    a.Team.CompanyId != null));
+        }
+        else if (request.TeamScope == OfficeReportTeamScope.Community)
+        {
+            baseQuery = baseQuery.Where(r =>
+                r.AssignedCompanyId == null &&
+                r.Assignments.Any(a =>
+                    (a.Status == AssignmentStatus.Assigned || a.Status == AssignmentStatus.InProgress) &&
+                    a.Team != null &&
+                    a.Team.CompanyId == null));
         }
 
         var totalItems = await baseQuery.CountAsync(ct).ConfigureAwait(false);
@@ -122,6 +158,9 @@ public sealed class GetOfficeReportsQueryHandler(
             .Include(r => r.AssignedCompany)
             .Include(r => r.Assignments)
                 .ThenInclude(a => a.Team)
+            .Include(r => r.Assignments)
+                .ThenInclude(a => a.ProgressUpdates)
+            .Include(r => r.StatusHistory)
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
             .ToListAsync(ct)
@@ -144,12 +183,21 @@ public sealed class GetOfficeReportsQueryHandler(
 
     private static OfficeReportItem MapOfficeReportItem(Report r)
     {
-        var currentAssignment = ReportAssignmentSelection.ResolveCurrentAssignment(
-            r.Assignments, r.Status);
+        var latestPerTeam = ReportAssignmentSelection.SelectLatestPerTeam(r.Assignments);
+        var cycleStartAt = ReportAssignmentSelection.ResolveCycleStartAt(
+            r.ReopenedCount,
+            r.StatusHistory,
+            latestPerTeam);
+
+        var currentAssignment = ReportAssignmentSelection.ResolveProgressAssignment(
+            r.Assignments,
+            r.Status,
+            r.ReopenedCount,
+            r.StatusHistory);
 
         IReadOnlyList<AssignmentProgressItem> assignments = currentAssignment is null
             ? []
-            : [MapAssignmentProgress(currentAssignment)];
+            : [MapAssignmentProgress(currentAssignment, r.Media)];
 
         var overallProgress = currentAssignment is null
             ? 0
@@ -158,7 +206,10 @@ public sealed class GetOfficeReportsQueryHandler(
                 : currentAssignment.ProgressPercent;
 
         OfficeAssignedCompanyItem? assignedCompany = null;
-        if (r.AssignedCompanyId.HasValue && r.AssignedCompany is not null)
+        if (r.AssignedCompanyId.HasValue
+            && r.AssignedCompany is not null
+            && ReportAssignmentSelection.IsCompanyDispatchInCurrentCycle(
+                r.ReopenedCount, r.DispatchedToCompanyAt, cycleStartAt))
         {
             assignedCompany = new OfficeAssignedCompanyItem(
                 r.AssignedCompanyId.Value,
@@ -203,19 +254,35 @@ public sealed class GetOfficeReportsQueryHandler(
             assignments);
     }
 
-    private static AssignmentProgressItem MapAssignmentProgress(ReportAssignment a) =>
-        new(
+    private static AssignmentProgressItem MapAssignmentProgress(
+        ReportAssignment a,
+        IEnumerable<ReportMedia> reportMedia)
+    {
+        var beforeUrls = ReportAssignmentMediaScope
+            .FilterForAssignment(reportMedia, a, MediaType.Before)
+            .Select(m => m.ThumbnailUrl ?? m.Url)
+            .ToList();
+        var afterUrls = ReportAssignmentMediaScope
+            .FilterForAssignment(reportMedia, a, MediaType.After)
+            .Select(m => m.ThumbnailUrl ?? m.Url)
+            .ToList();
+
+        return new(
             a.Id,
             a.TeamId,
             a.Team?.Name ?? string.Empty,
             a.Team?.TeamType.ToString() ?? string.Empty,
+            a.Team?.IsCompanyTeam ?? false,
             a.Status,
             a.Status == AssignmentStatus.Completed ? 100 : a.ProgressPercent,
-            a.ProgressNote,
+            ReportAssignmentMediaScope.ResolveLatestProgressNote(a),
             a.Note,
             a.DeclineReason,
             a.AssignedAt,
             a.StartedAt,
             a.CompletedAt,
-            a.ProgressUpdatedAt);
+            a.ProgressUpdatedAt,
+            beforeUrls,
+            afterUrls);
+    }
 }

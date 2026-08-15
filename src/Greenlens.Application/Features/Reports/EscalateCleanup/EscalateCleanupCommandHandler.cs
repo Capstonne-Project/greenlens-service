@@ -64,17 +64,12 @@ public sealed class EscalateCleanupCommandHandler(
         // Escalate this assignment
         assignment.Escalate(request.Reason);
 
-        // If ALL active assignments are now escalated/declined → revert report to Verified
-        var activeAssignments = reportAssignments
-            .Where(a => a.Status is not AssignmentStatus.Declined)
-            .ToList();
-
-        var allEscalatedOrDone = activeAssignments
-            .All(a => a.TeamId == request.TeamId
-                ? true  // current one just escalated
-                : a.Status is AssignmentStatus.Escalated or AssignmentStatus.Completed);
-
-        if (allEscalatedOrDone)
+        // Current-cycle teams only — ignore prior-cycle Completed rows (BR-REP-015)
+        if (ReportAssignmentSelection.AllCurrentCycleEscalatedOrCompleted(
+                reportAssignments,
+                report.Status,
+                report.ReopenedCount,
+                report.StatusHistory))
         {
             logger.LogWarning("All active assignments are now escalated/declined → reverting report {ReportId} to Verified", request.ReportId);
             report.ForceStatus(ReportStatus.Verified);

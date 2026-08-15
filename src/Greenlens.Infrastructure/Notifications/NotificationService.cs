@@ -106,13 +106,6 @@ internal sealed class NotificationService(
             emailEnabled = false;
         }
 
-        if (!pushEnabled && !emailEnabled)
-        {
-            logger.LogDebug("Notification skipped: user {UserId} disabled all channels for {Type}",
-                recipientId, type);
-            return;
-        }
-
         // 3. Anti-spam check (BR-NTF-003): max 20 per type per day
         var todayStart = DateTime.UtcNow.Date;
         var todayCount = await db.Notifications
@@ -129,13 +122,13 @@ internal sealed class NotificationService(
             return; // TODO: queue for digest (P2)
         }
 
-        // 4. Determine channel
+        // 4. Determine outbound channel (in-app via DB + SignalR always delivers)
         var channel = (pushEnabled, emailEnabled) switch
         {
             (true, true) => NotificationChannel.Both,
             (true, false) => NotificationChannel.Push,
             (false, true) => NotificationChannel.Email,
-            _ => NotificationChannel.Both // unreachable due to guard above
+            (false, false) => NotificationChannel.Push // placeholder — no FCM/SMTP job enqueued
         };
 
         // 5. Persist notification
@@ -162,14 +155,17 @@ internal sealed class NotificationService(
             logger.LogError(ex, "SignalR notification failed for user {UserId}", recipientId);
         }
 
-        // 7. Enqueue FCM + SMTP after commit when inside a command transaction
-        if (transactionManager.HasActiveTransaction)
-            dispatchCollector.Enqueue(notification.Id);
-        else
-            dispatchScheduler.Enqueue(notification.Id);
+        // 7. Enqueue FCM + SMTP only when at least one outbound channel is enabled
+        if (pushEnabled || emailEnabled)
+        {
+            if (transactionManager.HasActiveTransaction)
+                dispatchCollector.Enqueue(notification.Id);
+            else
+                dispatchScheduler.Enqueue(notification.Id);
+        }
 
         logger.LogInformation(
-            "Notification persisted: {Type} to user {UserId} via {Channel}; channel dispatch enqueued",
-            type, recipientId, channel);
+            "Notification persisted: {Type} to user {UserId} via {Channel}; in-app delivered, outbound={Outbound}",
+            type, recipientId, channel, pushEnabled || emailEnabled);
     }
 }

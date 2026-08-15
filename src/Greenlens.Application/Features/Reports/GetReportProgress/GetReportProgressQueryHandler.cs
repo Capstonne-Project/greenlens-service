@@ -16,7 +16,9 @@ namespace Greenlens.Application.Features.Reports.GetReportProgress;
 /// Includes per-team assignment status, progress images, after images, and status history.
 /// </summary>
 /// <remarks>
-/// Implements: BR-OFF-020 (SLA countdown), BR-OFF-011 (single-team assignment tracking).
+/// Implements: BR-REP-015 (reopen cycle reset), BR-OFF-011 (assignment tracking),
+/// BR-OFF-012 (reassign after decline), BR-CLN-007 (decline reason on progress),
+/// BR-OFF-020 (SLA countdown), BR-CMP-005 (company dispatch cycle).
 /// Scope: LEO → assigned office; Admin → all.
 /// </remarks>
 public sealed class GetReportProgressQueryHandler(
@@ -100,15 +102,27 @@ public sealed class GetReportProgressQueryHandler(
             hoursRemaining.HasValue && hoursRemaining.Value < 0,
             SlaLabels.GetValueOrDefault(report.Severity, report.Severity.ToString()));
         
-        // ── Single team assignment ─────────────────────────────────
-        var currentAssignment = ReportAssignmentSelection.ResolveCurrentAssignment(
-            report.Assignments, report.Status);
+        var latestPerTeam = ReportAssignmentSelection.SelectLatestPerTeam(report.Assignments);
+        var cycleStartAt = ReportAssignmentSelection.ResolveCycleStartAt(
+            report.ReopenedCount,
+            report.StatusHistory,
+            latestPerTeam);
+
+        // ── Single team assignment (cycle + decline/reassign aware) ──
+        var currentAssignment = ReportAssignmentSelection.ResolveProgressAssignment(
+            report.Assignments,
+            report.Status,
+            report.ReopenedCount,
+            report.StatusHistory);
         AssignmentProgressDto? assignment = currentAssignment is null
             ? null
             : MapAssignment(currentAssignment);
 
         AssignedCompanyDto? assignedCompany = null;
-        if (report.AssignedCompanyId.HasValue && report.AssignedCompany is not null)
+        if (report.AssignedCompanyId.HasValue
+            && report.AssignedCompany is not null
+            && ReportAssignmentSelection.IsCompanyDispatchInCurrentCycle(
+                report.ReopenedCount, report.DispatchedToCompanyAt, cycleStartAt))
         {
             assignedCompany = new AssignedCompanyDto(
                 report.AssignedCompanyId.Value,
@@ -116,10 +130,12 @@ public sealed class GetReportProgressQueryHandler(
                 report.DispatchedToCompanyAt);
         }
 
-        // ── Media grouped by phase ─────────────────────────────────
+        // ── Media grouped by phase (before/after scoped to current assignment cycle) ──
         var submissionImages = MapMedia(report.Media, MediaType.Image, MediaType.Video);
-        var beforeImages = MapMedia(report.Media, MediaType.Before);
-        var afterImages = MapMedia(report.Media, MediaType.After);
+        var beforeImages = MapMedia(
+            ReportAssignmentMediaScope.FilterForAssignment(report.Media, currentAssignment, MediaType.Before));
+        var afterImages = MapMedia(
+            ReportAssignmentMediaScope.FilterForAssignment(report.Media, currentAssignment, MediaType.After));
         var inspectionImages = MapMedia(report.Media, MediaType.Inspection);
         var reopenEvidenceImages = MapMedia(report.Media, MediaType.ReopenEvidence);
 
@@ -244,14 +260,13 @@ public sealed class GetReportProgressQueryHandler(
         ];
     }
 
+    private static List<MediaItemDto> MapMedia(IEnumerable<ReportMedia> media) =>
+        media.Select(MapMediaItem).ToList();
+
     private static List<MediaItemDto> MapMedia(
         IEnumerable<ReportMedia> media,
         params MediaType[] types) =>
-        media
-            .Where(m => types.Contains(m.Type))
-            .OrderBy(m => m.UploadedAt)
-            .Select(MapMediaItem)
-            .ToList();
+        MapMedia(media.Where(m => types.Contains(m.Type)).OrderBy(m => m.UploadedAt));
 
     private static MediaItemDto MapMediaItem(ReportMedia m) =>
         new(m.Id, m.Type.ToString(), m.Url, m.ThumbnailUrl, m.MimeType, m.SizeBytes, m.UploadedAt);

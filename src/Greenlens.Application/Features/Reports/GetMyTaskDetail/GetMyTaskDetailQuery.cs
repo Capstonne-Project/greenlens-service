@@ -55,9 +55,15 @@ public sealed record MyTaskDetailResponse(
     // Timing helpers for mobile countdown UI
     /// <summary>AssignedAt + 24h — deadline to decline while still Assigned.</summary>
     DateTime DeclineDeadlineAt,
-    /// <summary>True when at least 1 MediaType.Before exists for this report.</summary>
+    /// <summary>True when at least 1 before image exists for the current assignment cycle.</summary>
     bool HasBeforeImages,
     int BeforeImageCount,
+    /// <summary>Before cleanup images for the current assignment cycle.</summary>
+    IReadOnlyList<TaskImageItem> BeforeImages,
+    /// <summary>After cleanup images for the current assignment cycle.</summary>
+    IReadOnlyList<TaskImageItem> AfterImages,
+    /// <summary>Progress update history for the current assignment (newest last).</summary>
+    IReadOnlyList<TaskProgressUpdateItem> ProgressUpdates,
     /// <summary>
     /// Soft SLA: team should update progress at least once / 24h while InProgress.
     /// = (ProgressUpdatedAt ?? StartedAt) + 24h. Null when not InProgress.
@@ -66,6 +72,13 @@ public sealed record MyTaskDetailResponse(
 );
 
 public sealed record TaskImageItem(string Url, string MimeType);
+
+public sealed record TaskProgressUpdateItem(
+    Guid Id,
+    int ProgressPercent,
+    string? ProgressNote,
+    DateTime UpdatedAt,
+    IReadOnlyList<TaskImageItem> Images);
 
 public sealed record TaskWasteTagItem(
     string Code, string NameVi, string NameEn, string? IconUrl);

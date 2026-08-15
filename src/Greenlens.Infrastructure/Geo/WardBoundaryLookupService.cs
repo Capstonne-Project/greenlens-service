@@ -29,6 +29,25 @@ internal sealed class WardBoundaryLookupService(ApplicationDbContext db) : IWard
         return result.SingleOrDefault();
     }
 
+    public async Task<string?> FindProvinceCodeByPointAsync(
+        decimal latitude, decimal longitude, CancellationToken ct = default)
+    {
+        var result = await db.Database
+            .SqlQueryRaw<string>(
+                """
+                SELECT code AS "Value"
+                FROM provinces
+                WHERE boundary IS NOT NULL
+                  AND ST_Contains(boundary, ST_SetSRID(ST_MakePoint({0}, {1}), 4326))
+                LIMIT 1
+                """,
+                (double)longitude, (double)latitude)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        return result.SingleOrDefault();
+    }
+
     public async Task<string?> GetWardBoundaryGeoJsonAsync(string wardCode, CancellationToken ct = default)
     {
         var result = await db.Database

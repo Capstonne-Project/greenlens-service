@@ -136,6 +136,9 @@ public sealed class SubmitPollutionReportCommandHandlerWardAutoDetectTests
         _wardBoundaryLookup
             .FindWardCodeByPointAsync(Lat, Lng, Arg.Any<CancellationToken>())
             .Returns(ward.Code);
+        _wardBoundaryLookup
+            .FindProvinceCodeByPointAsync(Lat, Lng, Arg.Any<CancellationToken>())
+            .Returns((string?)null);
 
         var result = await sut.Handle(BuildCommand(categoryId), CancellationToken.None);
 
@@ -165,6 +168,9 @@ public sealed class SubmitPollutionReportCommandHandlerWardAutoDetectTests
         _wardBoundaryLookup
             .FindWardCodeByPointAsync(Lat, Lng, Arg.Any<CancellationToken>())
             .Returns(realWard.Code);
+        _wardBoundaryLookup
+            .FindProvinceCodeByPointAsync(Lat, Lng, Arg.Any<CancellationToken>())
+            .Returns((string?)null);
 
         // Client claims a bogus ward/province that does not exist in the DB at all.
         var command = BuildCommand(categoryId, requestWardCode: "99999", requestProvinceCode: "01");
@@ -182,10 +188,44 @@ public sealed class SubmitPollutionReportCommandHandlerWardAutoDetectTests
     }
 
     /// <summary>
-    /// GPS point is not contained by any known ward boundary (rural/unmapped area, or boundary
-    /// data not yet loaded) → report is still created successfully with null WardCode/ProvinceCode,
-    /// and auto-routing falls back to the Department Common Queue path (BR-ORG-011), which here
-    /// also has nothing to route to since ProvinceCode is null — AssignedOfficeId/DepartmentId stay null.
+    /// GPS point is not contained by any ward boundary but falls inside a province polygon
+    /// → ProvinceCode is set and report routes to Department queue (BR-ORG-011).
+    /// </summary>
+    [Fact]
+    public async Task Handle_GpsOutsideWardButInsideProvince_RoutesToDepartmentQueue_BR_ORG_011()
+    {
+        var (sut, ctx, _, categoryId) = CreateSut();
+
+        var department = Department.Create("Sở TNMT TP.HCM", "79");
+        ctx.Departments.Add(department);
+        await ctx.SaveChangesAsync();
+
+        _wardBoundaryLookup
+            .FindWardCodeByPointAsync(Lat, Lng, Arg.Any<CancellationToken>())
+            .Returns((string?)null);
+        _wardBoundaryLookup
+            .FindProvinceCodeByPointAsync(Lat, Lng, Arg.Any<CancellationToken>())
+            .Returns("79");
+
+        var result = await sut.Handle(BuildCommand(categoryId), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.WardCode.Should().BeNull();
+        result.Value.ProvinceCode.Should().Be("79");
+
+        var persisted = await ctx.Reports.SingleAsync();
+        persisted.WardCode.Should().BeNull();
+        persisted.ProvinceCode.Should().Be("79");
+        persisted.AssignedOfficeId.Should().BeNull();
+        persisted.AssignedDepartmentId.Should().Be(department.Id);
+
+        await _wardBoundaryLookup.Received(1)
+            .FindProvinceCodeByPointAsync(Lat, Lng, Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>
+    /// GPS point is not contained by any ward or province boundary → report is still created
+    /// successfully with null WardCode/ProvinceCode and no auto-routing target.
     /// </summary>
     [Fact]
     public async Task Handle_GpsOutsideAnyWardBoundary_CreatesReportWithNullWardAndProvince_BR_ORG_011()
@@ -194,6 +234,9 @@ public sealed class SubmitPollutionReportCommandHandlerWardAutoDetectTests
 
         _wardBoundaryLookup
             .FindWardCodeByPointAsync(Lat, Lng, Arg.Any<CancellationToken>())
+            .Returns((string?)null);
+        _wardBoundaryLookup
+            .FindProvinceCodeByPointAsync(Lat, Lng, Arg.Any<CancellationToken>())
             .Returns((string?)null);
 
         var result = await sut.Handle(BuildCommand(categoryId), CancellationToken.None);
@@ -210,5 +253,7 @@ public sealed class SubmitPollutionReportCommandHandlerWardAutoDetectTests
 
         await _wardBoundaryLookup.Received(1)
             .FindWardCodeByPointAsync(Lat, Lng, Arg.Any<CancellationToken>());
+        await _wardBoundaryLookup.Received(1)
+            .FindProvinceCodeByPointAsync(Lat, Lng, Arg.Any<CancellationToken>());
     }
 }

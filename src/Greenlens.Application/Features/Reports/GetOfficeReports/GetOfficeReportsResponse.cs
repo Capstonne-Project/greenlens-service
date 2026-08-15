@@ -57,12 +57,18 @@ public sealed record AssignmentProgressItem(
     Guid TeamId,
     string TeamName,
     string TeamType,
+    bool IsCompanyTeam,
     AssignmentStatus Status,
     int ProgressPercent,
+    /// <summary>Latest progress note from updates or assignment snapshot.</summary>
     string? ProgressNote,
     string? Note,
     string? DeclineReason,
     DateTime AssignedAt,
     DateTime? StartedAt,
     DateTime? CompletedAt,
-    DateTime? ProgressUpdatedAt);
+    DateTime? ProgressUpdatedAt,
+    /// <summary>Before cleanup images for the current assignment cycle.</summary>
+    IReadOnlyList<string> BeforeImageUrls,
+    /// <summary>After cleanup images for the current assignment cycle.</summary>
+    IReadOnlyList<string> AfterImageUrls);
