@@ -12,7 +12,9 @@ public sealed record ViolationRecurrenceComparisonResponse(
     ViolationRecurrenceReportSide CurrentReport,
     ViolationRecurrenceReportSide PriorClosedReport,
     int DaysSincePriorClosed,
-    double DistanceMeters);
+    double DistanceMeters,
+    /// <summary>True when the current report already has an inspection record — hide "create penalty" CTA.</summary>
+    bool HasInspection);
 
 public sealed record ViolationRecurrenceReportSide(
     Guid Id,

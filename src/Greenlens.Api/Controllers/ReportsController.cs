@@ -403,9 +403,10 @@ public sealed class ReportsController(
     [SwaggerOperation(
         Summary = "[CompanyManager] Chi tiết tiến độ xử lý báo cáo",
         Description = "Xem chi tiết 1 báo cáo đã dispatch cho công ty: thông tin báo cáo, team được giao (assignment) " +
-            "kèm acceptedAt, check-in, declineReason, teamLeaderName, thành viên (avatar), lịch sử phân công (assignmentHistory), " +
+            "kèm acceptedAt, check-in, declineReason, teamLeaderName, thành viên (avatar), lịch sử phân công (assignmentHistory — cycle hiện tại), " +
             "canReassign (true khi team Declined/Assigned — gọi PUT reassign-company-team), progressUpdates, timeline, " +
-            "ảnh before/after, priorityScore, SLA, waste tags. Không bao gồm thông tin dispatch công ty từ LEO.")]
+            "ảnh before/after (scoped theo assignment cycle hiện tại, giống GET /v1/reports/{id}/progress), priorityScore, SLA, waste tags. " +
+            "Không bao gồm thông tin dispatch công ty từ LEO.")]
     [SwaggerResponse(200, "Chi tiết tiến độ báo cáo", typeof(ApiResponse<CompanyReportDetailResponse>))]
     [SwaggerResponse(404, "Báo cáo không tồn tại hoặc không thuộc công ty của bạn", typeof(ApiResponse))]
     public async Task<IActionResult> GetCompanyReportDetailAsync(
@@ -678,7 +679,8 @@ public sealed class ReportsController(
     [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(
         Summary = "[LEO/DEO] So sánh báo cáo với case Closed trước đó",
-        Description = "BR-REP-034: Side-by-side current report vs prior Closed report trong phạm vi officer đăng nhập.")]
+        Description = "BR-REP-034: Side-by-side current report vs prior Closed report trong phạm vi officer đăng nhập. " +
+            "hasInspection (root) = true khi báo cáo hiện tại đã có hồ sơ thanh tra — FE ẩn nút tạo hồ sơ xử phạt.")]
     [SwaggerResponse(200, "So sánh", typeof(ApiResponse<ViolationRecurrenceComparisonResponse>))]
     [SwaggerResponse(404, "Không tìm thấy báo cáo", typeof(ApiResponse))]
     [SwaggerResponse(422, "Báo cáo không có cờ nghi ngờ vi phạm tái phát", typeof(ApiResponse))]
