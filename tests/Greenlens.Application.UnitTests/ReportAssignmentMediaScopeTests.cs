@@ -29,6 +29,28 @@ public sealed class ReportAssignmentMediaScopeTests
     }
 
     [Fact]
+    public void FilterForAssignment_AfterImagesAtResolve_IncludesMediaAfterCompletedAt_BR_CLN_005()
+    {
+        var assignmentStart = DateTime.UtcNow.AddDays(-2);
+        var completedAt = DateTime.UtcNow.AddMinutes(-5);
+        var assignment = ReportAssignment.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        SetAssignedAt(assignment, assignmentStart);
+        assignment.Accept();
+        assignment.Complete();
+        SetCompletedAt(assignment, completedAt);
+
+        // Simulates legacy resolve order: Complete() then persist after (UploadedAt > CompletedAt).
+        var after1 = CreateMedia(MediaType.After, completedAt.AddSeconds(2), "https://cdn/after1.jpg");
+        var after2 = CreateMedia(MediaType.After, completedAt.AddSeconds(3), "https://cdn/after2.jpg");
+
+        var after = ReportAssignmentMediaScope.FilterForAssignment(
+            [after1, after2], assignment, MediaType.After);
+
+        after.Should().HaveCount(2);
+        after.Select(m => m.Url).Should().BeEquivalentTo(["https://cdn/after1.jpg", "https://cdn/after2.jpg"]);
+    }
+
+    [Fact]
     public void FilterForAssignment_WhenAssignmentNull_ReturnsEmpty()
     {
         var media = CreateMedia(MediaType.Before, DateTime.UtcNow, "https://x/b.jpg");
@@ -72,6 +94,13 @@ public sealed class ReportAssignmentMediaScopeTests
         typeof(ReportAssignment)
             .GetProperty(nameof(ReportAssignment.AssignedAt))!
             .SetValue(assignment, assignedAt);
+    }
+
+    private static void SetCompletedAt(ReportAssignment assignment, DateTime completedAt)
+    {
+        typeof(ReportAssignment)
+            .GetProperty(nameof(ReportAssignment.CompletedAt))!
+            .SetValue(assignment, completedAt);
     }
 
     private static void SetCreatedAt(AssignmentProgressUpdate update, DateTime createdAt)
