@@ -44,9 +44,13 @@ internal static class BadgeMetricsProvider
 
         var maxSubmitStreakDays = ReportStreakCalculator.ComputeMaxConsecutiveDays(submitTimestamps);
 
+        // Chỉ tính Member (citizen tham gia) — Leader là người được giao phụ trách event,
+        // không phải người "tham gia dọn dẹp" theo nghĩa badge cleanup_hero hướng tới.
         var completedCleanupCount = await db.Set<CommunityCleanupParticipant>()
             .AsNoTracking()
-            .Where(p => p.UserId == userId && p.Status == CommunityCleanupParticipantStatus.CheckedIn)
+            .Where(p => p.UserId == userId
+                && p.Status == CommunityCleanupParticipantStatus.CheckedIn
+                && p.Role == CommunityCleanupParticipantRole.Member)
             .Join(db.Set<CommunityCleanupEvent>().Where(e => e.Status == CommunityCleanupStatus.Completed),
                 p => p.EventId, e => e.Id, (p, e) => p.Id)
             .CountAsync(ct)
