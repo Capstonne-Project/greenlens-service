@@ -198,6 +198,8 @@ public sealed class GetOfficerQueueQueryHandler(
             (QueueSortBy.CreatedAt, SortDirection.Desc) => query.OrderByDescending(r => r.CreatedAt),
             (QueueSortBy.Severity, SortDirection.Asc) => query.OrderBy(r => r.Severity).ThenByDescending(r => r.CreatedAt),
             (QueueSortBy.Severity, SortDirection.Desc) => query.OrderByDescending(r => r.Severity).ThenByDescending(r => r.CreatedAt),
+            (QueueSortBy.VerifiedAt, SortDirection.Asc) => query.OrderBy(r => r.VerifiedAt).ThenByDescending(r => r.CreatedAt),
+            (QueueSortBy.VerifiedAt, SortDirection.Desc) => query.OrderByDescending(r => r.VerifiedAt).ThenByDescending(r => r.CreatedAt),
             (QueueSortBy.SlaVerifyDueAt, SortDirection.Asc) => query.OrderBy(r => r.SlaVerifyDueAt).ThenByDescending(r => r.CreatedAt),
             (QueueSortBy.SlaVerifyDueAt, SortDirection.Desc) => query.OrderByDescending(r => r.SlaVerifyDueAt).ThenByDescending(r => r.CreatedAt),
             (QueueSortBy.SlaResolveDueAt, SortDirection.Asc) => query.OrderBy(r => r.SlaResolveDueAt).ThenByDescending(r => r.CreatedAt),

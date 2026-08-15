@@ -454,7 +454,7 @@ public sealed class ReportsController(
         Description = "Trả về danh sách báo cáo trong phạm vi officer đăng nhập: LEO → Submitted/Verified/Reopened trong office. " +
             "Mỗi item có `verifiedAt` (thời điểm xác minh; null nếu chưa verify) — dùng màn phân công team. " +
             "Hỗ trợ search (code, address, category), filter (status multi: ?status=Submitted&status=Verified, severity, category, ward, date range, SLA breached, isPossibleDuplicate, isSuspectedViolationRecurrence), " +
-            "và sort (priorityScore, createdAt, severity, slaVerifyDueAt, slaResolveDueAt — asc/desc). " +
+            "và sort (priorityScore, createdAt, severity, verifiedAt, slaVerifyDueAt, slaResolveDueAt — asc/desc). " +
             "Default sort: priorityScore desc.")]
     [SwaggerResponse(200, "Hàng đợi", typeof(ApiResponse<GetOfficerQueueResponse>))]
     public async Task<IActionResult> GetQueueAsync(

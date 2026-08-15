@@ -32,6 +32,7 @@ public enum QueueSortBy
     PriorityScore,
     CreatedAt,
     Severity,
+    VerifiedAt,
     SlaVerifyDueAt,
     SlaResolveDueAt
 }
