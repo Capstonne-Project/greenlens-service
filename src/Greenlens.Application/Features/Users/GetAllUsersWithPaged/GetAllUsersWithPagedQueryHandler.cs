@@ -27,10 +27,12 @@ public sealed class GetAllUsersWithPagedQueryHandler(IUserRepository users,
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
             logger.LogInformation("Searching for users with search term {Search}", request.Search);
-            var search = request.Search.ToLowerInvariant();
+            var search = request.Search.Trim();
+            // FullName: no ToLower — PostgreSQL lower() with C locale skips Unicode (Đ/đ), while C# lowercases the term.
+            var searchLower = search.ToLowerInvariant();
             query = query.Where(u =>
-                u.Email.Contains(search) ||
-                u.FullName.ToLower().Contains(search) ||
+                u.Email.ToLower().Contains(searchLower) ||
+                u.FullName.Contains(search) ||
                 (u.PhoneNumber != null && u.PhoneNumber.Contains(search)));
         }
 
