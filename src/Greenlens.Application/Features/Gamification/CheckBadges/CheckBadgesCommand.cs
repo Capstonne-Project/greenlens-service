@@ -13,7 +13,7 @@ namespace Greenlens.Application.Features.Gamification.CheckBadges;
 /// Checks all active badges and awards any that the user qualifies for but hasn't earned yet.
 /// Typically triggered after AwardPoints.
 /// </summary>
-/// <remarks>Implements: BR-GAM-004, BR-NTF-002 (BadgeEarned notification).</remarks>
+/// <remarks>Implements: BR-GAM-004, BR-NTF-002 (BadgeEarned / BadgeProgressNear notifications).</remarks>
 public sealed record CheckBadgesCommand(Guid UserId) : IRequest<Result<CheckBadgesResponse>>, INoTransaction;
 
 public sealed record CheckBadgesResponse(IReadOnlyList<string> NewlyAwarded);
@@ -70,8 +70,11 @@ public sealed class CheckBadgesCommandHandler(
 
                 var current = BadgeEligibilityEvaluator.GetCurrentProgressValue(badge, totalPoints, metrics);
                 var target = BadgeEligibilityEvaluator.GetTargetValue(badge);
-                if (current.HasValue && target.HasValue && target.Value > 1 && current.Value == target.Value - 1)
+                if (current.HasValue && target.HasValue
+                    && BadgeEligibilityEvaluator.IsNearProgress(current.Value, target.Value))
+                {
                     nearProgressBadges.Add(badge);
+                }
 
                 continue;
             }
@@ -115,25 +118,27 @@ public sealed class CheckBadgesCommandHandler(
             }
         }
 
-        foreach (var badge in nearProgressBadges)
+        if (nearProgressBadges.Count > 0)
         {
             var alreadyNotified = await db.Set<Notification>()
                 .AsNoTracking()
                 .AnyAsync(n => n.RecipientId == request.UserId
-                               && n.Type == NotificationType.BadgeProgressNear
-                               && n.ReferenceId == badge.Id, ct)
+                               && n.Type == NotificationType.BadgeProgressNear, ct)
                 .ConfigureAwait(false);
-            if (alreadyNotified)
-                continue;
 
-            var target = BadgeEligibilityEvaluator.GetTargetValue(badge)!.Value;
+            if (!alreadyNotified)
+            {
+                await notificationService.SendFromTemplateAsync(
+                    request.UserId,
+                    NotificationType.BadgeProgressNear,
+                    GamificationNotificationPlaceholders.Empty,
+                    referenceId: null,
+                    ct).ConfigureAwait(false);
 
-            await notificationService.SendFromTemplateAsync(
-                request.UserId,
-                NotificationType.BadgeProgressNear,
-                GamificationNotificationPlaceholders.ForBadgeProgressNear(badge, target - 1, target),
-                referenceId: badge.Id,
-                ct).ConfigureAwait(false);
+                logger.LogInformation(
+                    "BadgeProgressNear notification sent to user {UserId} ({NearCount} badge(s) near unlock)",
+                    request.UserId, nearProgressBadges.Count);
+            }
         }
 
         logger.LogInformation("Check badges completed: {NewlyAwarded}", newlyAwardedCodes);

@@ -494,9 +494,9 @@ internal static class NotificationTemplateSeeder
         Create(
             "badge_progress_near",
             "Sắp đạt huy hiệu mới",
-            "Bạn đã đạt {current}/{target} cho huy hiệu \"{badge_name}\". Cố gắng thêm chút nữa để nhận huy hiệu!",
+            "Bạn đang rất gần với một danh hiệu mới. Mở mục Huy hiệu để xem tiến độ và tiếp tục cố gắng nhé!",
             "Almost there for a new badge",
-            "You've reached {current}/{target} toward the \"{badge_name}\" badge. Keep going to earn it!",
+            "You're close to earning a new badge. Open Badges to see your progress and keep going!",
             NotificationType.BadgeProgressNear),
 
         Create(

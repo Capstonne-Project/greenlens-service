@@ -607,6 +607,7 @@ Badge gợi ý: Community Helper, Cleanup Leader, Weekend Warrior — **chưa se
 
 | File | Nội dung |
 |------|----------|
+| **`docs/fe-mobile-badge-progress-api-guide.md`** | **Badge progress cho Mobile — `GET /v1/gamification/badges`, 12 badge, `currentProgressValue` / `targetProgressValue` (ưu tiên doc này thay §4 catalog local)** |
 | `docs/Gamification/gamification-module.md` | Module BE (một phần badge list cũ — ưu tiên seed 12 badge trong doc này) |
 | `docs/UserBadge/badge_seed_proposal.md` | Chi tiết 12 badge |
 | `docs/community-cleanup-feature-spec.md` §9 | Điểm community (đề xuất) |

@@ -71,6 +71,19 @@ internal static class BadgeEligibilityEvaluator
     }
 
     /// <summary>
+    /// True when the user is close to earning a not-yet-unlocked badge:
+    /// at least halfway, one step away, or 0/1 for single-step badges (BR-GAM-004, BR-NTF-002).
+    /// </summary>
+    internal static bool IsNearProgress(int current, int target)
+    {
+        if (target <= 1 || current >= target)
+            return false;
+
+        var halfwayThreshold = (target + 1) / 2;
+        return current >= target - 1 || current >= halfwayThreshold;
+    }
+
+    /// <summary>
     /// Hint for clients on how to label progress (e.g. verified_reports → "báo cáo").
     /// </summary>
     internal static string? GetProgressMetric(Badge badge) =>

@@ -120,7 +120,7 @@ public enum NotificationType
     /// <summary>Reminder ~15 minutes before a Community Cleanup's StartsAt for participants who haven't checked in.</summary>
     CommunityCleanupCheckInReminder,
 
-    /// <summary>Progress toward a not-yet-earned badge crossed the halfway (or later) mark.</summary>
+    /// <summary>User has at least one not-yet-earned badge near unlock (≥50% or one step away); one generic notification per user.</summary>
     BadgeProgressNear,
 
     /// <summary>BR-REP-015: Citizen submitted a reopen request with evidence.</summary>

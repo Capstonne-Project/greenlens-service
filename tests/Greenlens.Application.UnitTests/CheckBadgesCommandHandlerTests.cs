@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Greenlens.Application.Common.Interfaces;
+using Greenlens.Application.Features.Gamification;
 using Greenlens.Application.Features.Gamification.CheckBadges;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
@@ -82,6 +83,127 @@ public sealed class CheckBadgesCommandHandlerTests
             Arg.Any<CancellationToken>());
     }
 
+    [Fact]
+    public async Task Handle_OneStepFromEcoWarrior_SendsBadgeProgressNear_BR_NTF_002()
+    {
+        var userId = Guid.NewGuid();
+        var badge = Badge.Create(
+            "eco_warrior",
+            "Chiến Binh Xanh",
+            "Eco Warrior",
+            requiredReportCount: 10);
+
+        await using var ctx = CreateDb();
+        ctx.Badges.Add(badge);
+        for (var i = 0; i < 9; i++)
+            ctx.Reports.Add(CreateVerifiedReport(userId));
+        await ctx.SaveChangesAsync();
+
+        var sut = CreateHandler(ctx);
+
+        var result = await sut.Handle(new CheckBadgesCommand(userId), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        await _notifications.Received(1).SendFromTemplateAsync(
+            userId,
+            NotificationType.BadgeProgressNear,
+            GamificationNotificationPlaceholders.Empty,
+            null,
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_MultipleNearBadges_SendsSingleBadgeProgressNear_BR_NTF_002()
+    {
+        var userId = Guid.NewGuid();
+        var ecoWarrior = Badge.Create(
+            "eco_warrior", "Chiến Binh Xanh", "Eco Warrior", requiredReportCount: 10);
+        var duplicateFinder = Badge.Create(
+            "duplicate_finder", "Người Phát Hiện Trùng", "Duplicate Finder");
+
+        await using var ctx = CreateDb();
+        ctx.Badges.AddRange(ecoWarrior, duplicateFinder);
+        for (var i = 0; i < 9; i++)
+            ctx.Reports.Add(CreateVerifiedReport(userId));
+        ctx.Reports.Add(CreateDuplicateReport(userId));
+        for (var i = 0; i < 3; i++)
+            ctx.Reports.Add(CreateDuplicateReport(userId));
+        await ctx.SaveChangesAsync();
+
+        var sut = CreateHandler(ctx);
+
+        await sut.Handle(new CheckBadgesCommand(userId), CancellationToken.None);
+
+        await _notifications.Received(1).SendFromTemplateAsync(
+            userId,
+            NotificationType.BadgeProgressNear,
+            GamificationNotificationPlaceholders.Empty,
+            null,
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_HalfwayEcoWarrior_SendsBadgeProgressNear_BR_NTF_002()
+    {
+        var userId = Guid.NewGuid();
+        var badge = Badge.Create(
+            "eco_warrior",
+            "Chiến Binh Xanh",
+            "Eco Warrior",
+            requiredReportCount: 10);
+
+        await using var ctx = CreateDb();
+        ctx.Badges.Add(badge);
+        for (var i = 0; i < 5; i++)
+            ctx.Reports.Add(CreateVerifiedReport(userId));
+        await ctx.SaveChangesAsync();
+
+        var sut = CreateHandler(ctx);
+
+        await sut.Handle(new CheckBadgesCommand(userId), CancellationToken.None);
+
+        await _notifications.Received(1).SendFromTemplateAsync(
+            userId,
+            NotificationType.BadgeProgressNear,
+            GamificationNotificationPlaceholders.Empty,
+            null,
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_BadgeProgressNearAlreadySent_SkipsResend_BR_NTF_002()
+    {
+        var userId = Guid.NewGuid();
+        var badge = Badge.Create(
+            "eco_warrior",
+            "Chiến Binh Xanh",
+            "Eco Warrior",
+            requiredReportCount: 10);
+
+        await using var ctx = CreateDb();
+        ctx.Badges.Add(badge);
+        for (var i = 0; i < 9; i++)
+            ctx.Reports.Add(CreateVerifiedReport(userId));
+        ctx.Notifications.Add(Notification.Create(
+            userId,
+            NotificationType.BadgeProgressNear,
+            "Sắp đạt huy hiệu mới",
+            "Bạn đang rất gần với một danh hiệu mới.",
+            referenceId: null));
+        await ctx.SaveChangesAsync();
+
+        var sut = CreateHandler(ctx);
+
+        await sut.Handle(new CheckBadgesCommand(userId), CancellationToken.None);
+
+        await _notifications.DidNotReceive().SendFromTemplateAsync(
+            userId,
+            NotificationType.BadgeProgressNear,
+            Arg.Any<Dictionary<string, string>>(),
+            Arg.Any<Guid?>(),
+            Arg.Any<CancellationToken>());
+    }
+
     private CheckBadgesCommandHandler CreateHandler(ApplicationDbContext ctx)
     {
         var unitOfWork = new UnitOfWork(
@@ -125,6 +247,23 @@ public sealed class CheckBadgesCommandHandlerTests
             null,
             null);
         report.Verify(Guid.NewGuid());
+        return report;
+    }
+
+    private static Report CreateDuplicateReport(Guid userId)
+    {
+        var report = Report.Create(
+            $"RPT-{Guid.NewGuid():N}"[..12],
+            userId,
+            Guid.NewGuid(),
+            Severity.Medium,
+            "Duplicate test",
+            10.7626m,
+            106.6602m,
+            null,
+            null,
+            null);
+        report.MarkDuplicate(Guid.NewGuid());
         return report;
     }
 }
