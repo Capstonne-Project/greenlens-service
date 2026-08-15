@@ -95,7 +95,21 @@ public sealed class BadgeEligibilityEvaluatorTests
     }
 
     [Theory]
-    [InlineData("duplicate_finder", 3, 5, "duplicate_reports")]
+    [InlineData(0, 1, false)]
+    [InlineData(4, 10, false)]
+    [InlineData(5, 10, true)]
+    [InlineData(9, 10, true)]
+    [InlineData(3, 10, false)]
+    [InlineData(10, 10, false)]
+    [InlineData(1, 2, true)]
+    [InlineData(0, 2, false)]
+    public void IsNearProgress_VariousThresholds_ReturnsExpected_BR_GAM_004(
+        int current, int target, bool expected)
+    {
+        Assert.Equal(expected, BadgeEligibilityEvaluator.IsNearProgress(current, target));
+    }
+
+    [Theory]
     [InlineData("cleanup_hero", 1, 2, "cleanup_events")]
     [InlineData("community_voice", 7, 10, "reporter_count")]
     [InlineData("streak_7d", 4, 7, "streak_days")]

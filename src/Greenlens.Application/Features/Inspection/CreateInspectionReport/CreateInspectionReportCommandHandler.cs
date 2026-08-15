@@ -14,14 +14,13 @@ namespace Greenlens.Application.Features.Inspection.CreateInspectionReport;
 /// <summary>
 /// BR-INS-001: LEO creates InspectionReport (Draft) for a verified Report.
 /// BR-OFF-005: Triage decision at verification — LEO identifies violator.
-/// When a team is assigned, Report transitions Verified → InProgress.
+/// Inspection runs as a parallel sub-process — parent Report.Status is unchanged.
 /// BR-ADM-010 (audit log).
 /// </summary>
 public sealed class CreateInspectionReportCommandHandler(
     IReportRepository reports,
     IInspectionReportRepository inspections,
     IEnvironmentalTeamRepository teams,
-    IReportStatusHistoryRepository statusHistory,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     IAuditLogger auditLogger,
@@ -86,20 +85,6 @@ public sealed class CreateInspectionReportCommandHandler(
             request.ViolatorIdentity);
 
         inspections.Add(inspection);
-
-        // 5. Transition report Verified → InProgress when team is assigned
-        if (request.AssignedTeamId.HasValue && report.Status == ReportStatus.Verified)
-        {
-            report.Assign(currentUser.UserId);
-
-            var history = ReportStatusHistory.Create(
-                report.Id,
-                ReportStatus.Verified,
-                ReportStatus.InProgress,
-                currentUser.UserId);
-
-            statusHistory.Add(history);
-        }
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 

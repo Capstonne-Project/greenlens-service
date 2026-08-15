@@ -110,11 +110,18 @@ public sealed class ResolveReportCommandHandler(
 
         assignment.Complete();
 
+        var reportStatusHistory = report.ReopenedCount > 0
+            ? await statusHistory.QueryAsNoTracking()
+                .Where(h => h.ReportId == request.ReportId)
+                .ToListAsync(ct)
+                .ConfigureAwait(false)
+            : [];
+
         var allCompleted = ReportAssignmentSelection.AllCurrentCycleNonDeclinedCompleted(
             reportAssignments,
             report.Status,
             report.ReopenedCount,
-            report.StatusHistory);
+            reportStatusHistory);
 
         if (allCompleted)
         {

@@ -114,7 +114,6 @@ public sealed class WorkflowAuditLogHandlerTests
             _reports,
             inspections,
             Substitute.For<IEnvironmentalTeamRepository>(),
-            _statusHistory,
             _currentUser,
             _uow,
             _auditLogger,

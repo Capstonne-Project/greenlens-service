@@ -16,11 +16,5 @@ internal static class GamificationNotificationPlaceholders
             ["level"] = level.ToString()
         };
 
-    internal static Dictionary<string, string> ForBadgeProgressNear(Badge badge, int current, int target) =>
-        new()
-        {
-            ["badge_name"] = badge.NameVi,
-            ["current"] = current.ToString(),
-            ["target"] = target.ToString()
-        };
+    internal static Dictionary<string, string> Empty { get; } = new();
 }

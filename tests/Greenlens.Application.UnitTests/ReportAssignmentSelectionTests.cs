@@ -394,6 +394,52 @@ public sealed class ReportAssignmentSelectionTests
     }
 
     [Fact]
+    public void AllCurrentCycleNonDeclinedCompleted_ReopenedWithoutHistory_FalseAfterComplete_BR_REP_015()
+    {
+        var teamId = Guid.NewGuid();
+        var assignedAt = DateTime.UtcNow.AddHours(-2);
+        var completedAt = DateTime.UtcNow;
+
+        var assignment = ReportAssignment.Create(Guid.NewGuid(), teamId, Guid.NewGuid());
+        assignment.Accept();
+        assignment.Complete();
+        SetAssignedAt(assignment, assignedAt);
+        SetCompletedAt(assignment, completedAt);
+
+        ReportAssignmentSelection.AllCurrentCycleNonDeclinedCompleted(
+                [assignment],
+                ReportStatus.InProgress,
+                reopenedCount: 1,
+                statusHistory: [])
+            .Should().BeFalse(
+                "empty StatusHistory makes cycle boundary fall back to CompletedAt and excludes the assignment");
+    }
+
+    [Fact]
+    public void AllCurrentCycleNonDeclinedCompleted_ReopenedWithHistory_TrueAfterComplete_BR_REP_015()
+    {
+        var teamId = Guid.NewGuid();
+        var reopenAt = DateTime.UtcNow.AddHours(-3);
+        var assignedAt = DateTime.UtcNow.AddHours(-2);
+        var completedAt = DateTime.UtcNow;
+
+        var assignment = ReportAssignment.Create(Guid.NewGuid(), teamId, Guid.NewGuid());
+        assignment.Accept();
+        assignment.Complete();
+        SetAssignedAt(assignment, assignedAt);
+        SetCompletedAt(assignment, completedAt);
+
+        var history = CreateStatusHistory(ReportStatus.Resolved, ReportStatus.Reopened, reopenAt);
+
+        ReportAssignmentSelection.AllCurrentCycleNonDeclinedCompleted(
+                [assignment],
+                ReportStatus.InProgress,
+                reopenedCount: 1,
+                statusHistory: [history])
+            .Should().BeTrue();
+    }
+
+    [Fact]
     public void IsCompanyDispatchInCurrentCycle_FirstCycle_AlwaysTrue()
     {
         ReportAssignmentSelection.IsCompanyDispatchInCurrentCycle(
