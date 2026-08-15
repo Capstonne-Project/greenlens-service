@@ -143,6 +143,7 @@ public sealed class GetOfficerQueueQueryHandler(
                 r.WardCode,
                 r.PriorityScore,
                 r.CreatedAt,
+                r.VerifiedAt,
                 r.SlaVerifyDueAt,
                 r.SlaResolveDueAt,
                 r.Media

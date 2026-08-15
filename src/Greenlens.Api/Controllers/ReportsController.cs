@@ -451,6 +451,7 @@ public sealed class ReportsController(
     [SwaggerOperation(
         Summary = "[LEO] Xem hàng đợi báo cáo",
         Description = "Trả về danh sách báo cáo trong phạm vi officer đăng nhập: LEO → Submitted/Verified/Reopened trong office. " +
+            "Mỗi item có `verifiedAt` (thời điểm xác minh; null nếu chưa verify) — dùng màn phân công team. " +
             "Hỗ trợ search (code, address, category), filter (status multi: ?status=Submitted&status=Verified, severity, category, ward, date range, SLA breached, isPossibleDuplicate, isSuspectedViolationRecurrence), " +
             "và sort (priorityScore, createdAt, severity, slaVerifyDueAt, slaResolveDueAt — asc/desc). " +
             "Default sort: priorityScore desc.")]
