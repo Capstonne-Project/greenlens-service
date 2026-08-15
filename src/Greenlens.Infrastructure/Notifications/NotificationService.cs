@@ -1,3 +1,4 @@
+using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Features.Notifications;
 using Greenlens.Domain.Entities;
@@ -96,6 +97,14 @@ internal sealed class NotificationService(
 
         var pushEnabled = pref?.PushEnabled ?? true;
         var emailEnabled = pref?.EmailEnabled ?? true;
+
+        if (emailEnabled && !NotificationEmailDeliverability.IsDeliverable(recipient.Email))
+        {
+            logger.LogDebug(
+                "Notification email suppressed for user {UserId}: non-deliverable seed/QA mailbox",
+                recipientId);
+            emailEnabled = false;
+        }
 
         if (!pushEnabled && !emailEnabled)
         {

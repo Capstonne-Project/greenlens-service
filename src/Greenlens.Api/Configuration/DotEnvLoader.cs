@@ -7,7 +7,8 @@ namespace Greenlens.Api.Configuration;
 /// <remarks>
 /// ASP.NET Core maps env vars to configuration via double-underscore nesting
 /// (e.g. <c>Jwt__Secret</c> → <c>Jwt:Secret</c>).
-/// Existing environment variables are not overwritten.
+/// Values from <c>.env</c> always overwrite existing process environment variables
+/// so local secrets win over stale shell vars or launch profile defaults.
 /// </remarks>
 internal static class DotEnvLoader
 {
@@ -15,7 +16,12 @@ internal static class DotEnvLoader
     {
         var envPath = FindEnvFile();
         if (envPath is null)
+        {
+            Console.WriteLine("[config] No .env file found — using appsettings / user-secrets only.");
             return;
+        }
+
+        Console.WriteLine($"[config] Loading .env from {envPath}");
 
         foreach (var line in File.ReadAllLines(envPath))
         {
@@ -34,8 +40,7 @@ internal static class DotEnvLoader
             var value = trimmed[(separatorIndex + 1)..].Trim();
             value = Unquote(value);
 
-            if (Environment.GetEnvironmentVariable(key) is null)
-                Environment.SetEnvironmentVariable(key, value);
+            Environment.SetEnvironmentVariable(key, value);
         }
     }
 

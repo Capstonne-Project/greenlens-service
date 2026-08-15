@@ -166,6 +166,11 @@ internal sealed class SmtpEmailSender(
     {
         try
         {
+            logger.LogInformation(
+                "Sending email via SMTP host {SmtpHost} from {FromEmail}",
+                _smtp.Host,
+                _smtp.FromEmail);
+
             using var client = new SmtpClient(_smtp.Host, _smtp.Port)
             {
                 Credentials = new NetworkCredential(_smtp.Username, _smtp.Password),

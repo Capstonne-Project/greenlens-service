@@ -1,3 +1,4 @@
+using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Domain.Enums;
 using Greenlens.Infrastructure.Persistence;
@@ -115,22 +116,33 @@ internal sealed class DispatchNotificationChannelsJob(
         {
             emailAttempted = true;
 
-            try
+            if (!NotificationEmailDeliverability.IsDeliverable(row.RecipientEmail))
             {
-                await emailSender.SendNotificationEmailAsync(row.RecipientEmail, row.Title, row.Message, ct)
-                    .ConfigureAwait(false);
-
                 await MarkEmailDispatchedAsync(notificationId, ct).ConfigureAwait(false);
                 emailSucceeded = true;
-            }
-            catch (Exception ex)
-            {
-                emailFailure = ex;
-                logger.LogError(
-                    ex,
-                    "Email failed for notification {Id}, user {UserId}",
-                    notificationId,
+                logger.LogDebug(
+                    "DispatchNotificationChannelsJob: skipping email for user {UserId} (non-deliverable mailbox)",
                     row.RecipientId);
+            }
+            else
+            {
+                try
+                {
+                    await emailSender.SendNotificationEmailAsync(row.RecipientEmail, row.Title, row.Message, ct)
+                        .ConfigureAwait(false);
+
+                    await MarkEmailDispatchedAsync(notificationId, ct).ConfigureAwait(false);
+                    emailSucceeded = true;
+                }
+                catch (Exception ex)
+                {
+                    emailFailure = ex;
+                    logger.LogError(
+                        ex,
+                        "Email failed for notification {Id}, user {UserId}",
+                        notificationId,
+                        row.RecipientId);
+                }
             }
         }
 

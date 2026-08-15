@@ -15,6 +15,10 @@ DotEnvLoader.Load();
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Surface effective SMTP config at startup (no secrets) — helps verify .env was loaded.
+Console.WriteLine(
+    $"[config] SMTP Host={builder.Configuration["Smtp:Host"]}, From={builder.Configuration["Smtp:FromEmail"]}, Enabled={builder.Configuration["Smtp:Enabled"]}");
+
 // ── Serilog ──────────────────────────────────────────
 builder.Host.UseSerilog((context, config) =>
     config.ReadFrom.Configuration(context.Configuration));
