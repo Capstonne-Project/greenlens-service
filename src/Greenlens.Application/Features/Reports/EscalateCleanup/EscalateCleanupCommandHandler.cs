@@ -6,6 +6,7 @@ using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Reports.EscalateCleanup;
@@ -64,12 +65,19 @@ public sealed class EscalateCleanupCommandHandler(
         // Escalate this assignment
         assignment.Escalate(request.Reason);
 
+        var reportStatusHistory = report.ReopenedCount > 0
+            ? await statusHistory.QueryAsNoTracking()
+                .Where(h => h.ReportId == request.ReportId)
+                .ToListAsync(ct)
+                .ConfigureAwait(false)
+            : [];
+
         // Current-cycle teams only — ignore prior-cycle Completed rows (BR-REP-015)
         if (ReportAssignmentSelection.AllCurrentCycleEscalatedOrCompleted(
                 reportAssignments,
                 report.Status,
                 report.ReopenedCount,
-                report.StatusHistory))
+                reportStatusHistory))
         {
             logger.LogWarning("All active assignments are now escalated/declined → reverting report {ReportId} to Verified", request.ReportId);
             report.ForceStatus(ReportStatus.Verified);
