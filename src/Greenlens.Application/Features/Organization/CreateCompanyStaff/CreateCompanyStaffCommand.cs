@@ -7,7 +7,7 @@ namespace Greenlens.Application.Features.Organization.CreateCompanyStaff;
 /// CM creates a CompanyStaff account with temporary password.
 /// Optionally assigns the new staff to a company team.
 /// </summary>
-/// <remarks>Implements: BR-CMP-004.</remarks>
+/// <remarks>Implements: BR-CMP-004, BR-CMP-010.</remarks>
 public sealed record CreateCompanyStaffCommand(
     string Email,
     string FullName,

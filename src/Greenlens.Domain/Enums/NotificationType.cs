@@ -144,6 +144,9 @@ public enum NotificationType
     /// <summary>BR-CMP-002: CompanyManager account provisioned — email includes login email and temporary password.</summary>
     CompanyManagerAccountCreated,
 
+    /// <summary>BR-CMP-010: CompanyStaff account provisioned — email includes login email and temporary password.</summary>
+    CompanyStaffAccountCreated,
+
     /// <summary>BR-CLN-003: LEO/CM — cleanup team checked in at the report site.</summary>
     CleanupTeamCheckedIn,
 
