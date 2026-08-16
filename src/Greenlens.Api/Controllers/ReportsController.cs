@@ -441,11 +441,9 @@ public sealed class ReportsController(
         Summary = "[LEO] Tiến trình xử lý báo cáo",
         Description = "Trả về tiến trình báo cáo trong phạm vi office LEO: vị trí (address, wardCode, latitude, longitude), team được giao (assignment), thành viên team, " +
             "công ty dispatch (assignedCompany nếu có), lịch sử cập nhật tiến độ (assignment.progressUpdates), " +
-            "ảnh theo phase (media.*), SLA, và lịch sử status. " +
-            "Trả 409 nếu báo cáo đang có chương trình dọn dẹp cộng đồng active — dùng GET /v1/community-cleanups/office-queue thay thế.")]
+            "ảnh theo phase (media.*), SLA, và lịch sử status.")]
     [SwaggerResponse(200, "Tiến trình báo cáo", typeof(ApiResponse<ReportProgressResponse>))]
     [SwaggerResponse(404, "Không tìm thấy báo cáo", typeof(ApiResponse))]
-    [SwaggerResponse(409, "Báo cáo đang có chương trình dọn cộng đồng active", typeof(ApiResponse))]
     public async Task<IActionResult> GetProgressAsync([FromRoute] Guid id, CancellationToken ct)
         => (await sender.Send(new GetReportProgressQuery(id), ct)).ToHttp();
 

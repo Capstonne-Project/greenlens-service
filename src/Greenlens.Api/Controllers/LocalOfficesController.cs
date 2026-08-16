@@ -89,6 +89,7 @@ public sealed class LocalOfficesController(ISender sender) : ControllerBase
             "tên team, loại team, trạng thái assignment, phần trăm tiến độ, ghi chú, thời gian. " +
             "Mỗi item có `thumbnails` (mảng URL ảnh đầu tiên của báo cáo, MediaType=Image). " +
             "Hỗ trợ tìm kiếm (mã báo cáo, mô tả, địa chỉ), lọc theo status (multi: ?status=Submitted&status=Verified)/category/severity/assignmentStatus, " +
+            "hasActiveCommunityCleanup (true = chỉ báo cáo đang có chương trình cộng đồng active; false = loại trừ; bỏ qua = tất cả), " +
             "teamScope (company | community — lọc báo cáo đang do đội công ty hoặc đội phường xử lý), " +
             "khoảng ngày tạo (fromDate, toDate — ISO date, inclusive theo ngày UTC), " +
             "sắp xếp theo: code, status, severity, priority, createdAt, assignmentCount (mặc định: mới nhất). " +
@@ -103,10 +104,11 @@ public sealed class LocalOfficesController(ISender sender) : ControllerBase
         [FromQuery] DateTime? fromDate = null, [FromQuery] DateTime? toDate = null,
         [FromQuery] string? sortBy = null, [FromQuery] bool sortDesc = false,
         [FromQuery] OfficeReportTeamScope teamScope = OfficeReportTeamScope.All,
+        [FromQuery] bool? hasActiveCommunityCleanup = null,
         CancellationToken ct = default)
         => (await sender.Send(new GetOfficeReportsQuery(
             page, pageSize, search, status, categoryId, severity, assignmentStatus,
-            fromDate, toDate, sortBy, sortDesc, teamScope), ct)).ToHttp();
+            fromDate, toDate, sortBy, sortDesc, teamScope, hasActiveCommunityCleanup), ct)).ToHttp();
 
     /// <summary>Ranh giới (boundary) phường mà LEO đang quản lý, suy trực tiếp từ JWT.</summary>
     [HttpGet("my/ward-boundary")]
