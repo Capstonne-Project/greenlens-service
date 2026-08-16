@@ -24,4 +24,9 @@ public sealed record GetOfficeReportsQuery(
     string? SortBy = null,
     bool SortDesc = false,
     /// <summary>Filter by active handler: company team vs community (ward) team.</summary>
-    OfficeReportTeamScope TeamScope = OfficeReportTeamScope.All) : IRequest<Result<GetOfficeReportsResponse>>;
+    OfficeReportTeamScope TeamScope = OfficeReportTeamScope.All,
+    /// <summary>
+    /// Filter by active community-cleanup event (not Completed/Cancelled).
+    /// true = only reports with an active event; false = exclude them; null = no filter.
+    /// </summary>
+    bool? HasActiveCommunityCleanup = null) : IRequest<Result<GetOfficeReportsResponse>>;

@@ -16,9 +16,10 @@ namespace Greenlens.Application.Features.Reports.GetOfficeReports;
 /// Returns all reports scoped to the current LEO's LocalOffice,
 /// including current-cycle team assignment progress for each report.
 /// </summary>
-/// <remarks>Implements: BR-REP-015 (reopen creates new assignment cycle), BR-CMP-005 (company dispatch).</remarks>
+/// <remarks>Implements: BR-REP-015 (reopen creates new assignment cycle), BR-CMP-005 (company dispatch), BR-CMU-003 (optional community-cleanup filter).</remarks>
 public sealed class GetOfficeReportsQueryHandler(
     IReportRepository reports,
+    ICommunityCleanupEventRepository communityCleanupEvents,
     IUserRepository users,
     ICurrentUser currentUser,
     ILogger<GetOfficeReportsQueryHandler> logger)
@@ -122,6 +123,21 @@ public sealed class GetOfficeReportsQueryHandler(
                     (a.Status == AssignmentStatus.Assigned || a.Status == AssignmentStatus.InProgress) &&
                     a.Team != null &&
                     a.Team.CompanyId == null));
+        }
+
+        if (request.HasActiveCommunityCleanup is true)
+        {
+            baseQuery = baseQuery.Where(r => communityCleanupEvents.QueryAsNoTracking()
+                .Any(e => e.ReportId == r.Id
+                    && e.Status != CommunityCleanupStatus.Completed
+                    && e.Status != CommunityCleanupStatus.Cancelled));
+        }
+        else if (request.HasActiveCommunityCleanup is false)
+        {
+            baseQuery = baseQuery.Where(r => !communityCleanupEvents.QueryAsNoTracking()
+                .Any(e => e.ReportId == r.Id
+                    && e.Status != CommunityCleanupStatus.Completed
+                    && e.Status != CommunityCleanupStatus.Cancelled));
         }
 
         var totalItems = await baseQuery.CountAsync(ct).ConfigureAwait(false);
