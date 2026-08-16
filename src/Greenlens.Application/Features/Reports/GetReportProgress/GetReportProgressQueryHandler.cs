@@ -18,11 +18,13 @@ namespace Greenlens.Application.Features.Reports.GetReportProgress;
 /// <remarks>
 /// Implements: BR-REP-015 (reopen cycle reset), BR-OFF-011 (assignment tracking),
 /// BR-OFF-012 (reassign after decline), BR-CLN-007 (decline reason on progress),
-/// BR-OFF-020 (SLA countdown), BR-CMP-005 (company dispatch cycle).
+/// BR-OFF-020 (SLA countdown), BR-CMP-005 (company dispatch cycle),
+/// BR-CMU-003 (block when report has active community cleanup).
 /// Scope: LEO → assigned office; Admin → all.
 /// </remarks>
 public sealed class GetReportProgressQueryHandler(
     IReportRepository reports,
+    ICommunityCleanupEventRepository communityCleanupEvents,
     IUserRepository users,
     ICurrentUser currentUser,
     ILogger<GetReportProgressQueryHandler> logger)
@@ -89,6 +91,17 @@ public sealed class GetReportProgressQueryHandler(
                 "User {UserId} denied progress for report {ReportId}: {ErrorCode}",
                 currentUser.UserId, request.ReportId, accessError.Code);
             return accessError;
+        }
+
+        var activeCommunityEvent = await communityCleanupEvents
+            .GetActiveByReportIdAsync(request.ReportId, ct)
+            .ConfigureAwait(false);
+        if (activeCommunityEvent is not null)
+        {
+            logger.LogWarning(
+                "Report {ReportId} progress blocked — active community cleanup event {EventId}",
+                request.ReportId, activeCommunityEvent.Id);
+            return Errors.CommunityCleanup.CommunityAlreadyActive;
         }
 
         // ── SLA countdown ──────────────────────────────────────────

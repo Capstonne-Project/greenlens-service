@@ -5,8 +5,8 @@ using MediatR;
 
 namespace Greenlens.Application.Features.CommunityCleanup.GetOfficeCommunityQueue;
 
-/// <summary>LEO's community-cleanup queue, default PendingVerification, scoped to their office.</summary>
+/// <summary>LEO's community-cleanup queue, scoped to their office. All statuses by default.</summary>
 public sealed record GetOfficeCommunityQueueQuery(
     int Page,
     int PageSize,
-    CommunityCleanupStatus? Status) : IRequest<Result<CommunityCleanupListResponse>>;
+    IReadOnlyList<CommunityCleanupStatus>? Statuses = null) : IRequest<Result<CommunityCleanupListResponse>>;

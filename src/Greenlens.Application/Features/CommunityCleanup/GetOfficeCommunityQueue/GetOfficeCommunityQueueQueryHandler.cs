@@ -39,7 +39,8 @@ public sealed class GetOfficeCommunityQueueQueryHandler(
         if (user.Role == UserRole.LEO && user.LocalOfficeId.HasValue)
             query = query.Where(e => e.Report!.AssignedOfficeId == user.LocalOfficeId.Value);
 
-        query = query.Where(e => e.Status == (request.Status ?? CommunityCleanupStatus.PendingVerification));
+        if (request.Statuses is { Count: > 0 })
+            query = query.Where(e => request.Statuses.Contains(e.Status));
 
         var projected = query
             .OrderBy(e => e.SubmittedAt ?? e.CreatedAt)
@@ -75,7 +76,7 @@ public sealed class GetOfficeCommunityQueueQueryHandler(
             r.Event.ProgressPercent, r.ReportLat, r.ReportLng, r.ThumbnailUrl, MyParticipation: null))
             .ToList();
 
-        logger.LogInformation("Hàng đợi xác thực cộng đồng của LEO {UserId}. Số lượng: {Count}", currentUser.UserId, items.Count);
+        logger.LogInformation("Hàng đợi chương trình cộng đồng của LEO {UserId}. Số lượng: {Count}", currentUser.UserId, items.Count);
         return new CommunityCleanupListResponse(items, pagination);
     }
 }

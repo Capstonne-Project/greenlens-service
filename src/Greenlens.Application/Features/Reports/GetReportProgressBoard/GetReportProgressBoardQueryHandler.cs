@@ -15,10 +15,12 @@ namespace Greenlens.Application.Features.Reports.GetReportProgressBoard;
 /// Each card includes SLA countdown, overall progress %, and top-3 team leader avatars.
 /// </summary>
 /// <remarks>
-/// Implements: BR-OFF-010 (priority sort), BR-OFF-020 (SLA tracking).
+/// Implements: BR-OFF-010 (priority sort), BR-OFF-020 (SLA tracking),
+/// BR-CMU-003 (exclude reports with active community cleanup).
 /// </remarks>
 public sealed class GetReportProgressBoardQueryHandler(
     IReportRepository reports,
+    ICommunityCleanupEventRepository communityCleanupEvents,
     IUserRepository users,
     ICurrentUser currentUser,
     ILogger<GetReportProgressBoardQueryHandler> logger)
@@ -54,6 +56,12 @@ public sealed class GetReportProgressBoardQueryHandler(
             .Where(r =>
                 r.AssignedOfficeId == user.LocalOfficeId.Value &&
                 r.Status == ReportStatus.InProgress);
+
+        // BR-CMU-003: active community cleanup owns the report — exclude from team progress board.
+        baseQuery = baseQuery.Where(r => !communityCleanupEvents.QueryAsNoTracking()
+            .Any(e => e.ReportId == r.Id
+                && e.Status != CommunityCleanupStatus.Completed
+                && e.Status != CommunityCleanupStatus.Cancelled));
 
         // ── Optional filters ──────────────────────────────────────
         if (request.Severity.HasValue)

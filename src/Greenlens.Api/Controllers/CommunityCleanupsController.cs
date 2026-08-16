@@ -93,11 +93,14 @@ public sealed class CommunityCleanupsController(ISender sender) : ControllerBase
 
     [HttpGet("office-queue")]
     [Authorize(Roles = "LEO,Admin")]
-    [SwaggerOperation(Summary = "[LEO] Hàng đợi chương trình cộng đồng", Description = "Mặc định lọc PendingVerification, scoped theo office của LEO.")]
+    [SwaggerOperation(
+        Summary = "[LEO] Hàng đợi chương trình cộng đồng",
+        Description = "Mặc định trả về mọi trạng thái, scoped theo office của LEO. " +
+            "Lọc theo status: ?status=PendingVerification&status=InProgress (multi-value).")]
     [SwaggerResponse(200, "Danh sách", typeof(ApiResponse<CommunityCleanupListResponse>))]
     public async Task<IActionResult> GetOfficeQueueAsync(
         [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
-        [FromQuery] CommunityCleanupStatus? status = null, CancellationToken ct = default)
+        [FromQuery] CommunityCleanupStatus[]? status = null, CancellationToken ct = default)
         => (await sender.Send(new GetOfficeCommunityQueueQuery(page, pageSize, status), ct)).ToHttp();
 
     [HttpGet("office-queue/stats")]
