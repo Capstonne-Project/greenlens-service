@@ -14,10 +14,13 @@ namespace Greenlens.Application.Features.Reports.GetOfficerQueue;
 /// Returns paginated queue of reports for the current officer's area.
 /// DEO sees reports in their department that have no LocalOffice assigned (fallback queue — needs manual routing).
 /// LEO sees Submitted + Verified reports for their office (needs verification or team assignment).
+/// Reports with an active community cleanup event are excluded (handled via community queue).
 /// Supports search, filter, and sort (BR-OFF-010).
 /// </summary>
+/// <remarks>Implements: BR-OFF-010, BR-CMU-003 (exclude active community cleanup reports).</remarks>
 public sealed class GetOfficerQueueQueryHandler(
     IReportRepository reports,
+    ICommunityCleanupEventRepository communityCleanupEvents,
     IUserRepository users,
     ICurrentUser currentUser,
     ILogger<GetOfficerQueueQueryHandler> logger) : IRequestHandler<GetOfficerQueueQuery, Result<GetOfficerQueueResponse>>
@@ -72,6 +75,12 @@ public sealed class GetOfficerQueueQueryHandler(
                  || r.Status == ReportStatus.Verified
                  || r.Status == ReportStatus.Reopened));
         }
+
+        // BR-CMU-003: active community cleanup owns the report — exclude from officer assignment queue.
+        query = query.Where(r => !communityCleanupEvents.QueryAsNoTracking()
+            .Any(e => e.ReportId == r.Id
+                && e.Status != CommunityCleanupStatus.Completed
+                && e.Status != CommunityCleanupStatus.Cancelled));
 
         // ── Filters ──
         if (request.Statuses is { Count: > 0 })

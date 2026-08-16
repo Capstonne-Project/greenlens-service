@@ -420,6 +420,7 @@ public sealed class ReportsController(
         Summary = "[LEO] Board tổng quan các báo cáo đang xử lý",
         Description = "Trả về danh sách card báo cáo InProgress trong office của LEO đang đăng nhập, " +
             "mỗi card gồm: SLA countdown, tiến độ tổng thể, avatar top-3 team leader. " +
+            "Loại trừ báo cáo đang có chương trình dọn dẹp cộng đồng active (xem GET /v1/community-cleanups/office-queue). " +
             "Dùng cho trang dashboard dạng grid. " +
             "hoursRemaining âm = đã breach SLA. " +
             "Lọc thêm: severity, slaBreachedOnly=true.")]
@@ -440,9 +441,11 @@ public sealed class ReportsController(
         Summary = "[LEO] Tiến trình xử lý báo cáo",
         Description = "Trả về tiến trình báo cáo trong phạm vi office LEO: vị trí (address, wardCode, latitude, longitude), team được giao (assignment), thành viên team, " +
             "công ty dispatch (assignedCompany nếu có), lịch sử cập nhật tiến độ (assignment.progressUpdates), " +
-            "ảnh theo phase (media.*), SLA, và lịch sử status.")]
+            "ảnh theo phase (media.*), SLA, và lịch sử status. " +
+            "Trả 409 nếu báo cáo đang có chương trình dọn dẹp cộng đồng active — dùng GET /v1/community-cleanups/office-queue thay thế.")]
     [SwaggerResponse(200, "Tiến trình báo cáo", typeof(ApiResponse<ReportProgressResponse>))]
     [SwaggerResponse(404, "Không tìm thấy báo cáo", typeof(ApiResponse))]
+    [SwaggerResponse(409, "Báo cáo đang có chương trình dọn cộng đồng active", typeof(ApiResponse))]
     public async Task<IActionResult> GetProgressAsync([FromRoute] Guid id, CancellationToken ct)
         => (await sender.Send(new GetReportProgressQuery(id), ct)).ToHttp();
 
@@ -452,6 +455,7 @@ public sealed class ReportsController(
     [SwaggerOperation(
         Summary = "[LEO] Xem hàng đợi báo cáo",
         Description = "Trả về danh sách báo cáo trong phạm vi officer đăng nhập: LEO → Submitted/Verified/Reopened trong office. " +
+            "Loại trừ báo cáo đang có chương trình dọn dẹp cộng đồng active (xem GET /v1/community-cleanups/office-queue). " +
             "Mỗi item có `verifiedAt` (thời điểm xác minh; null nếu chưa verify) — dùng màn phân công team. " +
             "Hỗ trợ search (code, address, category), filter (status multi: ?status=Submitted&status=Verified, severity, category, ward, date range, SLA breached, isPossibleDuplicate, isSuspectedViolationRecurrence), " +
             "và sort (priorityScore, createdAt, severity, verifiedAt, slaVerifyDueAt, slaResolveDueAt — asc/desc). " +
