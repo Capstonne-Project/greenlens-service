@@ -15,15 +15,17 @@ namespace Greenlens.Application.Features.Organization.CreateCompanyStaff;
 /// Optionally assigns the new staff to a company team.
 /// Staff must change password on first login (MustChangePassword=true).
 /// </summary>
-/// <remarks>Implements: BR-CMP-004.</remarks>
+/// <remarks>Implements: BR-CMP-004, BR-CMP-010, BR-NTF-002.</remarks>
 public sealed class CreateCompanyStaffCommandHandler(
     ICompanyStaffRepository companyStaffRepo,
+    IEnvironmentalServiceCompanyRepository companies,
     IUserRepository users,
     IEnvironmentalTeamRepository teams,
     ITeamMemberRepository teamMembers,
     IUnitOfWork uow,
     ICurrentUser currentUser,
     IPasswordHasher passwordHasher,
+    INotificationService notifications,
     ILogger<CreateCompanyStaffCommandHandler> logger)
     : IRequestHandler<CreateCompanyStaffCommand, Result<CreateCompanyStaffResponse>>
 {
@@ -115,6 +117,27 @@ public sealed class CreateCompanyStaffCommandHandler(
         logger.LogInformation(
             "CM {CmId} created staff {StaffEmail} for company {CompanyId}, team={TeamId}",
             currentUser.UserId, newUser.Email, companyId, assignedTeamId);
+
+        var company = await companies.GetByIdAsync(companyId, ct).ConfigureAwait(false);
+        if (company is not null)
+        {
+            await notifications.SendFromTemplateAsync(
+                newUser.Id,
+                NotificationType.CompanyStaffAccountCreated,
+                CompanyStaffAccountNotificationPlaceholders.ForCreated(
+                    company.Name,
+                    newUser.FullName,
+                    newUser.Email,
+                    tempPassword),
+                companyId,
+                ct).ConfigureAwait(false);
+        }
+        else
+        {
+            logger.LogWarning(
+                "Company {CompanyId} not found after staff creation — welcome email skipped",
+                companyId);
+        }
 
         return new CreateCompanyStaffResponse(
             newUser.Id,

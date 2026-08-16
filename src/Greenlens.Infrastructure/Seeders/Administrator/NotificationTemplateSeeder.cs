@@ -511,7 +511,21 @@ internal static class NotificationTemplateSeeder
             "Login email: {email}\n" +
             "Temporary password: {temp_password}\n\n" +
             "Please sign in and change your password on first login. The company will activate automatically afterward.",
-            NotificationType.CompanyManagerAccountCreated)
+            NotificationType.CompanyManagerAccountCreated),
+
+        Create(
+            "company_staff_account_created",
+            "Tài khoản nhân viên công ty GreenLens",
+            "Xin chào {staff_name}, bạn đã được tạo tài khoản nhân viên tại công ty \"{company_name}\" trên GreenLens.\n\n" +
+            "Email đăng nhập: {email}\n" +
+            "Mật khẩu tạm: {temp_password}\n\n" +
+            "Vui lòng đăng nhập và đổi mật khẩu ngay lần đầu.",
+            "GreenLens company staff account created",
+            "Hello {staff_name}, your Company Staff account for \"{company_name}\" on GreenLens is ready.\n\n" +
+            "Login email: {email}\n" +
+            "Temporary password: {temp_password}\n\n" +
+            "Please sign in and change your password on first login.",
+            NotificationType.CompanyStaffAccountCreated)
     ];
 
     private static NotificationTemplate Create(
