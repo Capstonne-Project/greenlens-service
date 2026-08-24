@@ -1,3 +1,4 @@
+using Greenlens.Application.Common.Models;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -78,7 +79,8 @@ public sealed record ReportAssignmentItem(
     Guid Id, Guid TeamId, string? TeamName, string TeamType,
     string Status, string? Note, DateTime AssignedAt,
     DateTime? StartedAt, DateTime? CompletedAt,
-    int ProgressPercent, string? ProgressNote, DateTime? ProgressUpdatedAt);
+    int ProgressPercent, string? ProgressNote, DateTime? ProgressUpdatedAt,
+    IReadOnlyList<WasteTagSummaryDto> TeamWasteTags);
 
 /// <summary>One assignment row in report history (includes reopen cycles).</summary>
 public sealed record ReportAssignmentHistoryItem(
@@ -97,7 +99,8 @@ public sealed record ReportAssignmentHistoryItem(
     int ProgressPercent,
     string? ProgressNote,
     DateTime? ProgressUpdatedAt,
-    bool IsCurrent);
+    bool IsCurrent,
+    IReadOnlyList<WasteTagSummaryDto> TeamWasteTags);
 
 /// <summary>One citizen reopen request (pending, approved, or rejected).</summary>
 public sealed record ReportReopenHistoryItem(

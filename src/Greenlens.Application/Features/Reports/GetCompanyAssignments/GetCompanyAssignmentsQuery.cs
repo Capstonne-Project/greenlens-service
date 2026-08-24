@@ -52,12 +52,14 @@ public sealed record CompanyAssignmentReport(
     Severity Severity,
     ReportStatus Status,
     DateTime? SlaResolveDueAt,
-    ReportReviewMediaItem? FirstMedia);
+    ReportReviewMediaItem? FirstMedia,
+    CompanyDispatchSourceDto DispatchSource);
 
 public sealed record CompanyAssignmentTeam(
     Guid TeamId,
     string TeamName,
     int MemberCount,
+    IReadOnlyList<WasteTagSummaryDto> WasteTags,
     IReadOnlyList<CompanyAssignmentTeamMember> Members);
 
 public sealed record CompanyAssignmentTeamMember(

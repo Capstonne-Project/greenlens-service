@@ -226,8 +226,10 @@ public sealed class TeamsController(ISender sender) : ControllerBase
         [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
         [FromQuery] Guid? localOfficeId = null, [FromQuery] TeamType? teamType = null,
         [FromQuery] bool? isActive = null, [FromQuery] bool? isAvailable = null,
+        [FromQuery] List<Guid>? wasteTagIds = null, [FromQuery] Guid? reportId = null,
         CancellationToken ct = default)
-        => (await sender.Send(new GetTeamsQuery(page, pageSize, localOfficeId, teamType, isActive, isAvailable), ct)).ToHttp();
+        => (await sender.Send(new GetTeamsQuery(
+            page, pageSize, localOfficeId, teamType, isActive, isAvailable, wasteTagIds, reportId), ct)).ToHttp();
 
     [HttpGet("{id:guid}")]
     [Authorize(Roles = "Admin,LEO,DEO,CompanyManager")]
@@ -267,7 +269,7 @@ public sealed class TeamsController(ISender sender) : ControllerBase
     [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
     public async Task<IActionResult> UpdateAsync(
         [FromRoute] Guid id, [FromBody] UpdateTeamRequest request, CancellationToken ct)
-        => (await sender.Send(new UpdateTeamCommand(id, request.Name), ct)).ToHttpNoContent("Đã cập nhật team.");
+        => (await sender.Send(new UpdateTeamCommand(id, request.Name, request.WasteTagIds), ct)).ToHttpNoContent("Đã cập nhật team.");
 
     // ── Team Members (LEO) ──
 
@@ -336,8 +338,10 @@ public sealed class TeamsController(ISender sender) : ControllerBase
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         [FromQuery] bool? isActive = null,
+        [FromQuery] List<Guid>? wasteTagIds = null,
+        [FromQuery] Guid? reportId = null,
         CancellationToken ct = default)
-        => (await sender.Send(new GetCompanyTeamsQuery(page, pageSize, isActive), ct)).ToHttp();
+        => (await sender.Send(new GetCompanyTeamsQuery(page, pageSize, isActive, wasteTagIds, reportId), ct)).ToHttp();
 
     [HttpGet("company-teams/{id:guid}")]
     [Authorize(Roles = "CompanyManager,Admin")]
@@ -379,7 +383,7 @@ public sealed class TeamsController(ISender sender) : ControllerBase
     [SwaggerResponse(403, "Team không thuộc công ty của bạn", typeof(ApiResponse))]
     public async Task<IActionResult> UpdateCompanyTeamAsync(
         [FromRoute] Guid id, [FromBody] UpdateCompanyTeamRequest request, CancellationToken ct)
-        => (await sender.Send(new UpdateCompanyTeamCommand(id, request.Name), ct))
+        => (await sender.Send(new UpdateCompanyTeamCommand(id, request.Name, request.WasteTagIds), ct))
             .ToHttpNoContent("Đã cập nhật team.");
 
     [HttpPut("company-teams/{id:guid}/archive")]
@@ -444,11 +448,11 @@ public sealed class TeamsController(ISender sender) : ControllerBase
             .ToHttpNoContent("Đã xóa nhân viên khỏi team.");
 }
 
-public sealed record UpdateTeamRequest(string Name);
+public sealed record UpdateTeamRequest(string Name, List<Guid>? WasteTagIds = null);
 public sealed record AddTeamMemberRequest(Guid UserId, bool IsLeader = false);
 public sealed record DeclineTaskRequest(Guid TeamId, string Reason);
 public sealed record TransferMemberRequest(Guid NewTeamId, bool IsLeader = false);
-public sealed record UpdateCompanyTeamRequest(string Name);
+public sealed record UpdateCompanyTeamRequest(string Name, List<Guid>? WasteTagIds = null);
 public sealed record ToggleCompanyTeamRequest(bool IsActive);
 public sealed record AddCompanyTeamMemberRequest(Guid UserId, bool IsLeader = false);
 

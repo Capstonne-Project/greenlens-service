@@ -3,4 +3,8 @@ using MediatR;
 
 namespace Greenlens.Application.Features.Organization.UpdateTeam;
 
-public sealed record UpdateTeamCommand(Guid Id, string Name) : IRequest<Result>;
+/// <remarks>Implements: BR-ORG-003, BR-CLN-005.</remarks>
+public sealed record UpdateTeamCommand(
+    Guid Id,
+    string Name,
+    List<Guid>? WasteTagIds) : IRequest<Result>;

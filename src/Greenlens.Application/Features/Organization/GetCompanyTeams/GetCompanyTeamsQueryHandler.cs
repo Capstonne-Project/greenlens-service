@@ -2,6 +2,7 @@ using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Common.Models;
+using Greenlens.Application.Features.Organization.Common;
 using Greenlens.Domain.Common;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -12,10 +13,12 @@ namespace Greenlens.Application.Features.Organization.GetCompanyTeams;
 /// <summary>
 /// CompanyManager retrieves teams belonging to their company.
 /// </summary>
-/// <remarks>Implements: BR-CMP-004.</remarks>
+/// <remarks>Implements: BR-CMP-004, BR-CLN-005, BR-OFF-014.</remarks>
 public sealed class GetCompanyTeamsQueryHandler(
     ICompanyStaffRepository companyStaff,
     IEnvironmentalTeamRepository teams,
+    IReportRepository reports,
+    IReportWasteTagRepository reportWasteTags,
     ICurrentUser currentUser,
     ILogger<GetCompanyTeamsQueryHandler> logger) : IRequestHandler<GetCompanyTeamsQuery, Result<GetCompanyTeamsResponse>>
 {
@@ -36,40 +39,72 @@ public sealed class GetCompanyTeamsQueryHandler(
 
         var companyId = staff.CompanyId;
 
+        var prioritizeResult = await TeamListPrioritizeHelper.ResolvePrioritizeTagIdsForCompanyAsync(
+                request.ReportId,
+                request.WasteTagIds,
+                reports,
+                reportWasteTags,
+                companyId,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        if (!prioritizeResult.IsSuccess)
+            return prioritizeResult.Error!;
+
+        var prioritizeIds = prioritizeResult.Value!;
+        var filterTagIds = request.WasteTagIds?.Distinct().ToList() ?? [];
+
         var query = teams.QueryAsNoTracking()
             .Include(t => t.LocalOffice)
             .Include(t => t.Members)
+            .Include(t => t.WasteTags).ThenInclude(tw => tw.WasteTag)
             .Where(t => t.CompanyId == companyId);
 
         if (request.IsActive.HasValue)
-        {
-            logger.LogInformation("Filtering teams by active status: {IsActive}", request.IsActive.Value);
             query = query.Where(t => t.IsActive == request.IsActive.Value);
+
+        if (filterTagIds.Count > 0)
+        {
+            query = query.Where(t =>
+                t.WasteTags.Any(tw => filterTagIds.Contains(tw.WasteTagId)));
         }
 
-        var totalCount = await query.CountAsync(cancellationToken).ConfigureAwait(false);
+        var teamList = await query.ToListAsync(cancellationToken).ConfigureAwait(false);
 
-        var items = await query
-            .OrderByDescending(t => t.CreatedAt)
-            .Skip((request.Page - 1) * request.PageSize)
-            .Take(request.PageSize)
-            .Select(t => new CompanyTeamItem(
-                t.Id,
-                t.Name,
-                t.TeamType,
-                t.LocalOfficeId,
-                t.LocalOffice != null ? t.LocalOffice.Name : null,
-                t.IsActive,
-                t.Members.Count,
-                t.CreatedAt))
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var ordered = (prioritizeIds.Count > 0
+            ? teamList
+                .OrderByDescending(t => TeamWasteTagService.CountMatchingTags(t, prioritizeIds))
+                .ThenBy(t => t.Name)
+            : teamList.OrderByDescending(t => t.CreatedAt))
+            .ToList();
 
+        var totalCount = ordered.Count;
         var pagination = PaginationMeta.Create(request.Page, request.PageSize, totalCount);
 
+        var items = ordered
+            .Skip((request.Page - 1) * request.PageSize)
+            .Take(request.PageSize)
+            .Select(t =>
+            {
+                var matchCount = prioritizeIds.Count > 0
+                    ? TeamWasteTagService.CountMatchingTags(t, prioritizeIds)
+                    : (int?)null;
+
+                return new CompanyTeamItem(
+                    t.Id,
+                    t.Name,
+                    t.TeamType,
+                    t.LocalOfficeId,
+                    t.LocalOffice?.Name,
+                    t.IsActive,
+                    t.Members.Count,
+                    t.CreatedAt,
+                    TeamWasteTagService.MapTags(t),
+                    matchCount);
+            })
+            .ToList();
+
         logger.LogInformation("Company teams found: {TotalCount}", totalCount);
-        logger.LogInformation("Company teams items: {Items}", items);
-        logger.LogInformation("Company teams pagination: {Pagination}", pagination);
 
         return new GetCompanyTeamsResponse(items, pagination);
     }

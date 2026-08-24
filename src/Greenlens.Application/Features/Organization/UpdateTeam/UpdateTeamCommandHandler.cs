@@ -1,14 +1,16 @@
 using Greenlens.Application.Common;
-using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Organization.Common;
 using Greenlens.Domain.Common;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Organization.UpdateTeam;
 
+/// <remarks>Implements: BR-ORG-003, BR-CLN-005.</remarks>
 public sealed class UpdateTeamCommandHandler(
     IEnvironmentalTeamRepository teams,
+    TeamWasteTagService wasteTagService,
     IUnitOfWork uow,
     ILogger<UpdateTeamCommandHandler> logger) : IRequestHandler<UpdateTeamCommand, Result>
 {
@@ -23,7 +25,15 @@ public sealed class UpdateTeamCommandHandler(
             return Errors.Organization.TeamNotFound;
         }
 
-        // Update team name
+        if (request.WasteTagIds is not null)
+        {
+            var tagResult = await wasteTagService
+                .ReplaceTeamTagsAsync(team, request.WasteTagIds, ct)
+                .ConfigureAwait(false);
+            if (!tagResult.IsSuccess)
+                return tagResult;
+        }
+
         team.Update(request.Name);
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 

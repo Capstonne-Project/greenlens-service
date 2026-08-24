@@ -1,6 +1,7 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Organization.Common;
 using Greenlens.Application.Features.Organization.GetTeamById;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
@@ -78,6 +79,15 @@ public sealed class GetCompanyTeamByIdQueryHandler(
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
+        var teamWithTags = await teams.QueryAsNoTracking()
+            .Include(t => t.WasteTags).ThenInclude(tw => tw.WasteTag)
+            .FirstOrDefaultAsync(t => t.Id == request.TeamId, ct)
+            .ConfigureAwait(false);
+
+        var wasteTags = teamWithTags is not null
+            ? TeamWasteTagService.MapTags(teamWithTags)
+            : [];
+
         logger.LogInformation(
             "Company team detail fetched: {TeamName} ({MemberCount} members)",
             team.Name,
@@ -91,6 +101,7 @@ public sealed class GetCompanyTeamByIdQueryHandler(
             team.IsActive,
             members.Count,
             members,
+            wasteTags,
             team.CreatedAt,
             team.UpdatedAt);
     }

@@ -3,17 +3,20 @@ using System;
 using Greenlens.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace Greenlens.Infrastructure.Migrations
+namespace Greenlens.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260824084206_202608241530_AddTeamWasteTags")]
+    partial class _202608241530_AddTeamWasteTags
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2583,10 +2586,6 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasColumnType("character varying(1000)")
                         .HasColumnName("description");
 
-                    b.Property<Guid?>("DispatchedByOfficerId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("dispatched_by_officer_id");
-
                     b.Property<DateTime?>("DispatchedToCompanyAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("dispatched_to_company_at");
@@ -2776,9 +2775,6 @@ namespace Greenlens.Infrastructure.Migrations
 
                     b.HasIndex("CreatedAt")
                         .HasDatabaseName("ix_reports_created_at");
-
-                    b.HasIndex("DispatchedByOfficerId")
-                        .HasDatabaseName("ix_reports_dispatched_by_officer_id");
 
                     b.HasIndex("IsPossibleDuplicate")
                         .HasDatabaseName("ix_reports_is_possible_duplicate");
@@ -4550,12 +4546,6 @@ namespace Greenlens.Infrastructure.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_reports_pollution_categories_category_id");
 
-                    b.HasOne("Greenlens.Domain.Entities.User", "DispatchedByUser")
-                        .WithMany()
-                        .HasForeignKey("DispatchedByOfficerId")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .HasConstraintName("fk_reports_users_dispatched_by_officer_id");
-
                     b.HasOne("Greenlens.Domain.Entities.Report", "ParentReport")
                         .WithMany("DuplicateReports")
                         .HasForeignKey("ParentReportId")
@@ -4593,8 +4583,6 @@ namespace Greenlens.Infrastructure.Migrations
                     b.Navigation("AssignedOffice");
 
                     b.Navigation("Category");
-
-                    b.Navigation("DispatchedByUser");
 
                     b.Navigation("ParentReport");
 

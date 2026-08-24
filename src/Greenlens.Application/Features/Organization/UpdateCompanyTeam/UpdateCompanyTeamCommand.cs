@@ -6,7 +6,8 @@ namespace Greenlens.Application.Features.Organization.UpdateCompanyTeam;
 /// <summary>
 /// CompanyManager renames a team belonging to their company.
 /// </summary>
-/// <remarks>Implements: BR-CMP-004.</remarks>
+/// <remarks>Implements: BR-CMP-004, BR-CLN-005.</remarks>
 public sealed record UpdateCompanyTeamCommand(
     Guid TeamId,
-    string Name) : IRequest<Result>;
+    string Name,
+    List<Guid>? WasteTagIds) : IRequest<Result>;

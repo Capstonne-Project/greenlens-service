@@ -1,3 +1,4 @@
+using Greenlens.Application.Features.Organization.Common;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
@@ -51,6 +52,13 @@ public sealed class GetCompanyReportDetailQueryHandler(
             .Include(x => x.Category)
             .Include(x => x.Media)
             .Include(x => x.VerifiedByUser)
+            .Include(x => x.DispatchedByUser)
+            .Include(x => x.AssignedOffice!)
+                .ThenInclude(o => o.Ward)
+            .Include(x => x.Assignments)
+                .ThenInclude(a => a.Team!)
+                    .ThenInclude(t => t.WasteTags)
+                        .ThenInclude(tw => tw.WasteTag)
             .Include(x => x.Assignments)
                 .ThenInclude(a => a.Team!)
                     .ThenInclude(t => t.Members)
@@ -164,6 +172,7 @@ public sealed class GetCompanyReportDetailQueryHandler(
             r.VerifiedAt,
             r.VerifiedByUser?.FullName,
             r.DispatchedToCompanyAt,
+            CompanyDispatchSourceMapper.Map(r),
             r.ResolvedAt, r.ClosedAt,
             r.ReopenedCount,
             r.PriorityScore,
@@ -192,7 +201,8 @@ public sealed class GetCompanyReportDetailQueryHandler(
             a.StartedAt,
             a.CompletedAt,
             a.DeclineReason,
-            a.Note);
+            a.Note,
+            a.Team is not null ? TeamWasteTagService.MapTags(a.Team) : []);
 
     private static CompanyReportTeamAssignment MapAssignment(ReportAssignment a)
     {
@@ -220,6 +230,7 @@ public sealed class GetCompanyReportDetailQueryHandler(
             a.TeamId,
             a.Team?.Name ?? "Unknown",
             leader?.User?.FullName,
+            a.Team is not null ? TeamWasteTagService.MapTags(a.Team) : [],
             a.Team?.Members
                 .Select(m => new CompanyReportTeamMember(
                     m.UserId,

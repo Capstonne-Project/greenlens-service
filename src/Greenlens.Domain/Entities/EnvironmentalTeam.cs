@@ -6,15 +6,14 @@ namespace Greenlens.Domain.Entities;
 
 /// <summary>
 /// Environmental Team — either Cleanup or Inspection.
-/// Dispatch is by NEED (v1.3), not by pollution type.
-/// Cleanup: handles field cleanup for any pollution type.
+/// Cleanup teams declare WasteTag specializations (BR-CLN-005) to guide LEO/CM assignment.
 /// Inspection: handles penalty enforcement — always ward-level (LEO-managed, BR-INS-001).
 /// Community teams (CompanyId == null): managed by LEO, gắn cố định 1 LocalOffice.
 /// Company teams (CompanyId != null): CRUD + assignment managed by CompanyManager.
 ///   LocalOfficeId == null (team công ty không gắn cố định phường/xã, đi theo task).
 ///   InspectionTeam không thể thuộc company.
 /// </summary>
-/// <remarks>Implements: BR-ORG-003, BR-CLN-001, BR-INS-001.</remarks>
+/// <remarks>Implements: BR-ORG-003, BR-CLN-001, BR-CLN-005, BR-INS-001.</remarks>
 public sealed class EnvironmentalTeam : SoftDeletableEntity
 {
     private EnvironmentalTeam() { } // EF Core constructor
@@ -36,6 +35,7 @@ public sealed class EnvironmentalTeam : SoftDeletableEntity
     public LocalOffice? LocalOffice { get; private set; }
     public EnvironmentalServiceCompany? Company { get; private set; }
     public ICollection<TeamMember> Members { get; private set; } = [];
+    public ICollection<TeamWasteTag> WasteTags { get; private set; } = [];
 
     /// <summary>BR-ORG-003: Create a community team under a local office (LEO-managed).</summary>
     public static EnvironmentalTeam Create(string name, Guid localOfficeId, TeamType teamType)

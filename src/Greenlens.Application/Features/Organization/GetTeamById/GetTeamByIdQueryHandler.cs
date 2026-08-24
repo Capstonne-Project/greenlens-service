@@ -1,6 +1,7 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Organization.Common;
 using Greenlens.Domain.Common;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -88,6 +89,15 @@ public sealed class GetTeamByIdQueryHandler(
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
+        var teamEntity = await teams.QueryAsNoTracking()
+            .Include(t => t.WasteTags).ThenInclude(tw => tw.WasteTag)
+            .FirstOrDefaultAsync(t => t.Id == request.Id, ct)
+            .ConfigureAwait(false);
+
+        var wasteTags = teamEntity is not null
+            ? TeamWasteTagService.MapTags(teamEntity)
+            : [];
+
         logger.LogInformation("Lấy thông tin chi tiết đội ngũ thành công. Tên đội: {TeamName}", header.Name);
 
         return new TeamDetailResponse(
@@ -98,6 +108,7 @@ public sealed class GetTeamByIdQueryHandler(
             header.OfficeName,
             header.IsActive,
             members,
+            wasteTags,
             header.CreatedAt,
             header.UpdatedAt);
     }
