@@ -78,7 +78,10 @@ internal sealed class ReportConfiguration : IEntityTypeConfiguration<Report>
             .HasForeignKey(r => r.VerifiedBy)
             .OnDelete(DeleteBehavior.SetNull);
 
-
+        builder.HasOne(r => r.DispatchedByUser)
+            .WithMany()
+            .HasForeignKey(r => r.DispatchedByOfficerId)
+            .OnDelete(DeleteBehavior.SetNull);
 
         // ── Organization assignment ──
         builder.HasOne(r => r.AssignedOffice)

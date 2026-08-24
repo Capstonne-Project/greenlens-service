@@ -45,6 +45,10 @@ public sealed class GetCompanyAssignmentsQueryHandler(
 
         var baseQuery = assignments.QueryAsNoTracking()
             .Include(a => a.Report).ThenInclude(r => r!.Category)
+            .Include(a => a.Report).ThenInclude(r => r!.VerifiedByUser)
+            .Include(a => a.Report).ThenInclude(r => r!.DispatchedByUser)
+            .Include(a => a.Report).ThenInclude(r => r!.AssignedOffice!)
+                .ThenInclude(o => o.Ward)
             .Include(a => a.Team).ThenInclude(t => t!.WasteTags).ThenInclude(tw => tw.WasteTag)
             .Include(a => a.Team).ThenInclude(t => t!.Members).ThenInclude(m => m.User)
             .Include(a => a.AssignedByUser)
@@ -184,7 +188,8 @@ public sealed class GetCompanyAssignmentsQueryHandler(
                 a.Report.Severity,
                 a.Report.Status,
                 a.Report.SlaResolveDueAt,
-                CitizenReportMediaLoader.GetFirstMedia(firstMediaByReportId, a.Report.Id)),
+                CitizenReportMediaLoader.GetFirstMedia(firstMediaByReportId, a.Report.Id),
+                CompanyDispatchSourceMapper.Map(a.Report)),
             MapTeam(a.Team!),
             a.AssignedByUser?.FullName ?? "Unknown")).ToList();
 

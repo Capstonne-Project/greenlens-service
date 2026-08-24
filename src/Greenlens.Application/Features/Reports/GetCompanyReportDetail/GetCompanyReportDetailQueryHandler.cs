@@ -52,6 +52,9 @@ public sealed class GetCompanyReportDetailQueryHandler(
             .Include(x => x.Category)
             .Include(x => x.Media)
             .Include(x => x.VerifiedByUser)
+            .Include(x => x.DispatchedByUser)
+            .Include(x => x.AssignedOffice!)
+                .ThenInclude(o => o.Ward)
             .Include(x => x.Assignments)
                 .ThenInclude(a => a.Team!)
                     .ThenInclude(t => t.WasteTags)
@@ -169,6 +172,7 @@ public sealed class GetCompanyReportDetailQueryHandler(
             r.VerifiedAt,
             r.VerifiedByUser?.FullName,
             r.DispatchedToCompanyAt,
+            CompanyDispatchSourceMapper.Map(r),
             r.ResolvedAt, r.ClosedAt,
             r.ReopenedCount,
             r.PriorityScore,

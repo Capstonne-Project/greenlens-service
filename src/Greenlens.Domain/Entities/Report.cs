@@ -65,6 +65,8 @@ public sealed class Report : SoftDeletableEntity
     public Guid? AssignedCompanyId { get; private set; }
     /// <summary>When LEO dispatched the report to the company.</summary>
     public DateTime? DispatchedToCompanyAt { get; private set; }
+    /// <summary>LEO who dispatched this report to the company (not overwritten when CM assigns teams).</summary>
+    public Guid? DispatchedByOfficerId { get; private set; }
 
     // ── Duplicate tracking ──
     public Guid? ParentReportId { get; private set; }
@@ -130,6 +132,7 @@ public sealed class Report : SoftDeletableEntity
     public PollutionCategory Category { get; private set; } = default!;
     public Report? ParentReport { get; private set; }
     public User? VerifiedByUser { get; private set; }
+    public User? DispatchedByUser { get; private set; }
     public LocalOffice? AssignedOffice { get; private set; }
     public Department? AssignedDepartment { get; private set; }
     public EnvironmentalServiceCompany? AssignedCompany { get; private set; }
@@ -273,6 +276,7 @@ public sealed class Report : SoftDeletableEntity
 
         AssignedCompanyId = companyId;
         DispatchedToCompanyAt = DateTime.UtcNow;
+        DispatchedByOfficerId = leoId;
         Status = ReportStatus.InProgress;
         AssignedByOfficerId = leoId;
         UpdatedAt = DateTime.UtcNow;
@@ -368,6 +372,7 @@ public sealed class Report : SoftDeletableEntity
         AssignedByOfficerId = null;
         AssignedCompanyId = null;
         DispatchedToCompanyAt = null;
+        DispatchedByOfficerId = null;
         StartedAt = null;
         SlaResolveBreached = false;
         UpdatedAt = DateTime.UtcNow;

@@ -28,6 +28,7 @@ public sealed record CompanyReportDetailResponse(
     DateTime? VerifiedAt,
     string? VerifiedByName,
     DateTime? DispatchedToCompanyAt,
+    CompanyDispatchSourceDto DispatchSource,
     DateTime? ResolvedAt,
     DateTime? ClosedAt,
     int ReopenedCount,

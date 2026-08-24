@@ -40,4 +40,5 @@ public sealed record CompanyQueueItem(
     DateTime? VerifiedAt,
     string? VerifiedByName,
     DateTime? SlaResolveDueAt,
-    IReadOnlyList<ReportReviewMediaItem> Media);
+    IReadOnlyList<ReportReviewMediaItem> Media,
+    CompanyDispatchSourceDto DispatchSource);
