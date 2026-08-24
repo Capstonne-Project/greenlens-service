@@ -62,6 +62,7 @@ public static class DependencyInjection
         services.AddScoped<IReportStatusHistoryRepository, ReportStatusHistoryRepository>();
         services.AddScoped<IWasteTagRepository, WasteTagRepository>();
         services.AddScoped<IReportWasteTagRepository, ReportWasteTagRepository>();
+        services.AddScoped<ITeamWasteTagRepository, TeamWasteTagRepository>();
         services.AddScoped<IReportDraftRepository, ReportDraftRepository>();
         services.AddScoped<IReportSatisfactionRepository, ReportSatisfactionRepository>();
 
@@ -230,6 +231,8 @@ public static class DependencyInjection
 
         // ── Duplicate detection Tier 2 scheduler (BR-REP-030, BR-AI-002) ──
         services.AddScoped<IDuplicateCompareScheduler, DuplicateCompareScheduler>();
+
+        services.AddScoped<Application.Features.Organization.Common.TeamWasteTagService>();
 
         // ── Audit (BR-ADM-010) ─────────────────────────────
         services.AddScoped<IAuditLogger, AuditLogger>();

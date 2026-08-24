@@ -18,7 +18,7 @@ public static class PerformanceServiceExtensions
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
-
+    // Thêm hàm AddGreenlensPerformance để thêm các service cho performance
     public static IServiceCollection AddGreenlensPerformance(
         this IServiceCollection services,
         IConfiguration configuration)
@@ -27,13 +27,13 @@ public static class PerformanceServiceExtensions
             .Bind(configuration.GetSection(ApiRateLimitOptions.SectionName))
             .ValidateDataAnnotations()
             .ValidateOnStart();
-
+        // Thêm singleton cho ApiRateLimitPartitionResolver
         services.AddSingleton<ApiRateLimitPartitionResolver>();
-
+        // Thêm rate limiter
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-
+            // Thêm callback khi rate limit vượt quá
             options.OnRejected = async (context, cancellationToken) =>
             {
                 var httpContext = context.HttpContext;
@@ -43,12 +43,13 @@ public static class PerformanceServiceExtensions
                         ((int)Math.Ceiling(retryAfter.TotalSeconds)).ToString();
                 }
 
+                // Thêm response cho rate limit vượt quá
                 var response = new ApiResponse
                 {
                     Code = "API_RATE_LIMIT_EXCEEDED",
                     Message = "Quá nhiều yêu cầu. Vui lòng thử lại sau.",
                     Status = 429,
-                    Data = null
+                    Data = null 
                 };
 
                 httpContext.Response.ContentType = "application/json";
@@ -56,15 +57,17 @@ public static class PerformanceServiceExtensions
                     .WriteAsync(JsonSerializer.Serialize(response, JsonOptions), cancellationToken)
                     .ConfigureAwait(false);
             };
-
+            // Thêm global limiter
             options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
             {
                 var resolver = httpContext.RequestServices.GetRequiredService<ApiRateLimitPartitionResolver>();
+                // Thêm partition cho rate limit
                 var partition = resolver.Resolve(httpContext);
                 return partition;
             });
         });
 
+        // Thêm response compression
         services.AddResponseCompression(options =>
         {
             options.EnableForHttps = true;

@@ -68,6 +68,7 @@ public sealed record AssignmentProgressItem(
     DateTime? StartedAt,
     DateTime? CompletedAt,
     DateTime? ProgressUpdatedAt,
+    IReadOnlyList<WasteTagSummaryDto> TeamWasteTags,
     /// <summary>Before cleanup images for the current assignment cycle.</summary>
     IReadOnlyList<string> BeforeImageUrls,
     /// <summary>After cleanup images for the current assignment cycle.</summary>

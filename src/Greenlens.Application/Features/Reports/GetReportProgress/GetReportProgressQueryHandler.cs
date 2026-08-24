@@ -1,3 +1,4 @@
+using Greenlens.Application.Features.Organization.Common;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
@@ -60,6 +61,10 @@ public sealed class GetReportProgressQueryHandler(
             .Include(x => x.Assignments)
                 .ThenInclude(a => a.ProgressUpdates)
                     .ThenInclude(u => u.Media)
+            .Include(x => x.Assignments)
+                .ThenInclude(a => a.Team)
+                    .ThenInclude(t => t!.WasteTags)
+                        .ThenInclude(tw => tw.WasteTag)
             .Include(x => x.Assignments)
                 .ThenInclude(a => a.Team)
                     .ThenInclude(t => t!.Members)
@@ -204,6 +209,7 @@ public sealed class GetReportProgressQueryHandler(
             a.ProgressPercent,
             a.ProgressNote,
             a.ProgressUpdatedAt,
+            team is not null ? TeamWasteTagService.MapTags(team) : [],
             members,
             MapProgressUpdates(a));
     }

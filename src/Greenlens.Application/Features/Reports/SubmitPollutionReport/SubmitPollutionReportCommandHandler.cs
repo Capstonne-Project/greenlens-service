@@ -81,10 +81,13 @@ public sealed class SubmitPollutionReportCommandHandler(
         }
 
         // ── BR-REP-010: sliding-window submit quota (5/h, 20/24h) ─────────
+        // Kiểm tra nếu không phải là replay
         if (!idempotencyContext.IsReplay)
+        // Kiểm tra nếu rate limit vượt quá
         {
             var rateLimit = await rateLimiter.TryAcquireAsync(currentUser.UserId, cancellationToken)
                 .ConfigureAwait(false);
+            // Kiểm tra nếu rate limit vượt quá
             if (!rateLimit.IsAllowed)
             {
                 logger.LogWarning("Rate limit exceeded for user {UserId}", currentUser.UserId);

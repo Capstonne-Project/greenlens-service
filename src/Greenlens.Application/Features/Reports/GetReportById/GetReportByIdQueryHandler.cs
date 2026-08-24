@@ -1,3 +1,4 @@
+using Greenlens.Application.Features.Organization.Common;
 using Greenlens.Application.Features.Reports;
 using Greenlens.Application.Features.Reports.Common;
 using Greenlens.Application.Common;
@@ -38,6 +39,7 @@ public sealed class GetReportByIdQueryHandler(
         var r = await reports.QueryAsNoTracking()
             .Include(x => x.Category)
             .Include(x => x.Media)
+            .Include(x => x.Assignments).ThenInclude(a => a.Team!.WasteTags).ThenInclude(tw => tw.WasteTag)
             .Include(x => x.Assignments).ThenInclude(a => a.Team)
             .Include(x => x.Assignments).ThenInclude(a => a.AssignedByUser)
             .Include(x => x.WasteTags).ThenInclude(wt => wt.WasteTag)
@@ -322,7 +324,8 @@ public sealed class GetReportByIdQueryHandler(
             a.CompletedAt,
             a.ProgressPercent,
             a.ProgressNote,
-            a.ProgressUpdatedAt);
+            a.ProgressUpdatedAt,
+            a.Team is not null ? TeamWasteTagService.MapTags(a.Team) : []);
 
     private static ReportAssignmentHistoryItem MapAssignmentHistoryItem(
         Domain.Entities.ReportAssignment a,
@@ -343,5 +346,6 @@ public sealed class GetReportByIdQueryHandler(
             a.ProgressPercent,
             a.ProgressNote,
             a.ProgressUpdatedAt,
-            currentAssignmentId.HasValue && a.Id == currentAssignmentId.Value);
+            currentAssignmentId.HasValue && a.Id == currentAssignmentId.Value,
+            a.Team is not null ? TeamWasteTagService.MapTags(a.Team) : []);
 }

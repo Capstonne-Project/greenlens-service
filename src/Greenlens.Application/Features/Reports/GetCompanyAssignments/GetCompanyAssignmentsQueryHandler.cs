@@ -2,6 +2,7 @@ using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Common.Models;
 using Greenlens.Application.Features.Analytics.Common;
+using Greenlens.Application.Features.Organization.Common;
 using Greenlens.Application.Features.Reports.Common;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
@@ -44,6 +45,7 @@ public sealed class GetCompanyAssignmentsQueryHandler(
 
         var baseQuery = assignments.QueryAsNoTracking()
             .Include(a => a.Report).ThenInclude(r => r!.Category)
+            .Include(a => a.Team).ThenInclude(t => t!.WasteTags).ThenInclude(tw => tw.WasteTag)
             .Include(a => a.Team).ThenInclude(t => t!.Members).ThenInclude(m => m.User)
             .Include(a => a.AssignedByUser)
             .Where(a => a.Team!.CompanyId == companyId);
@@ -205,6 +207,11 @@ public sealed class GetCompanyAssignmentsQueryHandler(
                 m.IsLeader))
             .ToList();
 
-        return new CompanyAssignmentTeam(team.Id, team.Name, members.Count, members);
+        return new CompanyAssignmentTeam(
+            team.Id,
+            team.Name,
+            members.Count,
+            TeamWasteTagService.MapTags(team),
+            members);
     }
 }

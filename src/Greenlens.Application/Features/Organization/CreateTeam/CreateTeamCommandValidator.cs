@@ -15,5 +15,19 @@ public sealed class CreateTeamCommandValidator : AbstractValidator<CreateTeamCom
             .IsInEnum()
             .Must(t => t is TeamType.Cleanup or TeamType.Inspection)
             .WithMessage("TeamType phải là Cleanup hoặc Inspection.");
+
+        When(x => x.TeamType == TeamType.Cleanup, () =>
+        {
+            RuleFor(x => x.WasteTagIds)
+                .NotNull().WithMessage("Cleanup team phải có ít nhất một WasteTag.")
+                .Must(ids => ids!.Count > 0).WithMessage("Cleanup team phải có ít nhất một WasteTag.");
+        });
+
+        When(x => x.TeamType == TeamType.Inspection, () =>
+        {
+            RuleFor(x => x.WasteTagIds)
+                .Must(ids => ids is null || ids.Count == 0)
+                .WithMessage("Inspection team không hỗ trợ WasteTag.");
+        });
     }
 }

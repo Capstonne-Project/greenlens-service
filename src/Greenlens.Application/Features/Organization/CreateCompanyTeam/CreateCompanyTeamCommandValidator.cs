@@ -9,5 +9,8 @@ public sealed class CreateCompanyTeamCommandValidator : AbstractValidator<Create
         RuleFor(x => x.Name)
             .NotEmpty().WithMessage("Tên team là bắt buộc.")
             .MaximumLength(100);
+
+        RuleFor(x => x.WasteTagIds)
+            .NotEmpty().WithMessage("Cleanup team phải có ít nhất một WasteTag.");
     }
 }

@@ -5,18 +5,30 @@ using MediatR;
 
 namespace Greenlens.Application.Features.Organization.GetTeams;
 
+/// <remarks>Implements: BR-ORG-003, BR-CLN-005, BR-OFF-014.</remarks>
 public sealed record GetTeamsQuery(
-    int Page = 1, int PageSize = 20,
+    int Page = 1,
+    int PageSize = 20,
     Guid? LocalOfficeId = null,
     TeamType? TeamType = null,
     bool? IsActive = null,
-    bool? IsAvailable = null) : IRequest<Result<GetTeamsResponse>>;
+    bool? IsAvailable = null,
+    IReadOnlyList<Guid>? WasteTagIds = null,
+    Guid? ReportId = null) : IRequest<Result<GetTeamsResponse>>;
 
 public sealed record GetTeamsResponse(
     IReadOnlyList<TeamItem> Items, PaginationMeta Pagination);
 
 public sealed record TeamItem(
-    Guid Id, string Name, TeamType TeamType, Guid? LocalOfficeId,
-    string? OfficeName, bool IsActive, int MemberCount, DateTime CreatedAt,
-    string CurrentStatus, Guid? ActiveReportId);
-
+    Guid Id,
+    string Name,
+    TeamType TeamType,
+    Guid? LocalOfficeId,
+    string? OfficeName,
+    bool IsActive,
+    int MemberCount,
+    DateTime CreatedAt,
+    string CurrentStatus,
+    Guid? ActiveReportId,
+    IReadOnlyList<WasteTagSummaryDto> WasteTags,
+    int? WasteTagMatchCount);

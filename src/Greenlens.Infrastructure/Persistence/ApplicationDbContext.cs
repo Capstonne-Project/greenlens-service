@@ -27,6 +27,7 @@ internal sealed class ApplicationDbContext(
     public DbSet<AssignmentProgressUpdate> AssignmentProgressUpdates => Set<AssignmentProgressUpdate>();
     public DbSet<WasteTag> WasteTags => Set<WasteTag>();
     public DbSet<ReportWasteTag> ReportWasteTags => Set<ReportWasteTag>();
+    public DbSet<TeamWasteTag> TeamWasteTags => Set<TeamWasteTag>();
     public DbSet<Comment> Comments => Set<Comment>();
     public DbSet<CommentMedia> CommentMedia => Set<CommentMedia>();
     public DbSet<CommentLike> CommentLikes => Set<CommentLike>();

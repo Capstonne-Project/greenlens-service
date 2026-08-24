@@ -1,6 +1,7 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Organization.Common;
 using Greenlens.Application.Features.Organization.GetTeamById;
 using Greenlens.Domain.Common;
 using MediatR;
@@ -23,6 +24,7 @@ public sealed class GetMyTeamProfileQueryHandler(
         var team = await teams.QueryAsNoTracking()
             .Include(t => t.LocalOffice)
             .Include(t => t.Members).ThenInclude(m => m.User)
+            .Include(t => t.WasteTags).ThenInclude(tw => tw.WasteTag)
             .FirstOrDefaultAsync(
                 t => t.Members.Any(m => m.UserId == currentUser.UserId), ct)
             .ConfigureAwait(false);
@@ -41,6 +43,8 @@ public sealed class GetMyTeamProfileQueryHandler(
         return new TeamDetailResponse(
             team.Id, team.Name, team.TeamType, team.LocalOfficeId,
             team.LocalOffice?.Name, team.IsActive,
-            members, team.CreatedAt, team.UpdatedAt);
+            members,
+            TeamWasteTagService.MapTags(team),
+            team.CreatedAt, team.UpdatedAt);
     }
 }
