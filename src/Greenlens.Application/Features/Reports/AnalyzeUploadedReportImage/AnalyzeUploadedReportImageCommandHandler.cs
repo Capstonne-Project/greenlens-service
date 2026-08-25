@@ -203,7 +203,16 @@ public sealed class AnalyzeUploadedReportImageCommandHandler(
                 classify.ImageRelevance,
                 classify.PollutionCoverageRatio,
                 classify.Predictions
-                    .Select(p => new AiPredictionDto(p.Class, p.Confidence, p.BboxCount))
+                    .Select(p => new AiPredictionDto(
+                        p.Class,
+                        p.Confidence,
+                        p.BboxCount,
+                        p.Subtypes?
+                            .Select(s => new AiTrashSubtypeDto(s.Subtype, s.Count, s.Confidence))
+                            .ToArray(),
+                        p.Boxes?
+                            .Select(b => new AiBoxDto(b.X1, b.Y1, b.X2, b.Y2, b.Confidence, b.Subtype, b.SubtypeConfidence))
+                            .ToArray()))
                     .ToArray(),
                 classify.InferenceTimeMs,
                 classify.YoloActive,

@@ -28,4 +28,21 @@ public sealed record AiClassifyDto(
 public sealed record AiPredictionDto(
     string Class,
     double Confidence,
-    int BboxCount);
+    int BboxCount,
+    IReadOnlyList<AiTrashSubtypeDto>? Subtypes,
+    IReadOnlyList<AiBoxDto>? Boxes);
+
+public sealed record AiTrashSubtypeDto(
+    string Subtype,
+    int Count,
+    double Confidence);
+
+/// <summary>Absolute pixel bbox (xyxy) against the original uploaded image dimensions.</summary>
+public sealed record AiBoxDto(
+    double X1,
+    double Y1,
+    double X2,
+    double Y2,
+    double Confidence,
+    string? Subtype,
+    double? SubtypeConfidence);
