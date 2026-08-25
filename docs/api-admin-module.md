@@ -446,9 +446,11 @@ Bỏ ẩn — hiện lại báo cáo cho công chúng. Đặt `IsHidden = false`
 > **Business Rule:** BR-ADM-007 — Dashboard hiển thị tài khoản nghi spam dựa trên heuristic rules.
 >
 > **Heuristic rules (configurable qua query params):**
-> 1. Submit ≥ 5 báo cáo / giờ
+> 1. Submit ≥ ngưỡng/giờ (`minReportsPerHour`, hoặc `submit_max_per_hour` từ system settings khi param bỏ trống — seed mặc định **5**)
 > 2. ≥ 3 báo cáo bị rejected trong 7 ngày gần nhất
 > 3. ≥ 2 báo cáo bị AI flag là `IrrelevantOrSuspectedAbusive`
+
+> **Lưu ý (PR-9):** `minReportsPerHour` **không còn** hardcode default `5` ở API layer. Admin đổi `submit_max_per_hour` qua `PATCH /v1/admin/system-settings/rate_limits` → spam dashboard (khi không truyền param) dùng ngưỡng mới ngay.
 
 ---
 
@@ -462,7 +464,7 @@ Trả về danh sách tài khoản nghi spam.
 |---|---|---|---|
 | `page` | int | 1 | Trang hiện tại |
 | `pageSize` | int | 20 | Số bản ghi/trang |
-| `minReportsPerHour` | int | 5 | Ngưỡng submit/giờ |
+| `minReportsPerHour` | int? | *(null)* | Ngưỡng submit/giờ. **Bỏ trống** → lấy `submit_max_per_hour` từ system settings (seed **5**). Truyền explicit vẫn override one-shot. |
 | `minRejected7Days` | int | 3 | Ngưỡng rejected trong 7 ngày |
 | `minAiFlagged` | int | 2 | Ngưỡng AI flagged |
 
@@ -500,6 +502,11 @@ Trả về danh sách tài khoản nghi spam.
 **cURL:**
 
 ```bash
+# Dùng ngưỡng từ system settings (submit_max_per_hour)
+curl -X GET "https://api.greenlens.vn/v1/admin/spam-suspects?page=1&pageSize=20" \
+  -H "Authorization: Bearer <token>"
+
+# Override one-shot ngưỡng submit/giờ
 curl -X GET "https://api.greenlens.vn/v1/admin/spam-suspects?minReportsPerHour=3&minRejected7Days=2" \
   -H "Authorization: Bearer <token>"
 ```
@@ -864,6 +871,8 @@ Test gửi thử template đến admin hiện tại. Render placeholder bằng s
 > [!TIP]
 > Placeholder không có trong `sampleData` sẽ giữ nguyên dạng `{placeholder_name}` trong kết quả render — giúp admin phát hiện thiếu data.
 
+> **Hành vi theo system settings (contract giữ nguyên):** Trước khi render, handler tự merge **`NotificationSystemSettingPlaceholders`** (vd. `{sla_verify_hours}`, `{overdue_pending_hours}`, `{auto_close_resolved_days}`) từ `system_settings` — admin **không** cần truyền các key này trong `sampleData`. Body request/response schema không đổi; `renderedTitle` / `renderedBody` có thể khác số sau khi admin PATCH settings.
+
 **cURL:**
 
 ```bash
@@ -872,6 +881,39 @@ curl -X POST "https://api.greenlens.vn/v1/admin/notification-templates/template-
   -H "Content-Type: application/json" \
   -d '{"user_name": "Test User", "report_code": "RPT-001"}'
 ```
+
+---
+
+## Phụ lục A — API có sẵn: contract giữ nguyên, hành vi/nội dung thay đổi
+
+> Các endpoint dưới đây **không đổi** route, query/body schema, hay shape JSON response. Chỉ **logic nghiệp vụ**, **message text**, hoặc **ngưỡng mặc định** thay đổi khi admin sửa `system_settings` hoặc ngưỡng badge.
+>
+> Danh sách đầy đủ consumer (Citizen / LEO / job / notification): xem [`admin-system-configuration.md`](./admin-system-configuration.md) §4.
+
+### Trong phạm vi `/v1/admin` (tài liệu này)
+
+| API | Thay đổi gì | Config liên quan |
+|-----|-------------|------------------|
+| `GET /v1/admin/spam-suspects` | Khi **không** truyền `minReportsPerHour`, ngưỡng HighVolume lấy từ settings thay vì hardcode `5` | `submit_max_per_hour` (module `rate_limits`) |
+| `GET /v1/admin/badges` | Response thêm field `requiredActionCount`; sort thêm cột này — **đây là mở rộng schema**, không phải hành vi ngầm | Cột DB `badges` |
+| `POST /v1/admin/notification-templates/{id}/test` | Render test merge placeholder số từ settings trước `sampleData` | 8 key SLA/lifecycle/nearby/… (xem `admin-system-configuration.md` Case B) |
+| `PUT /v1/admin/badges/{id}` | Chỉ metadata; ngưỡng eligibility chuyển sang `PATCH .../thresholds` | — |
+| Auto-award badge (không phải HTTP admin) | Ngưỡng đọc DB sau PATCH thresholds | `PATCH /v1/admin/badges/{id}/thresholds` |
+
+### Admin dashboard (controller riêng — không nằm `/v1/admin`)
+
+| API | Thay đổi gì | Config liên quan |
+|-----|-------------|------------------|
+| `GET /v1/dashboard/admin/alerts` | Message `OVERDUE_REPORTS` dùng số giờ động (vd. *"quá 72 giờ"*) | `overdue_pending_hours` |
+| `GET /v1/dashboard/deo/alerts` | Tương tự + contract expiry horizon | `overdue_pending_hours`, `contract_warning_days` |
+
+Schema `AlertItem` (`code`, `severity`, `message`) **giữ nguyên** — chỉ chuỗi `message` thay đổi theo config.
+
+### FE Admin — cần làm gì?
+
+- **Không** cần đổi TypeScript type cho alerts / test template (trừ `GET badges` thêm `requiredActionCount`).
+- **Nên** hiển thị dialog xác nhận trước khi PATCH settings (xem `admin-system-configuration.md` §5.3 mục 8).
+- Sau PATCH settings, refresh spam dashboard / alerts để thấy hành vi và message mới.
 
 ---
 
