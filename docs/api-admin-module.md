@@ -589,6 +589,59 @@ Cập nhật điểm, mô tả, và trạng thái bật/tắt cho 1 hành độn
 
 ---
 
+## 5.3. Badges — Ngưỡng huy hiệu (BR-ADM-005, BR-GAM-004)
+
+> **Lưu ý:** Ngưỡng badge **không** nằm trong `system_settings`. Lưu trên bảng `badges` (`required_points`, `required_report_count`, `required_streak_days`, `required_action_count`). Admin gửi **một số `threshold`** duy nhất — backend map theo `code` của badge.
+
+### Mapping ngưỡng theo loại badge
+
+| Nhóm | `code` | Trục ngưỡng | Cột DB được cập nhật |
+|------|--------|-------------|----------------------|
+| Milestone | `first_report`, `eco_warrior`, … | Số báo cáo đã verify | `requiredReportCount` |
+| Streak | `streak_7d`, `streak_30d` | Số ngày streak | `requiredStreakDays` |
+| Level | `rising_star`, `eco_expert`, `green_legend` | Tổng điểm | `requiredPoints` |
+| Community | `duplicate_finder`, `community_voice`, `cleanup_hero` | Action count | `requiredActionCount` |
+
+### 5.3.1. `GET /v1/admin/badges`
+
+Danh sách badge (phân trang). Response mỗi item có 4 cột nullable — **chỉ một cột có giá trị** tương ứng loại badge.
+
+### 5.3.2. `PATCH /v1/admin/badges/{id}/thresholds`
+
+Cập nhật ngưỡng eligibility. Chỉ ảnh hưởng user **chưa** được cấp badge; badge đã earn giữ nguyên.
+
+**Request:**
+
+```json
+{ "threshold": 15 }
+```
+
+| Field | Type | Range | Mô tả |
+|-------|------|-------|--------|
+| `threshold` | int | 1 – 1_000_000 | Ngưỡng mới |
+
+**Response `204`** — `"Đã cập nhật ngưỡng huy hiệu."`
+
+**Ví dụ:** `eco_warrior` mặc định 10 → PATCH `{ "threshold": 15 }` → cần 15 báo cáo verified mới nhận badge.
+
+**cURL:**
+
+```bash
+curl -X PATCH "https://api.greenlens.vn/v1/admin/badges/{badgeId}/thresholds" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{ "threshold": 15 }'
+```
+
+### 5.3.3. Các endpoint badge khác
+
+| Method | Path | Mô tả |
+|--------|------|--------|
+| `PUT` | `/v1/admin/badges/{id}` | Sửa tên/mô tả/icon (không đổi ngưỡng) |
+| `PATCH` | `/v1/admin/badges/{id}/toggle` | Bật/tắt badge |
+
+---
+
 ## 6. Notification Templates — Quản lý template thông báo
 
 > **Business Rule:** BR-ADM-004 — Admin quản lý template thông báo với placeholder. Template phải được publish trước khi hệ thống sử dụng. Admin có thể test gửi thử trước khi publish.
