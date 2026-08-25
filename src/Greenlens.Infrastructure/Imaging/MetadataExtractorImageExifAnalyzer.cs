@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Features.Reports;
 using MetadataExtractor;
@@ -8,7 +9,8 @@ using MetadataExtractor.Formats.Exif;
 namespace Greenlens.Infrastructure.Imaging;
 
 /// <summary>BR-REP-011: reads EXIF DateTimeOriginal and GPS from uploaded report images.</summary>
-public sealed class MetadataExtractorImageExifAnalyzer : IImageExifAnalyzer
+public sealed class MetadataExtractorImageExifAnalyzer(
+    ISystemSettingsProvider systemSettings) : IImageExifAnalyzer
 {
     public ImageExifAnalysis Analyze(
         ReadOnlyMemory<byte> imageBytes,
@@ -55,11 +57,13 @@ public sealed class MetadataExtractorImageExifAnalyzer : IImageExifAnalyzer
                 }
             }
 
+            var mismatchThresholdMeters = ModuleSystemSettings.ExifGpsMismatchMeters(systemSettings);
             var reasons = ExifSuspicionEvaluator.ResolveSuspiciousReasons(
                 submittedLatitude,
                 submittedLongitude,
                 latitude,
-                longitude);
+                longitude,
+                mismatchThresholdMeters);
 
             string? exifJson = null;
             if (capturedAtUtc.HasValue || latitude.HasValue)

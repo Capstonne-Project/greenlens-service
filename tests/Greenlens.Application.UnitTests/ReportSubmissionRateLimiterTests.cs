@@ -1,10 +1,11 @@
+using Greenlens.Application.UnitTests.TestDoubles;
 using Greenlens.Infrastructure.RateLimiting;
 
 namespace Greenlens.Application.UnitTests;
 
 public sealed class ReportSubmissionRateLimiterTests
 {
-    private readonly InMemoryReportSubmissionRateLimiter _sut = new();
+    private readonly InMemoryReportSubmissionRateLimiter _sut = new(new DefaultSystemSettingsProvider());
 
     [Fact]
     public async Task TryAcquire_FirstFiveWithinHour_Allowed_BR_REP_010()

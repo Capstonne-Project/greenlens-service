@@ -31,6 +31,7 @@ public sealed class VerifyReportCommandHandler(
     ICurrentUser currentUser,
     IUnitOfWork uow,
     IAuditLogger auditLogger,
+    ISystemSettingsProvider systemSettings,
     ILogger<VerifyReportCommandHandler> logger) : IRequestHandler<VerifyReportCommand, Result>
 {
     public async Task<Result> Handle(VerifyReportCommand request, CancellationToken ct)
@@ -126,7 +127,11 @@ public sealed class VerifyReportCommandHandler(
             categoryId = report.CategoryId
         });
 
-        report.Verify(currentUser.UserId, request.OverrideSeverity, request.OverrideCategoryId);
+        report.Verify(
+            currentUser.UserId,
+            request.OverrideSeverity,
+            request.OverrideCategoryId,
+            ModuleSystemSettings.ReportSla(systemSettings));
 
         var history = ReportStatusHistory.Create(
             report.Id,

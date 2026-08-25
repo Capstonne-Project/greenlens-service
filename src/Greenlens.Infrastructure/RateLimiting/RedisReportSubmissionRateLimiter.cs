@@ -1,14 +1,14 @@
+using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using StackExchange.Redis;
 
 namespace Greenlens.Infrastructure.RateLimiting;
 
-/// <summary>BR-REP-010: Redis sorted-set sliding window (5/h, 20/24h) with 1h penalty lock.</summary>
-public sealed class RedisReportSubmissionRateLimiter(IConnectionMultiplexer redis) : IReportSubmissionRateLimiter
+/// <summary>BR-REP-010: Redis sorted-set sliding window with configurable limits.</summary>
+public sealed class RedisReportSubmissionRateLimiter(
+    IConnectionMultiplexer redis,
+    ISystemSettingsProvider systemSettings) : IReportSubmissionRateLimiter
 {
-    private const int MaxPerHour = 5;
-    private const int MaxPerDay = 20;
-    private const int LockSeconds = 3600;
     private const long HourWindowMs = 3_600_000;
     private const long DayWindowMs = 86_400_000;
 
@@ -52,6 +52,7 @@ return {1, 0}
 
     public async Task<ReportSubmissionRateLimitResult> TryAcquireAsync(Guid userId, CancellationToken cancellationToken)
     {
+        var (maxPerHour, maxPerDay, lockSeconds) = ModuleSystemSettings.SubmitRateLimits(systemSettings);
         var db = redis.GetDatabase();
         var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         var member = Guid.NewGuid().ToString("N");
@@ -67,9 +68,9 @@ return {1, 0}
                 member,
                 hourWindow = HourWindowMs,
                 dayWindow = DayWindowMs,
-                maxHour = MaxPerHour,
-                maxDay = MaxPerDay,
-                lockSeconds = LockSeconds
+                maxHour = maxPerHour,
+                maxDay = maxPerDay,
+                lockSeconds
             }).ConfigureAwait(false);
 
         if (result.IsNull)

@@ -18,14 +18,18 @@ public sealed class DeclineAssignmentCommandHandler(
     IReportRepository reports,
     IReportAssignmentRepository assignments,
     ICleanupAssignmentActivityNotifier activityNotifier,
+    ISystemSettingsProvider systemSettings,
     IUnitOfWork uow,
     ILogger<DeclineAssignmentCommandHandler> logger) : IRequestHandler<DeclineAssignmentCommand, Result>
 {
     public async Task<Result> Handle(DeclineAssignmentCommand request, CancellationToken ct)
     {
+        var (rejectMin, _, _) = ModuleSystemSettings.ValidationReasonLengths(systemSettings);
+        var (_, _, declineWindowHours) = ModuleSystemSettings.CleanupProgress(systemSettings);
+
         logger.LogInformation("Declining assignment for report {ReportId}", request.ReportId);
 
-        if (request.Reason.Length < 20)
+        if (request.Reason.Length < rejectMin)
         {
             logger.LogWarning("Reason is too short for report {ReportId}", request.ReportId);
             return Errors.Reports.ReasonTooShort;
@@ -59,8 +63,8 @@ public sealed class DeclineAssignmentCommandHandler(
             return Errors.Reports.InvalidStatusTransition;
         }
 
-        // BR-CLN-007, BR-INS-003: 24h window (updated from 2h per business decision)
-        if ((DateTime.UtcNow - assignment.AssignedAt).TotalHours > 24)
+        // BR-CLN-007, BR-INS-003: configurable decline window
+        if ((DateTime.UtcNow - assignment.AssignedAt).TotalHours > declineWindowHours)
         {
             logger.LogWarning("Decline window expired for assignment {AssignmentId}", assignment.Id);
             return Errors.Reports.DeclineWindowExpired;

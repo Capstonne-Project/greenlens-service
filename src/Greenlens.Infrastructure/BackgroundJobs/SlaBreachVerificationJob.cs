@@ -1,3 +1,4 @@
+using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Domain.Enums;
 using Greenlens.Infrastructure.Persistence;
@@ -18,15 +19,15 @@ namespace Greenlens.Infrastructure.BackgroundJobs;
 internal sealed class SlaBreachVerificationJob(
     ApplicationDbContext db,
     INotificationService notificationService,
+    ISystemSettingsProvider systemSettings,
     ILogger<SlaBreachVerificationJob> logger)
 {
-    private const decimal SlaBreachPriorityBoost = 100m;
-
     public async Task ExecuteAsync()
     {
         logger.LogInformation("SlaBreachVerificationJob: Starting...");
 
         var now = DateTime.UtcNow;
+        var priorityWeights = ModuleSystemSettings.OfficerPriority(systemSettings);
 
         var breachedReports = await db.Reports
             .Where(r => r.Status == ReportStatus.Submitted
@@ -47,11 +48,13 @@ internal sealed class SlaBreachVerificationJob(
             report.MarkSlaVerifyBreached();
 
             var ageHours = (decimal)(now - report.CreatedAt).TotalHours;
-            var boostedScore = (int)report.Severity * 3m
-                             + report.ReporterCount * 2m
-                             + ageHours / 24m
-                             + SlaBreachPriorityBoost;
-            report.UpdatePriorityScore(Math.Round(boostedScore, 2));
+            var boostedScore = ModuleSystemSettings.ComputePriorityScore(
+                priorityWeights,
+                report.Severity,
+                report.ReporterCount,
+                ageHours,
+                slaVerifyBreached: true);
+            report.UpdatePriorityScore(boostedScore);
         }
 
         await db.SaveChangesAsync().ConfigureAwait(false);

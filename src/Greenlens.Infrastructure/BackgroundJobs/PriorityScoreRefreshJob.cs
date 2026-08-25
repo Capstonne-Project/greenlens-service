@@ -1,3 +1,5 @@
+using Greenlens.Application.Common;
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Domain.Enums;
 using Greenlens.Infrastructure.Persistence;
 using Hangfire;
@@ -14,6 +16,7 @@ namespace Greenlens.Infrastructure.BackgroundJobs;
 [AutomaticRetry(Attempts = 2)]
 internal sealed class PriorityScoreRefreshJob(
     ApplicationDbContext db,
+    ISystemSettingsProvider systemSettings,
     ILogger<PriorityScoreRefreshJob> logger)
 {
     private const int BatchSize = 200;
@@ -25,6 +28,8 @@ internal sealed class PriorityScoreRefreshJob(
         var now = DateTime.UtcNow;
         var totalUpdated = 0;
         var lastId = Guid.Empty;
+
+        var priorityWeights = ModuleSystemSettings.OfficerPriority(systemSettings);
 
         while (true)
         {
@@ -45,14 +50,14 @@ internal sealed class PriorityScoreRefreshJob(
             foreach (var report in reports)
             {
                 var ageHours = (decimal)(now - report.CreatedAt).TotalHours;
-                var score = (int)report.Severity * 3m
-                          + report.ReporterCount * 2m
-                          + ageHours / 24m;
+                var score = ModuleSystemSettings.ComputePriorityScore(
+                    priorityWeights,
+                    report.Severity,
+                    report.ReporterCount,
+                    ageHours,
+                    report.SlaVerifyBreached && report.Status == ReportStatus.Submitted);
 
-                if (report.SlaVerifyBreached && report.Status == ReportStatus.Submitted)
-                    score += 100m;
-
-                report.UpdatePriorityScore(Math.Round(score, 2));
+                report.UpdatePriorityScore(score);
             }
 
             await db.SaveChangesAsync().ConfigureAwait(false);

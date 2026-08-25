@@ -3,6 +3,7 @@ using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Common.Options;
 using Greenlens.Application.Features.Notifications;
+using Greenlens.Application.UnitTests.TestDoubles;
 using Greenlens.Application.Features.Reports.DeclineAssignment;
 using Greenlens.Application.Features.Reports.ReassignCompanyTeam;
 using Greenlens.Application.Features.Reports.ReassignTeam;
@@ -28,6 +29,7 @@ public sealed class DeclineAssignmentCommandHandlerTests
             _reports,
             _assignments,
             _activityNotifier,
+            new DefaultSystemSettingsProvider(),
             _uow,
             NullLogger<DeclineAssignmentCommandHandler>.Instance);
     }
