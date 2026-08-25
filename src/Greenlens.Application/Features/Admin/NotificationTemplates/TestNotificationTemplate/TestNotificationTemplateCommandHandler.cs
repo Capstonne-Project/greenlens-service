@@ -16,6 +16,7 @@ public sealed class TestNotificationTemplateCommandHandler(
     INotificationTemplateRepository templates,
     ICurrentUser currentUser,
     INotificationService notificationService,
+    ISystemSettingsProvider systemSettings,
     ILogger<TestNotificationTemplateCommandHandler> logger)
     : IRequestHandler<TestNotificationTemplateCommand, Result<TestNotificationTemplateResponse>>
 {
@@ -35,9 +36,10 @@ public sealed class TestNotificationTemplateCommandHandler(
             return Result<TestNotificationTemplateResponse>.Failure(Errors.Admin.NotificationTemplateNotFound);
         }
         logger.LogInformation("Notification template found: {Id}", request.TemplateId);
-        // Render placeholders
-        var renderedTitle = NotificationTemplateRenderer.Render(template.TitleVi, request.SampleData);
-        var renderedBody = NotificationTemplateRenderer.Render(template.BodyVi, request.SampleData);
+        // Render placeholders (merge config-driven defaults for Case B keys)
+        var sampleData = NotificationSystemSettingPlaceholders.Merge(request.SampleData, systemSettings);
+        var renderedTitle = NotificationTemplateRenderer.Render(template.TitleVi, sampleData);
+        var renderedBody = NotificationTemplateRenderer.Render(template.BodyVi, sampleData);
         logger.LogInformation("Rendered title: {RenderedTitle}", renderedTitle);
         logger.LogInformation("Rendered body: {RenderedBody}", renderedBody);
         // Send test notification to the requesting admin
