@@ -1,4 +1,6 @@
 using FluentValidation;
+using Greenlens.Application.Common;
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Map;
 
 namespace Greenlens.Application.Features.Map.GetPublicMapReports;
@@ -7,24 +9,28 @@ public sealed class GetPublicMapReportsQueryValidator : AbstractValidator<GetPub
 {
     private static readonly string[] AllowedModes = ["detail", "aggregate"];
 
-    public GetPublicMapReportsQueryValidator()
+    public GetPublicMapReportsQueryValidator(ISystemSettingsProvider systemSettings)
     {
+        var (minLat, maxLat, minLng, maxLng) = ModuleSystemSettings.VietnamBounds(systemSettings);
+        var (maxLatSpan, maxLngSpan) = ModuleSystemSettings.MapBoundingSpans(systemSettings);
+        var (_, maxDetailLimit) = ModuleSystemSettings.MapDetailLimits(systemSettings);
+
         RuleFor(x => x.Mode)
             .NotEmpty()
             .Must(m => AllowedModes.Contains(m.Trim(), StringComparer.OrdinalIgnoreCase))
             .WithMessage("mode must be detail or aggregate.");
 
         RuleFor(x => x.MinLat)
-            .InclusiveBetween(PublicMapQueryLimits.MinLatitudeVn, PublicMapQueryLimits.MaxLatitudeVn);
+            .InclusiveBetween(minLat, maxLat);
 
         RuleFor(x => x.MaxLat)
-            .InclusiveBetween(PublicMapQueryLimits.MinLatitudeVn, PublicMapQueryLimits.MaxLatitudeVn);
+            .InclusiveBetween(minLat, maxLat);
 
         RuleFor(x => x.MinLng)
-            .InclusiveBetween(PublicMapQueryLimits.MinLongitudeVn, PublicMapQueryLimits.MaxLongitudeVn);
+            .InclusiveBetween(minLng, maxLng);
 
         RuleFor(x => x.MaxLng)
-            .InclusiveBetween(PublicMapQueryLimits.MinLongitudeVn, PublicMapQueryLimits.MaxLongitudeVn);
+            .InclusiveBetween(minLng, maxLng);
 
         RuleFor(x => x)
             .Must(q => q.MinLat < q.MaxLat && q.MinLng < q.MaxLng)
@@ -32,15 +38,15 @@ public sealed class GetPublicMapReportsQueryValidator : AbstractValidator<GetPub
 
         RuleFor(x => x)
             .Must(q =>
-                q.MaxLat - q.MinLat <= PublicMapQueryLimits.MaxBoundingLatSpan &&
-                q.MaxLng - q.MinLng <= PublicMapQueryLimits.MaxBoundingLngSpan)
+                q.MaxLat - q.MinLat <= maxLatSpan &&
+                q.MaxLng - q.MinLng <= maxLngSpan)
             .WithMessage("Bounding box is too large; zoom in.");
 
         RuleFor(x => x.Limit)
             .Must(l => !l.HasValue ||
-                       (l.Value >= 1 && l.Value <= PublicMapQueryLimits.MaxDetailLimit))
+                       (l.Value >= 1 && l.Value <= maxDetailLimit))
             .When(x => string.Equals(x.Mode, "detail", StringComparison.OrdinalIgnoreCase))
-            .WithMessage($"limit must be between 1 and {PublicMapQueryLimits.MaxDetailLimit} when provided.");
+            .WithMessage($"limit must be between 1 and {maxDetailLimit} when provided.");
 
         RuleFor(x => x.GridLevel)
             .InclusiveBetween(PublicMapQueryLimits.MinGridLevel, PublicMapQueryLimits.MaxGridLevel)

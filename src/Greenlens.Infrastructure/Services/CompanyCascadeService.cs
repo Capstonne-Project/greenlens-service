@@ -1,5 +1,6 @@
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Notifications;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using Greenlens.Infrastructure.Persistence;
@@ -62,11 +63,10 @@ internal sealed class CompanyCascadeService(
     
         foreach (var (recipientId, reportId, reportCode) in notifyTargets)
         {
-            await notificationService.SendRawAsync(
+            await notificationService.SendFromTemplateAsync(
                 recipientId,
-                NotificationType.ReportStatusChanged,
-                "Công ty bị ngưng — cần tái điều phối",
-                $"Báo cáo {reportCode} đã quay về Verified do công ty bị ngưng/chấm dứt. Vui lòng gán đội khác.",
+                NotificationType.CompanyDeactivationReassign,
+                NotificationPlaceholders.ForCompanyDeactivationReassign(reportCode),
                 reportId,
                 ct).ConfigureAwait(false);
         }

@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Greenlens.Application.Common.Interfaces;
+using Greenlens.Application.UnitTests.TestDoubles;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using Greenlens.Infrastructure.Notifications;
@@ -49,6 +50,7 @@ public sealed class NotificationServiceInAppDeliveryTests
             dispatchCollector,
             transactionManager,
             hubContext,
+            new DefaultSystemSettingsProvider(),
             NullLogger<NotificationService>.Instance);
 
         await sut.SendRawAsync(

@@ -1,4 +1,5 @@
 using Greenlens.Application.Common;
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Common.Map;
 using Greenlens.Domain.Common;
@@ -23,6 +24,7 @@ public sealed class GetPublicMapReportsQueryHandler(
     IReportRepository reports,
     IPollutionCategoryRepository categories,
     ICommunityCleanupEventRepository communityCleanupEvents,
+    ISystemSettingsProvider systemSettings,
     ILogger<GetPublicMapReportsQueryHandler> logger)
     : IRequestHandler<GetPublicMapReportsQuery, Result<PublicMapReportsResponse>>
 {
@@ -31,6 +33,11 @@ public sealed class GetPublicMapReportsQueryHandler(
         CancellationToken cancellationToken)
     {
         logger.LogInformation("Getting public map reports");
+
+        var (defaultDetailLimit, maxDetailLimit) = ModuleSystemSettings.MapDetailLimits(systemSettings);
+        var defaultGridLevel = ModuleSystemSettings.MapDefaultGridLevel(systemSettings);
+        var maxAggregateRows = ModuleSystemSettings.MapMaxAggregateRows(systemSettings);
+        var coordinateDecimalPlaces = ModuleSystemSettings.MapCoordinateDecimalPlaces(systemSettings);
 
         if (request.CategoryId.HasValue)
         {
@@ -66,21 +73,28 @@ public sealed class GetPublicMapReportsQueryHandler(
         if (mode == "aggregate")
         {
             logger.LogInformation("Lấy danh sách báo cáo thành công. Số lượng: {Count}", baseQuery.Count());
-            return await HandleAggregateAsync(baseQuery, request, cancellationToken).ConfigureAwait(false);
+            return await HandleAggregateAsync(
+                baseQuery, request, defaultGridLevel, maxAggregateRows, coordinateDecimalPlaces, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         logger.LogInformation("Lấy danh sách báo cáo thành công. Số lượng: {Count}", baseQuery.Count());
-        return await HandleDetailAsync(baseQuery, request, cancellationToken).ConfigureAwait(false);
+        return await HandleDetailAsync(
+            baseQuery, request, defaultDetailLimit, maxDetailLimit, coordinateDecimalPlaces, cancellationToken)
+            .ConfigureAwait(false);
     }
 
     private async Task<Result<PublicMapReportsResponse>> HandleDetailAsync(
         IQueryable<Report> baseQuery,
         GetPublicMapReportsQuery request,
+        int defaultDetailLimit,
+        int maxDetailLimit,
+        int coordinateDecimalPlaces,
         CancellationToken cancellationToken)
     {
         var limit = request.Limit.HasValue
-            ? Math.Clamp(request.Limit.Value, 1, PublicMapQueryLimits.MaxDetailLimit)
-            : PublicMapQueryLimits.DefaultDetailLimit;
+            ? Math.Clamp(request.Limit.Value, 1, maxDetailLimit)
+            : defaultDetailLimit;
 
         var raw = await baseQuery
             .OrderByDescending(r => r.CreatedAt)
@@ -125,8 +139,8 @@ public sealed class GetPublicMapReportsQueryHandler(
                 return new PublicMapReportPinDto(
                     x.Id,
                     x.Code,
-                    PublicMapCoordinateRounding.RoundLatitude(x.Latitude),
-                    PublicMapCoordinateRounding.RoundLongitude(x.Longitude),
+                    PublicMapCoordinateRounding.RoundLatitude(x.Latitude, coordinateDecimalPlaces),
+                    PublicMapCoordinateRounding.RoundLongitude(x.Longitude, coordinateDecimalPlaces),
                     x.Severity,
                     x.CategoryCode,
                     x.Title,
@@ -150,9 +164,12 @@ public sealed class GetPublicMapReportsQueryHandler(
     private static async Task<Result<PublicMapReportsResponse>> HandleAggregateAsync(
         IQueryable<Report> baseQuery,
         GetPublicMapReportsQuery request,
+        int defaultGridLevel,
+        int maxAggregateRows,
+        int coordinateDecimalPlaces,
         CancellationToken cancellationToken)
     {
-        var gridLevel = request.GridLevel ?? PublicMapQueryLimits.DefaultGridLevel;
+        var gridLevel = request.GridLevel ?? defaultGridLevel;
         gridLevel = Math.Clamp(
             gridLevel,
             PublicMapQueryLimits.MinGridLevel,
@@ -162,11 +179,11 @@ public sealed class GetPublicMapReportsQueryHandler(
 
         var points = await baseQuery
             .Select(r => new PointRow(r.Latitude, r.Longitude, r.Severity))
-            .Take(PublicMapQueryLimits.MaxRowsForAggregateGrouping)
+            .Take(maxAggregateRows)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        var cells = BuildAggregateCells(points, cellSize);
+        var cells = BuildAggregateCells(points, cellSize, coordinateDecimalPlaces);
         var meta = new PublicMapReportsMetaDto(cells.Count, null, gridLevel, cellSize);
 
         return new PublicMapReportsResponse("aggregate", null, cells, meta);
@@ -174,7 +191,8 @@ public sealed class GetPublicMapReportsQueryHandler(
 
     private static List<PublicMapAggregateCellDto> BuildAggregateCells(
         List<PointRow> points,
-        decimal cellSizeDeg)
+        decimal cellSizeDeg,
+        int coordinateDecimalPlaces)
     {
         var cell = (double)cellSizeDeg;
         var buckets = new Dictionary<(long Gi, long Gj), Accumulator>();
@@ -203,8 +221,8 @@ public sealed class GetPublicMapReportsQueryHandler(
             {
                 var (gi, gj) = kv.Key;
                 var acc = kv.Value;
-                var centerLat = PublicMapCoordinateRounding.RoundLatitude((decimal)((gi + 0.5d) * cell));
-                var centerLng = PublicMapCoordinateRounding.RoundLongitude((decimal)((gj + 0.5d) * cell));
+                var centerLat = PublicMapCoordinateRounding.RoundLatitude((decimal)((gi + 0.5d) * cell), coordinateDecimalPlaces);
+                var centerLng = PublicMapCoordinateRounding.RoundLongitude((decimal)((gj + 0.5d) * cell), coordinateDecimalPlaces);
                 return new PublicMapAggregateCellDto(centerLat, centerLng, acc.Count, acc.MaxSeverity);
             })
             .OrderByDescending(c => c.Count)

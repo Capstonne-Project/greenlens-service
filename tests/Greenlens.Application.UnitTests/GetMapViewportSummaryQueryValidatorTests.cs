@@ -1,11 +1,12 @@
 using Greenlens.Application.Common.Map;
 using Greenlens.Application.Features.Map.GetMapViewportSummary;
+using Greenlens.Application.UnitTests.TestDoubles;
 
 namespace Greenlens.Application.UnitTests;
 
 public sealed class GetMapViewportSummaryQueryValidatorTests
 {
-    private readonly GetMapViewportSummaryQueryValidator _sut = new();
+    private readonly GetMapViewportSummaryQueryValidator _sut = new(new DefaultSystemSettingsProvider());
 
     private static GetMapViewportSummaryQuery ValidQuery() =>
         new(

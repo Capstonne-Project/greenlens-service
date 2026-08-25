@@ -67,10 +67,11 @@ internal static class NotificationPlaceholders
 
     internal static Dictionary<string, string> ForDuplicateReviewFromTier1Geo(
         string reportCode,
-        string primaryReportCode) =>
+        string primaryReportCode,
+        int duplicateRadiusMeters = 25) =>
         ForDuplicateReview(
             reportCode,
-            $"cùng loại và trong bán kính ~25m với báo cáo {primaryReportCode}");
+            $"cùng loại và trong bán kính ~{duplicateRadiusMeters}m với báo cáo {primaryReportCode}");
 
     internal static Dictionary<string, string> ForCleanupTaskAssigned(string reportCode, string teamName) =>
         new(StringComparer.Ordinal)
@@ -249,5 +250,17 @@ internal static class NotificationPlaceholders
             ["report_code"] = reportCode,
             ["company_name"] = companyName,
             ["team_names"] = teamNames
+        };
+
+    internal static Dictionary<string, string> ForDuplicateMerged(string primaryReportCode) =>
+        new(StringComparer.Ordinal)
+        {
+            ["report_code"] = primaryReportCode
+        };
+
+    internal static Dictionary<string, string> ForCompanyDeactivationReassign(string reportCode) =>
+        new(StringComparer.Ordinal)
+        {
+            ["report_code"] = reportCode
         };
 }

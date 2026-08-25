@@ -1,11 +1,12 @@
 using Greenlens.Application.Common.Map;
 using Greenlens.Application.Features.Map.GetPublicMapReports;
+using Greenlens.Application.UnitTests.TestDoubles;
 
 namespace Greenlens.Application.UnitTests;
 
 public sealed class GetPublicMapReportsQueryValidatorTests
 {
-    private readonly GetPublicMapReportsQueryValidator _sut = new();
+    private readonly GetPublicMapReportsQueryValidator _sut = new(new DefaultSystemSettingsProvider());
 
     private static GetPublicMapReportsQuery ValidDetailQuery() =>
         new(
