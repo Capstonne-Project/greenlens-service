@@ -22,6 +22,7 @@ public sealed class LoginCommandHandler(
     IUnitOfWork uow,
     IJwtService jwtService,
     IPasswordHasher passwordHasher,
+    ISystemSettingsProvider systemSettings,
     ILogger<LoginCommandHandler> logger)
     : IRequestHandler<LoginCommand, Result<LoginResponse>>
 {
@@ -29,6 +30,9 @@ public sealed class LoginCommandHandler(
         LoginCommand request,
         CancellationToken cancellationToken)
     {
+        var (maxFailedAttempts, lockoutMinutes, captchaAfterAttempts) =
+            ModuleSystemSettings.AuthLockout(systemSettings);
+
         var user = await users.GetByEmailAsync(
             request.Email.ToLowerInvariant(), cancellationToken)
             .ConfigureAwait(false);
@@ -56,7 +60,9 @@ public sealed class LoginCommandHandler(
 
         if (!passwordHasher.Verify(request.Password, user.PasswordHash))
         {
-            user.RecordFailedLogin();
+            user.RecordFailedLogin(maxFailedAttempts, lockoutMinutes);
+            if (user.RequiresCaptcha(captchaAfterAttempts))
+                logger.LogDebug("User {UserId} requires captcha on next login attempt", user.Id);
             await uow.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             logger.LogWarning("Failed login attempt for user {UserId}", user.Id);
             return Errors.Auth.InvalidCredentials;

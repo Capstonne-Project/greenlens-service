@@ -14,6 +14,7 @@ public sealed class VerifyOtpCommandHandler(
     IUserRepository users,
     IUnitOfWork uow,
     IPasswordHasher passwordHasher,
+    ISystemSettingsProvider systemSettings,
     ILogger<VerifyOtpCommandHandler> logger)
     : IRequestHandler<VerifyOtpCommand, Result<VerifyOtpResponse>>
 {
@@ -23,17 +24,19 @@ public sealed class VerifyOtpCommandHandler(
     {
         logger.LogInformation("Getting OTP verification");
 
+        var maxOtpAttempts = ModuleSystemSettings.OtpMaxAttempts(systemSettings);
+
         // Retrieve latest valid OTP for the given purpose
         var otp = await otps.GetLatestValidAsync(request.Email, request.Purpose, cancellationToken)
             .ConfigureAwait(false);
 
-        if (otp is null || !otp.IsValid)
+        if (otp is null || !otp.IsValid(maxOtpAttempts))
             return Errors.Auth.OtpExpired;
 
         // Track attempt count for rate limiting
         otp.IncrementAttempt();
 
-        if (otp.HasExceededMaxAttempts)
+        if (otp.HasExceededMaxAttempts(maxOtpAttempts))
         {
             await uow.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             logger.LogWarning("OTP max attempts exceeded for {Email}", request.Email);

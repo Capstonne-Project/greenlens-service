@@ -1,25 +1,30 @@
 using FluentValidation;
+using Greenlens.Application.Common;
+using Greenlens.Application.Common.Interfaces;
 
 namespace Greenlens.Application.Features.CommunityCleanup.CheckInCommunityCleanup;
 
 public sealed class CheckInCommunityCleanupCommandValidator : AbstractValidator<CheckInCommunityCleanupCommand>
 {
-    public CheckInCommunityCleanupCommandValidator()
+    public CheckInCommunityCleanupCommandValidator(ISystemSettingsProvider systemSettings)
     {
+        var (minLat, maxLat, minLng, maxLng) = ModuleSystemSettings.VietnamBounds(systemSettings);
+        var (rejectMin, _, _) = ModuleSystemSettings.ValidationReasonLengths(systemSettings);
+
         RuleFor(x => x.EventId).NotEmpty();
 
         // BR-REP-003: Vietnam GPS bounds
         RuleFor(x => x.Latitude)
-            .InclusiveBetween(8.0m, 24.0m)
-            .WithMessage("Latitude phải trong khoảng 8.0–24.0 (Việt Nam).");
+            .InclusiveBetween(minLat, maxLat)
+            .WithMessage($"Latitude phải trong khoảng {minLat}–{maxLat} (Việt Nam).");
         RuleFor(x => x.Longitude)
-            .InclusiveBetween(102.0m, 110.0m)
-            .WithMessage("Longitude phải trong khoảng 102.0–110.0 (Việt Nam).");
+            .InclusiveBetween(minLng, maxLng)
+            .WithMessage($"Longitude phải trong khoảng {minLng}–{maxLng} (Việt Nam).");
 
         // Draft: out-of-range check-in override reason, when supplied, must be meaningful.
         RuleFor(x => x.Reason)
-            .MinimumLength(20)
-            .WithMessage("Lý do phải có ít nhất 20 ký tự.")
+            .MinimumLength(rejectMin)
+            .WithMessage($"Lý do phải có ít nhất {rejectMin} ký tự.")
             .When(x => x.Reason is not null);
     }
 }

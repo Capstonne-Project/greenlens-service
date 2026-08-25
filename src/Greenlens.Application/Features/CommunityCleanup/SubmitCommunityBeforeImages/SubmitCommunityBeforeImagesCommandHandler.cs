@@ -13,15 +13,16 @@ public sealed class SubmitCommunityBeforeImagesCommandHandler(
     ICommunityCleanupEventRepository events,
     IReportMediaRepository reportMedia,
     IFileStorageService fileStorage,
+    ISystemSettingsProvider systemSettings,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     ILogger<SubmitCommunityBeforeImagesCommandHandler> logger)
     : IRequestHandler<SubmitCommunityBeforeImagesCommand, Result<SubmitCommunityBeforeImagesResponse>>
 {
-    private const int MaxImages = 5;
-
     public async Task<Result<SubmitCommunityBeforeImagesResponse>> Handle(SubmitCommunityBeforeImagesCommand request, CancellationToken ct)
     {
+        var maxImages = ModuleSystemSettings.CommunityBeforeImagesMax(systemSettings);
+
         var ev = await events.GetByIdAsync(request.EventId, ct).ConfigureAwait(false);
         if (ev is null)
             return Errors.CommunityCleanup.EventNotFound;
@@ -32,7 +33,7 @@ public sealed class SubmitCommunityBeforeImagesCommandHandler(
         if (request.ImageUrls.Count == 0)
             return Errors.Reports.MissingBeforeImages;
 
-        if (request.ImageUrls.Count > MaxImages)
+        if (request.ImageUrls.Count > maxImages)
             return Errors.Media.TooManyImages;
 
         foreach (var url in request.ImageUrls)

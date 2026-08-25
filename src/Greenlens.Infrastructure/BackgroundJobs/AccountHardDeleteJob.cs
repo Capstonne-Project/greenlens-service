@@ -1,3 +1,5 @@
+using Greenlens.Application.Common;
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -13,13 +15,13 @@ namespace Greenlens.Infrastructure.BackgroundJobs;
 internal sealed class AccountHardDeleteJob(
     ApplicationDbContext dbContext,
     IReportRepository reports,
+    ISystemSettingsProvider systemSettings,
     ILogger<AccountHardDeleteJob> logger)
 {
-    private const int RetentionDays = 90;
-
     public async Task ExecuteAsync()
     {
-        var threshold = DateTime.UtcNow.AddDays(-RetentionDays);
+        var retentionDays = ModuleSystemSettings.AccountSoftDeleteRetentionDays(systemSettings);
+        var threshold = DateTime.UtcNow.AddDays(-retentionDays);
 
         var usersToDelete = await dbContext.Users
             .IgnoreQueryFilters()

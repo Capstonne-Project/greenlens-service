@@ -17,11 +17,15 @@ public sealed class EditCommentCommandHandler(
     IProfanityFilter profanityFilter,
     IUserRepository users,
     IUnitOfWork uow,
+    ISystemSettingsProvider systemSettings,
     ILogger<EditCommentCommandHandler> logger)
     : IRequestHandler<EditCommentCommand, Result<EditCommentResponse>>
 {
     public async Task<Result<EditCommentResponse>> Handle(EditCommentCommand request, CancellationToken ct)
     {
+        var editWindowMinutes = ModuleSystemSettings.CommentEditWindowMinutes(systemSettings);
+        var banDurationDays = ModuleSystemSettings.CommentBanDurationDays(systemSettings);
+
         logger.LogInformation("Getting edit comment");
 
         if (!currentUser.IsAuthenticated)
@@ -50,7 +54,7 @@ public sealed class EditCommentCommandHandler(
             var user = await users.GetByIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
             if (user is not null)
             {
-                user.RecordCommentViolation();
+                user.RecordCommentViolation(banDurationDays);
                 await uow.SaveChangesAsync(ct).ConfigureAwait(false);
                 logger.LogWarning("Inappropriate content detected for user {UserId}", currentUser.UserId);
             }
@@ -60,7 +64,7 @@ public sealed class EditCommentCommandHandler(
 
         try
         {
-            comment.Edit(request.Content, currentUser.UserId);
+            comment.Edit(request.Content, currentUser.UserId, editWindowMinutes);
         }
         catch (DomainException)
         {
@@ -73,6 +77,6 @@ public sealed class EditCommentCommandHandler(
         logger.LogInformation("Comment {CommentId} edited by {UserId}", comment.Id, currentUser.UserId);
 
         return new EditCommentResponse(
-            comment.Id, comment.Content, comment.UpdatedAt, comment.IsWithinEditWindow());
+            comment.Id, comment.Content, comment.UpdatedAt, comment.IsWithinEditWindow(editWindowMinutes));
     }
 }

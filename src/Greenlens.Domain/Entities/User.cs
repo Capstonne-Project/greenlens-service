@@ -13,9 +13,6 @@ namespace Greenlens.Domain.Entities;
 /// </remarks>
 public sealed class User : SoftDeletableEntity
 {
-    private const int MaxFailedAttempts = 5;
-    private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(30);
-
     private User() { } // EF Core constructor
 
     public string Email { get; private set; } = default!;
@@ -130,15 +127,13 @@ public sealed class User : SoftDeletableEntity
         return user;
     }
 
-    /// <summary>BR-AUTH-011: Record failed login attempt. Lock after 5 failures in 15 min window.</summary>
-    public void RecordFailedLogin()
+    /// <summary>BR-AUTH-011: Record failed login attempt. Lock after max failures.</summary>
+    public void RecordFailedLogin(int maxFailedAttempts = 5, int lockoutMinutes = 30)
     {
         FailedLoginAttempts++;
 
-        if (FailedLoginAttempts >= MaxFailedAttempts)
-        {
-            LockoutEnd = DateTime.UtcNow.Add(LockoutDuration);
-        }
+        if (FailedLoginAttempts >= maxFailedAttempts)
+            LockoutEnd = DateTime.UtcNow.AddMinutes(lockoutMinutes);
     }
 
     public void ResetFailedLoginAttempts()
@@ -150,8 +145,9 @@ public sealed class User : SoftDeletableEntity
     public bool IsLockedOut() =>
         LockoutEnd is not null && LockoutEnd > DateTime.UtcNow;
 
-    /// <summary>BR-AUTH-011: Check if CAPTCHA is required (≥3 failed attempts).</summary>
-    public bool RequiresCaptcha() => FailedLoginAttempts >= 3;
+    /// <summary>BR-AUTH-011: Check if CAPTCHA is required.</summary>
+    public bool RequiresCaptcha(int captchaAfterAttempts = 3) =>
+        FailedLoginAttempts >= captchaAfterAttempts;
 
     public void VerifyEmail()
     {
@@ -261,12 +257,12 @@ public sealed class User : SoftDeletableEntity
         ConsentAcceptedAt = DateTime.UtcNow;
     }
 
-    /// <summary>BR-CMT-003: Track profanity violations; ban commenting for 7 days at 3 strikes.</summary>
-    public void RecordCommentViolation()
+    /// <summary>BR-CMT-003: Track profanity violations; ban commenting at 3 strikes.</summary>
+    public void RecordCommentViolation(int banDurationDays = 7)
     {
         CommentViolationCount++;
         if (CommentViolationCount >= 3)
-            CommentBannedUntil = DateTime.UtcNow.AddDays(7);
+            CommentBannedUntil = DateTime.UtcNow.AddDays(banDurationDays);
     }
 
     /// <summary>
