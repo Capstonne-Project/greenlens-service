@@ -46,6 +46,7 @@ public static class SystemSettingKeys
         public const string CheckInMaxDistanceMeters = "check_in_max_distance_meters";
         public const string ExifGpsMismatchMeters = "exif_gps_mismatch_meters";
         public const string InspectionSoftGpsMeters = "inspection_soft_gps_meters";
+        public const string ProgressUpdateMaxDistanceMeters = "progress_update_max_distance_meters";
     }
 
     public static class Map

@@ -503,6 +503,8 @@ public sealed record CheckInInspectionRequest(
 
 public sealed record UpdateInspectionProgressRequest(
     int Percent,
+    decimal Latitude,
+    decimal Longitude,
     string? Note = null);
 
 public sealed record AssignInspectionTeamRequest(Guid TeamId);

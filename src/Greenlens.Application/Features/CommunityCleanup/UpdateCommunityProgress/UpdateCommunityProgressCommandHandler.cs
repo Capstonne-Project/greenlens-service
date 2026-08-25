@@ -12,8 +12,11 @@ namespace Greenlens.Application.Features.CommunityCleanup.UpdateCommunityProgres
 /// <remarks>Draft rule BR-CMU-008: only the event Leader may update progress.</remarks>
 public sealed class UpdateCommunityProgressCommandHandler(
     ICommunityCleanupEventRepository events,
+    IReportRepository reports,
     IReportMediaRepository reportMedia,
     IFileStorageService fileStorage,
+    IGeoDistanceService geoDistance,
+    ISystemSettingsProvider systemSettings,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     ILogger<UpdateCommunityProgressCommandHandler> logger)
@@ -41,6 +44,25 @@ public sealed class UpdateCommunityProgressCommandHandler(
 
         if (request.ProgressPercent < ev.ProgressPercent)
             return Errors.CommunityCleanup.ProgressCannotDecrease;
+
+        var report = await reports.GetByIdAsync(ev.ReportId, ct).ConfigureAwait(false);
+        if (report is null)
+            return Errors.Reports.ReportNotFound;
+
+        // BR-CMU-008: progress updates must be submitted from near the site (hard block, no override).
+        var maxProgressDistanceMeters = ModuleSystemSettings.ProgressUpdateMaxDistanceMeters(systemSettings);
+        var targetLat = ev.MeetingLatitude ?? report.Latitude;
+        var targetLng = ev.MeetingLongitude ?? report.Longitude;
+
+        var distance = await geoDistance.GetDistanceInMetersAsync(
+            request.Latitude, request.Longitude, targetLat, targetLng, ct).ConfigureAwait(false);
+
+        if (distance > maxProgressDistanceMeters)
+        {
+            logger.LogWarning("Distance {Distance} is greater than {MaxProgressDistanceMeters} for event {EventId}",
+                distance, maxProgressDistanceMeters, request.EventId);
+            return Errors.Progress.TooFarFromSite(distance);
+        }
 
         try
         {

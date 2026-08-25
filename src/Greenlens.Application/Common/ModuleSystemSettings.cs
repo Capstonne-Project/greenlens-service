@@ -71,6 +71,9 @@ public static class ModuleSystemSettings
     public static int InspectionSoftGpsMeters(ISystemSettingsProvider s) =>
         s.GetInt(SystemSettingModule.Geo, SystemSettingKeys.Geo.InspectionSoftGpsMeters, 200);
 
+    public static int ProgressUpdateMaxDistanceMeters(ISystemSettingsProvider s) =>
+        s.GetInt(SystemSettingModule.Geo, SystemSettingKeys.Geo.ProgressUpdateMaxDistanceMeters, 200);
+
     public static int MapCoordinateDecimalPlaces(ISystemSettingsProvider s) =>
         s.GetInt(SystemSettingModule.Map, SystemSettingKeys.Map.PublicCoordinateDecimalPlaces, 4);
 

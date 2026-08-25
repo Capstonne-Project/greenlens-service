@@ -18,6 +18,8 @@ public sealed class UpdateCleanupProgressCommandHandler(
     IReportRepository reports,
     IReportAssignmentRepository assignments,
     IAssignmentProgressUpdateRepository progressUpdates,
+    IGeoDistanceService geoDistance,
+    ISystemSettingsProvider systemSettings,
     ICleanupAssignmentActivityNotifier activityNotifier,
     ICurrentUser currentUser,
     IUnitOfWork uow,
@@ -26,6 +28,8 @@ public sealed class UpdateCleanupProgressCommandHandler(
 {
     public async Task<Result> Handle(UpdateCleanupProgressCommand request, CancellationToken ct)
     {
+        var maxProgressDistanceMeters = ModuleSystemSettings.ProgressUpdateMaxDistanceMeters(systemSettings);
+
         var report = await reports.GetByIdAsync(request.ReportId, ct).ConfigureAwait(false);
         if (report is null)
         {
@@ -58,6 +62,18 @@ public sealed class UpdateCleanupProgressCommandHandler(
             logger.LogWarning("Progress {Percent}% is lower than current {CurrentPercent}% for assignment {AssignmentId}",
                 request.Percent, assignment.ProgressPercent, assignment.Id);
             return Errors.Cleanup.ProgressCannotDecrease(assignment.ProgressPercent);
+        }
+
+        // BR-CLN-004: progress updates must be submitted from near the site.
+        var distance = await geoDistance.GetDistanceInMetersAsync(
+            request.Latitude, request.Longitude,
+            report.Latitude, report.Longitude, ct).ConfigureAwait(false);
+
+        if (distance > maxProgressDistanceMeters)
+        {
+            logger.LogWarning("Distance {Distance} is greater than {MaxProgressDistanceMeters} for report {ReportId}",
+                distance, maxProgressDistanceMeters, request.ReportId);
+            return Errors.Progress.TooFarFromSite(distance);
         }
 
         progressUpdates.Add(AssignmentProgressUpdate.Create(

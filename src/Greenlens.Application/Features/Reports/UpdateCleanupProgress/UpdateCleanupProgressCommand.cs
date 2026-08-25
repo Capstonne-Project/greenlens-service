@@ -10,4 +10,6 @@ public sealed record UpdateCleanupProgressCommand(
     Guid ReportId,
     Guid TeamId,
     int Percent,
+    decimal Latitude,
+    decimal Longitude,
     string? Note = null) : IRequest<Result>;

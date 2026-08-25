@@ -24,6 +24,8 @@ public sealed class UpdateProgressCommandHandler(
     ITeamMemberRepository teamMembers,
     IReportMediaRepository reportMedia,
     IFileStorageService fileStorage,
+    IGeoDistanceService geoDistance,
+    ISystemSettingsProvider systemSettings,
     ICleanupAssignmentActivityNotifier activityNotifier,
     ICurrentUser currentUser,
     IUnitOfWork uow,
@@ -35,7 +37,7 @@ public sealed class UpdateProgressCommandHandler(
     {
         logger.LogInformation("Updating progress for report {ReportId} with {ProgressPercent}% and {ImageUrls} for user {UserId}",
             request.ReportId, request.ProgressPercent, request.ImageUrls, currentUser.UserId);
-        
+
         if (request.ProgressPercent is < 0 or > 100)
         {
             logger.LogWarning("Invalid progress percent for report {ReportId}", request.ReportId);
@@ -86,6 +88,26 @@ public sealed class UpdateProgressCommandHandler(
             return Errors.Reports.ProgressCannotDecrease(assignment.ProgressPercent);
         }
 
+        var report = await reports.GetByIdAsync(request.ReportId, ct).ConfigureAwait(false);
+        if (report is null)
+        {
+            logger.LogWarning("Report not found for ID {ReportId}", request.ReportId);
+            return Errors.Reports.ReportNotFound;
+        }
+
+        // BR-CLN-004: progress-image updates must be submitted from near the site.
+        var maxProgressDistanceMeters = ModuleSystemSettings.ProgressUpdateMaxDistanceMeters(systemSettings);
+        var distance = await geoDistance.GetDistanceInMetersAsync(
+            request.Latitude, request.Longitude,
+            report.Latitude, report.Longitude, ct).ConfigureAwait(false);
+
+        if (distance > maxProgressDistanceMeters)
+        {
+            logger.LogWarning("Distance {Distance} is greater than {MaxProgressDistanceMeters} for report {ReportId}",
+                distance, maxProgressDistanceMeters, request.ReportId);
+            return Errors.Progress.TooFarFromSite(distance);
+        }
+
         var progressUpdate = AssignmentProgressUpdate.Create(
             assignment.Id,
             request.ReportId,
@@ -114,17 +136,13 @@ public sealed class UpdateProgressCommandHandler(
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 
-        var report = await reports.GetByIdAsync(request.ReportId, ct).ConfigureAwait(false);
-        if (report is not null)
-        {
-            await activityNotifier.NotifyProgressUpdatedAsync(
-                assignment.AssignedById,
-                leader.TeamId,
-                report.Id,
-                report.Code,
-                request.ProgressPercent,
-                ct).ConfigureAwait(false);
-        }
+        await activityNotifier.NotifyProgressUpdatedAsync(
+            assignment.AssignedById,
+            leader.TeamId,
+            report.Id,
+            report.Code,
+            request.ProgressPercent,
+            ct).ConfigureAwait(false);
 
         logger.LogInformation("Progress updated to {Percent}% for report {ReportId} by team {TeamId}",
             request.ProgressPercent, request.ReportId, leader.TeamId);

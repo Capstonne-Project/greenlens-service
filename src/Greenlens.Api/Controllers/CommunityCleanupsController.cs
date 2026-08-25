@@ -215,13 +215,14 @@ public sealed class CommunityCleanupsController(ISender sender) : ControllerBase
 
     [HttpPut("{eventId:guid}/progress")]
     [Authorize(Roles = "Cleaner,Admin")]
-    [SwaggerOperation(Summary = "[Leader] Cập nhật tiến độ", Description = "Presign ảnh progress qua POST /v1/media/presign (purpose=Progress, reportId).")]
+    [SwaggerOperation(Summary = "[Leader] Cập nhật tiến độ", Description = "Presign ảnh progress qua POST /v1/media/presign (purpose=Progress, reportId). " +
+        "Yêu cầu vị trí GPS hiện tại cách điểm hẹn/hiện trường tối đa 200m (mặc định).")]
     [SwaggerResponse(200, "Đã cập nhật", typeof(ApiResponse<UpdateCommunityProgressResponse>))]
-    [SwaggerResponse(422, "Percent ngoài khoảng 0-100 hoặc status không hợp lệ", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Percent ngoài khoảng 0-100, status không hợp lệ, hoặc vị trí quá xa hiện trường", typeof(ApiResponse))]
     public async Task<IActionResult> UpdateProgressAsync(
         [FromRoute] Guid eventId, [FromBody] UpdateCommunityProgressRequest request, CancellationToken ct)
         => (await sender.Send(new UpdateCommunityProgressCommand(
-            eventId, request.Percent, request.Note, request.ImageUrls ?? []), ct)).ToHttp();
+            eventId, request.Percent, request.Note, request.ImageUrls ?? [], request.Latitude, request.Longitude), ct)).ToHttp();
 
     [HttpPost("{eventId:guid}/submit-verification")]
     [Authorize(Roles = "Cleaner,Admin")]
@@ -252,4 +253,9 @@ public sealed record CheckInCommunityCleanupRequest(decimal Latitude, decimal Lo
 
 public sealed record CommunityImageUrlsRequest(List<string>? ImageUrls);
 
-public sealed record UpdateCommunityProgressRequest(int Percent, string? Note, List<string>? ImageUrls);
+public sealed record UpdateCommunityProgressRequest(
+    int Percent,
+    decimal Latitude,
+    decimal Longitude,
+    string? Note,
+    List<string>? ImageUrls);

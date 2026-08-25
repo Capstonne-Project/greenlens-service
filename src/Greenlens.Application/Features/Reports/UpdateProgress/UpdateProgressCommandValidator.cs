@@ -2,16 +2,16 @@ using FluentValidation;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 
-namespace Greenlens.Application.Features.Inspection.UpdateInspectionProgress;
+namespace Greenlens.Application.Features.Reports.UpdateProgress;
 
-public sealed class UpdateInspectionProgressCommandValidator : AbstractValidator<UpdateInspectionProgressCommand>
+public sealed class UpdateProgressCommandValidator : AbstractValidator<UpdateProgressCommand>
 {
-    public UpdateInspectionProgressCommandValidator(ISystemSettingsProvider systemSettings)
+    public UpdateProgressCommandValidator(ISystemSettingsProvider systemSettings)
     {
         var (minLat, maxLat, minLng, maxLng) = ModuleSystemSettings.VietnamBounds(systemSettings);
 
-        RuleFor(x => x.InspectionId).NotEmpty();
-        RuleFor(x => x.Percent).InclusiveBetween(0, 100);
+        RuleFor(x => x.ReportId).NotEmpty();
+        RuleFor(x => x.ProgressPercent).InclusiveBetween(0, 100);
 
         // BR-REP-003: Vietnam GPS bounds
         RuleFor(x => x.Latitude)
