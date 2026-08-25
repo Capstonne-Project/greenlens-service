@@ -13,7 +13,10 @@ namespace Greenlens.Application.Features.Inspection.UpdateInspectionProgress;
 /// </summary>
 public sealed class UpdateInspectionProgressCommandHandler(
     IInspectionReportRepository inspections,
+    IReportRepository reports,
     ITeamMemberRepository teamMembers,
+    IGeoDistanceService geoDistance,
+    ISystemSettingsProvider systemSettings,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     ILogger<UpdateInspectionProgressCommandHandler> logger)
@@ -37,6 +40,26 @@ public sealed class UpdateInspectionProgressCommandHandler(
         {
             logger.LogWarning("Team member validation failed for inspection {InspectionId}", request.InspectionId);
             return authError;
+        }
+
+        var report = await reports.GetByIdAsync(inspection.ReportId, ct).ConfigureAwait(false);
+        if (report is null)
+        {
+            logger.LogWarning("Report not found for inspection {InspectionId}", request.InspectionId);
+            return Errors.Reports.ReportNotFound;
+        }
+
+        // BR-INS-031: progress updates must be submitted from near the site.
+        var maxProgressDistanceMeters = ModuleSystemSettings.ProgressUpdateMaxDistanceMeters(systemSettings);
+        var distance = await geoDistance.GetDistanceInMetersAsync(
+            request.Latitude, request.Longitude,
+            report.Latitude, report.Longitude, ct).ConfigureAwait(false);
+
+        if (distance > maxProgressDistanceMeters)
+        {
+            logger.LogWarning("Distance {Distance} is greater than {MaxProgressDistanceMeters} for inspection {InspectionId}",
+                distance, maxProgressDistanceMeters, request.InspectionId);
+            return Errors.Progress.TooFarFromSite(distance);
         }
 
         var result = inspection.UpdateProgress(request.Percent, request.Note);

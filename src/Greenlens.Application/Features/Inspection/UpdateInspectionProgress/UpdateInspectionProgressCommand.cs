@@ -9,4 +9,6 @@ namespace Greenlens.Application.Features.Inspection.UpdateInspectionProgress;
 public sealed record UpdateInspectionProgressCommand(
     Guid InspectionId,
     int Percent,
+    decimal Latitude,
+    decimal Longitude,
     string? Note = null) : IRequest<Result>;
