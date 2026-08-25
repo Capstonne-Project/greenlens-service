@@ -90,6 +90,8 @@ internal static class SystemSettingDefinitions
             "Ngưỡng lệch EXIF vs GPS (mét)", 50, 2000),
         Def(SystemSettingModule.Geo, "inspection_soft_gps_meters", SystemSettingValueType.Int, "200",
             "GPS mềm khi xác nhận đến hiện trường thanh tra", 50, 2000),
+        Def(SystemSettingModule.Geo, "progress_update_max_distance_meters", SystemSettingValueType.Int, "200",
+            "Khoảng cách tối đa khi cập nhật tiến độ (mét)", 50, 1000),
 
         // ── Map public (Mục F) — no hotspot ──
         Def(SystemSettingModule.Map, "public_coordinate_decimal_places", SystemSettingValueType.Int, "4",
