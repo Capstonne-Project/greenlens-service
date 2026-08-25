@@ -162,13 +162,14 @@ public sealed class TeamsController(ISender sender) : ControllerBase
     [Tags("🧹 Cleaner Dashboard")]
     [SwaggerOperation(
         Summary = "[Cleaner/CompanyStaff] Cập nhật tiến độ cleanup",
-        Description = "Team leader cập nhật tiến độ (BR-CLN-004). Phải update ≥ 1 lần/ngày khi InProgress.")]
+        Description = "Team leader cập nhật tiến độ (BR-CLN-004). Phải update ≥ 1 lần/ngày khi InProgress. " +
+            "Yêu cầu vị trí GPS hiện tại cách hiện trường tối đa 200m (mặc định).")]
     [SwaggerResponse(200, "Đã cập nhật", typeof(ApiResponse))]
-    [SwaggerResponse(422, "Assignment không InProgress hoặc percent ngoài 0–100", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Assignment không InProgress, percent ngoài 0–100, hoặc vị trí quá xa hiện trường", typeof(ApiResponse))]
     public async Task<IActionResult> UpdateProgressAsync(
         [FromRoute] Guid reportId, [FromBody] UpdateCleanupProgressRequest request, CancellationToken ct)
         => (await sender.Send(new UpdateCleanupProgressCommand(
-            reportId, request.TeamId, request.Percent, request.Note), ct))
+            reportId, request.TeamId, request.Percent, request.Latitude, request.Longitude, request.Note), ct))
             .ToHttpNoContent("Đã cập nhật tiến độ.");
 
     // ═══════════════════════════════════════════
@@ -465,6 +466,8 @@ public sealed record CheckInCleanupRequest(
 public sealed record UpdateCleanupProgressRequest(
     Guid TeamId,
     int Percent,
+    decimal Latitude,
+    decimal Longitude,
     string? Note = null);
 
 public sealed record EscalateCleanupRequest(
