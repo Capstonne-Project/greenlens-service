@@ -1,9 +1,9 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace Greenlens.Infrastructure.Ai;
 
@@ -19,7 +19,7 @@ namespace Greenlens.Infrastructure.Ai;
 /// </remarks>
 internal sealed class AiImageCompareService(
     IHttpClientFactory httpClientFactory,
-    IOptions<AiOptions> options,
+    ISystemSettingsProvider systemSettings,
     ILogger<AiImageCompareService> logger)
     : IAiImageCompareService
 {
@@ -37,8 +37,9 @@ internal sealed class AiImageCompareService(
             return null;
 
         var client = httpClientFactory.CreateClient("AiService");
+        var compareTimeoutSeconds = ModuleSystemSettings.Ai(systemSettings).CompareTimeoutSeconds;
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(TimeSpan.FromSeconds(options.Value.CompareTimeoutSeconds));
+        cts.CancelAfter(TimeSpan.FromSeconds(compareTimeoutSeconds));
 
         var payload = new { image_url_a = imageUrlA, image_url_b = imageUrlB };
 
@@ -66,7 +67,7 @@ internal sealed class AiImageCompareService(
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
             // BR-AI-006: our own timeout, not a caller abort.
-            logger.LogWarning("AI compare-images timed out after {Seconds}s", options.Value.CompareTimeoutSeconds);
+            logger.LogWarning("AI compare-images timed out after {Seconds}s", compareTimeoutSeconds);
             return null;
         }
         catch (HttpRequestException ex)

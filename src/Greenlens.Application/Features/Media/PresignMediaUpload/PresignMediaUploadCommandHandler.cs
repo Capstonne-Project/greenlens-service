@@ -22,11 +22,10 @@ public sealed class PresignMediaUploadCommandHandler(
     IInspectionReportRepository inspections,
     ITeamMemberRepository teamMembers,
     ICurrentUser currentUser,
+    ISystemSettingsProvider systemSettings,
     ILogger<PresignMediaUploadCommandHandler> logger)
     : IRequestHandler<PresignMediaUploadCommand, Result<PresignMediaUploadResponse>>
 {
-    private static readonly TimeSpan DefaultTtl = TimeSpan.FromMinutes(15);
-
     public async Task<Result<PresignMediaUploadResponse>> Handle(
         PresignMediaUploadCommand request,
         CancellationToken cancellationToken)
@@ -134,11 +133,14 @@ public sealed class PresignMediaUploadCommandHandler(
 
         try
         {
+            var presignTtlMinutes = ModuleSystemSettings.Ai(systemSettings).PresignUploadTtlMinutes;
+            var presignTtl = TimeSpan.FromMinutes(Math.Max(1, presignTtlMinutes));
+
             var signed = await fileStorage.CreatePresignedUploadAsync(
                     safeFileName,
                     contentType,
                     folder,
-                    DefaultTtl,
+                    presignTtl,
                     cancellationToken)
                 .ConfigureAwait(false);
 
@@ -256,7 +258,11 @@ public sealed class PresignMediaUploadCommandHandler(
             return Errors.Reports.NotReporter;
         }
 
-        return ReopenRequestEligibility.ValidateCitizenCanRequest(report, DateTime.UtcNow);
+        return ReopenRequestEligibility.ValidateCitizenCanRequest(
+            report,
+            DateTime.UtcNow,
+            ReportSystemSettings.ReopenWindowDays(systemSettings),
+            ReportSystemSettings.MaxApprovedReopens(systemSettings));
     }
 
     private async Task<Error?> ValidateInspectionEvidenceUploadAsync(
