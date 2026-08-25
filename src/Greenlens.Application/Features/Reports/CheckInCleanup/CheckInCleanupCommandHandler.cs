@@ -21,14 +21,15 @@ public sealed class CheckInCleanupCommandHandler(
     IReportAssignmentRepository assignments,
     IGeoDistanceService geoDistance,
     ICleanupAssignmentActivityNotifier activityNotifier,
+    ISystemSettingsProvider systemSettings,
     IUnitOfWork uow,
     ILogger<CheckInCleanupCommandHandler> logger)
     : IRequestHandler<CheckInCleanupCommand, Result>
 {
-    private const double MaxCheckInDistanceMeters = 200;
-
     public async Task<Result> Handle(CheckInCleanupCommand request, CancellationToken ct)
     {
+        var maxCheckInDistanceMeters = ModuleSystemSettings.CheckInMaxDistanceMeters(systemSettings);
+
         logger.LogInformation("Checking in cleanup for report {ReportId}", request.ReportId);
 
         var report = await reports.GetByIdAsync(request.ReportId, ct).ConfigureAwait(false);
@@ -64,9 +65,9 @@ public sealed class CheckInCleanupCommandHandler(
             request.Latitude, request.Longitude,
             report.Latitude, report.Longitude, ct).ConfigureAwait(false);
 
-        if (distance > MaxCheckInDistanceMeters)
+        if (distance > maxCheckInDistanceMeters)
         {
-            logger.LogWarning("Distance {Distance} is greater than {MaxCheckInDistanceMeters}", distance, MaxCheckInDistanceMeters);
+            logger.LogWarning("Distance {Distance} is greater than {MaxCheckInDistanceMeters}", distance, maxCheckInDistanceMeters);
             return Errors.Cleanup.TooFarFromSite;
         }
 

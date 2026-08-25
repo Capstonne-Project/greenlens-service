@@ -182,6 +182,10 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("name_vi");
 
+                    b.Property<int?>("RequiredActionCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("required_action_count");
+
                     b.Property<int?>("RequiredPoints")
                         .HasColumnType("integer")
                         .HasColumnName("required_points");
@@ -285,7 +289,8 @@ namespace Greenlens.Infrastructure.Migrations
                             IconUrl = "badges/icons/duplicate_finder.png",
                             IsActive = true,
                             NameEn = "Duplicate Finder",
-                            NameVi = "Người Phát Hiện Trùng"
+                            NameVi = "Người Phát Hiện Trùng",
+                            RequiredActionCount = 5
                         },
                         new
                         {
@@ -296,7 +301,8 @@ namespace Greenlens.Infrastructure.Migrations
                             IconUrl = "badges/icons/community_voice.png",
                             IsActive = true,
                             NameEn = "Community Voice",
-                            NameVi = "Tiếng Nói Cộng Đồng"
+                            NameVi = "Tiếng Nói Cộng Đồng",
+                            RequiredActionCount = 10
                         },
                         new
                         {
@@ -307,7 +313,8 @@ namespace Greenlens.Infrastructure.Migrations
                             IconUrl = "badges/icons/cleanup_hero.png",
                             IsActive = true,
                             NameEn = "Cleanup Hero",
-                            NameVi = "Anh Hùng Dọn Dẹp"
+                            NameVi = "Anh Hùng Dọn Dẹp",
+                            RequiredActionCount = 2
                         },
                         new
                         {
@@ -3437,6 +3444,91 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasDatabaseName("ix_staff_invitations_local_office_id_status");
 
                     b.ToTable("staff_invitations", (string)null);
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.SystemSetting", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("DefaultValue")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("default_value");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("key");
+
+                    b.Property<decimal?>("MaxValue")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("max_value");
+
+                    b.Property<decimal?>("MinValue")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("min_value");
+
+                    b.Property<string>("Module")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("module");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("updated_by");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("value");
+
+                    b.Property<string>("ValueType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("value_type");
+
+                    b.HasKey("Id")
+                        .HasName("pk_system_settings");
+
+                    b.HasIndex("Module", "Key")
+                        .IsUnique()
+                        .HasDatabaseName("ix_system_settings_module_key");
+
+                    b.ToTable("system_settings", (string)null);
                 });
 
             modelBuilder.Entity("Greenlens.Domain.Entities.TeamMember", b =>

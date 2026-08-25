@@ -29,6 +29,7 @@ public sealed class RequestReopenReportCommandHandler(
     IOfficerRecipientQuery officerRecipients,
     ICurrentUser currentUser,
     IUnitOfWork uow,
+    ISystemSettingsProvider systemSettings,
     ILogger<RequestReopenReportCommandHandler> logger) : IRequestHandler<RequestReopenReportCommand, Result<Guid>>
 {
     public async Task<Result<Guid>> Handle(RequestReopenReportCommand request, CancellationToken ct)
@@ -47,7 +48,11 @@ public sealed class RequestReopenReportCommandHandler(
         }
 
         var utcNow = DateTime.UtcNow;
-        var eligibilityError = ReopenRequestEligibility.ValidateCitizenCanRequest(report, utcNow);
+        var eligibilityError = ReopenRequestEligibility.ValidateCitizenCanRequest(
+            report,
+            utcNow,
+            ReportSystemSettings.ReopenWindowDays(systemSettings),
+            ReportSystemSettings.MaxApprovedReopens(systemSettings));
         if (eligibilityError is not null)
         {
             logger.LogWarning(

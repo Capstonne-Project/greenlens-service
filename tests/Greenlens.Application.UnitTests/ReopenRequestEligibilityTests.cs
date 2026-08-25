@@ -12,7 +12,7 @@ public sealed class ReopenRequestEligibilityTests
         var report = CreateResolvedReport();
         report.Close();
 
-        var error = ReopenRequestEligibility.ValidateCitizenCanRequest(report, DateTime.UtcNow);
+        var error = ReopenRequestEligibility.ValidateCitizenCanRequest(report, DateTime.UtcNow, 7, 1);
 
         Assert.NotNull(error);
         Assert.Equal("CANNOT_REOPEN_FROM_CLOSED", error!.Code);
@@ -25,7 +25,7 @@ public sealed class ReopenRequestEligibilityTests
         report.Verify(Guid.NewGuid());
         report.Assign(Guid.NewGuid());
 
-        var error = ReopenRequestEligibility.ValidateCitizenCanRequest(report, DateTime.UtcNow);
+        var error = ReopenRequestEligibility.ValidateCitizenCanRequest(report, DateTime.UtcNow, 7, 1);
 
         Assert.NotNull(error);
         Assert.Equal("CANNOT_REOPEN_NOT_RESOLVED", error!.Code);
@@ -37,7 +37,7 @@ public sealed class ReopenRequestEligibilityTests
         var report = CreateResolvedReport();
         report.MarkPendingReopenRequest();
 
-        var error = ReopenRequestEligibility.ValidateCitizenCanRequest(report, DateTime.UtcNow);
+        var error = ReopenRequestEligibility.ValidateCitizenCanRequest(report, DateTime.UtcNow, 7, 1);
 
         Assert.NotNull(error);
         Assert.Equal("PENDING_REOPEN_REQUEST_EXISTS", error!.Code);
@@ -51,7 +51,7 @@ public sealed class ReopenRequestEligibilityTests
         report.Assign(Guid.NewGuid());
         report.Resolve();
 
-        var error = ReopenRequestEligibility.ValidateCitizenCanRequest(report, DateTime.UtcNow);
+        var error = ReopenRequestEligibility.ValidateCitizenCanRequest(report, DateTime.UtcNow, 7, 1);
 
         Assert.NotNull(error);
         Assert.Equal("REOPEN_LIMIT_REACHED", error!.Code);
@@ -62,7 +62,7 @@ public sealed class ReopenRequestEligibilityTests
     {
         var report = CreateResolvedReport();
 
-        var error = ReopenRequestEligibility.ValidateCitizenCanRequest(report, DateTime.UtcNow);
+        var error = ReopenRequestEligibility.ValidateCitizenCanRequest(report, DateTime.UtcNow, 7, 1);
 
         Assert.Null(error);
     }

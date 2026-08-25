@@ -17,16 +17,17 @@ public sealed class ConfirmArrivalCommandHandler(
     IReportRepository reports,
     ITeamMemberRepository teamMembers,
     IGeoDistanceService geoDistance,
+    ISystemSettingsProvider systemSettings,
     IInspectionAssignmentActivityNotifier activityNotifier,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     ILogger<ConfirmArrivalCommandHandler> logger)
     : IRequestHandler<ConfirmArrivalCommand, Result>
 {
-    private const double SoftGpsThresholdMeters = 200;
-
     public async Task<Result> Handle(ConfirmArrivalCommand request, CancellationToken ct)
     {
+        var softGpsThresholdMeters = ModuleSystemSettings.InspectionSoftGpsMeters(systemSettings);
+
         var inspection = await inspections.GetByIdAsync(request.InspectionId, ct).ConfigureAwait(false);
         if (inspection is null)
             return Errors.Inspections.InspectionNotFound;
@@ -44,7 +45,7 @@ public sealed class ConfirmArrivalCommandHandler(
             request.Latitude, request.Longitude,
             report.Latitude, report.Longitude, ct).ConfigureAwait(false);
 
-        if (distance > SoftGpsThresholdMeters && string.IsNullOrWhiteSpace(request.Note))
+        if (distance > softGpsThresholdMeters && string.IsNullOrWhiteSpace(request.Note))
         {
             logger.LogWarning(
                 "Arrival note required for inspection {InspectionId} — distance {Distance}m",

@@ -6,11 +6,9 @@ namespace Greenlens.Domain.Entities;
 /// <summary>
 /// OTP code for email verification, password reset, or phone verification.
 /// </summary>
-/// <remarks>OTP lifetime: 10 min (email), 5 min (phone). Max 5 verification attempts.</remarks>
+/// <remarks>OTP lifetime: 10 min (email), 5 min (phone). Max attempts from system_settings (otp_max_attempts).</remarks>
 public sealed class OtpCode : BaseEntity
 {
-    private const int MaxAttempts = 5;
-
     private OtpCode() { }
 
     public string Email { get; private set; } = default!;
@@ -23,8 +21,11 @@ public sealed class OtpCode : BaseEntity
     public int AttemptCount { get; private set; }
 
     public bool IsExpired => DateTime.UtcNow >= ExpiresAt;
-    public bool HasExceededMaxAttempts => AttemptCount >= MaxAttempts;
-    public bool IsValid => !IsUsed && !IsExpired && !HasExceededMaxAttempts;
+
+    public bool HasExceededMaxAttempts(int maxAttempts) => AttemptCount >= maxAttempts;
+
+    public bool IsValid(int maxAttempts) =>
+        !IsUsed && !IsExpired && !HasExceededMaxAttempts(maxAttempts);
 
     public static OtpCode Create(string email, string codeHash, OtpPurpose purpose, int lifetimeMinutes = 10)
     {

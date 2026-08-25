@@ -1,3 +1,4 @@
+using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Domain.Enums;
 using Greenlens.Infrastructure.Persistence;
@@ -18,6 +19,7 @@ namespace Greenlens.Infrastructure.BackgroundJobs;
 internal sealed class CleanupProgressSlaJob(
     ApplicationDbContext db,
     INotificationService notificationService,
+    ISystemSettingsProvider systemSettings,
     ILogger<CleanupProgressSlaJob> logger)
 {
     public async Task ExecuteAsync()
@@ -25,15 +27,16 @@ internal sealed class CleanupProgressSlaJob(
         logger.LogInformation("CleanupProgressSlaJob: Starting...");
 
         var now = DateTime.UtcNow;
-        var threshold24h = now.AddHours(-24);
-        var threshold48h = now.AddHours(-48);
+        var (staleHours, escalateHours, _) = ModuleSystemSettings.CleanupProgress(systemSettings);
+        var thresholdStale = now.AddHours(-staleHours);
+        var thresholdEscalate = now.AddHours(-escalateHours);
 
         var staleAssignments = await db.ReportAssignments
             .Include(a => a.Report)
             .Where(a => a.Status == AssignmentStatus.InProgress)
             .Where(a => a.ProgressUpdatedAt == null
-                ? a.StartedAt < threshold24h
-                : a.ProgressUpdatedAt < threshold24h)
+                ? a.StartedAt < thresholdStale
+                : a.ProgressUpdatedAt < thresholdStale)
             .ToListAsync()
             .ConfigureAwait(false);
 
@@ -56,7 +59,7 @@ internal sealed class CleanupProgressSlaJob(
         foreach (var assignment in staleAssignments)
         {
             var lastUpdate = assignment.ProgressUpdatedAt ?? assignment.StartedAt;
-            var isEscalation = lastUpdate < threshold48h;
+            var isEscalation = lastUpdate < thresholdEscalate;
 
             if (assignment.Report is null)
                 continue;

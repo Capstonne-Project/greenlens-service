@@ -25,6 +25,7 @@ public sealed class ApproveReopenRequestCommandHandler(
     ICurrentUser currentUser,
     IUnitOfWork uow,
     IAuditLogger auditLogger,
+    ISystemSettingsProvider systemSettings,
     ILogger<ApproveReopenRequestCommandHandler> logger) : IRequestHandler<ApproveReopenRequestCommand, Result>
 {
     public async Task<Result> Handle(ApproveReopenRequestCommand request, CancellationToken ct)
@@ -57,7 +58,10 @@ public sealed class ApproveReopenRequestCommandHandler(
             return scopeError;
         }
 
-        if (!report.ApproveReopen(currentUser.UserId))
+        if (!report.ApproveReopen(
+                currentUser.UserId,
+                ReportSystemSettings.MaxApprovedReopens(systemSettings),
+                ModuleSystemSettings.ReportSla(systemSettings)))
         {
             if (report.Status != ReportStatus.Resolved)
             {
@@ -65,7 +69,7 @@ public sealed class ApproveReopenRequestCommandHandler(
                 return Errors.Reports.ReportNotResolvedForReopenApproval;
             }
 
-            if (report.ReopenedCount >= Report.MaxApprovedReopens)
+            if (report.ReopenedCount >= ReportSystemSettings.MaxApprovedReopens(systemSettings))
             {
                 logger.LogWarning("Reopen limit reached for report {ReportId}", report.Id);
                 return Errors.Reports.ReopenLimitReached;

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -17,6 +18,7 @@ namespace Greenlens.Infrastructure.Ai;
 internal sealed class AiClassificationService(
     IHttpClientFactory httpClientFactory,
     IOptions<AiOptions> options,
+    ISystemSettingsProvider systemSettings,
     ILogger<AiClassificationService> logger)
     : IAiClassificationService
 {
@@ -34,7 +36,7 @@ internal sealed class AiClassificationService(
     {
         var opts = options.Value;
         var baseUrl = opts.BaseUrl.TrimEnd('/');
-        var timeoutSec = opts.TimeoutSeconds;
+        var timeoutSec = ModuleSystemSettings.Ai(systemSettings).TimeoutSeconds;
         var endpoint = $"{baseUrl}/api/v1/classify-moderation-upload";
 
         long? streamLength = imageStream.CanSeek ? imageStream.Length : null;

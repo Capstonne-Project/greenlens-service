@@ -12,8 +12,6 @@ namespace Greenlens.Domain.Entities;
 /// </remarks>
 public sealed class StaffInvitation : AuditableEntity
 {
-    private const int ExpiryDays = 7;
-
     private StaffInvitation() { } // EF Core
 
     /// <summary>LEO who sent the invitation.</summary>
@@ -59,7 +57,8 @@ public sealed class StaffInvitation : AuditableEntity
         Guid localOfficeId,
         UserRole targetRole,
         Guid? teamId = null,
-        bool isLeader = false)
+        bool isLeader = false,
+        int expiryDays = 7)
     {
         return new()
         {
@@ -70,7 +69,7 @@ public sealed class StaffInvitation : AuditableEntity
             TeamId = teamId,
             IsLeader = isLeader,
             Status = InvitationStatus.Pending,
-            ExpiresAt = DateTime.UtcNow.AddDays(ExpiryDays),
+            ExpiresAt = DateTime.UtcNow.AddDays(expiryDays),
             Token = Guid.NewGuid().ToString("N")
         };
     }

@@ -1,17 +1,18 @@
 using FluentValidation;
 using Greenlens.Application.Common;
+using Greenlens.Application.Common.Interfaces;
 
 namespace Greenlens.Application.Features.Reports.SubmitPollutionReport;
 
 public sealed class SubmitPollutionReportCommandValidator : AbstractValidator<SubmitPollutionReportCommand>
 {
-    public const int MaxImagesPerReport = 5;
-    public const long MaxImageSizeBytes = 10 * 1024 * 1024;
-
     private static readonly HashSet<string> AllowedMimeTypes = ReportImageContentTypes.Allowed;
 
-    public SubmitPollutionReportCommandValidator()
+    public SubmitPollutionReportCommandValidator(ISystemSettingsProvider systemSettings)
     {
+        var maxImages = ReportSystemSettings.MaxImagesPerReport(systemSettings);
+        var maxImageSizeBytes = ReportSystemSettings.MaxImageSizeBytes(systemSettings);
+        var (minLat, maxLat, minLng, maxLng) = ModuleSystemSettings.VietnamBounds(systemSettings);
         RuleFor(x => x.CategoryId).NotEmpty();
         RuleFor(x => x.Severity).IsInEnum();
 
@@ -22,10 +23,10 @@ public sealed class SubmitPollutionReportCommandValidator : AbstractValidator<Su
 
         // BR-REP-003: Vietnam GPS bounds
         RuleFor(x => x.Latitude)
-            .InclusiveBetween(8m, 24m).WithMessage("Latitude must be between 8 and 24.");
+            .InclusiveBetween(minLat, maxLat).WithMessage($"Latitude must be between {minLat} and {maxLat}.");
 
         RuleFor(x => x.Longitude)
-            .InclusiveBetween(102m, 110m).WithMessage("Longitude must be between 102 and 110.");
+            .InclusiveBetween(minLng, maxLng).WithMessage($"Longitude must be between {minLng} and {maxLng}.");
 
         RuleFor(x => x.Address).MaximumLength(500);
 
@@ -63,8 +64,8 @@ public sealed class SubmitPollutionReportCommandValidator : AbstractValidator<Su
             // BR-REP-001: at least one photo; BR-REP-002: max 5 images
             RuleFor(x => x.Images!)
                 .Must(i => i.Count >= 1).WithMessage("Cần ít nhất 1 ảnh.")
-                .Must(i => i.Count <= MaxImagesPerReport)
-                .WithMessage($"Tối đa {MaxImagesPerReport} ảnh mỗi báo cáo.");
+                .Must(i => i.Count <= maxImages)
+                .WithMessage($"Tối đa {maxImages} ảnh mỗi báo cáo.");
 
             RuleForEach(x => x.Images).ChildRules(img =>
             {
@@ -79,8 +80,8 @@ public sealed class SubmitPollutionReportCommandValidator : AbstractValidator<Su
                     .WithMessage("MimeType phải là image/jpeg, image/png, image/webp, image/heic, hoặc image/heif.");
 
                 img.RuleFor(i => i.SizeBytes)
-                    .InclusiveBetween(1, MaxImageSizeBytes)
-                    .WithMessage($"Kích thước ảnh phải từ 1 đến {MaxImageSizeBytes} bytes.");
+                    .InclusiveBetween(1, maxImageSizeBytes)
+                    .WithMessage($"Kích thước ảnh phải từ 1 đến {maxImageSizeBytes} bytes.");
 
                 img.RuleFor(i => i.Key)
                     .MaximumLength(500)

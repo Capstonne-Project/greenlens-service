@@ -1,3 +1,4 @@
+using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -16,10 +17,9 @@ namespace Greenlens.Infrastructure.BackgroundJobs;
 internal sealed class DataRetentionJob(
     ApplicationDbContext dbContext,
     IFileStorageService fileStorage,
+    ISystemSettingsProvider systemSettings,
     ILogger<DataRetentionJob> logger)
 {
-    private const int MediaRetentionYears = 2;
-    private const int AuditLogRetentionMonths = 12;
     private const int MediaBatchSize = 100;
     private const int AuditLogBatchSize = 1000;
     private const int HistoryBatchSize = 1000;
@@ -27,18 +27,19 @@ internal sealed class DataRetentionJob(
 
     public async Task ExecuteAsync()
     {
-        await CleanupExpiredMediaAsync().ConfigureAwait(false);
-        await CleanupExpiredAuditLogsAsync().ConfigureAwait(false);
-        await CleanupExpiredReportStatusHistoryAsync().ConfigureAwait(false);
+        var (mediaYears, auditMonths, statusHistoryMonths) = ModuleSystemSettings.DataRetention(systemSettings);
+        await CleanupExpiredMediaAsync(mediaYears).ConfigureAwait(false);
+        await CleanupExpiredAuditLogsAsync(auditMonths).ConfigureAwait(false);
+        await CleanupExpiredReportStatusHistoryAsync(statusHistoryMonths).ConfigureAwait(false);
     }
 
     /// <summary>
-    /// Phase 1: Delete S3 files for ReportMedia older than 2 years.
+    /// Phase 1: Delete S3 files for ReportMedia older than configured years.
     /// Keeps the DB record (metadata) but replaces Url with placeholder.
     /// </summary>
-    private async Task CleanupExpiredMediaAsync()
+    private async Task CleanupExpiredMediaAsync(int mediaRetentionYears)
     {
-        var threshold = DateTime.UtcNow.AddYears(-MediaRetentionYears);
+        var threshold = DateTime.UtcNow.AddYears(-mediaRetentionYears);
 
         var expiredMedia = await dbContext.ReportMedia
             .Where(m => m.UploadedAt <= threshold && m.Url != DeletedPlaceholder)
@@ -97,11 +98,11 @@ internal sealed class DataRetentionJob(
     }
 
     /// <summary>
-    /// Phase 2: Hard-delete AuditLog entries older than 12 months (BR-ADM-010).
+    /// Phase 2: Hard-delete AuditLog entries older than configured months (BR-ADM-010).
     /// </summary>
-    private async Task CleanupExpiredAuditLogsAsync()
+    private async Task CleanupExpiredAuditLogsAsync(int auditLogRetentionMonths)
     {
-        var threshold = DateTime.UtcNow.AddMonths(-AuditLogRetentionMonths);
+        var threshold = DateTime.UtcNow.AddMonths(-auditLogRetentionMonths);
         var totalDeleted = 0;
 
         while (true)
@@ -123,11 +124,11 @@ internal sealed class DataRetentionJob(
     }
 
     /// <summary>
-    /// Phase 3: Hard-delete ReportStatusHistory records older than 12 months.
+    /// Phase 3: Hard-delete ReportStatusHistory records older than configured months.
     /// </summary>
-    private async Task CleanupExpiredReportStatusHistoryAsync()
+    private async Task CleanupExpiredReportStatusHistoryAsync(int statusHistoryRetentionMonths)
     {
-        var threshold = DateTime.UtcNow.AddMonths(-AuditLogRetentionMonths);
+        var threshold = DateTime.UtcNow.AddMonths(-statusHistoryRetentionMonths);
 
         var deletedCount = await dbContext.ReportStatusHistory
             .Where(h => h.CreatedAt <= threshold)

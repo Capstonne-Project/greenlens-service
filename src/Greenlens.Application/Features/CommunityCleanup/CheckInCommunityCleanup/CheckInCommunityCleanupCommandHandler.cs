@@ -19,14 +19,15 @@ public sealed class CheckInCommunityCleanupCommandHandler(
     ICommunityCleanupParticipantRepository participants,
     IReportRepository reports,
     IGeoDistanceService geoDistance,
+    ISystemSettingsProvider systemSettings,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     ILogger<CheckInCommunityCleanupCommandHandler> logger) : IRequestHandler<CheckInCommunityCleanupCommand, Result>
 {
-    private const double MaxCheckInDistanceMeters = 200;
-
     public async Task<Result> Handle(CheckInCommunityCleanupCommand request, CancellationToken ct)
     {
+        var maxCheckInDistanceMeters = ModuleSystemSettings.CheckInMaxDistanceMeters(systemSettings);
+
         var ev = await events.GetByIdAsync(request.EventId, ct).ConfigureAwait(false);
         if (ev is null)
             return Errors.CommunityCleanup.EventNotFound;
@@ -48,10 +49,10 @@ public sealed class CheckInCommunityCleanupCommandHandler(
         var distance = await geoDistance.GetDistanceInMetersAsync(
             request.Latitude, request.Longitude, targetLat, targetLng, ct).ConfigureAwait(false);
 
-        var isOutOfRange = distance > MaxCheckInDistanceMeters;
+        var isOutOfRange = distance > maxCheckInDistanceMeters;
         if (isOutOfRange && string.IsNullOrWhiteSpace(request.Reason))
         {
-            logger.LogWarning("Check-in distance {Distance}m exceeds {Max}m for event {EventId}", distance, MaxCheckInDistanceMeters, request.EventId);
+            logger.LogWarning("Check-in distance {Distance}m exceeds {Max}m for event {EventId}", distance, maxCheckInDistanceMeters, request.EventId);
             return Errors.CommunityCleanup.CheckInTooFar;
         }
 

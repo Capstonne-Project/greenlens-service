@@ -1,3 +1,4 @@
+using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Features.Notifications;
@@ -17,17 +18,15 @@ internal sealed class NearbyReportNotificationHandler(
     INotificationService notificationService,
     INearbyCitizenQuery nearbyCitizenQuery,
     IReportRepository reports,
+    ISystemSettingsProvider systemSettings,
     IApplicationDbContext db,
     ILogger<NearbyReportNotificationHandler> logger)
     : INotificationHandler<ReportSubmittedEvent>
 {
-    /// <summary>BR-NTF-002: Citizen nearby radius.</summary>
-    private const double RadiusMeters = 2000;
-
-    private const int MaxRecipients = 100;
-
     public async Task Handle(ReportSubmittedEvent notification, CancellationToken ct)
     {
+        var (radiusMeters, maxRecipients, _) = ModuleSystemSettings.Notifications(systemSettings);
+
         var report = await reports.QueryAsNoTracking()
             .Where(r => r.Id == notification.ReportId)
             .Select(r => new
@@ -56,8 +55,8 @@ internal sealed class NearbyReportNotificationHandler(
                 report.Latitude,
                 report.Longitude,
                 report.ReporterId,
-                RadiusMeters,
-                MaxRecipients,
+                radiusMeters,
+                maxRecipients,
                 ct)
             .ConfigureAwait(false);
 
@@ -65,7 +64,7 @@ internal sealed class NearbyReportNotificationHandler(
         {
             logger.LogDebug(
                 "NearbyReport: no citizens within {Radius}m of report {ReportCode}",
-                RadiusMeters, report.Code);
+                radiusMeters, report.Code);
             return;
         }
 

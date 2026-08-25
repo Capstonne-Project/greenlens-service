@@ -9,14 +9,14 @@ namespace Greenlens.Application.Features.Admin.SpamDashboard.GetSpamSuspects;
 /// <remarks>
 /// Implements: BR-ADM-007.
 /// Heuristic rules:
-///   1. Submit ≥ 5 reports/hour
+///   1. Submit ≥ submit_max_per_hour (default from system_settings when query param omitted)
 ///   2. ≥ 3 rejected reports in last 7 days
 ///   3. ≥ 2 reports flagged as IrrelevantOrSuspectedAbusive by AI
 /// </remarks>
 public sealed record GetSpamSuspectsQuery(
     int Page = 1,
     int PageSize = 20,
-    int MinReportsPerHour = 5,
+    int? MinReportsPerHour = null,
     int MinRejected7Days = 3,
     int MinAiFlagged = 2) : IRequest<Result<GetSpamSuspectsResponse>>;
 

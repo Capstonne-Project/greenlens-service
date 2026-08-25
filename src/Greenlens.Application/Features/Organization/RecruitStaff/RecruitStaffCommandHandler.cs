@@ -29,6 +29,7 @@ public sealed class RecruitStaffCommandHandler(
     IApplicationDbContext db,
     INotificationService notifications,
     ICurrentUser currentUser,
+    ISystemSettingsProvider systemSettings,
     IUnitOfWork uow,
     ILogger<RecruitStaffCommandHandler> logger) : IRequestHandler<RecruitStaffCommand, Result<RecruitStaffResponse>>
 {
@@ -164,7 +165,8 @@ public sealed class RecruitStaffCommandHandler(
             localOfficeId: leoOfficeId,
             targetRole: request.TargetRole,
             teamId: assignedTeamId,
-            isLeader: isLeader);
+            isLeader: isLeader,
+            expiryDays: ModuleSystemSettings.StaffInvitationExpiryDays(systemSettings));
 
         invitations.Add(invitation);
 

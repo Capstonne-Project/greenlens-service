@@ -31,13 +31,18 @@ public sealed class Badge : BaseEntity
     /// <summary>If set (streak badges), badge is auto-awarded when user reaches this many consecutive submit days.</summary>
     public int? RequiredStreakDays { get; private set; }
 
+    /// <summary>
+    /// Community/special badges: duplicate count, reporter confirmations, cleanup events, etc.
+    /// </summary>
+    public int? RequiredActionCount { get; private set; }
+
     public DateTime CreatedAt { get; private set; }
 
     public static Badge Create(
         string code, string nameVi, string nameEn,
         string? description = null, string? iconUrl = null,
         int? requiredPoints = null, int? requiredReportCount = null,
-        int? requiredStreakDays = null)
+        int? requiredStreakDays = null, int? requiredActionCount = null)
     {
         return new Badge
         {
@@ -49,6 +54,7 @@ public sealed class Badge : BaseEntity
             RequiredPoints = requiredPoints,
             RequiredReportCount = requiredReportCount,
             RequiredStreakDays = requiredStreakDays,
+            RequiredActionCount = requiredActionCount,
             IsActive = true,
             CreatedAt = DateTime.UtcNow
         };
@@ -61,6 +67,34 @@ public sealed class Badge : BaseEntity
         NameEn = nameEn;
         Description = description;
         IconUrl = iconUrl;
+    }
+
+    /// <summary>BR-ADM-005: Admin updates the single eligibility threshold for this badge.</summary>
+    public void UpdateThreshold(int threshold)
+    {
+        if (threshold < 1)
+            throw new ArgumentOutOfRangeException(nameof(threshold), "Threshold must be at least 1.");
+
+        RequiredPoints = null;
+        RequiredReportCount = null;
+        RequiredStreakDays = null;
+        RequiredActionCount = null;
+
+        switch (Code)
+        {
+            case "rising_star" or "eco_expert" or "green_legend":
+                RequiredPoints = threshold;
+                break;
+            case "streak_7d" or "streak_30d":
+                RequiredStreakDays = threshold;
+                break;
+            case "duplicate_finder" or "community_voice" or "cleanup_hero":
+                RequiredActionCount = threshold;
+                break;
+            default:
+                RequiredReportCount = threshold;
+                break;
+        }
     }
 
     public void Activate() => IsActive = true;

@@ -13,6 +13,7 @@ using Greenlens.Infrastructure.Persistence;
 using Greenlens.Infrastructure.Persistence.Repositories;
 using Greenlens.Infrastructure.Persistence.Repositories.Location;
 using Greenlens.Infrastructure.BackgroundJobs;
+using Greenlens.Infrastructure.Configuration;
 using Greenlens.Infrastructure.DomainEvents;
 using Greenlens.Infrastructure.Moderation;
 using Greenlens.Application.Features.Notifications;
@@ -227,6 +228,13 @@ public static class DependencyInjection
         services.AddSingleton<BlockedWordCache>();
         services.AddSingleton<IBlockedWordCache>(sp => sp.GetRequiredService<BlockedWordCache>());
         services.AddHostedService(sp => sp.GetRequiredService<BlockedWordCache>());
+
+        // ── System settings cache (BR-ADM-010) ──
+        services.AddSingleton<SystemSettingsProvider>();
+        services.AddSingleton<ISystemSettingsProvider>(sp => sp.GetRequiredService<SystemSettingsProvider>());
+        services.AddSingleton<ISystemSettingsCache>(sp => sp.GetRequiredService<SystemSettingsProvider>());
+        services.AddHostedService(sp => sp.GetRequiredService<SystemSettingsProvider>());
+
         services.AddSingleton<IProfanityFilter, ProfanityFilter>();
 
         // ── Duplicate detection Tier 2 scheduler (BR-REP-030, BR-AI-002) ──

@@ -4,6 +4,7 @@ using Greenlens.Application.Features.Notifications.EventHandlers;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
+using Greenlens.Application.UnitTests.TestDoubles;
 using Greenlens.Infrastructure.Persistence;
 using Greenlens.Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -182,6 +183,7 @@ public sealed class PossibleDuplicateFlaggedNotificationHandlerTests
             _notifications,
             new ReportRepository(ctx),
             ctx,
+            new DefaultSystemSettingsProvider(),
             NullLogger<PossibleDuplicateFlaggedNotificationHandler>.Instance);
 
         await sut.Handle(

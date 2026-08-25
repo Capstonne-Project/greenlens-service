@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 
 namespace Greenlens.Infrastructure.RateLimiting;
@@ -7,18 +8,18 @@ namespace Greenlens.Infrastructure.RateLimiting;
 /// BR-REP-010 fallback when Redis is unavailable (local dev / tests).
 /// Not suitable for multi-instance production — use <see cref="RedisReportSubmissionRateLimiter"/>.
 /// </summary>
-public sealed class InMemoryReportSubmissionRateLimiter : IReportSubmissionRateLimiter
+public sealed class InMemoryReportSubmissionRateLimiter(ISystemSettingsProvider systemSettings)
+    : IReportSubmissionRateLimiter
 {
-    private const int MaxPerHour = 5;
-    private const int MaxPerDay = 20;
     private static readonly TimeSpan HourWindow = TimeSpan.FromHours(1);
     private static readonly TimeSpan DayWindow = TimeSpan.FromHours(24);
-    private static readonly TimeSpan LockDuration = TimeSpan.FromHours(1);
 
     private readonly ConcurrentDictionary<Guid, UserRateState> _states = new();
 
     public Task<ReportSubmissionRateLimitResult> TryAcquireAsync(Guid userId, CancellationToken cancellationToken)
     {
+        var (maxPerHour, maxPerDay, lockSeconds) = ModuleSystemSettings.SubmitRateLimits(systemSettings);
+        var lockDuration = TimeSpan.FromSeconds(lockSeconds);
         var now = DateTime.UtcNow;
         var state = _states.GetOrAdd(userId, _ => new UserRateState());
 
@@ -34,10 +35,10 @@ public sealed class InMemoryReportSubmissionRateLimiter : IReportSubmissionRateL
             state.Submissions.RemoveAll(t => now - t > DayWindow);
 
             var hourCount = state.Submissions.Count(t => now - t <= HourWindow);
-            if (hourCount >= MaxPerHour || state.Submissions.Count >= MaxPerDay)
+            if (hourCount >= maxPerHour || state.Submissions.Count >= maxPerDay)
             {
-                state.LockedUntilUtc = now.Add(LockDuration);
-                return Task.FromResult(new ReportSubmissionRateLimitResult(false, 60));
+                state.LockedUntilUtc = now.Add(lockDuration);
+                return Task.FromResult(new ReportSubmissionRateLimitResult(false, Math.Max(1, lockSeconds / 60)));
             }
 
             state.Submissions.Add(now);

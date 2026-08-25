@@ -15,6 +15,7 @@ public sealed class ResetPasswordCommandHandler(
     IRefreshTokenRepository refreshTokens,
     IUnitOfWork uow,
     IPasswordHasher passwordHasher,
+    ISystemSettingsProvider systemSettings,
     ILogger<ResetPasswordCommandHandler> logger)
     : IRequestHandler<ResetPasswordCommand, Result<ResetPasswordResponse>>
 {
@@ -22,17 +23,19 @@ public sealed class ResetPasswordCommandHandler(
         ResetPasswordCommand request,
         CancellationToken cancellationToken)
     {
+        var maxOtpAttempts = ModuleSystemSettings.OtpMaxAttempts(systemSettings);
+
         // Retrieve latest valid OTP for password reset
         var otp = await otps.GetLatestValidAsync(request.Email, OtpPurpose.PasswordReset, cancellationToken)
             .ConfigureAwait(false);
 
-        if (otp is null || !otp.IsValid)
+        if (otp is null || !otp.IsValid(maxOtpAttempts))
             return Errors.Auth.OtpExpired;
 
         // Track attempt count for rate limiting
         otp.IncrementAttempt();
 
-        if (otp.HasExceededMaxAttempts)
+        if (otp.HasExceededMaxAttempts(maxOtpAttempts))
         {
             await uow.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             logger.LogWarning("OTP max attempts exceeded for {Email}", request.Email);

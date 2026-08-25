@@ -1,3 +1,4 @@
+using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
@@ -12,7 +13,10 @@ namespace Greenlens.Application.Features.Admin.SpamDashboard.GetSpamSuspects;
 /// No real-time AI calls — reads pre-computed AI flags from DB.
 /// </summary>
 /// <remarks>Implements: BR-ADM-007.</remarks>
-public sealed class GetSpamSuspectsQueryHandler(IApplicationDbContext db, ILogger<GetSpamSuspectsQueryHandler> logger)
+public sealed class GetSpamSuspectsQueryHandler(
+    IApplicationDbContext db,
+    ISystemSettingsProvider systemSettings,
+    ILogger<GetSpamSuspectsQueryHandler> logger)
     : IRequestHandler<GetSpamSuspectsQuery, Result<GetSpamSuspectsResponse>>
 {
     public async Task<Result<GetSpamSuspectsResponse>> Handle(
@@ -20,6 +24,9 @@ public sealed class GetSpamSuspectsQueryHandler(IApplicationDbContext db, ILogge
         CancellationToken ct)
     {
         logger.LogInformation("Getting spam suspects");
+
+        var minReportsPerHour = request.MinReportsPerHour
+            ?? ModuleSystemSettings.SubmitRateLimits(systemSettings).MaxPerHour;
 
         var oneHourAgo = DateTime.UtcNow.AddHours(-1);
         var sevenDaysAgo = DateTime.UtcNow.AddDays(-7);
@@ -39,7 +46,7 @@ public sealed class GetSpamSuspectsQueryHandler(IApplicationDbContext db, ILogge
                 RejectedLast7Days = g.Count(r => r.Status == ReportStatus.Rejected && r.CreatedAt >= sevenDaysAgo),
                 AiFlaggedCount = g.Count(r => r.IsSuspicious)
             })
-            .Where(x => x.ReportsLastHour >= request.MinReportsPerHour
+            .Where(x => x.ReportsLastHour >= minReportsPerHour
                       || x.RejectedLast7Days >= request.MinRejected7Days
                       || x.AiFlaggedCount >= request.MinAiFlagged)
             .OrderByDescending(x => x.ReportsLastHour + x.RejectedLast7Days + x.AiFlaggedCount)
@@ -71,7 +78,7 @@ public sealed class GetSpamSuspectsQueryHandler(IApplicationDbContext db, ILogge
         {
             var user = users.GetValueOrDefault(x.UserId);
             var reasons = new List<string>();
-            if (x.ReportsLastHour >= request.MinReportsPerHour) reasons.Add($"Submit ≥ {x.ReportsLastHour}/h");
+            if (x.ReportsLastHour >= minReportsPerHour) reasons.Add($"Submit ≥ {x.ReportsLastHour}/h");
             if (x.RejectedLast7Days >= request.MinRejected7Days) reasons.Add($"Rejected ≥ {x.RejectedLast7Days}/7d");
             if (x.AiFlaggedCount >= request.MinAiFlagged) reasons.Add($"AI flagged: {x.AiFlaggedCount}");
 
