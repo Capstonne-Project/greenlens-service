@@ -1,3 +1,5 @@
+using Greenlens.Application.Common;
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Infrastructure.Persistence;
 using Hangfire;
 using Microsoft.EntityFrameworkCore;
@@ -12,6 +14,7 @@ namespace Greenlens.Infrastructure.BackgroundJobs;
 [AutomaticRetry(Attempts = 2)]
 internal sealed class DraftCleanupJob(
     ApplicationDbContext db,
+    ISystemSettingsProvider systemSettings,
     ILogger<DraftCleanupJob> logger)
 {
     private const int BatchSize = 200;
@@ -20,7 +23,8 @@ internal sealed class DraftCleanupJob(
     {
         logger.LogInformation("DraftCleanupJob: Starting...");
 
-        var cutoff = DateTime.UtcNow.AddDays(-7);
+        var retentionDays = ReportSystemSettings.DraftRetentionDays(systemSettings);
+        var cutoff = DateTime.UtcNow.AddDays(-retentionDays);
         var totalDeleted = 0;
 
         while (true)
@@ -44,7 +48,7 @@ internal sealed class DraftCleanupJob(
         }
 
         logger.LogInformation(
-            "DraftCleanupJob: Completed. Deleted {Count} stale drafts (> 7 days idle)",
-            totalDeleted);
+            "DraftCleanupJob: Completed. Deleted {Count} stale drafts (> {Days} days idle)",
+            totalDeleted, retentionDays);
     }
 }

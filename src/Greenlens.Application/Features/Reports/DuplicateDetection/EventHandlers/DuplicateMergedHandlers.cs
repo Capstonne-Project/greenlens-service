@@ -1,6 +1,8 @@
+using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Features.Gamification;
+using Greenlens.Application.Features.Notifications;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -17,6 +19,7 @@ namespace Greenlens.Application.Features.Reports.DuplicateDetection.EventHandler
 internal sealed class DuplicateMergedPointsHandler(
     ISender sender,
     IApplicationDbContext db,
+    ISystemSettingsProvider systemSettings,
     ILogger<DuplicateMergedPointsHandler> logger)
     : INotificationHandler<ReportMarkedDuplicateEvent>
 {
@@ -38,8 +41,9 @@ internal sealed class DuplicateMergedPointsHandler(
                 .ConfigureAwait(false);
 
             var basePoints = verifiedCfg is { IsActive: true } ? verifiedCfg.Points : 10;
+            var ratio = ReportSystemSettings.DuplicateMergePointsRatio(systemSettings);
             var points = basePoints > 0
-                ? (int)Math.Round(basePoints * 0.5, MidpointRounding.AwayFromZero)
+                ? (int)Math.Round(basePoints * ratio, MidpointRounding.AwayFromZero)
                 : 0;
 
             if (points > 0)
@@ -89,13 +93,11 @@ internal sealed class DuplicateMergedNotificationHandler(
             "Notification: Report {ReportId} merged as duplicate of {PrimaryCode} → notify reporter {UserId}",
             notification.ReportId, primaryCode, notification.ReporterId);
 
-        await notificationService.SendRawAsync(
+        await notificationService.SendFromTemplateAsync(
             notification.ReporterId,
-            NotificationType.ReportStatusChanged,
-            "Báo cáo được gộp",
-            $"Báo cáo của bạn đã được xác định là trùng lặp và gộp vào báo cáo {primaryCode ?? "hiện có"}. " +
-            "Bạn có thể theo dõi tiến độ xử lý tại báo cáo gốc. Cảm ơn đóng góp của bạn!",
-            notification.PrimaryReportId, // referenceId = primary report → mobile deep-link
+            NotificationType.ReportDuplicateMerged,
+            NotificationPlaceholders.ForDuplicateMerged(primaryCode ?? "hiện có"),
+            notification.PrimaryReportId,
             ct).ConfigureAwait(false);
     }
 }

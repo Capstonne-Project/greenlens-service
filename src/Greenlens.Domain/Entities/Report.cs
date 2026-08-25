@@ -165,8 +165,10 @@ public sealed class Report : SoftDeletableEntity
         string? address,
         string? wardCode,
         string? provinceCode,
-        bool hideReporterName = false)
+        bool hideReporterName = false,
+        ReportSlaPolicy? slaPolicy = null)
     {
+        var sla = slaPolicy ?? ReportSlaPolicy.Default;
         var report = new Report
         {
             Code = code,
@@ -183,7 +185,7 @@ public sealed class Report : SoftDeletableEntity
             ProvinceCode = provinceCode,
             Status = ReportStatus.Submitted,
             AiPending = false,
-            SlaVerifyDueAt = DateTime.UtcNow.AddHours(24),
+            SlaVerifyDueAt = sla.ComputeVerifyDueUtc(DateTime.UtcNow),
             CreatedAt = DateTime.UtcNow
         };
 
@@ -217,7 +219,7 @@ public sealed class Report : SoftDeletableEntity
     // ────────────────────────────────────────────────────
 
     /// <summary>LEO verifies the report. Submitted → Verified. BR-REP-020, 021.</summary>
-    public void Verify(Guid leoId, Severity? overrideSeverity = null, Guid? overrideCategoryId = null)
+    public void Verify(Guid leoId, Severity? overrideSeverity = null, Guid? overrideCategoryId = null, ReportSlaPolicy? slaPolicy = null)
     {
         EnsureStatus(ReportStatus.Submitted);
 
@@ -234,7 +236,8 @@ public sealed class Report : SoftDeletableEntity
         if (overrideCategoryId.HasValue)
             CategoryId = overrideCategoryId.Value;
 
-        SlaResolveDueAt = ComputeSlaResolveDue(Severity);
+        var sla = slaPolicy ?? ReportSlaPolicy.Default;
+        SlaResolveDueAt = sla.ComputeResolveDueUtc(Severity, DateTime.UtcNow);
 
         if (ReporterId.HasValue)
             AddDomainEvent(new ReportVerifiedEvent(Id, ReporterId.Value));
@@ -359,16 +362,17 @@ public sealed class Report : SoftDeletableEntity
     public void ClearPendingReopenRequest() => HasPendingReopenRequest = false;
 
     /// <summary>LEO approves reopen. Resolved → Reopened. BR-REP-015.</summary>
-    public bool ApproveReopen(Guid leoId)
+    public bool ApproveReopen(Guid leoId, int maxApprovedReopens = MaxApprovedReopens, ReportSlaPolicy? slaPolicy = null)
     {
-        if (Status != ReportStatus.Resolved || ReopenedCount >= MaxApprovedReopens)
+        if (Status != ReportStatus.Resolved || ReopenedCount >= maxApprovedReopens)
             return false;
 
         Status = ReportStatus.Reopened;
         ReopenedCount++;
         ResolvedAt = null;
         HasPendingReopenRequest = false;
-        SlaResolveDueAt = ComputeSlaResolveDue(Severity);
+        var sla = slaPolicy ?? ReportSlaPolicy.Default;
+        SlaResolveDueAt = sla.ComputeResolveDueUtc(Severity, DateTime.UtcNow);
         AssignedByOfficerId = null;
         AssignedCompanyId = null;
         DispatchedToCompanyAt = null;
@@ -570,15 +574,6 @@ public sealed class Report : SoftDeletableEntity
             throw new InvalidOperationException(
                 $"Cannot assign cleanup from status {Status}. Must be Verified or Reopened.");
     }
-
-    private static DateTime ComputeSlaResolveDue(Severity severity) => severity switch
-    {
-        Severity.Critical => DateTime.UtcNow.AddDays(3),
-        Severity.High => DateTime.UtcNow.AddDays(5),
-        Severity.Medium => DateTime.UtcNow.AddDays(7),
-        Severity.Low => DateTime.UtcNow.AddDays(10),
-        _ => DateTime.UtcNow.AddDays(7)
-    };
 
     /// <summary>Admin-only: force status without state machine validation.</summary>
     public void ForceStatus(ReportStatus newStatus)

@@ -1,3 +1,4 @@
+using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
@@ -19,16 +20,17 @@ namespace Greenlens.Infrastructure.BackgroundJobs;
 internal sealed class AutoCloseResolvedReportJob(
     ApplicationDbContext db,
     INotificationService notificationService,
+    ISystemSettingsProvider systemSettings,
     ILogger<AutoCloseResolvedReportJob> logger)
 {
     private const int BatchSize = 100;
-    private static readonly TimeSpan AutoCloseAfter = TimeSpan.FromDays(2);
 
     public async Task ExecuteAsync()
     {
         logger.LogInformation("AutoCloseResolvedReportJob: Starting...");
 
-        var cutoff = DateTime.UtcNow - AutoCloseAfter;
+        var autoCloseDays = ReportSystemSettings.AutoCloseResolvedDays(systemSettings);
+        var cutoff = DateTime.UtcNow - TimeSpan.FromDays(autoCloseDays);
         var totalClosed = 0;
 
         while (true)

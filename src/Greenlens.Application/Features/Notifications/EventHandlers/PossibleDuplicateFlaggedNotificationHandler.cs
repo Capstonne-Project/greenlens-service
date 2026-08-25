@@ -1,3 +1,4 @@
+using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Features.Notifications;
@@ -17,6 +18,7 @@ internal sealed class PossibleDuplicateFlaggedNotificationHandler(
     INotificationService notificationService,
     IReportRepository reports,
     IApplicationDbContext db,
+    ISystemSettingsProvider systemSettings,
     ILogger<PossibleDuplicateFlaggedNotificationHandler> logger)
     : INotificationHandler<ReportPossibleDuplicateFlaggedEvent>
 {
@@ -65,7 +67,8 @@ internal sealed class PossibleDuplicateFlaggedNotificationHandler(
 
         var placeholders = NotificationPlaceholders.ForDuplicateReviewFromTier1Geo(
             report.Code,
-            primaryCode ?? "báo cáo hiện có");
+            primaryCode ?? "báo cáo hiện có",
+            ReportSystemSettings.DuplicateRadiusMeters(systemSettings));
         placeholders = await NotificationLocalityQueries
             .EnrichFromWardCodeAsync(db, placeholders, report.WardCode, ct)
             .ConfigureAwait(false);

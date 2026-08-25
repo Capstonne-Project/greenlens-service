@@ -17,11 +17,10 @@ public sealed class SaveDraftCommandHandler(
     IReportDraftRepository drafts,
     ICurrentUser currentUser,
     IUnitOfWork uow,
+    ISystemSettingsProvider systemSettings,
     ILogger<SaveDraftCommandHandler> logger)
     : IRequestHandler<SaveDraftCommand, Result<SaveDraftResponse>>
 {
-    private const int MaxDrafts = 3;
-
     public async Task<Result<SaveDraftResponse>> Handle(
         SaveDraftCommand request,
         CancellationToken cancellationToken)
@@ -52,7 +51,8 @@ public sealed class SaveDraftCommandHandler(
             .CountAsync(d => d.UserId == currentUser.UserId, cancellationToken)
             .ConfigureAwait(false);
 
-        if (count >= MaxDrafts)
+        var maxDrafts = ReportSystemSettings.MaxDraftsPerUser(systemSettings);
+        if (count >= maxDrafts)
         {
             logger.LogWarning("Draft limit reached for user {UserId}", currentUser.UserId);
             return Errors.Reports.DraftLimitReached;
