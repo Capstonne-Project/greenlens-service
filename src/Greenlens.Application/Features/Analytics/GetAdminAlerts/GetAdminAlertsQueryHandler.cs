@@ -1,3 +1,5 @@
+using Greenlens.Application.Common;
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
@@ -9,6 +11,7 @@ namespace Greenlens.Application.Features.Analytics.GetAdminAlerts;
 /// <summary>System-wide operational alerts: SLA breaches, overdue reports, unresolved possible duplicates.</summary>
 public sealed class GetAdminAlertsQueryHandler(
     IReportRepository reports,
+    ISystemSettingsProvider systemSettings,
     ILogger<GetAdminAlertsQueryHandler> logger)
     : IRequestHandler<GetAdminAlertsQuery, Result<List<AlertItem>>>
 {
@@ -20,6 +23,7 @@ public sealed class GetAdminAlertsQueryHandler(
     {
         logger.LogInformation("Getting admin alerts");
 
+        var overduePendingHours = ModuleSystemSettings.SlaOverduePendingHours(systemSettings);
         var alerts = new List<AlertItem>();
 
         var slaBreachCount = await reports.QueryAsNoTracking()
@@ -43,7 +47,7 @@ public sealed class GetAdminAlertsQueryHandler(
             alerts.Add(new AlertItem(
                 "OVERDUE_REPORTS",
                 "Medium",
-                $"{overdueCount} báo cáo đang chờ xử lý quá 72 giờ."));
+                $"{overdueCount} báo cáo đang chờ xử lý quá {overduePendingHours} giờ."));
 
         var possibleDuplicateCount = await reports.QueryAsNoTracking()
             .CountAsync(r => r.IsPossibleDuplicate, ct)

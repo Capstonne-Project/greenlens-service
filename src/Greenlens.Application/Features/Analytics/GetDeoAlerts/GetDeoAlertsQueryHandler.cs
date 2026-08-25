@@ -1,3 +1,4 @@
+using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Features.Analytics.Common;
@@ -19,6 +20,7 @@ public sealed class GetDeoAlertsQueryHandler(
     IUserRepository users,
     ICurrentUser currentUser,
     IDateTimeProvider clock,
+    ISystemSettingsProvider systemSettings,
     ILogger<GetDeoAlertsQueryHandler> logger)
     : IRequestHandler<GetDeoAlertsQuery, Result<List<AlertItem>>>
 {
@@ -33,6 +35,8 @@ public sealed class GetDeoAlertsQueryHandler(
 
         var scope = scopeResult.Value!;
         var deptId = scope.DepartmentId;
+        var overduePendingHours = ModuleSystemSettings.SlaOverduePendingHours(systemSettings);
+        var contractAlertHorizonDays = ModuleSystemSettings.ContractAlertHorizonDays(systemSettings);
         var deptReports = DepartmentContextResolver.ApplyDepartmentScope(
             reports.QueryAsNoTracking(), deptId);
 
@@ -49,7 +53,7 @@ public sealed class GetDeoAlertsQueryHandler(
             .CountAsync(r => OpenStatuses.Contains(r.Status) && r.IsOverdue, ct)
             .ConfigureAwait(false);
         if (overdueCount > 0)
-            alerts.Add(new AlertItem("OVERDUE_REPORTS", "Medium", $"{overdueCount} báo cáo đang chờ xử lý quá 72 giờ."));
+            alerts.Add(new AlertItem("OVERDUE_REPORTS", "Medium", $"{overdueCount} báo cáo đang chờ xử lý quá {overduePendingHours} giờ."));
 
         var duplicateCount = await deptReports.CountAsync(r => r.IsPossibleDuplicate, ct).ConfigureAwait(false);
         if (duplicateCount > 0)
@@ -66,7 +70,7 @@ public sealed class GetDeoAlertsQueryHandler(
             alerts.Add(new AlertItem("PENDING_REOPEN", "Medium", $"{reopenCount} yêu cầu mở lại báo cáo đang chờ LEO duyệt."));
 
         var now = clock.UtcNow;
-        var contractWarningDate = now.AddDays(30);
+        var contractWarningDate = now.AddDays(contractAlertHorizonDays);
         var expiringContracts = await companies.QueryAsNoTracking()
             .CountAsync(c => c.DepartmentId == deptId
                               && c.Status == CompanyStatus.Active
@@ -74,7 +78,7 @@ public sealed class GetDeoAlertsQueryHandler(
                               && c.ContractEndDate <= contractWarningDate, ct)
             .ConfigureAwait(false);
         if (expiringContracts > 0)
-            alerts.Add(new AlertItem("CONTRACT_EXPIRY", "Medium", $"{expiringContracts} hợp đồng công ty sắp hết hạn trong 30 ngày."));
+            alerts.Add(new AlertItem("CONTRACT_EXPIRY", "Medium", $"{expiringContracts} hợp đồng công ty sắp hết hạn trong {contractAlertHorizonDays} ngày."));
 
         var pendingActivation = await companies.QueryAsNoTracking()
             .CountAsync(c => c.DepartmentId == deptId && c.Status == CompanyStatus.PendingActivation, ct)
