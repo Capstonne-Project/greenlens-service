@@ -21,6 +21,7 @@ public sealed class AnalyzeReportImageCommandHandler(
     IAiClassificationService aiService,
     ITempImageStore tempStore,
     IPollutionCategoryRepository categories,
+    IReportDescriptionGenerator descriptionGenerator,
     ILogger<AnalyzeReportImageCommandHandler> logger)
     : IRequestHandler<AnalyzeReportImageCommand, Result<AnalyzeReportImageResponse>>
 {
@@ -64,11 +65,18 @@ public sealed class AnalyzeReportImageCommandHandler(
                 cancellationToken)
             .ConfigureAwait(false);
 
+        var suggestedDescription = await GenerateSuggestedDescriptionAsync(
+                aiResult,
+                suggestedCategory,
+                cancellationToken)
+            .ConfigureAwait(false);
+
         var response = new AnalyzeReportImageResponse(
             TempImageId: tempId,
             ExpiresInSeconds: TempTtlSeconds,
             AiResult: MapAiResult(aiResult),
-            SuggestedCategory: suggestedCategory);
+            SuggestedCategory: suggestedCategory,
+            SuggestedDescription: suggestedDescription);
 
         logger.LogInformation("Image analyzed: {FileName}, decision={Decision}, category={Category}",
             request.FileName, aiResult.Decision, aiResult.Classify.PrimaryClass);
@@ -95,6 +103,35 @@ public sealed class AnalyzeReportImageCommandHandler(
                 category.NameVi,
                 category.NameEn,
                 category.IconUrl);
+    }
+
+    private async Task<string?> GenerateSuggestedDescriptionAsync(
+        Application.Common.Interfaces.AiClassificationResult aiResult,
+        PollutionCategoryListItemDto? suggestedCategory,
+        CancellationToken cancellationToken)
+    {
+        if (suggestedCategory is null ||
+            aiResult.Decision == Application.Common.Interfaces.AiDecision.IrrelevantOrSuspectedAbusive)
+        {
+            return null;
+        }
+
+        var subtypes = aiResult.Classify.Predictions
+            .SelectMany(p => p.Subtypes ?? [])
+            .GroupBy(s => s.Subtype)
+            .Select(g => new ReportDescriptionSubtype(g.Key, g.Sum(s => s.Count)))
+            .ToArray();
+        var subtypeLabels = subtypes.Select(s => s.Label).ToArray();
+
+        return await descriptionGenerator.GenerateAsync(
+                new ReportDescriptionContext(
+                    suggestedCategory.NameVi,
+                    aiResult.Classify.Severity,
+                    subtypeLabels,
+                    aiResult.Classify.PollutionCoverageRatio,
+                    subtypes),
+                cancellationToken)
+            .ConfigureAwait(false);
     }
 
     private static AiResultDto MapAiResult(Application.Common.Interfaces.AiClassificationResult result)
