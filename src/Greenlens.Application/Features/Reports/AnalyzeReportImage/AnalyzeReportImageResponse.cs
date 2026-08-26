@@ -7,7 +7,9 @@ public sealed record AnalyzeReportImageResponse(
     int ExpiresInSeconds,
     AiResultDto AiResult,
     /// <summary>Catalog row from AI primary_class — FE uses <c>id</c> + <c>nameVi</c> to auto-fill the form.</summary>
-    PollutionCategoryListItemDto? SuggestedCategory);
+    PollutionCategoryListItemDto? SuggestedCategory,
+    /// <summary>Best-effort LLM-drafted Vietnamese description — null when the LLM is unavailable/unconfigured. FE may auto-fill the description field.</summary>
+    string? SuggestedDescription);
 
 public sealed record AiResultDto(
     string Decision,

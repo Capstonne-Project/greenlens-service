@@ -188,6 +188,17 @@ public static class DependencyInjection
 
         services.AddScoped<IAiClassificationService, AiClassificationService>();
         services.AddScoped<IAiImageCompareService, AiImageCompareService>();
+
+        // ── Gemini (free tier) — auto-draft report description from AI classify result ──
+        services.AddOptions<GeminiOptions>()
+            .Bind(configuration.GetSection("Gemini"));
+
+        services.AddHttpClient("Gemini", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(25);
+        });
+
+        services.AddScoped<IReportDescriptionGenerator, GeminiReportDescriptionGenerator>();
         services.AddSingleton<ITempImageStore, TempImageStore>();
         services.AddSingleton<IImageExifAnalyzer, Imaging.MetadataExtractorImageExifAnalyzer>();
         services.AddScoped<IImageBytesFetcher, Imaging.HttpImageBytesFetcher>();
