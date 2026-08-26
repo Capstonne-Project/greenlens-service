@@ -208,7 +208,7 @@ internal static class SystemSettingDefinitions
             "Số evidence tối đa mỗi request", 1, 20),
 
         // ── AI (Mục R) ──
-        Def(SystemSettingModule.Ai, "ai_timeout_seconds", SystemSettingValueType.Int, "5",
+        Def(SystemSettingModule.Ai, "ai_timeout_seconds", SystemSettingValueType.Int, "30",
             "Timeout AI classify (giây)", 1, 60),
         Def(SystemSettingModule.Ai, "ai_compare_timeout_seconds", SystemSettingValueType.Int, "15",
             "Timeout AI compare (giây)", 1, 120),
