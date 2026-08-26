@@ -171,7 +171,16 @@ internal sealed class AiClassificationService(
         };
 
         var predictions = raw.Classify?.Predictions?
-            .Select(p => new AiPredictionItem(p.Class ?? string.Empty, p.Confidence, p.BboxCount))
+            .Select(p => new AiPredictionItem(
+                p.Class ?? string.Empty,
+                p.Confidence,
+                p.BboxCount,
+                p.Subtypes?
+                    .Select(s => new AiTrashSubtypeItem(s.Subtype ?? string.Empty, s.Count, s.Confidence))
+                    .ToArray(),
+                p.Boxes?
+                    .Select(b => new AiBoxItem(b.X1, b.Y1, b.X2, b.Y2, b.Confidence, b.Subtype, b.SubtypeConfidence))
+                    .ToArray()))
             .ToArray() ?? [];
 
         var classify = new AiClassifyDetail(
@@ -219,5 +228,25 @@ internal sealed class AiClassificationService(
         [JsonPropertyName("class")] public string? Class { get; init; }
         [JsonPropertyName("confidence")] public double Confidence { get; init; }
         [JsonPropertyName("bbox_count")] public int BboxCount { get; init; }
+        [JsonPropertyName("subtypes")] public List<AiRawSubtype>? Subtypes { get; init; }
+        [JsonPropertyName("boxes")] public List<AiRawBox>? Boxes { get; init; }
+    }
+
+    private sealed class AiRawBox
+    {
+        [JsonPropertyName("x1")] public double X1 { get; init; }
+        [JsonPropertyName("y1")] public double Y1 { get; init; }
+        [JsonPropertyName("x2")] public double X2 { get; init; }
+        [JsonPropertyName("y2")] public double Y2 { get; init; }
+        [JsonPropertyName("confidence")] public double Confidence { get; init; }
+        [JsonPropertyName("subtype")] public string? Subtype { get; init; }
+        [JsonPropertyName("subtype_confidence")] public double? SubtypeConfidence { get; init; }
+    }
+
+    private sealed class AiRawSubtype
+    {
+        [JsonPropertyName("subtype")] public string? Subtype { get; init; }
+        [JsonPropertyName("count")] public int Count { get; init; }
+        [JsonPropertyName("confidence")] public double Confidence { get; init; }
     }
 }
