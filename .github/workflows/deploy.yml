@@ -110,7 +110,7 @@ jobs:
     name: Deploy to VPS
     runs-on: ubuntu-latest
     needs: build-and-push
-    timeout-minutes: 10
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
 
@@ -133,6 +133,7 @@ jobs:
           key:      ${{ secrets.VPS_SSH_KEY }}
           envs: FULL_IMAGE
           script_stop: true
+          command_timeout: 20m
           script: |
             set -euo pipefail
             cd /opt/greenlens
@@ -189,6 +190,7 @@ jobs:
             PREV_LATEST_ID="$(sudo docker images --no-trunc --format '{{.ID}}' "${IMAGE_REPO}:latest" 2>/dev/null | head -1 || true)"
             echo "Previous :latest image ID: ${PREV_LATEST_ID:-none}"
             echo "Deploying: ${FULL_IMAGE}"
+            echo "Pulling image (may take several minutes on slow VPS links)..."
 
             sudo docker pull "${FULL_IMAGE}"
             sudo docker tag "${FULL_IMAGE}" "${IMAGE_REPO}:latest"
@@ -221,8 +223,25 @@ jobs:
             # Record successful deploy for future rollbacks (no sudo — CI user owns /opt/greenlens)
             printf '%s\n' "${FULL_IMAGE}" > "${STATE_FILE}"
 
-            # Cleanup old images (keep last 3 days) — only after verified success
-            sudo docker image prune -f --filter "until=72h"
+            # Cleanup old deploy tags — keep :latest, current sha, + 2 previous sha (rollback buffer)
+            CURRENT_TAG="${FULL_IMAGE##*:}"
+            echo "Cleaning up old sha-* tags..."
+            while IFS= read -r tag; do
+              [ -n "${tag}" ] || continue
+              sudo docker rmi "${IMAGE_REPO}:${tag}" 2>/dev/null || true
+            done < <(
+              sudo docker images "${IMAGE_REPO}" --format '{{.CreatedAt}}\t{{.Tag}}' \
+                | grep $'\tsha-' \
+                | sort -r \
+                | awk -F'\t' -v current="${CURRENT_TAG}" '{
+                    tag=$2
+                    if (tag == current) next
+                    if (++kept <= 2) next
+                    print tag
+                  }'
+            )
+            sudo docker image prune -af --filter "until=72h"
+            sudo docker builder prune -af --filter "until=72h" 2>/dev/null || true
 
             echo "✅ Deploy succeeded: ${FULL_IMAGE}"
 
