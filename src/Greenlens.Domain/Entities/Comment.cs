@@ -9,8 +9,6 @@ namespace Greenlens.Domain.Entities;
 /// <remarks>Implements: BR-CMT-001..004.</remarks>
 public sealed class Comment : SoftDeletableEntity
 {
-    private static readonly TimeSpan EditWindow = TimeSpan.FromMinutes(15);
-
     private Comment() { }
 
     public Guid ReportId { get; private set; }
@@ -54,8 +52,8 @@ public sealed class Comment : SoftDeletableEntity
         };
     }
 
-    /// <summary>BR-CMT-004: author may edit within 15 minutes of posting.</summary>
-    public void Edit(string content, Guid editorId)
+    /// <summary>BR-CMT-004: author may edit within configured window.</summary>
+    public void Edit(string content, Guid editorId, int editWindowMinutes = 15)
     {
         if (AuthorId != editorId)
             throw new DomainException("Only the author can edit this comment.");
@@ -63,7 +61,7 @@ public sealed class Comment : SoftDeletableEntity
         if (IsHidden)
             throw new DomainException("Hidden comments cannot be edited.");
 
-        if (DateTime.UtcNow - CreatedAt > EditWindow)
+        if (DateTime.UtcNow - CreatedAt > TimeSpan.FromMinutes(editWindowMinutes))
             throw new DomainException("Edit window has expired.");
 
         var trimmed = content.Trim();
@@ -74,8 +72,8 @@ public sealed class Comment : SoftDeletableEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    /// <summary>BR-CMT-004: author may soft-delete within 15 minutes.</summary>
-    public void DeleteByAuthor(Guid authorId)
+    /// <summary>BR-CMT-004: author may soft-delete within configured window.</summary>
+    public void DeleteByAuthor(Guid authorId, int editWindowMinutes = 15)
     {
         if (IsDeleted)
             throw new DomainException("Comment already deleted.");
@@ -83,7 +81,7 @@ public sealed class Comment : SoftDeletableEntity
         if (AuthorId != authorId)
             throw new DomainException("Only the author can delete this comment.");
 
-        if (DateTime.UtcNow - CreatedAt > EditWindow)
+        if (DateTime.UtcNow - CreatedAt > TimeSpan.FromMinutes(editWindowMinutes))
             throw new DomainException("Delete window has expired.");
 
         SoftDelete(authorId.ToString());
@@ -110,5 +108,6 @@ public sealed class Comment : SoftDeletableEntity
         ReportId = primaryReportId;
     }
 
-    public bool IsWithinEditWindow() => DateTime.UtcNow - CreatedAt <= EditWindow;
+    public bool IsWithinEditWindow(int editWindowMinutes = 15) =>
+        DateTime.UtcNow - CreatedAt <= TimeSpan.FromMinutes(editWindowMinutes);
 }

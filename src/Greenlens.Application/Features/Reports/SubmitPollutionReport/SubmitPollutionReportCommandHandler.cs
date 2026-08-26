@@ -50,6 +50,7 @@ public sealed class SubmitPollutionReportCommandHandler(
     IIdempotencyContext idempotencyContext,
     IImageExifAnalyzer exifAnalyzer,
     IImageBytesFetcher imageBytesFetcher,
+    ISystemSettingsProvider systemSettings,
     ILogger<SubmitPollutionReportCommandHandler> logger)
     : IRequestHandler<SubmitPollutionReportCommand, Result<SubmitPollutionReportResponse>>
 {
@@ -81,10 +82,13 @@ public sealed class SubmitPollutionReportCommandHandler(
         }
 
         // ── BR-REP-010: sliding-window submit quota (5/h, 20/24h) ─────────
+        // Kiểm tra nếu không phải là replay
         if (!idempotencyContext.IsReplay)
+        // Kiểm tra nếu rate limit vượt quá
         {
             var rateLimit = await rateLimiter.TryAcquireAsync(currentUser.UserId, cancellationToken)
                 .ConfigureAwait(false);
+            // Kiểm tra nếu rate limit vượt quá
             if (!rateLimit.IsAllowed)
             {
                 logger.LogWarning("Rate limit exceeded for user {UserId}", currentUser.UserId);
@@ -295,7 +299,8 @@ public sealed class SubmitPollutionReportCommandHandler(
             request.CategoryId, request.Severity, request.Description,
             request.Latitude, request.Longitude,
             request.Address, wardCode, provinceCode,
-            request.HideReporterName);
+            request.HideReporterName,
+            ModuleSystemSettings.ReportSla(systemSettings));
 
         if (resolvedImage.AiResult is { } analyzed)
         {
@@ -487,12 +492,18 @@ public sealed class SubmitPollutionReportCommandHandler(
         if (!AdministrativeUnitMatch.HasWardAndProvince(report.WardCode, report.ProvinceCode))
             return;
 
-        const double radiusMeters = DuplicateTier1PrimarySelector.DefaultRadiusMeters;
+        var radiusMeters = ReportSystemSettings.DuplicateRadiusMeters(systemSettings);
+        var maxCandidates = ReportSystemSettings.DuplicateMaxCandidates(systemSettings);
+        var timeWindowHours = ReportSystemSettings.DuplicateTimeWindowHours(systemSettings);
         var latDelta = (decimal)(radiusMeters / 111_320.0);
         var cosLat = Math.Max(Math.Cos((double)report.Latitude * Math.PI / 180.0), 1e-6);
         var lngDelta = (decimal)(radiusMeters / (111_320.0 * cosLat));
 
-        var candidates = await reports.QueryAsNoTracking()
+        var cutoff = timeWindowHours > 0
+            ? DateTime.UtcNow.AddHours(-timeWindowHours)
+            : (DateTime?)null;
+
+        var candidateQuery = reports.QueryAsNoTracking()
             .Where(r => r.CategoryId == report.CategoryId)
             .Where(r => r.WardCode == report.WardCode && r.ProvinceCode == report.ProvinceCode)
             .Where(r => r.Id != report.Id)
@@ -500,7 +511,12 @@ public sealed class SubmitPollutionReportCommandHandler(
                      && r.Status != ReportStatus.Rejected
                      && r.Status != ReportStatus.Closed)
             .Where(r => r.Latitude >= report.Latitude - latDelta && r.Latitude <= report.Latitude + latDelta)
-            .Where(r => r.Longitude >= report.Longitude - lngDelta && r.Longitude <= report.Longitude + lngDelta)
+            .Where(r => r.Longitude >= report.Longitude - lngDelta && r.Longitude <= report.Longitude + lngDelta);
+
+        if (cutoff.HasValue)
+            candidateQuery = candidateQuery.Where(r => r.CreatedAt >= cutoff.Value);
+
+        var candidates = await candidateQuery
             .OrderByDescending(r =>
                 r.Status == ReportStatus.Verified
                 || r.Status == ReportStatus.InProgress
@@ -508,7 +524,7 @@ public sealed class SubmitPollutionReportCommandHandler(
             .ThenBy(r => r.CreatedAt)
             .Select(r => new DuplicateNearbyReport(
                 r.Id, r.Latitude, r.Longitude, r.WardCode, r.ProvinceCode, r.Status, r.CreatedAt))
-            .Take(20)
+            .Take(maxCandidates)
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
@@ -529,11 +545,16 @@ public sealed class SubmitPollutionReportCommandHandler(
         if (!AdministrativeUnitMatch.HasWardAndProvince(report.WardCode, report.ProvinceCode))
             return;
 
-        const double radiusMeters = ViolationRecurrencePrimarySelector.DefaultRadiusMeters;
+        var radiusMeters = ReportSystemSettings.RecurrenceRadiusMeters(systemSettings);
+        var maxCandidates = ReportSystemSettings.DuplicateMaxCandidates(systemSettings);
+        var minDaysAfterClose = ReportSystemSettings.RecurrenceMinDaysAfterClose(systemSettings);
+        var maxDaysAfterClose = ReportSystemSettings.RecurrenceMaxDaysAfterClose(systemSettings);
         var latDelta = (decimal)(radiusMeters / 111_320.0);
         var cosLat = Math.Max(Math.Cos((double)report.Latitude * Math.PI / 180.0), 1e-6);
         var lngDelta = (decimal)(radiusMeters / (111_320.0 * cosLat));
-        var cutoff = DateTime.UtcNow - ViolationRecurrencePrimarySelector.LookbackWindow;
+        var now = DateTime.UtcNow;
+        var oldestClosed = now.AddDays(-maxDaysAfterClose);
+        var newestClosed = minDaysAfterClose > 0 ? now.AddDays(-minDaysAfterClose) : now;
 
         if (await HasActiveCleanupNearbyAsync(report, latDelta, lngDelta, radiusMeters, ct).ConfigureAwait(false))
             return;
@@ -543,13 +564,13 @@ public sealed class SubmitPollutionReportCommandHandler(
             .Where(r => r.WardCode == report.WardCode && r.ProvinceCode == report.ProvinceCode)
             .Where(r => r.Id != report.Id)
             .Where(r => r.Status == ReportStatus.Closed)
-            .Where(r => r.ClosedAt >= cutoff)
+            .Where(r => r.ClosedAt >= oldestClosed && r.ClosedAt <= newestClosed)
             .Where(r => r.Latitude >= report.Latitude - latDelta && r.Latitude <= report.Latitude + latDelta)
             .Where(r => r.Longitude >= report.Longitude - lngDelta && r.Longitude <= report.Longitude + lngDelta)
             .OrderByDescending(r => r.ClosedAt)
             .Select(r => new ViolationRecurrenceNearbyReport(
                 r.Id, r.Latitude, r.Longitude, r.WardCode, r.ProvinceCode, r.ClosedAt!.Value))
-            .Take(20)
+            .Take(maxCandidates)
             .ToListAsync(ct)
             .ConfigureAwait(false);
 

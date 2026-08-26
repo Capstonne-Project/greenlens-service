@@ -8,15 +8,25 @@ namespace Greenlens.Application.Features.Organization.GetCompanyTeams;
 /// <summary>
 /// CompanyManager retrieves teams belonging to their company.
 /// </summary>
-/// <remarks>Implements: BR-CMP-004.</remarks>
+/// <remarks>Implements: BR-CMP-004, BR-CLN-005, BR-OFF-014.</remarks>
 public sealed record GetCompanyTeamsQuery(
     int Page = 1,
     int PageSize = 20,
-    bool? IsActive = null) : IRequest<Result<GetCompanyTeamsResponse>>;
+    bool? IsActive = null,
+    IReadOnlyList<Guid>? WasteTagIds = null,
+    Guid? ReportId = null) : IRequest<Result<GetCompanyTeamsResponse>>;
 
 public sealed record GetCompanyTeamsResponse(
     IReadOnlyList<CompanyTeamItem> Items, PaginationMeta Pagination);
 
 public sealed record CompanyTeamItem(
-    Guid Id, string Name, TeamType TeamType, Guid? LocalOfficeId,
-    string? OfficeName, bool IsActive, int MemberCount, DateTime CreatedAt);
+    Guid Id,
+    string Name,
+    TeamType TeamType,
+    Guid? LocalOfficeId,
+    string? OfficeName,
+    bool IsActive,
+    int MemberCount,
+    DateTime CreatedAt,
+    IReadOnlyList<WasteTagSummaryDto> WasteTags,
+    int? WasteTagMatchCount);

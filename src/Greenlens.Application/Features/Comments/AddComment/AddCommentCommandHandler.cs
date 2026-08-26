@@ -24,11 +24,15 @@ public sealed class AddCommentCommandHandler(
     ICurrentUser currentUser,
     IProfanityFilter profanityFilter,
     IUnitOfWork uow,
+    ISystemSettingsProvider systemSettings,
     ILogger<AddCommentCommandHandler> logger)
     : IRequestHandler<AddCommentCommand, Result<AddCommentResponse>>
 {
     public async Task<Result<AddCommentResponse>> Handle(AddCommentCommand request, CancellationToken ct)
     {
+        var editWindowMinutes = ModuleSystemSettings.CommentEditWindowMinutes(systemSettings);
+        var banDurationDays = ModuleSystemSettings.CommentBanDurationDays(systemSettings);
+
         logger.LogInformation("Getting add comment");
 
         if (!currentUser.IsAuthenticated)
@@ -83,7 +87,7 @@ public sealed class AddCommentCommandHandler(
 
         if (profanityFilter.ContainsProfanity(request.Content))
         {
-            user.RecordCommentViolation();
+            user.RecordCommentViolation(banDurationDays);
             await uow.SaveChangesAsync(ct).ConfigureAwait(false);
             logger.LogWarning("Inappropriate content detected for user {UserId}", currentUser.UserId);
             return Errors.Comments.InappropriateContent;
@@ -125,6 +129,6 @@ public sealed class AddCommentCommandHandler(
 
         return new AddCommentResponse(
             comment.Id, comment.ReportId, comment.Content, comment.CreatedAt,
-            comment.IsWithinEditWindow(), comment.ParentCommentId, imageDtos);
+            comment.IsWithinEditWindow(editWindowMinutes), comment.ParentCommentId, imageDtos);
     }
 }

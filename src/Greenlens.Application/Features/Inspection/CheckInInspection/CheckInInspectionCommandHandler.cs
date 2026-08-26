@@ -16,15 +16,16 @@ public sealed class CheckInInspectionCommandHandler(
     IReportRepository reports,
     ITeamMemberRepository teamMembers,
     IGeoDistanceService geoDistance,
+    ISystemSettingsProvider systemSettings,
     ICurrentUser currentUser,
     IUnitOfWork uow,
     ILogger<CheckInInspectionCommandHandler> logger)
     : IRequestHandler<CheckInInspectionCommand, Result>
 {
-    private const double MaxCheckInDistanceMeters = 200;
-
     public async Task<Result> Handle(CheckInInspectionCommand request, CancellationToken ct)
     {
+        var maxCheckInDistanceMeters = ModuleSystemSettings.CheckInMaxDistanceMeters(systemSettings);
+
         var inspection = await inspections.GetByIdAsync(request.InspectionId, ct).ConfigureAwait(false);
         if (inspection is null)
         {
@@ -54,7 +55,7 @@ public sealed class CheckInInspectionCommandHandler(
             request.Latitude, request.Longitude,
             report.Latitude, report.Longitude, ct).ConfigureAwait(false);
 
-        if (distance > MaxCheckInDistanceMeters)
+        if (distance > maxCheckInDistanceMeters)
         {
             logger.LogWarning("Distance check failed for inspection {InspectionId}. Distance: {Distance}m", request.InspectionId, distance);
             return Errors.Inspections.TooFarFromSite;

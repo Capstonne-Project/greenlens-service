@@ -33,10 +33,9 @@ internal sealed class NotificationService(
     INotificationDispatchCollector dispatchCollector,
     ITransactionManager transactionManager,
     IHubContext<NotificationHub, INotificationClient> hubContext,
+    ISystemSettingsProvider systemSettings,
     ILogger<NotificationService> logger) : INotificationService
 {
-    private const int MaxNotificationsPerTypePerDay = 20;
-
     public async Task SendFromTemplateAsync(
         Guid recipientId,
         NotificationType type,
@@ -60,8 +59,9 @@ internal sealed class NotificationService(
         }
         else
         {
-            title = NotificationTemplateRenderer.Render(template.TitleVi, placeholders);
-            message = NotificationTemplateRenderer.Render(template.BodyVi, placeholders);
+            var merged = NotificationSystemSettingPlaceholders.Merge(placeholders, systemSettings);
+            title = NotificationTemplateRenderer.Render(template.TitleVi, merged);
+            message = NotificationTemplateRenderer.Render(template.BodyVi, merged);
         }
 
         await SendRawAsync(recipientId, type, title, message, referenceId, ct).ConfigureAwait(false);
@@ -106,7 +106,8 @@ internal sealed class NotificationService(
             emailEnabled = false;
         }
 
-        // 3. Anti-spam check (BR-NTF-003): max 20 per type per day
+        // 3. Anti-spam check (BR-NTF-003): max per type per day
+        var maxPerTypePerDay = ModuleSystemSettings.Notifications(systemSettings).MaxPerTypePerDay;
         var todayStart = DateTime.UtcNow.Date;
         var todayCount = await db.Notifications
             .CountAsync(n => n.RecipientId == recipientId
@@ -114,11 +115,11 @@ internal sealed class NotificationService(
                           && n.CreatedAt >= todayStart, ct)
             .ConfigureAwait(false);
 
-        if (todayCount >= MaxNotificationsPerTypePerDay)
+        if (todayCount >= maxPerTypePerDay)
         {
             logger.LogDebug(
                 "Notification throttled: user {UserId} exceeded {Max}/day for {Type}",
-                recipientId, MaxNotificationsPerTypePerDay, type);
+                recipientId, maxPerTypePerDay, type);
             return; // TODO: queue for digest (P2)
         }
 

@@ -154,5 +154,11 @@ public enum NotificationType
     CleanupBeforeImagesUploaded,
 
     /// <summary>BR-REP-016: LEO/CM — citizen confirmed and closed a resolved report.</summary>
-    ReportClosedByCitizen
+    ReportClosedByCitizen,
+
+    /// <summary>BR-REP-032: Duplicate reporter notified their report was merged into a primary report.</summary>
+    ReportDuplicateMerged,
+
+    /// <summary>BR-CMP-013: LEO notified to reassign after company deactivation cascade.</summary>
+    CompanyDeactivationReassign
 }

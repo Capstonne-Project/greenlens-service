@@ -33,6 +33,7 @@ using Greenlens.Application.Features.Admin.GamificationConfigs.GetGamificationCo
 using Greenlens.Application.Features.Admin.GamificationConfigs.UpdateGamificationConfig;
 using Greenlens.Application.Features.Admin.Badges.GetAdminBadges;
 using Greenlens.Application.Features.Admin.Badges.UpdateBadge;
+using Greenlens.Application.Features.Admin.Badges.UpdateBadgeThresholds;
 using Greenlens.Application.Features.Admin.Badges.ToggleBadge;
 using Greenlens.Application.Features.Admin.NotificationTemplates.CreateNotificationTemplate;
 using Greenlens.Application.Features.Admin.NotificationTemplates.DeleteNotificationTemplate;
@@ -41,6 +42,10 @@ using Greenlens.Application.Features.Admin.NotificationTemplates.GetNotification
 using Greenlens.Application.Features.Admin.NotificationTemplates.PublishNotificationTemplate;
 using Greenlens.Application.Features.Admin.NotificationTemplates.TestNotificationTemplate;
 using Greenlens.Application.Features.Admin.NotificationTemplates.UpdateNotificationTemplate;
+using Greenlens.Application.Features.Admin.SystemSettings.GetSystemSettingModules;
+using Greenlens.Application.Features.Admin.SystemSettings.GetSystemSettings;
+using Greenlens.Application.Features.Admin.SystemSettings.ResetSystemSettingsModule;
+using Greenlens.Application.Features.Admin.SystemSettings.UpdateSystemSettings;
 using Greenlens.Application.Features.Reports.GetReportById;
 using Greenlens.Application.Features.Users;
 using Greenlens.Application.Features.Users.CreateAccount;
@@ -435,15 +440,68 @@ public sealed class AdminController(ISender sender) : ControllerBase
     // ═══════════════════════════════════════════
 
     [HttpGet("spam-suspects")]
-    [SwaggerOperation(Summary = "[Admin] Spam Dashboard", Description = "Danh sách tài khoản nghi spam theo heuristic rules (submit >5/h, reject >3/7d, AI flagged).")]
+    [SwaggerOperation(Summary = "[Admin] Spam Dashboard", Description = "Danh sách tài khoản nghi spam theo heuristic rules (submit > submit_max_per_hour khi không truyền minReportsPerHour, reject >3/7d, AI flagged).")]
     [SwaggerResponse(200, "Danh sách suspect", typeof(ApiResponse<GetSpamSuspectsResponse>))]
     public async Task<IActionResult> GetSpamSuspectsAsync(
         [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
-        [FromQuery] int minReportsPerHour = 5,
+        [FromQuery] int? minReportsPerHour = null,
         [FromQuery] int minRejected7Days = 3,
         [FromQuery] int minAiFlagged = 2, CancellationToken ct = default)
         => (await sender.Send(
             new GetSpamSuspectsQuery(page, pageSize, minReportsPerHour, minRejected7Days, minAiFlagged), ct)).ToHttp();
+
+    // ═══════════════════════════════════════════
+    // ██  SYSTEM SETTINGS (BR-ADM-010)
+    // ═══════════════════════════════════════════
+
+    [HttpGet("system-settings/modules")]
+    [SwaggerOperation(
+        Summary = "[Admin] Danh mục module cấu hình hệ thống",
+        Description = "Trả về sidebar modules cho Admin UI system configuration.")]
+    [SwaggerResponse(200, "Danh sách module", typeof(ApiResponse<GetSystemSettingModulesResponse>))]
+    public async Task<IActionResult> GetSystemSettingModulesAsync(CancellationToken ct)
+        => (await sender.Send(new GetSystemSettingModulesQuery(), ct)).ToHttp();
+
+    [HttpGet("system-settings")]
+    [SwaggerOperation(
+        Summary = "[Admin] Danh sách cấu hình hệ thống",
+        Description = "Lọc theo module (route slug hoặc enum name, vd. reports, Reports).")]
+    [SwaggerResponse(200, "Danh sách settings", typeof(ApiResponse<GetSystemSettingsResponse>))]
+    public async Task<IActionResult> GetSystemSettingsAsync(
+        [FromQuery] string? module = null, CancellationToken ct = default)
+        => (await sender.Send(new GetSystemSettingsQuery(module), ct)).ToHttp();
+
+    [HttpGet("system-settings/{module}")]
+    [SwaggerOperation(
+        Summary = "[Admin] Cấu hình theo module",
+        Description = "Alias GET /system-settings?module={module}.")]
+    [SwaggerResponse(200, "Settings trong module", typeof(ApiResponse<GetSystemSettingsResponse>))]
+    public async Task<IActionResult> GetSystemSettingsByModuleAsync(
+        [FromRoute] string module, CancellationToken ct)
+        => (await sender.Send(new GetSystemSettingsQuery(module), ct)).ToHttp();
+
+    [HttpPatch("system-settings/{module}")]
+    [SwaggerOperation(
+        Summary = "[Admin] Cập nhật cấu hình theo module",
+        Description = "Bulk PATCH: body là object key→value (snake_case keys). Validate min/max và invalidate cache.")]
+    [SwaggerResponse(200, "Đã cập nhật", typeof(ApiResponse<UpdateSystemSettingsResponse>))]
+    [SwaggerResponse(400, "Giá trị không hợp lệ", typeof(ApiResponse))]
+    public async Task<IActionResult> UpdateSystemSettingsAsync(
+        [FromRoute] string module,
+        [FromBody] Dictionary<string, string> values,
+        CancellationToken ct)
+        => (await sender.Send(new UpdateSystemSettingsCommand(module, values), ct))
+            .ToHttp("Đã cập nhật cấu hình hệ thống.");
+
+    [HttpPost("system-settings/{module}/reset")]
+    [SwaggerOperation(
+        Summary = "[Admin] Reset module về giá trị mặc định",
+        Description = "Khôi phục tất cả keys trong module về DefaultValue đã seed.")]
+    [SwaggerResponse(200, "Đã reset", typeof(ApiResponse<GetSystemSettingsResponse>))]
+    public async Task<IActionResult> ResetSystemSettingsModuleAsync(
+        [FromRoute] string module, CancellationToken ct)
+        => (await sender.Send(new ResetSystemSettingsModuleCommand(module), ct))
+            .ToHttp("Đã reset cấu hình module.");
 
     // ═══════════════════════════════════════════
     // ██  GAMIFICATION CONFIG (BR-ADM-005)
@@ -479,7 +537,7 @@ public sealed class AdminController(ISender sender) : ControllerBase
         Summary = "[Admin] Danh sách huy hiệu (badges, phân trang)",
         Description = "Trả về badge catalog (bao gồm inactive) cho Admin Dashboard. " +
             "Hỗ trợ tìm kiếm (code, tên VN, tên EN, mô tả), lọc theo isActive, " +
-            "sắp xếp theo: code, nameVi, nameEn, isActive, requiredPoints, requiredReportCount, requiredStreakDays, createdAt (mặc định: code).")]
+            "sắp xếp theo: code, nameVi, nameEn, isActive, requiredPoints, requiredReportCount, requiredStreakDays, requiredActionCount, createdAt (mặc định: code).")]
     [SwaggerResponse(200, "Danh sách badge", typeof(ApiResponse<GetAdminBadgesResponse>))]
     public async Task<IActionResult> GetAdminBadgesAsync(
         [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
@@ -492,7 +550,7 @@ public sealed class AdminController(ISender sender) : ControllerBase
     [HttpPut("badges/{id:guid}")]
     [SwaggerOperation(
         Summary = "[Admin] Sửa nội dung huy hiệu",
-        Description = "Cập nhật tên VN/EN, mô tả, icon URL. Không đổi code hoặc ngưỡng điểm/báo cáo.")]
+        Description = "Cập nhật tên VN/EN, mô tả, icon URL. Ngưỡng điểm/báo cáo qua PATCH .../thresholds.")]
     [SwaggerResponse(200, "Đã cập nhật", typeof(ApiResponse))]
     [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
     public async Task<IActionResult> UpdateBadgeAsync(
@@ -500,6 +558,19 @@ public sealed class AdminController(ISender sender) : ControllerBase
         => (await sender.Send(
             new UpdateBadgeCommand(id, request.NameVi, request.NameEn, request.Description, request.IconUrl), ct))
             .ToHttpNoContent("Đã cập nhật huy hiệu.");
+
+    [HttpPatch("badges/{id:guid}/thresholds")]
+    [SwaggerOperation(
+        Summary = "[Admin] Cập nhật ngưỡng huy hiệu",
+        Description = "Đặt ngưỡng eligibility (điểm, số báo cáo, streak, hoặc action count tùy loại badge).")]
+    [SwaggerResponse(200, "Đã cập nhật ngưỡng", typeof(ApiResponse))]
+    [SwaggerResponse(404, "Không tìm thấy", typeof(ApiResponse))]
+    public async Task<IActionResult> UpdateBadgeThresholdsAsync(
+        [FromRoute] Guid id,
+        [FromBody] AdminUpdateBadgeThresholdsRequest request,
+        CancellationToken ct)
+        => (await sender.Send(new UpdateBadgeThresholdsCommand(id, request.Threshold), ct))
+            .ToHttpNoContent("Đã cập nhật ngưỡng huy hiệu.");
 
     [HttpPatch("badges/{id:guid}/toggle")]
     [SwaggerOperation(
@@ -661,6 +732,7 @@ public sealed record TogglePenaltyFrameworkRequest(bool Activate);
 public sealed record HideReportRequest(string Reason);
 public sealed record UpdateGamificationConfigRequest(int Points, string Description, bool IsActive);
 public sealed record AdminUpdateBadgeRequest(string NameVi, string NameEn, string? Description, string? IconUrl);
+public sealed record AdminUpdateBadgeThresholdsRequest(int Threshold);
 public sealed record ToggleBadgeRequest(bool IsActive);
 public sealed record PublishTemplateRequest(bool Publish = true);
 public sealed record UpdateTemplateRequest(string TitleVi, string BodyVi, string? TitleEn, string? BodyEn);

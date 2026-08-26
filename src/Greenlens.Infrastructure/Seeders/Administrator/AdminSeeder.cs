@@ -24,6 +24,7 @@ internal static class AdminSeeder
         await LocalOfficeSeeder.SeedAsync(db, logger).ConfigureAwait(false);
         await GamificationSeeder.SeedAsync(db, logger).ConfigureAwait(false);
         await NotificationTemplateSeeder.SeedAsync(db, logger).ConfigureAwait(false);
+        await SystemSettingsSeeder.SeedAsync(db, logger).ConfigureAwait(false);
         await MobileDemoSeeder.SeedAsync(db, logger).ConfigureAwait(false);
     }
 

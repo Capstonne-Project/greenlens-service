@@ -20,16 +20,19 @@ public sealed class RejectReportCommandHandler(
     IReportRepository reports,
     IReportStatusHistoryRepository statusHistory,
     ICurrentUser currentUser,
+    ISystemSettingsProvider systemSettings,
     IUnitOfWork uow,
     IAuditLogger auditLogger,
     ILogger<RejectReportCommandHandler> logger) : IRequestHandler<RejectReportCommand, Result>
 {
     public async Task<Result> Handle(RejectReportCommand request, CancellationToken ct)
     {
+        var (rejectMin, _, _) = ModuleSystemSettings.ValidationReasonLengths(systemSettings);
+
         logger.LogInformation("Rejecting report {ReportId}", request.ReportId);
 
         // Validate rejection reason length (BR-REP-022 / BR-ORG-015)
-        if (request.Reason.Length < 20)
+        if (request.Reason.Length < rejectMin)
         {
             logger.LogWarning("Reason is too short for report {ReportId}", request.ReportId);
             return Errors.Reports.ReasonTooShort;

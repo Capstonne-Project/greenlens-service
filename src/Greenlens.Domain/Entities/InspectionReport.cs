@@ -114,8 +114,10 @@ public sealed class InspectionReport : SoftDeletableEntity
         string? violationDescription = null,
         string? violatorName = null,
         string? violatorAddress = null,
-        string? violatorIdentity = null)
+        string? violatorIdentity = null,
+        InspectionSlaPolicy? slaPolicy = null)
     {
+        var sla = slaPolicy ?? InspectionSlaPolicy.Default;
         return new InspectionReport
         {
             ReportId = reportId,
@@ -126,7 +128,7 @@ public sealed class InspectionReport : SoftDeletableEntity
             ViolatorName = violatorName,
             ViolatorAddress = violatorAddress,
             ViolatorIdentity = violatorIdentity,
-            SlaInspectionDueAt = ComputeSlaDeadline(reportSeverity),
+            SlaInspectionDueAt = sla.ComputeResolveDueUtc(reportSeverity, DateTime.UtcNow),
             CreatedAt = DateTime.UtcNow
         };
     }
@@ -498,16 +500,6 @@ public sealed class InspectionReport : SoftDeletableEntity
     // ────────────────────────────────────────────────────
     // Helpers
     // ────────────────────────────────────────────────────
-
-    /// <summary>BR-INS-030: SLA deadline based on report severity.</summary>
-    private static DateTime ComputeSlaDeadline(Severity severity) => severity switch
-    {
-        Severity.Critical => DateTime.UtcNow.AddDays(3),
-        Severity.High => DateTime.UtcNow.AddDays(5),
-        Severity.Medium => DateTime.UtcNow.AddDays(7),
-        Severity.Low => DateTime.UtcNow.AddDays(10),
-        _ => DateTime.UtcNow.AddDays(7)
-    };
 
     /// <summary>BR-INS-030: Flag by SlaBreachInspectionJob when deadline exceeded.</summary>
     public void MarkSlaInspectionBreached()

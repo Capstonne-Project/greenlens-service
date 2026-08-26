@@ -237,6 +237,16 @@ public static partial class Errors
             "Đội đã có trưởng nhóm. Mỗi đội chỉ được phép có một trưởng nhóm.",
             ErrorType.BusinessRule);
 
+        public static Error WasteTagsNotAllowedForInspectionTeam => new(
+            "WASTE_TAGS_NOT_ALLOWED_FOR_INSPECTION_TEAM",
+            "Đội thanh tra không hỗ trợ gắn WasteTag.",
+            ErrorType.BusinessRule);
+
+        public static Error CleanupTeamRequiresWasteTags => new(
+            "CLEANUP_TEAM_REQUIRES_WASTE_TAGS",
+            "Đội dọn dẹp phải có ít nhất một WasteTag.",
+            ErrorType.Validation);
+
         // ── Contract Renewal (BR-CMP-006) ──
 
         public static Error SubsidiaryCannotRenew => new(

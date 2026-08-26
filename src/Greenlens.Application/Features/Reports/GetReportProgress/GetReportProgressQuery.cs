@@ -1,3 +1,4 @@
+using Greenlens.Application.Common.Models;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
@@ -59,6 +60,7 @@ public sealed record AssignmentProgressDto(
     int ProgressPercent,
     string? ProgressNote,
     DateTime? ProgressUpdatedAt,
+    IReadOnlyList<WasteTagSummaryDto> TeamWasteTags,
     IReadOnlyList<AssignmentTeamMemberDto> Members,
     IReadOnlyList<ProgressUpdateItemDto> ProgressUpdates);
 

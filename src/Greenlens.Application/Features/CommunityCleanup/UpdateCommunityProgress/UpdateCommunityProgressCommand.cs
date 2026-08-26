@@ -8,6 +8,8 @@ public sealed record UpdateCommunityProgressCommand(
     Guid EventId,
     int ProgressPercent,
     string? ProgressNote,
-    List<string> ImageUrls) : IRequest<Result<UpdateCommunityProgressResponse>>;
+    List<string> ImageUrls,
+    decimal Latitude,
+    decimal Longitude) : IRequest<Result<UpdateCommunityProgressResponse>>;
 
 public sealed record UpdateCommunityProgressResponse(List<string> SavedImageUrls);

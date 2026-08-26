@@ -13,6 +13,7 @@ using Greenlens.Infrastructure.Persistence;
 using Greenlens.Infrastructure.Persistence.Repositories;
 using Greenlens.Infrastructure.Persistence.Repositories.Location;
 using Greenlens.Infrastructure.BackgroundJobs;
+using Greenlens.Infrastructure.Configuration;
 using Greenlens.Infrastructure.DomainEvents;
 using Greenlens.Infrastructure.Moderation;
 using Greenlens.Application.Features.Notifications;
@@ -62,6 +63,7 @@ public static class DependencyInjection
         services.AddScoped<IReportStatusHistoryRepository, ReportStatusHistoryRepository>();
         services.AddScoped<IWasteTagRepository, WasteTagRepository>();
         services.AddScoped<IReportWasteTagRepository, ReportWasteTagRepository>();
+        services.AddScoped<ITeamWasteTagRepository, TeamWasteTagRepository>();
         services.AddScoped<IReportDraftRepository, ReportDraftRepository>();
         services.AddScoped<IReportSatisfactionRepository, ReportSatisfactionRepository>();
 
@@ -186,6 +188,17 @@ public static class DependencyInjection
 
         services.AddScoped<IAiClassificationService, AiClassificationService>();
         services.AddScoped<IAiImageCompareService, AiImageCompareService>();
+
+        // ── Gemini (free tier) — auto-draft report description from AI classify result ──
+        services.AddOptions<GeminiOptions>()
+            .Bind(configuration.GetSection("Gemini"));
+
+        services.AddHttpClient("Gemini", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(25);
+        });
+
+        services.AddScoped<IReportDescriptionGenerator, GeminiReportDescriptionGenerator>();
         services.AddSingleton<ITempImageStore, TempImageStore>();
         services.AddSingleton<IImageExifAnalyzer, Imaging.MetadataExtractorImageExifAnalyzer>();
         services.AddScoped<IImageBytesFetcher, Imaging.HttpImageBytesFetcher>();
@@ -226,10 +239,19 @@ public static class DependencyInjection
         services.AddSingleton<BlockedWordCache>();
         services.AddSingleton<IBlockedWordCache>(sp => sp.GetRequiredService<BlockedWordCache>());
         services.AddHostedService(sp => sp.GetRequiredService<BlockedWordCache>());
+
+        // ── System settings cache (BR-ADM-010) ──
+        services.AddSingleton<SystemSettingsProvider>();
+        services.AddSingleton<ISystemSettingsProvider>(sp => sp.GetRequiredService<SystemSettingsProvider>());
+        services.AddSingleton<ISystemSettingsCache>(sp => sp.GetRequiredService<SystemSettingsProvider>());
+        services.AddHostedService(sp => sp.GetRequiredService<SystemSettingsProvider>());
+
         services.AddSingleton<IProfanityFilter, ProfanityFilter>();
 
         // ── Duplicate detection Tier 2 scheduler (BR-REP-030, BR-AI-002) ──
         services.AddScoped<IDuplicateCompareScheduler, DuplicateCompareScheduler>();
+
+        services.AddScoped<Application.Features.Organization.Common.TeamWasteTagService>();
 
         // ── Audit (BR-ADM-010) ─────────────────────────────
         services.AddScoped<IAuditLogger, AuditLogger>();

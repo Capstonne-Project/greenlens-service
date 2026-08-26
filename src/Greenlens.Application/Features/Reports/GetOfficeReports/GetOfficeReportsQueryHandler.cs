@@ -1,4 +1,5 @@
 using Greenlens.Application.Common;
+using Greenlens.Application.Features.Organization.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Common.Models;
@@ -174,6 +175,8 @@ public sealed class GetOfficeReportsQueryHandler(
             .Include(r => r.AssignedCompany)
             .Include(r => r.Assignments)
                 .ThenInclude(a => a.Team)
+                    .ThenInclude(t => t!.WasteTags)
+                        .ThenInclude(tw => tw.WasteTag)
             .Include(r => r.Assignments)
                 .ThenInclude(a => a.ProgressUpdates)
             .Include(r => r.StatusHistory)
@@ -298,6 +301,7 @@ public sealed class GetOfficeReportsQueryHandler(
             a.StartedAt,
             a.CompletedAt,
             a.ProgressUpdatedAt,
+            a.Team is not null ? TeamWasteTagService.MapTags(a.Team) : [],
             beforeUrls,
             afterUrls);
     }

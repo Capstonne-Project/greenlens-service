@@ -15,11 +15,14 @@ public sealed class DeleteCommentCommandHandler(
     IApplicationDbContext db,
     ICurrentUser currentUser,
     IUnitOfWork uow,
+    ISystemSettingsProvider systemSettings,
     ILogger<DeleteCommentCommandHandler> logger)
     : IRequestHandler<DeleteCommentCommand, Result>
 {
     public async Task<Result> Handle(DeleteCommentCommand request, CancellationToken ct)
     {
+        var editWindowMinutes = ModuleSystemSettings.CommentEditWindowMinutes(systemSettings);
+
         logger.LogInformation("Getting delete comment");
 
         if (!currentUser.IsAuthenticated)
@@ -45,7 +48,7 @@ public sealed class DeleteCommentCommandHandler(
 
         try
         {
-            comment.DeleteByAuthor(currentUser.UserId);
+            comment.DeleteByAuthor(currentUser.UserId, editWindowMinutes);
         }
         catch (DomainException ex) when (ex.Message.Contains("author", StringComparison.OrdinalIgnoreCase))
         {

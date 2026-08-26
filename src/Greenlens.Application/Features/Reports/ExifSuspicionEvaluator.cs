@@ -13,26 +13,25 @@ public static class ExifSuspicionEvaluator
     /// <summary>Legacy alias for submit response.</summary>
     public const string StaleWarningMessage = ExifWarningMessage;
 
-    /// <summary>Max distance (m) between submitted pin and EXIF GPS before flagging (BR-CLN-002 parity).</summary>
-    public const double GpsMismatchThresholdMeters = 200.0;
-
     public static bool IsGpsMismatch(
         decimal submittedLatitude,
         decimal submittedLongitude,
         decimal exifLatitude,
-        decimal exifLongitude) =>
+        decimal exifLongitude,
+        double thresholdMeters) =>
         GeoMath.HaversineMeters(submittedLatitude, submittedLongitude, exifLatitude, exifLongitude)
-            > GpsMismatchThresholdMeters;
+            > thresholdMeters;
 
     /// <summary>Returns applicable suspicion reason codes (may be empty). Timestamp is not checked.</summary>
     public static IReadOnlyList<string> ResolveSuspiciousReasons(
         decimal submittedLatitude,
         decimal submittedLongitude,
         decimal? exifLatitude,
-        decimal? exifLongitude)
+        decimal? exifLongitude,
+        double thresholdMeters)
     {
         if (exifLatitude.HasValue && exifLongitude.HasValue
-            && IsGpsMismatch(submittedLatitude, submittedLongitude, exifLatitude.Value, exifLongitude.Value))
+            && IsGpsMismatch(submittedLatitude, submittedLongitude, exifLatitude.Value, exifLongitude.Value, thresholdMeters))
             return [GpsMismatchReason];
 
         return [];

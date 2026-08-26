@@ -19,4 +19,5 @@ public sealed record AdminBadgeItem(
     int? RequiredPoints,
     int? RequiredReportCount,
     int? RequiredStreakDays,
+    int? RequiredActionCount,
     DateTime CreatedAt);

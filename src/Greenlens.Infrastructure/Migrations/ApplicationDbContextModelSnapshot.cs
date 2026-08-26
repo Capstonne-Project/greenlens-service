@@ -182,6 +182,10 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("name_vi");
 
+                    b.Property<int?>("RequiredActionCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("required_action_count");
+
                     b.Property<int?>("RequiredPoints")
                         .HasColumnType("integer")
                         .HasColumnName("required_points");
@@ -285,7 +289,8 @@ namespace Greenlens.Infrastructure.Migrations
                             IconUrl = "badges/icons/duplicate_finder.png",
                             IsActive = true,
                             NameEn = "Duplicate Finder",
-                            NameVi = "Người Phát Hiện Trùng"
+                            NameVi = "Người Phát Hiện Trùng",
+                            RequiredActionCount = 5
                         },
                         new
                         {
@@ -296,7 +301,8 @@ namespace Greenlens.Infrastructure.Migrations
                             IconUrl = "badges/icons/community_voice.png",
                             IsActive = true,
                             NameEn = "Community Voice",
-                            NameVi = "Tiếng Nói Cộng Đồng"
+                            NameVi = "Tiếng Nói Cộng Đồng",
+                            RequiredActionCount = 10
                         },
                         new
                         {
@@ -307,7 +313,8 @@ namespace Greenlens.Infrastructure.Migrations
                             IconUrl = "badges/icons/cleanup_hero.png",
                             IsActive = true,
                             NameEn = "Cleanup Hero",
-                            NameVi = "Anh Hùng Dọn Dẹp"
+                            NameVi = "Anh Hùng Dọn Dẹp",
+                            RequiredActionCount = 2
                         },
                         new
                         {
@@ -2583,6 +2590,10 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasColumnType("character varying(1000)")
                         .HasColumnName("description");
 
+                    b.Property<Guid?>("DispatchedByOfficerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("dispatched_by_officer_id");
+
                     b.Property<DateTime?>("DispatchedToCompanyAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("dispatched_to_company_at");
@@ -2772,6 +2783,9 @@ namespace Greenlens.Infrastructure.Migrations
 
                     b.HasIndex("CreatedAt")
                         .HasDatabaseName("ix_reports_created_at");
+
+                    b.HasIndex("DispatchedByOfficerId")
+                        .HasDatabaseName("ix_reports_dispatched_by_officer_id");
 
                     b.HasIndex("IsPossibleDuplicate")
                         .HasDatabaseName("ix_reports_is_possible_duplicate");
@@ -3432,6 +3446,91 @@ namespace Greenlens.Infrastructure.Migrations
                     b.ToTable("staff_invitations", (string)null);
                 });
 
+            modelBuilder.Entity("Greenlens.Domain.Entities.SystemSetting", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("DefaultValue")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("default_value");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("key");
+
+                    b.Property<decimal?>("MaxValue")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("max_value");
+
+                    b.Property<decimal?>("MinValue")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("min_value");
+
+                    b.Property<string>("Module")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("module");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("updated_by");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("value");
+
+                    b.Property<string>("ValueType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("value_type");
+
+                    b.HasKey("Id")
+                        .HasName("pk_system_settings");
+
+                    b.HasIndex("Module", "Key")
+                        .IsUnique()
+                        .HasDatabaseName("ix_system_settings_module_key");
+
+                    b.ToTable("system_settings", (string)null);
+                });
+
             modelBuilder.Entity("Greenlens.Domain.Entities.TeamMember", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3466,6 +3565,25 @@ namespace Greenlens.Infrastructure.Migrations
                         .HasDatabaseName("ix_team_members_team_id_user_id");
 
                     b.ToTable("team_members", (string)null);
+                });
+
+            modelBuilder.Entity("Greenlens.Domain.Entities.TeamWasteTag", b =>
+                {
+                    b.Property<Guid>("TeamId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("team_id");
+
+                    b.Property<Guid>("WasteTagId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("waste_tag_id");
+
+                    b.HasKey("TeamId", "WasteTagId")
+                        .HasName("pk_team_waste_tags");
+
+                    b.HasIndex("WasteTagId")
+                        .HasDatabaseName("ix_team_waste_tags_waste_tag_id");
+
+                    b.ToTable("team_waste_tags", (string)null);
                 });
 
             modelBuilder.Entity("Greenlens.Domain.Entities.User", b =>
@@ -4524,6 +4642,12 @@ namespace Greenlens.Infrastructure.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_reports_pollution_categories_category_id");
 
+                    b.HasOne("Greenlens.Domain.Entities.User", "DispatchedByUser")
+                        .WithMany()
+                        .HasForeignKey("DispatchedByOfficerId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_reports_users_dispatched_by_officer_id");
+
                     b.HasOne("Greenlens.Domain.Entities.Report", "ParentReport")
                         .WithMany("DuplicateReports")
                         .HasForeignKey("ParentReportId")
@@ -4561,6 +4685,8 @@ namespace Greenlens.Infrastructure.Migrations
                     b.Navigation("AssignedOffice");
 
                     b.Navigation("Category");
+
+                    b.Navigation("DispatchedByUser");
 
                     b.Navigation("ParentReport");
 
@@ -4819,6 +4945,27 @@ namespace Greenlens.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Greenlens.Domain.Entities.TeamWasteTag", b =>
+                {
+                    b.HasOne("Greenlens.Domain.Entities.EnvironmentalTeam", "Team")
+                        .WithMany("WasteTags")
+                        .HasForeignKey("TeamId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_team_waste_tags_environmental_teams_team_id");
+
+                    b.HasOne("Greenlens.Domain.Entities.WasteTag", "WasteTag")
+                        .WithMany("TeamWasteTags")
+                        .HasForeignKey("WasteTagId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_team_waste_tags_waste_tags_waste_tag_id");
+
+                    b.Navigation("Team");
+
+                    b.Navigation("WasteTag");
+                });
+
             modelBuilder.Entity("Greenlens.Domain.Entities.User", b =>
                 {
                     b.HasOne("Greenlens.Domain.Entities.Department", "Department")
@@ -4913,6 +5060,8 @@ namespace Greenlens.Infrastructure.Migrations
             modelBuilder.Entity("Greenlens.Domain.Entities.EnvironmentalTeam", b =>
                 {
                     b.Navigation("Members");
+
+                    b.Navigation("WasteTags");
                 });
 
             modelBuilder.Entity("Greenlens.Domain.Entities.InspectionReport", b =>
@@ -4991,6 +5140,8 @@ namespace Greenlens.Infrastructure.Migrations
             modelBuilder.Entity("Greenlens.Domain.Entities.WasteTag", b =>
                 {
                     b.Navigation("ReportWasteTags");
+
+                    b.Navigation("TeamWasteTags");
                 });
 #pragma warning restore 612, 618
         }

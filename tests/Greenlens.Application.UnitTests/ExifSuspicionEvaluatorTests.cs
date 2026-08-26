@@ -4,11 +4,13 @@ namespace Greenlens.Application.UnitTests;
 
 public sealed class ExifSuspicionEvaluatorTests
 {
+    private const double DefaultThresholdMeters = 200;
+
     [Fact]
     public void ResolveSuspiciousReasons_NoExifGps_ReturnsEmpty_BR_REP_011()
     {
         var reasons = ExifSuspicionEvaluator.ResolveSuspiciousReasons(
-            10.7626m, 106.6602m, null, null);
+            10.7626m, 106.6602m, null, null, DefaultThresholdMeters);
 
         Assert.Empty(reasons);
     }
@@ -20,7 +22,8 @@ public sealed class ExifSuspicionEvaluatorTests
             submittedLatitude: 10.7626m,
             submittedLongitude: 106.6602m,
             exifLatitude: 10.8000m,
-            exifLongitude: 106.6602m);
+            exifLongitude: 106.6602m,
+            DefaultThresholdMeters);
 
         Assert.Equal([ExifSuspicionEvaluator.GpsMismatchReason], reasons);
     }
@@ -32,7 +35,8 @@ public sealed class ExifSuspicionEvaluatorTests
             submittedLatitude: 10.7626m,
             submittedLongitude: 106.6602m,
             exifLatitude: 10.7627m,
-            exifLongitude: 106.6602m);
+            exifLongitude: 106.6602m,
+            DefaultThresholdMeters);
 
         Assert.Empty(reasons);
     }

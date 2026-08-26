@@ -43,7 +43,24 @@ public sealed record AiClassifyDetail(
 public sealed record AiPredictionItem(
     string Class,
     double Confidence,
-    int BboxCount);
+    int BboxCount,
+    IReadOnlyList<AiTrashSubtypeItem>? Subtypes,
+    IReadOnlyList<AiBoxItem>? Boxes);
+
+public sealed record AiTrashSubtypeItem(
+    string Subtype,
+    int Count,
+    double Confidence);
+
+/// <summary>Absolute pixel bbox (xyxy) for one detected object.</summary>
+public sealed record AiBoxItem(
+    double X1,
+    double Y1,
+    double X2,
+    double Y2,
+    double Confidence,
+    string? Subtype,
+    double? SubtypeConfidence);
 
 public enum AiDecision
 {

@@ -1,19 +1,18 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Organization.Common;
 using Greenlens.Domain.Common;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Organization.UpdateCompanyTeam;
 
-/// <summary>
-/// CM renames a company team. Validates team belongs to CM's company.
-/// </summary>
-/// <remarks>Implements: BR-CMP-004.</remarks>
+/// <remarks>Implements: BR-CMP-004, BR-CLN-005.</remarks>
 public sealed class UpdateCompanyTeamCommandHandler(
     ICompanyStaffRepository companyStaff,
     IEnvironmentalTeamRepository teams,
+    TeamWasteTagService wasteTagService,
     IUnitOfWork uow,
     ICurrentUser currentUser,
     ILogger<UpdateCompanyTeamCommandHandler> logger) : IRequestHandler<UpdateCompanyTeamCommand, Result>
@@ -22,7 +21,6 @@ public sealed class UpdateCompanyTeamCommandHandler(
     {
         logger.LogInformation("Updating company team for team {TeamId}", request.TeamId);
 
-        // Resolve CM's company
         var staff = await companyStaff.GetByUserIdAsync(currentUser.UserId, ct).ConfigureAwait(false);
         if (staff is null)
         {
@@ -43,10 +41,19 @@ public sealed class UpdateCompanyTeamCommandHandler(
             return Errors.Organization.TeamNotInCompany;
         }
 
+        if (request.WasteTagIds is not null)
+        {
+            var tagResult = await wasteTagService
+                .ReplaceTeamTagsAsync(team, request.WasteTagIds, ct)
+                .ConfigureAwait(false);
+            if (!tagResult.IsSuccess)
+                return tagResult;
+        }
+
         team.Update(request.Name);
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 
-        logger.LogInformation("Company team {TeamId} renamed by CM {UserId}", request.TeamId, currentUser.UserId);
+        logger.LogInformation("Company team {TeamId} updated by CM {UserId}", request.TeamId, currentUser.UserId);
 
         return Result.Success();
     }

@@ -1,3 +1,4 @@
+using Greenlens.Application.Common.Models;
 using Greenlens.Application.Features.Reports.Common;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
@@ -27,6 +28,7 @@ public sealed record CompanyReportDetailResponse(
     DateTime? VerifiedAt,
     string? VerifiedByName,
     DateTime? DispatchedToCompanyAt,
+    CompanyDispatchSourceDto DispatchSource,
     DateTime? ResolvedAt,
     DateTime? ClosedAt,
     int ReopenedCount,
@@ -82,6 +84,7 @@ public sealed record CompanyReportTeamAssignment(
     Guid TeamId,
     string TeamName,
     string? TeamLeaderName,
+    IReadOnlyList<WasteTagSummaryDto> TeamWasteTags,
     IReadOnlyList<CompanyReportTeamMember> Members,
     string AssignedByName,
     IReadOnlyList<CompanyReportProgressUpdateItem> ProgressUpdates);
@@ -95,7 +98,8 @@ public sealed record CompanyReportAssignmentHistoryItem(
     DateTime? AcceptedAt,
     DateTime? CompletedAt,
     string? DeclineReason,
-    string? Note);
+    string? Note,
+    IReadOnlyList<WasteTagSummaryDto> TeamWasteTags);
 
 public sealed record CompanyReportTeamMember(
     Guid UserId,

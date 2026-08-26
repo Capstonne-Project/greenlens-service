@@ -3,6 +3,7 @@ using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Features.Inspection.AssignInspectionTeam;
 using Greenlens.Application.Features.Inspection.CreateInspectionReport;
 using Greenlens.Application.Features.Notifications;
+using Greenlens.Application.UnitTests.TestDoubles;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -44,6 +45,7 @@ public sealed class InspectionReportStatusIsolationTests
             Substitute.For<IUnitOfWork>(),
             Substitute.For<IAuditLogger>(),
             Substitute.For<IInspectionTaskAssignedNotifier>(),
+            new DefaultSystemSettingsProvider(),
             NullLogger<CreateInspectionReportCommandHandler>.Instance);
 
         var result = await handler.Handle(

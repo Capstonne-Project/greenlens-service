@@ -7,7 +7,11 @@ namespace Greenlens.Application.Common;
 /// <summary>Shared BR-REP-015 eligibility checks for citizen reopen requests.</summary>
 public static class ReopenRequestEligibility
 {
-    public static Error? ValidateCitizenCanRequest(Report report, DateTime utcNow)
+    public static Error? ValidateCitizenCanRequest(
+        Report report,
+        DateTime utcNow,
+        int reopenWindowDays,
+        int maxApprovedReopens)
     {
         if (report.Status == ReportStatus.Closed)
             return Errors.Reports.CannotReopenFromClosed;
@@ -15,13 +19,13 @@ public static class ReopenRequestEligibility
         if (report.Status != ReportStatus.Resolved)
             return Errors.Reports.CannotReopenNotResolved;
 
-        if (report.ResolvedAt.HasValue && utcNow - report.ResolvedAt.Value > TimeSpan.FromDays(7))
+        if (report.ResolvedAt.HasValue && utcNow - report.ResolvedAt.Value > TimeSpan.FromDays(reopenWindowDays))
             return Errors.Reports.ReopenWindowExpired;
 
         if (report.HasPendingReopenRequest)
             return Errors.Reports.PendingReopenRequestExists;
 
-        if (report.ReopenedCount >= Report.MaxApprovedReopens)
+        if (report.ReopenedCount >= maxApprovedReopens)
             return Errors.Reports.ReopenLimitReached;
 
         return null;

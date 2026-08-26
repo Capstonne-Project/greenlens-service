@@ -1,3 +1,4 @@
+using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
@@ -20,6 +21,7 @@ namespace Greenlens.Infrastructure.BackgroundJobs;
 internal sealed class OverdueReportNotificationJob(
     ApplicationDbContext db,
     INotificationService notificationService,
+    ISystemSettingsProvider systemSettings,
     ILogger<OverdueReportNotificationJob> logger)
 {
     private const int BatchSize = 200;
@@ -44,7 +46,7 @@ internal sealed class OverdueReportNotificationJob(
 
     private async Task<int> ProcessOverdueReportsAsync()
     {
-        var cutoff = DateTime.UtcNow.AddHours(-72);
+        var cutoff = DateTime.UtcNow.AddHours(-ModuleSystemSettings.SlaOverduePendingHours(systemSettings));
 
         var reports = await db.Reports
             .Where(r => (r.Status == ReportStatus.Submitted || r.Status == ReportStatus.Verified)
@@ -92,7 +94,8 @@ internal sealed class OverdueReportNotificationJob(
 
     private async Task<int> ProcessUnassignedReportsAsync()
     {
-        var cutoff = DateTime.UtcNow.AddHours(-24);
+        var unassignedHours = ModuleSystemSettings.SlaUnassignedVerifiedHours(systemSettings);
+        var cutoff = DateTime.UtcNow.AddHours(-unassignedHours);
 
         var reports = await db.Reports
             .Where(r => r.Status == ReportStatus.Verified

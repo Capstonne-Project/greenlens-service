@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Microsoft.Extensions.Logging;
 
@@ -6,13 +7,14 @@ namespace Greenlens.Infrastructure.Ai;
 
 /// <summary>
 /// File-system temp store for images between Analyze and Submit steps.
-/// TTL = 15 minutes. Each entry is stored as two files:
+/// TTL from system_settings (ai_temp_image_ttl_seconds). Each entry is stored as two files:
 ///   {tempId}.bin   — raw image bytes
 ///   {tempId}.meta  — JSON metadata (fileName, contentType, expiresAt)
 /// </summary>
-internal sealed class TempImageStore(ILogger<TempImageStore> logger) : ITempImageStore
+internal sealed class TempImageStore(
+    ISystemSettingsProvider systemSettings,
+    ILogger<TempImageStore> logger) : ITempImageStore
 {
-    private static readonly TimeSpan Ttl = TimeSpan.FromMinutes(15);
     private readonly string _folder = Path.Combine(Path.GetTempPath(), "greenlens_temp_images");
 
     public async Task<string> SaveAsync(
@@ -32,10 +34,11 @@ internal sealed class TempImageStore(ILogger<TempImageStore> logger) : ITempImag
 
         await File.WriteAllBytesAsync(binPath, imageBytes, ct).ConfigureAwait(false);
 
+        var ttl = ResolveTtl();
         var meta = new TempMeta(
             fileName,
             contentType,
-            DateTime.UtcNow.Add(Ttl),
+            DateTime.UtcNow.Add(ttl),
             aiResult,
             publicUrl,
             storageKey);
@@ -81,6 +84,12 @@ internal sealed class TempImageStore(ILogger<TempImageStore> logger) : ITempImag
         TryDelete(BinPath(tempId));
         TryDelete(MetaPath(tempId));
         return Task.CompletedTask;
+    }
+
+    private TimeSpan ResolveTtl()
+    {
+        var seconds = ModuleSystemSettings.Ai(systemSettings).TempImageTtlSeconds;
+        return TimeSpan.FromSeconds(Math.Max(60, seconds));
     }
 
     private string BinPath(string tempId) => Path.Combine(_folder, $"{tempId}.bin");

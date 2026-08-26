@@ -118,9 +118,9 @@ internal static class NotificationTemplateSeeder
         Create(
             "sla_verification_breached_leo",
             "Quá hạn xác minh",
-            "Báo cáo {report_code} tại {ward_name} đã quá 24 giờ chưa được xác minh. Vui lòng xử lý ưu tiên.",
+            "Báo cáo {report_code} tại {ward_name} đã quá {sla_verify_hours} giờ chưa được xác minh. Vui lòng xử lý ưu tiên.",
             "Verification SLA overdue",
-            "Report {report_code} at {ward_name} has not been verified within 24 hours. Please prioritize.",
+            "Report {report_code} at {ward_name} has not been verified within {sla_verify_hours} hours. Please prioritize.",
             NotificationType.SlaVerificationBreachedLeo),
 
         Create(
@@ -214,17 +214,17 @@ internal static class NotificationTemplateSeeder
         Create(
             "cleanup_progress_stale",
             "Đội chưa cập nhật tiến độ dọn dẹp",
-            "Đội {team_name} chưa cập nhật tiến độ dọn dẹp hơn 48 giờ cho báo cáo {report_code} tại {ward_name}.",
-            "Cleanup progress stale >48h",
-            "Team {team_name} has not updated progress for report {report_code} in over 48 hours.",
+            "Đội {team_name} chưa cập nhật tiến độ dọn dẹp hơn {progress_escalate_hours} giờ cho báo cáo {report_code} tại {ward_name}.",
+            "Cleanup progress stale",
+            "Team {team_name} has not updated progress for report {report_code} in over {progress_escalate_hours} hours.",
             NotificationType.CleanupProgressStale),
 
         Create(
             "nearby_report",
             "Có báo cáo ô nhiễm gần bạn",
-            "Báo cáo {report_code} ({category_name}) vừa được ghi nhận tại {ward_name}, trong bán kính 2 km quanh khu vực bạn từng báo cáo.",
+            "Báo cáo {report_code} ({category_name}) vừa được ghi nhận tại {ward_name}, trong bán kính {nearby_radius_km} km quanh khu vực bạn từng báo cáo.",
             "Nearby pollution report",
-            "Report {report_code} ({category_name}) was recorded within 2km of an area you previously reported.",
+            "Report {report_code} ({category_name}) was recorded within {nearby_radius_km} km of an area you previously reported.",
             NotificationType.NearbyReport),
 
         Create(
@@ -278,25 +278,25 @@ internal static class NotificationTemplateSeeder
         Create(
             "report_overdue",
             "Báo cáo quá hạn",
-            "Báo cáo {report_code} tại {ward_name} đã tồn tại quá 72 giờ mà chưa được xử lý.",
+            "Báo cáo {report_code} tại {ward_name} đã tồn tại quá {overdue_pending_hours} giờ mà chưa được xử lý.",
             "Report Overdue",
-            "Report {report_code} has been pending for over 72h without resolution.",
+            "Report {report_code} has been pending for over {overdue_pending_hours} hours without resolution.",
             NotificationType.ReportOverdue),
 
         Create(
             "report_unassigned",
             "Báo cáo chưa được phân công",
-            "Báo cáo {report_code} tại {ward_name} đã được xác minh nhưng chưa có đội xử lý trong 24 giờ.",
+            "Báo cáo {report_code} tại {ward_name} đã được xác minh nhưng chưa có đội xử lý trong {unassigned_verified_hours} giờ.",
             "Report Unassigned",
-            "Report {report_code} has been verified but remains unassigned for 24h.",
+            "Report {report_code} has been verified but remains unassigned for {unassigned_verified_hours} hours.",
             NotificationType.ReportUnassigned),
 
         Create(
             "report_auto_closed",
             "Báo cáo tự động đóng",
-            "Báo cáo {report_code} đã được hệ thống tự động đóng sau 2 ngày chờ xác nhận.",
+            "Báo cáo {report_code} đã được hệ thống tự động đóng sau {auto_close_resolved_days} ngày chờ xác nhận.",
             "Report Auto-Closed",
-            "Report {report_code} has been automatically closed after 2 days pending confirmation.",
+            "Report {report_code} has been automatically closed after {auto_close_resolved_days} days pending confirmation.",
             NotificationType.ReportAutoClosed),
 
         Create(
@@ -406,9 +406,9 @@ internal static class NotificationTemplateSeeder
         Create(
             "staff_invitation_received",
             "Lời mời tham gia đội môi trường",
-            "{inviter_name} đã mời bạn tham gia vai trò {target_role} tại phường/xã {ward_name}{team_clause}. Vui lòng xem và phản hồi trong 7 ngày.",
+            "{inviter_name} đã mời bạn tham gia vai trò {target_role} tại phường/xã {ward_name}{team_clause}. Vui lòng xem và phản hồi trong {invitation_response_days} ngày.",
             "Staff invitation received",
-            "{inviter_name} invited you to join as {target_role} at {office_name}{team_clause}. Please respond within 7 days.",
+            "{inviter_name} invited you to join as {target_role} at {office_name}{team_clause}. Please respond within {invitation_response_days} days.",
             NotificationType.StaffInvitationReceived),
 
         Create(
@@ -486,9 +486,9 @@ internal static class NotificationTemplateSeeder
         Create(
             "community_cleanup_checkin_reminder",
             "Sắp đến giờ dọn dẹp",
-            "Chương trình \"{title}\" sẽ bắt đầu sau 15 phút. Đừng quên check-in khi đến điểm hẹn!",
+            "Chương trình \"{title}\" sẽ bắt đầu sau {check_in_reminder_minutes} phút. Đừng quên check-in khi đến điểm hẹn!",
             "Cleanup starting soon",
-            "\"{title}\" starts in 15 minutes. Don't forget to check in when you arrive!",
+            "\"{title}\" starts in {check_in_reminder_minutes} minutes. Don't forget to check in when you arrive!",
             NotificationType.CommunityCleanupCheckInReminder),
 
         Create(
@@ -525,7 +525,25 @@ internal static class NotificationTemplateSeeder
             "Login email: {email}\n" +
             "Temporary password: {temp_password}\n\n" +
             "Please sign in and change your password on first login.",
-            NotificationType.CompanyStaffAccountCreated)
+            NotificationType.CompanyStaffAccountCreated),
+
+        Create(
+            "report_duplicate_merged",
+            "Báo cáo được gộp",
+            "Báo cáo của bạn đã được xác định là trùng lặp và gộp vào báo cáo {report_code}. " +
+            "Bạn có thể theo dõi tiến độ xử lý tại báo cáo gốc. Cảm ơn đóng góp của bạn!",
+            "Report merged as duplicate",
+            "Your report was identified as a duplicate and merged into report {report_code}. " +
+            "You can follow progress on the primary report. Thank you for your contribution!",
+            NotificationType.ReportDuplicateMerged),
+
+        Create(
+            "company_deactivation_reassign",
+            "Công ty bị ngưng — cần tái điều phối",
+            "Báo cáo {report_code} đã quay về Verified do công ty bị ngưng/chấm dứt. Vui lòng gán đội khác.",
+            "Company deactivated — reassignment needed",
+            "Report {report_code} reverted to Verified because the assigned company was suspended/terminated. Please assign another team.",
+            NotificationType.CompanyDeactivationReassign)
     ];
 
     private static NotificationTemplate Create(

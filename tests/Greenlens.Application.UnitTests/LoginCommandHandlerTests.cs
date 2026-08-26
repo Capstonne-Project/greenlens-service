@@ -1,6 +1,7 @@
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Features.Auth.Login;
+using Greenlens.Application.UnitTests.TestDoubles;
 using Greenlens.Domain.Entities;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
@@ -21,6 +22,7 @@ public sealed class LoginCommandHandlerTests
     {
         _sut = new LoginCommandHandler(
             _users, _refreshTokens, _companyStaff, _uow, _jwt, _hasher,
+            new DefaultSystemSettingsProvider(),
             NullLogger<LoginCommandHandler>.Instance);
     }
 

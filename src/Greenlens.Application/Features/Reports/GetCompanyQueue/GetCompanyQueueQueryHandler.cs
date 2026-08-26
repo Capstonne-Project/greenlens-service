@@ -42,6 +42,9 @@ public sealed class GetCompanyQueueQueryHandler(
         var baseQuery = reports.QueryAsNoTracking()
             .Include(r => r.Category)
             .Include(r => r.VerifiedByUser)
+            .Include(r => r.DispatchedByUser)
+            .Include(r => r.AssignedOffice!)
+                .ThenInclude(o => o.Ward)
             .Where(r => r.Status == ReportStatus.InProgress
                         && r.AssignedCompanyId == companyId
                         && !r.Assignments.Any(a =>
@@ -142,7 +145,14 @@ public sealed class GetCompanyQueueQueryHandler(
                 r.DispatchedToCompanyAt,
                 r.VerifiedAt,
                 r.VerifiedByUser != null ? r.VerifiedByUser.FullName : null,
-                r.SlaResolveDueAt))
+                r.SlaResolveDueAt,
+                r.AssignedOfficeId,
+                r.AssignedOffice != null ? r.AssignedOffice.Name : null,
+                r.AssignedOffice != null && r.AssignedOffice.Ward != null ? r.AssignedOffice.Ward.Name : null,
+                r.DispatchedByOfficerId ?? r.VerifiedBy,
+                r.DispatchedByUser != null
+                    ? r.DispatchedByUser.FullName
+                    : r.VerifiedByUser != null ? r.VerifiedByUser.FullName : null))
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
@@ -165,7 +175,14 @@ public sealed class GetCompanyQueueQueryHandler(
             r.VerifiedAt,
             r.VerifiedByName,
             r.SlaResolveDueAt,
-            CitizenReportMediaLoader.GetFirstMediaList(firstMediaByReportId, r.ReportId)))
+            CitizenReportMediaLoader.GetFirstMediaList(firstMediaByReportId, r.ReportId),
+            new CompanyDispatchSourceDto(
+                r.LocalOfficeId,
+                r.LocalOfficeName,
+                r.WardCode,
+                r.WardName,
+                r.LeoUserId,
+                r.LeoFullName)))
             .ToList();
 
         logger.LogInformation(
@@ -188,5 +205,10 @@ public sealed class GetCompanyQueueQueryHandler(
         DateTime? DispatchedAt,
         DateTime? VerifiedAt,
         string? VerifiedByName,
-        DateTime? SlaResolveDueAt);
+        DateTime? SlaResolveDueAt,
+        Guid? LocalOfficeId,
+        string? LocalOfficeName,
+        string? WardName,
+        Guid? LeoUserId,
+        string? LeoFullName);
 }

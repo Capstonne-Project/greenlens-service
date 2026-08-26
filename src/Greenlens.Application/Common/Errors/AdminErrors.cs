@@ -60,5 +60,27 @@ public static partial class Errors
             "AUDIT_LOG_NOT_FOUND",
             "Không tìm thấy bản ghi nhật ký.",
             ErrorType.NotFound);
+
+        // ── System Settings (BR-ADM-010) ──
+
+        public static Error SystemSettingModuleNotFound => new(
+            "SYSTEM_SETTING_MODULE_NOT_FOUND",
+            "Module cấu hình không hợp lệ.",
+            ErrorType.NotFound);
+
+        public static Error SystemSettingKeyNotFound(string key) => new(
+            "SYSTEM_SETTING_KEY_NOT_FOUND",
+            $"Khóa cấu hình '{key}' không tồn tại trong module.",
+            ErrorType.NotFound);
+
+        public static Error SystemSettingUpdateEmpty => new(
+            "SYSTEM_SETTING_UPDATE_EMPTY",
+            "Không có giá trị nào để cập nhật.",
+            ErrorType.Validation);
+
+        public static Error SystemSettingInvalidValue(string key, string message) => new(
+            "SYSTEM_SETTING_INVALID_VALUE",
+            $"Giá trị không hợp lệ cho '{key}': {message}",
+            ErrorType.Validation);
     }
 }

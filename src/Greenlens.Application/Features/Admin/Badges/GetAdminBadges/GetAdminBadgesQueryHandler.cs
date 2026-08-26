@@ -73,6 +73,9 @@ public sealed class GetAdminBadgesQueryHandler(
             "requiredstreakdays" => request.SortDesc
                 ? baseQuery.OrderByDescending(b => b.RequiredStreakDays)
                 : baseQuery.OrderBy(b => b.RequiredStreakDays),
+            "requiredactioncount" => request.SortDesc
+                ? baseQuery.OrderByDescending(b => b.RequiredActionCount)
+                : baseQuery.OrderBy(b => b.RequiredActionCount),
             "createdat" => request.SortDesc
                 ? baseQuery.OrderByDescending(b => b.CreatedAt)
                 : baseQuery.OrderBy(b => b.CreatedAt),
@@ -93,6 +96,7 @@ public sealed class GetAdminBadgesQueryHandler(
                 b.RequiredPoints,
                 b.RequiredReportCount,
                 b.RequiredStreakDays,
+                b.RequiredActionCount,
                 b.CreatedAt))
             .ToListAsync(ct)
             .ConfigureAwait(false);

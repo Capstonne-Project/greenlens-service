@@ -5,11 +5,9 @@ namespace Greenlens.Application.Common.Map;
 /// </summary>
 public static class PublicMapCoordinateRounding
 {
-    private const int DecimalPlaces = 4;
+    public static decimal RoundLatitude(decimal latitude, int decimalPlaces = 4) =>
+        Math.Round(latitude, decimalPlaces, MidpointRounding.AwayFromZero);
 
-    public static decimal RoundLatitude(decimal latitude) =>
-        Math.Round(latitude, DecimalPlaces, MidpointRounding.AwayFromZero);
-
-    public static decimal RoundLongitude(decimal longitude) =>
-        Math.Round(longitude, DecimalPlaces, MidpointRounding.AwayFromZero);
+    public static decimal RoundLongitude(decimal longitude, int decimalPlaces = 4) =>
+        Math.Round(longitude, decimalPlaces, MidpointRounding.AwayFromZero);
 }

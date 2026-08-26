@@ -1,23 +1,21 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Organization.Common;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Organization.CreateCompanyTeam;
 
-/// <summary>
-/// CompanyManager creates a CleanupTeam under their company.
-/// No LocalOfficeId — company teams go wherever the dispatched task is.
-/// Only Cleanup teams allowed — InspectionTeam is ward-level (LEO-managed).
-/// </summary>
-/// <remarks>Implements: BR-CMP-004.</remarks>
+/// <remarks>Implements: BR-CMP-004, BR-CLN-005.</remarks>
 public sealed class CreateCompanyTeamCommandHandler(
     ICompanyStaffRepository companyStaff,
     IEnvironmentalTeamRepository teams,
+    TeamWasteTagService wasteTagService,
     IUnitOfWork uow,
     ICurrentUser currentUser,
     ILogger<CreateCompanyTeamCommandHandler> logger) : IRequestHandler<CreateCompanyTeamCommand, Result<CreateCompanyTeamResponse>>
@@ -26,9 +24,8 @@ public sealed class CreateCompanyTeamCommandHandler(
         CreateCompanyTeamCommand request,
         CancellationToken cancellationToken)
     {
-        logger.LogInformation("Creating company team {Name} for company {CompanyId}", request.Name, currentUser.UserId);
+        logger.LogInformation("Creating company team {Name} for user {UserId}", request.Name, currentUser.UserId);
 
-        // Resolve CompanyId from current user
         var staff = await companyStaff.GetByUserIdAsync(currentUser.UserId, cancellationToken)
             .ConfigureAwait(false);
 
@@ -39,20 +36,31 @@ public sealed class CreateCompanyTeamCommandHandler(
         }
 
         var companyId = staff.CompanyId;
-
-        // Company teams can only be Cleanup (InspectionTeam is ward-level)
-        var team = EnvironmentalTeam.CreateCompanyTeam(
-            request.Name, TeamType.Cleanup, companyId);
-
+        var team = EnvironmentalTeam.CreateCompanyTeam(request.Name, TeamType.Cleanup, companyId);
         teams.Add(team);
 
+        var tagResult = await wasteTagService
+            .ReplaceTeamTagsAsync(team, request.WasteTagIds, cancellationToken)
+            .ConfigureAwait(false);
+        if (!tagResult.IsSuccess)
+            return tagResult.Error!;
+
         await uow.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        var loaded = await teams.QueryAsNoTracking()
+            .Include(t => t.WasteTags).ThenInclude(tw => tw.WasteTag)
+            .FirstAsync(t => t.Id == team.Id, cancellationToken)
+            .ConfigureAwait(false);
 
         logger.LogInformation(
             "Company team {TeamId} created by CM {UserId} for company {CompanyId}",
             team.Id, currentUser.UserId, companyId);
 
         return new CreateCompanyTeamResponse(
-            team.Id, team.Name, companyId, team.TeamType.ToString());
+            team.Id,
+            team.Name,
+            companyId,
+            team.TeamType.ToString(),
+            TeamWasteTagService.MapTags(loaded));
     }
 }

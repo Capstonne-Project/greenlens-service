@@ -17,15 +17,16 @@ public sealed class RequestAccountDeletionCommandHandler(
     IReportRepository reports,
     IUnitOfWork uow,
     ICurrentUser currentUser,
+    ISystemSettingsProvider systemSettings,
     ILogger<RequestAccountDeletionCommandHandler> logger)
     : IRequestHandler<RequestAccountDeletionCommand, Result<RequestAccountDeletionResponse>>
 {
-    private const int RetentionDays = 90;
-
     public async Task<Result<RequestAccountDeletionResponse>> Handle(
         RequestAccountDeletionCommand request,
         CancellationToken cancellationToken)
     {
+        var retentionDays = ModuleSystemSettings.AccountSoftDeleteRetentionDays(systemSettings);
+
         logger.LogInformation("Getting account deletion");
 
         var user = await users.GetByIdAsync(currentUser.UserId, cancellationToken)
@@ -53,14 +54,14 @@ public sealed class RequestAccountDeletionCommandHandler(
 
         await uow.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-        var deletionDate = DateTime.UtcNow.AddDays(RetentionDays);
+        var deletionDate = DateTime.UtcNow.AddDays(retentionDays);
 
         logger.LogInformation(
             "User {UserId} requested account deletion. {ReportCount} reports anonymized. Will be hard-deleted after {Date}",
             user.Id, anonymizedCount, deletionDate);
 
         return new RequestAccountDeletionResponse(
-            $"Tài khoản sẽ được xóa vĩnh viễn sau {RetentionDays} ngày. Bạn có thể khôi phục trước thời hạn.",
+            $"Tài khoản sẽ được xóa vĩnh viễn sau {retentionDays} ngày. Bạn có thể khôi phục trước thời hạn.",
             deletionDate);
     }
 }

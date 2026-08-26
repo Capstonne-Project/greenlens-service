@@ -1,3 +1,4 @@
+using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Domain.Enums;
 using Greenlens.Infrastructure.Persistence;
@@ -17,13 +18,15 @@ namespace Greenlens.Infrastructure.BackgroundJobs;
 internal sealed class CommunityCleanupCheckInReminderJob(
     ApplicationDbContext db,
     INotificationService notificationService,
+    ISystemSettingsProvider systemSettings,
     ILogger<CommunityCleanupCheckInReminderJob> logger)
 {
     public async Task ExecuteAsync()
     {
+        var reminderMinutes = ModuleSystemSettings.CommunityCheckInReminderMinutes(systemSettings);
         var now = DateTime.UtcNow;
-        var windowStart = now.AddMinutes(10);
-        var windowEnd = now.AddMinutes(15);
+        var windowStart = now.AddMinutes(reminderMinutes - 5);
+        var windowEnd = now.AddMinutes(reminderMinutes);
 
         var upcomingEvents = await db.CommunityCleanupEvents
             .Where(e => e.Status == CommunityCleanupStatus.OpenForJoin || e.Status == CommunityCleanupStatus.JoinClosed)

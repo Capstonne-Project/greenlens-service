@@ -22,6 +22,7 @@ public sealed class WasteTag : SoftDeletableEntity
 
     // ── Navigation ──
     public ICollection<ReportWasteTag> ReportWasteTags { get; private set; } = [];
+    public ICollection<TeamWasteTag> TeamWasteTags { get; private set; } = [];
 
     public static WasteTag Create(
         string code,

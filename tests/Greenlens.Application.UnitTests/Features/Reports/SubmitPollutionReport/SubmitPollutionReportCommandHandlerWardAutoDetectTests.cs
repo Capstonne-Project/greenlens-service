@@ -5,6 +5,7 @@ using Greenlens.Application.Features.Reports.SubmitPollutionReport;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Entities.Location;
 using Greenlens.Domain.Enums;
+using Greenlens.Application.UnitTests.TestDoubles;
 using Greenlens.Infrastructure.Persistence;
 using Greenlens.Infrastructure.Persistence.Repositories;
 using Greenlens.Infrastructure.Persistence.Repositories.Location;
@@ -99,6 +100,7 @@ public sealed class SubmitPollutionReportCommandHandlerWardAutoDetectTests
             _idempotencyContext,
             _exifAnalyzer,
             _imageBytesFetcher,
+            new DefaultSystemSettingsProvider(),
             NullLogger<SubmitPollutionReportCommandHandler>.Instance);
 
         return (sut, ctx, reporter.Id, category.Id);

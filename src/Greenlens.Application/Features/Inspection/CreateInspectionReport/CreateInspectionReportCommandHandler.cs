@@ -25,6 +25,7 @@ public sealed class CreateInspectionReportCommandHandler(
     IUnitOfWork uow,
     IAuditLogger auditLogger,
     IInspectionTaskAssignedNotifier taskAssignedNotifier,
+    ISystemSettingsProvider systemSettings,
     ILogger<CreateInspectionReportCommandHandler> logger)
     : IRequestHandler<CreateInspectionReportCommand, Result<Guid>>
 {
@@ -82,7 +83,8 @@ public sealed class CreateInspectionReportCommandHandler(
             request.ViolationDescription,
             request.ViolatorName,
             request.ViolatorAddress,
-            request.ViolatorIdentity);
+            request.ViolatorIdentity,
+            ModuleSystemSettings.InspectionSla(systemSettings));
 
         inspections.Add(inspection);
 

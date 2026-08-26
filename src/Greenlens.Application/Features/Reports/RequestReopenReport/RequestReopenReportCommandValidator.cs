@@ -1,15 +1,19 @@
 using FluentValidation;
+using Greenlens.Application.Common;
+using Greenlens.Application.Common.Interfaces;
 
 namespace Greenlens.Application.Features.Reports.RequestReopenReport;
 
 /// <summary>Input validation for citizen reopen request (BR-REP-015, BR-REP-022).</summary>
 public sealed class RequestReopenReportCommandValidator : AbstractValidator<RequestReopenReportCommand>
 {
-    public RequestReopenReportCommandValidator()
+    public RequestReopenReportCommandValidator(ISystemSettingsProvider systemSettings)
     {
+        var (_, reopenMin, _) = ModuleSystemSettings.ValidationReasonLengths(systemSettings);
+
         RuleFor(x => x.Reason)
             .NotEmpty()
-            .MinimumLength(20)
+            .MinimumLength(reopenMin)
             .MaximumLength(2000);
 
         RuleFor(x => x.ImageUrls)

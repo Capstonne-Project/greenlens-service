@@ -1,11 +1,12 @@
 using Greenlens.Application.Features.Reports.SubmitPollutionReport;
+using Greenlens.Application.UnitTests.TestDoubles;
 using Greenlens.Domain.Enums;
 
 namespace Greenlens.Application.UnitTests;
 
 public sealed class SubmitPollutionReportCommandValidatorTests
 {
-    private readonly SubmitPollutionReportCommandValidator _sut = new();
+    private readonly SubmitPollutionReportCommandValidator _sut = new(new DefaultSystemSettingsProvider());
 
     private static SubmitPollutionReportCommand ManualBase() =>
         new(

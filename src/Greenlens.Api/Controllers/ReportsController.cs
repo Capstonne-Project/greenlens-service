@@ -494,9 +494,10 @@ public sealed class ReportsController(
     [SwaggerOperation(
         Summary = "[Cleaner/CompanyStaff/Inspector] Cập nhật tiến độ + URL ảnh (presign)",
         Description = "Team leader cập nhật % tiến độ, ghi chú, và tùy chọn danh sách publicUrl ảnh đã PUT lên R2 " +
-            "(qua POST /v1/media/presign purpose=Progress). Tối đa 5 URL. Status không thay đổi.")]
+            "(qua POST /v1/media/presign purpose=Progress). Tối đa 5 URL. Status không thay đổi. " +
+            "Yêu cầu vị trí GPS hiện tại cách hiện trường tối đa 200m (mặc định).")]
     [SwaggerResponse(200, "Đã cập nhật, trả về URLs ảnh đã lưu", typeof(ApiResponse<UpdateProgressResponse>))]
-    [SwaggerResponse(422, "Không phải leader, assignment không InProgress, hoặc percent ngoài khoảng 0–100", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Không phải leader, assignment không InProgress, percent ngoài khoảng 0–100, hoặc vị trí quá xa hiện trường", typeof(ApiResponse))]
     public async Task<IActionResult> UpdateProgressAsync(
         [FromRoute] Guid id,
         [FromBody] UpdateProgressRequest request,
@@ -505,7 +506,9 @@ public sealed class ReportsController(
             id,
             request.ProgressPercent,
             request.ProgressNote,
-            request.ImageUrls ?? []), ct)).ToHttp();
+            request.ImageUrls ?? [],
+            request.Latitude,
+            request.Longitude), ct)).ToHttp();
 
     [HttpPut("{id:guid}/resolve")]
     [SupportsIdempotency]
@@ -1006,7 +1009,12 @@ public sealed record AssignTeamRequest(List<AssignTeamItemRequest> Teams, List<G
 public sealed record AssignTeamItemRequest(Guid TeamId, string? Note);
 public sealed record ReassignTeamRequest(Guid OldTeamId, Guid NewTeamId, string Reason);
 public sealed record ResolveReportRequest(List<string> AfterImageUrls);
-public sealed record UpdateProgressRequest(int ProgressPercent, string? ProgressNote = null, List<string>? ImageUrls = null);
+public sealed record UpdateProgressRequest(
+    int ProgressPercent,
+    decimal Latitude,
+    decimal Longitude,
+    string? ProgressNote = null,
+    List<string>? ImageUrls = null);
 public sealed record UploadBeforeImagesRequest(List<string> ImageUrls);
 public sealed record DeclineAssignmentRequest(Guid TeamId, string Reason);
 public sealed record TagWasteRequest(List<Guid> WasteTagIds);

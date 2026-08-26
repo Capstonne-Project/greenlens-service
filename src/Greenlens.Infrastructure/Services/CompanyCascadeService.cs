@@ -1,5 +1,6 @@
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Features.Notifications;
 using Greenlens.Domain.Entities;
 using Greenlens.Domain.Enums;
 using Greenlens.Infrastructure.Persistence;
@@ -23,6 +24,7 @@ internal sealed class CompanyCascadeService(
 {
     public async Task CascadeDeactivationAsync(Guid companyId, string reason, CancellationToken ct)
     {
+        // Lấy danh sách các assignment được gán cho công ty
         var activeAssignments = await assignments
             .GetActiveByCompanyTeamsAsync(companyId, ct)
             .ConfigureAwait(false);
@@ -32,7 +34,7 @@ internal sealed class CompanyCascadeService(
             logger.LogInformation("CompanyCascade: No active assignments for company {CompanyId}", companyId);
             return;
         }
-
+        // Lấy danh sách các report ID được gán cho công ty
         var affectedReportIds = activeAssignments.Select(a => a.ReportId).Distinct().ToList();
 
         foreach (var assignment in activeAssignments)
@@ -43,6 +45,7 @@ internal sealed class CompanyCascadeService(
                 assignment.ForceDecline(reason);
         }
 
+        // Lấy danh sách các officer ID được gán cho công ty
         var notifyTargets = new List<(Guid RecipientId, Guid ReportId, string ReportCode)>();
 
         foreach (var reportId in affectedReportIds)
@@ -57,14 +60,13 @@ internal sealed class CompanyCascadeService(
             if (leoId.HasValue)
                 notifyTargets.Add((leoId.Value, report.Id, report.Code));
         }
-
+    
         foreach (var (recipientId, reportId, reportCode) in notifyTargets)
         {
-            await notificationService.SendRawAsync(
+            await notificationService.SendFromTemplateAsync(
                 recipientId,
-                NotificationType.ReportStatusChanged,
-                "Công ty bị ngưng — cần tái điều phối",
-                $"Báo cáo {reportCode} đã quay về Verified do công ty bị ngưng/chấm dứt. Vui lòng gán đội khác.",
+                NotificationType.CompanyDeactivationReassign,
+                NotificationPlaceholders.ForCompanyDeactivationReassign(reportCode),
                 reportId,
                 ct).ConfigureAwait(false);
         }
@@ -88,7 +90,7 @@ internal sealed class CompanyCascadeService(
             if (leoId != Guid.Empty)
                 return leoId;
         }
-
+        
         if (report.AssignedDepartmentId.HasValue)
         {
             var deoId = await db.Users

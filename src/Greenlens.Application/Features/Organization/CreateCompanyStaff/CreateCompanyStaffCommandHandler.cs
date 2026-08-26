@@ -118,6 +118,7 @@ public sealed class CreateCompanyStaffCommandHandler(
             "CM {CmId} created staff {StaffEmail} for company {CompanyId}, team={TeamId}",
             currentUser.UserId, newUser.Email, companyId, assignedTeamId);
 
+        // ── 7. Send welcome email ──
         var company = await companies.GetByIdAsync(companyId, ct).ConfigureAwait(false);
         if (company is not null)
         {

@@ -10,6 +10,8 @@ public sealed record UpdateProgressCommand(
     Guid ReportId,
     int ProgressPercent,
     string? ProgressNote,
-    IReadOnlyList<string> ImageUrls) : IRequest<Result<UpdateProgressResponse>>;
+    IReadOnlyList<string> ImageUrls,
+    decimal Latitude,
+    decimal Longitude) : IRequest<Result<UpdateProgressResponse>>;
 
 public sealed record UpdateProgressResponse(IReadOnlyList<string> UploadedImageUrls);

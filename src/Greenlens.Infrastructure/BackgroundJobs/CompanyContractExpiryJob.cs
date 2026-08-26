@@ -1,3 +1,4 @@
+using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Entities;
@@ -23,6 +24,7 @@ internal sealed class CompanyContractExpiryJob(
     IEnvironmentalServiceCompanyRepository companies,
     ICompanyCascadeService cascadeService,
     INotificationService notificationService,
+    ISystemSettingsProvider systemSettings,
     ILogger<CompanyContractExpiryJob> logger)
 {
     public async Task ExecuteAsync()
@@ -68,7 +70,7 @@ internal sealed class CompanyContractExpiryJob(
                 company.Id, company.Name);
         }
 
-        int[] warningDays = [30, 7, 1];
+        var warningDays = ModuleSystemSettings.ContractWarningDays(systemSettings);
         foreach (var days in warningDays)
         {
             var fromDate = today.AddDays(days);
