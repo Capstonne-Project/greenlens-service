@@ -59,6 +59,15 @@ public sealed record CommunityCleanupEventDetailResponse(
     CommunityCleanupMediaDto Media,
     CommunityCleanupShareDto Share);
 
+/// <summary>Result of publishing a community cleanup event to the configured Facebook Page.</summary>
+public sealed record CommunityCleanupFacebookAutoPostDto(
+    bool Attempted,
+    bool Success,
+    string? PostId,
+    string? PageUrl,
+    string? ErrorCode,
+    string? ErrorMessage);
+
 /// <summary>Compact list item for open/my/led-by-me lists.</summary>
 public sealed record CommunityCleanupListItemDto(
     Guid Id,
