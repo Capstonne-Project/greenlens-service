@@ -53,10 +53,8 @@ internal static class CommunityCleanupFacebookPageShare
         if (string.IsNullOrWhiteSpace(share.ImageUrl))
             return Errors.Meta.ShareImageRequired;
 
-        var plainCaption = MarkdownPlainText.ToPlain(share.Caption);
-
         var postResult = await facebookPagePublisher.PublishPhotoPostAsync(
-            plainCaption,
+            share.Caption,
             share.ImageUrl,
             ct).ConfigureAwait(false);
 
@@ -86,5 +84,5 @@ internal static class CommunityCleanupFacebookPageShare
     }
 
     private static string BuildFacebookPostUrl(string postId) =>
-        $"https://www.facebook.com/{postId}";
+        FacebookPostUrl.FromPostId(postId);
 }

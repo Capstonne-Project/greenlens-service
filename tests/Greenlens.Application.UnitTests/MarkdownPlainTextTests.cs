@@ -23,5 +23,6 @@ public sealed class MarkdownPlainTextTests
         plain.Should().NotContain("**");
         plain.Should().NotContain("##");
         plain.Should().NotContain("](https://");
+        plain.Should().Contain("• Mục tiêu 1");
     }
 }

@@ -20,7 +20,7 @@ internal static partial class MarkdownPlainText
         text = InlineCodeRegex().Replace(text, "$1");
         text = HeadingRegex().Replace(text, "$1");
         text = BlockquoteRegex().Replace(text, "$1");
-        text = ListMarkerRegex().Replace(text, "- ");
+        text = ListMarkerRegex().Replace(text, "• ");
         text = HorizontalRuleRegex().Replace(text, string.Empty);
 
         return text.Trim();
