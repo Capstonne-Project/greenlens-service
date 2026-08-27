@@ -56,7 +56,8 @@ public sealed record CommunityCleanupEventDetailResponse(
     CommunityCleanupMyParticipationDto? MyParticipation,
     bool IsLeader,
     CommunityCleanupMediaSummaryDto MediaSummary,
-    CommunityCleanupMediaDto Media);
+    CommunityCleanupMediaDto Media,
+    CommunityCleanupShareDto Share);
 
 /// <summary>Compact list item for open/my/led-by-me lists.</summary>
 public sealed record CommunityCleanupListItemDto(

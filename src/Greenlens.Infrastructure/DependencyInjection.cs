@@ -287,6 +287,11 @@ public static class DependencyInjection
         services.Configure<Application.Common.Options.WorkloadLimitsOptions>(
             configuration.GetSection(Application.Common.Options.WorkloadLimitsOptions.SectionName));
 
+        services.AddOptions<Application.Common.Options.PublicWebOptions>()
+            .Bind(configuration.GetSection(Application.Common.Options.PublicWebOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
         // ── Map Migrations ────────────────────────────────
         services.AddScoped<IAdministrativeRegionRepository, AdministrativeRegionRepository>();
         services.AddScoped<IAdministrativeUnitRepository, AdministrativeUnitRepository>();

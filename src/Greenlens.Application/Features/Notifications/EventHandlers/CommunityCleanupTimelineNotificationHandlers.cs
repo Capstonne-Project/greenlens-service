@@ -8,50 +8,38 @@ using Microsoft.Extensions.Logging;
 namespace Greenlens.Application.Features.Notifications.EventHandlers;
 
 /// <summary>
-/// Notifies the LEO (program owner) when the Leader checks in on-site.
-/// Citizens do NOT need this — they only care about check-in reminders and completion (BadgeEarned/Verified).
+/// Notifies joined participants (excluding the Leader) once when the cleanup formally starts.
 /// </summary>
-internal sealed class CommunityCleanupLeaderCheckedInNotificationHandler(
-    INotificationService notificationService,
-    ILogger<CommunityCleanupLeaderCheckedInNotificationHandler> logger)
-    : INotificationHandler<CommunityCleanupLeaderCheckedInEvent>
-{
-    public async Task Handle(CommunityCleanupLeaderCheckedInEvent notification, CancellationToken ct)
-    {
-        logger.LogInformation(
-            "Community cleanup {EventId} — Leader checked in, notifying LEO {LeoId}",
-            notification.EventId, notification.LeoId);
-
-        await notificationService.SendFromTemplateAsync(
-            notification.LeoId,
-            NotificationType.CommunityCleanupStarted,
-            new Dictionary<string, string> { ["title"] = notification.Title },
-            notification.EventId,
-            ct).ConfigureAwait(false);
-    }
-}
-
-/// <summary>
-/// Notifies the LEO (program owner) when the Leader formally starts the cleanup.
-/// Citizens do NOT need this — see remarks on CommunityCleanupLeaderCheckedInNotificationHandler.
-/// </summary>
+/// <remarks>
+/// Implements: BR-CMU-006 (start event notifies participants).
+/// Leader check-in is a separate step and must NOT emit this notification — mobile calls
+/// check-in then start in sequence; notifying on both caused duplicate pushes.
+/// </remarks>
 internal sealed class CommunityCleanupStartedNotificationHandler(
+    ICommunityCleanupParticipantRepository participants,
     INotificationService notificationService,
     ILogger<CommunityCleanupStartedNotificationHandler> logger)
     : INotificationHandler<CommunityCleanupStartedEvent>
 {
     public async Task Handle(CommunityCleanupStartedEvent notification, CancellationToken ct)
     {
-        logger.LogInformation(
-            "Community cleanup {EventId} started, notifying LEO {LeoId}",
-            notification.EventId, notification.LeoId);
+        var recipients = await CommunityCleanupNotificationHelpers
+            .GetJoinedMemberUserIdsAsync(participants, notification.EventId, notification.LeaderUserId, ct)
+            .ConfigureAwait(false);
 
-        await notificationService.SendFromTemplateAsync(
-            notification.LeoId,
-            NotificationType.CommunityCleanupStarted,
-            new Dictionary<string, string> { ["title"] = notification.Title },
-            notification.EventId,
-            ct).ConfigureAwait(false);
+        logger.LogInformation(
+            "Community cleanup {EventId} started, notifying {Count} joined participant(s)",
+            notification.EventId, recipients.Count);
+
+        foreach (var userId in recipients)
+        {
+            await notificationService.SendFromTemplateAsync(
+                userId,
+                NotificationType.CommunityCleanupStarted,
+                new Dictionary<string, string> { ["title"] = notification.Title },
+                notification.EventId,
+                ct).ConfigureAwait(false);
+        }
     }
 }
 
@@ -174,6 +162,22 @@ internal static class CommunityCleanupNotificationHelpers
         var all = await participants.GetByEventIdAsync(eventId, ct).ConfigureAwait(false);
         return all
             .Where(p => p.Status == CommunityCleanupParticipantStatus.CheckedIn && p.UserId != excludeUserId)
+            .Select(p => p.UserId)
+            .Distinct()
+            .ToList();
+    }
+
+    /// <summary>Members still in Joined status — prompt them to check in when the Leader starts.</summary>
+    internal static async Task<List<Guid>> GetJoinedMemberUserIdsAsync(
+        ICommunityCleanupParticipantRepository participants,
+        Guid eventId,
+        Guid excludeLeaderUserId,
+        CancellationToken ct)
+    {
+        var all = await participants.GetByEventIdAsync(eventId, ct).ConfigureAwait(false);
+        return all
+            .Where(p => p.UserId != excludeLeaderUserId)
+            .Where(p => p.Status == CommunityCleanupParticipantStatus.Joined)
             .Select(p => p.UserId)
             .Distinct()
             .ToList();
