@@ -1,8 +1,10 @@
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Common.Options;
 using Greenlens.Application.Features.CommunityCleanup.Common;
 using Greenlens.Domain.Common;
 using MediatR;
+using Microsoft.Extensions.Options;
 
 namespace Greenlens.Application.Features.CommunityCleanup.GetActiveCommunityCleanupByReportId;
 
@@ -13,7 +15,8 @@ public sealed class GetActiveCommunityCleanupByReportIdQueryHandler(
     IReportMediaRepository reportMedia,
     IUserRepository users,
     IEnvironmentalTeamRepository teams,
-    ICurrentUser currentUser)
+    ICurrentUser currentUser,
+    IOptions<PublicWebOptions> publicWebOptions)
     : IRequestHandler<GetActiveCommunityCleanupByReportIdQuery, Result<CommunityCleanupEventDetailResponse?>>
 {
     public async Task<Result<CommunityCleanupEventDetailResponse?>> Handle(
@@ -24,7 +27,7 @@ public sealed class GetActiveCommunityCleanupByReportIdQueryHandler(
             return Result<CommunityCleanupEventDetailResponse?>.Success(null);
 
         var detail = await CommunityCleanupDetailBuilder.BuildAsync(
-            ev, reports, reportMedia, users, teams, participants, currentUser, ct).ConfigureAwait(false);
+            ev, reports, reportMedia, users, teams, participants, currentUser, publicWebOptions, ct).ConfigureAwait(false);
 
         return detail.IsSuccess
             ? Result<CommunityCleanupEventDetailResponse?>.Success(detail.Value)

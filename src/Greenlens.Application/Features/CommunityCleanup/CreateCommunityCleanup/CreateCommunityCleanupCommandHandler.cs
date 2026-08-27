@@ -1,6 +1,7 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Common.Options;
 using Greenlens.Application.Features.CommunityCleanup.Common;
 using Greenlens.Application.Features.Reports.Common;
 using Greenlens.Domain.Common;
@@ -9,6 +10,7 @@ using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Greenlens.Application.Features.CommunityCleanup.CreateCommunityCleanup;
 
@@ -27,6 +29,7 @@ public sealed class CreateCommunityCleanupCommandHandler(
     IReportMediaRepository reportMedia,
     IReportStatusHistoryRepository statusHistory,
     ICurrentUser currentUser,
+    IOptions<PublicWebOptions> publicWebOptions,
     IUnitOfWork uow,
     ILogger<CreateCommunityCleanupCommandHandler> logger)
     : IRequestHandler<CreateCommunityCleanupCommand, Result<CommunityCleanupEventDetailResponse>>
@@ -116,24 +119,7 @@ public sealed class CreateCommunityCleanupCommandHandler(
             "LEO {LeoId} opened community cleanup {EventId} on report {ReportId} with Leader {LeaderUserId}",
             currentUser.UserId, ev.Id, report.Id, request.LeaderUserId);
 
-        var originalImages = await reportMedia.QueryAsNoTracking()
-            .Where(m => m.ReportId == report.Id && m.Type == MediaType.Image)
-            .OrderBy(m => m.UploadedAt)
-            .Select(m => new { m.Url, m.ThumbnailUrl })
-            .ToListAsync(ct)
-            .ConfigureAwait(false);
-
-        var reportImageUrls = originalImages.Select(m => m.Url).ToList();
-        var thumbnailUrl = originalImages.Count > 0 ? originalImages[0].ThumbnailUrl ?? originalImages[0].Url : null;
-
-        return CommunityCleanupMapper.ToDetail(
-            ev, report, leaderUser, leaderTeam,
-            participantCount: 1,
-            mediaSummary: new CommunityCleanupMediaSummaryDto(0, 0, 0),
-            media: new CommunityCleanupMediaDto([], [], []),
-            thumbnailUrl: thumbnailUrl,
-            reportImageUrls: reportImageUrls,
-            myParticipation: null,
-            isLeader: currentUser.UserId == ev.LeaderUserId);
+        return await CommunityCleanupDetailBuilder.BuildAsync(
+            ev, reports, reportMedia, users, teams, participants, currentUser, publicWebOptions, ct).ConfigureAwait(false);
     }
 }

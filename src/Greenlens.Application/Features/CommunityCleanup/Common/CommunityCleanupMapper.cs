@@ -15,7 +15,8 @@ internal static class CommunityCleanupMapper
         string? thumbnailUrl,
         List<string> reportImageUrls,
         CommunityCleanupMyParticipationDto? myParticipation,
-        bool isLeader)
+        bool isLeader,
+        CommunityCleanupShareDto share)
     {
         return new CommunityCleanupEventDetailResponse(
             ev.Id,
@@ -48,6 +49,7 @@ internal static class CommunityCleanupMapper
             myParticipation,
             isLeader,
             mediaSummary,
-            media);
+            media,
+            share);
     }
 }

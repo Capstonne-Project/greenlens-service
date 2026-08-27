@@ -1,3 +1,4 @@
+using FluentAssertions;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Features.Notifications.EventHandlers;

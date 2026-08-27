@@ -1,9 +1,11 @@
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Common.Options;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace Greenlens.Application.Features.CommunityCleanup.Common;
 
@@ -21,6 +23,7 @@ internal static class CommunityCleanupDetailBuilder
         IEnvironmentalTeamRepository teams,
         ICommunityCleanupParticipantRepository participants,
         ICurrentUser currentUser,
+        IOptions<PublicWebOptions> publicWebOptions,
         CancellationToken ct)
     {
         var report = await reports.Query()
@@ -85,6 +88,7 @@ internal static class CommunityCleanupDetailBuilder
         return CommunityCleanupMapper.ToDetail(
             ev, report, leaderUser, leaderTeam,
             participantCount, mediaSummary, media, thumbnailUrl, reportImageUrls, myParticipation,
-            isLeader: currentUser.IsAuthenticated && currentUser.UserId == ev.LeaderUserId);
+            isLeader: currentUser.IsAuthenticated && currentUser.UserId == ev.LeaderUserId,
+            share: CommunityCleanupShareBuilder.Build(ev, report, thumbnailUrl, publicWebOptions.Value));
     }
 }

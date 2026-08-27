@@ -6,6 +6,8 @@ using Greenlens.Domain.Common;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Greenlens.Application.Common.Options;
 
 namespace Greenlens.Application.Features.CommunityCleanup.GetCommunityCleanupById;
 
@@ -18,6 +20,7 @@ public sealed class GetCommunityCleanupByIdQueryHandler(
     IUserRepository users,
     IEnvironmentalTeamRepository teams,
     ICurrentUser currentUser,
+    IOptions<PublicWebOptions> publicWebOptions,
     ILogger<GetCommunityCleanupByIdQueryHandler> logger)
     : IRequestHandler<GetCommunityCleanupByIdQuery, Result<CommunityCleanupEventDetailResponse>>
 {
@@ -32,6 +35,6 @@ public sealed class GetCommunityCleanupByIdQueryHandler(
         }
 
         return await CommunityCleanupDetailBuilder.BuildAsync(
-            ev, reports, reportMedia, users, teams, participants, currentUser, ct).ConfigureAwait(false);
+            ev, reports, reportMedia, users, teams, participants, currentUser, publicWebOptions, ct).ConfigureAwait(false);
     }
 }
