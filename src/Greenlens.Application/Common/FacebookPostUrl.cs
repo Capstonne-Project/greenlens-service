@@ -1,7 +1,9 @@
+using System.Globalization;
+
 namespace Greenlens.Application.Common;
 
 /// <summary>
-/// Builds public Facebook post permalinks from Graph API post ids ({pageId}_{storyId}).
+/// Builds public Facebook post permalinks and display labels from Graph API post ids.
 /// </summary>
 internal static class FacebookPostUrl
 {
@@ -16,5 +18,11 @@ internal static class FacebookPostUrl
         }
 
         return $"https://www.facebook.com/{postId}";
+    }
+
+    public static string BuildShareLabel(string title)
+    {
+        var vi = CultureInfo.GetCultureInfo("vi-VN");
+        return $"Greenlens – 🌱 THÔNG TIN THAM GIA {title.ToUpper(vi)} CÙNG GREENLENS 🌱";
     }
 }

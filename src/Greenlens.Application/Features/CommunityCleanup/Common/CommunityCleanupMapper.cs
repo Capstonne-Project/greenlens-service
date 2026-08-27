@@ -50,6 +50,7 @@ internal static class CommunityCleanupMapper
             isLeader,
             mediaSummary,
             media,
-            share);
+            share,
+            CommunityCleanupFacebookPageLinks.FromEvent(ev));
     }
 }

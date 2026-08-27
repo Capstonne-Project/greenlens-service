@@ -38,13 +38,13 @@ internal static class CommunityCleanupShareBuilder
         var vi = CultureInfo.GetCultureInfo("vi-VN");
         var sb = new StringBuilder();
 
-        sb.AppendLine($"🌱 THÔNG TIN THAM GIA {ev.Title} CÙNG GREENLENS 🌱");
+        sb.AppendLine($"🌱 THÔNG TIN THAM GIA {ev.Title.ToUpper(vi)} CÙNG GREENLENS 🌱");
         sb.AppendLine();
 
         if (!string.IsNullOrWhiteSpace(ev.Description))
         {
             sb.AppendLine("🎒 Chuẩn bị cá nhân");
-            foreach (var line in FormatDescriptionBulletLines(ev.Description))
+            foreach (var line in FormatDescriptionLines(ev.Description))
                 sb.AppendLine(line);
             sb.AppendLine();
         }
@@ -77,6 +77,10 @@ internal static class CommunityCleanupShareBuilder
         sb.AppendLine("• Thời gian hoạt động có thể thay đổi tùy theo khối lượng rác thực tế");
         sb.AppendLine("• Hãy tuân thủ hướng dẫn an toàn và phối hợp cùng đội nhóm để đạt hiệu quả cao nhất");
         sb.AppendLine();
+        sb.AppendLine("📞 Hỗ trợ & liên hệ");
+        sb.AppendLine();
+        sb.AppendLine("098 773 0708");
+        sb.AppendLine();
         sb.Append("#GreenLens #DonDepCongDong");
 
         return NormalizeLineEndings(sb.ToString());
@@ -89,17 +93,30 @@ internal static class CommunityCleanupShareBuilder
         text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n').TrimEnd();
 
     /// <summary>
-    /// Converts description (plain or markdown list) into • bullet lines matching the GreenLens Page template.
+    /// Formats description: plain single line stays as-is; newlines or markdown/list markers become • bullets.
     /// </summary>
-    private static IEnumerable<string> FormatDescriptionBulletLines(string description)
+    private static IEnumerable<string> FormatDescriptionLines(string description)
     {
         var plain = MarkdownPlainText.ToPlain(description);
-        foreach (var rawLine in plain.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-        {
-            if (string.IsNullOrWhiteSpace(rawLine))
-                continue;
+        var lines = plain
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(l => l.Trim())
+            .Where(l => l.Length > 0)
+            .ToList();
 
-            var line = rawLine.Trim();
+        if (lines.Count == 0)
+            yield break;
+
+        var useBullets = lines.Count > 1 || lines.Any(IsExplicitListMarkerLine);
+
+        if (!useBullets)
+        {
+            yield return lines[0];
+            yield break;
+        }
+
+        foreach (var line in lines)
+        {
             if (line.StartsWith('•'))
             {
                 yield return line.StartsWith("• ", StringComparison.Ordinal) ? line : "• " + line[1..].TrimStart();
@@ -115,6 +132,9 @@ internal static class CommunityCleanupShareBuilder
             yield return "• " + line;
         }
     }
+
+    private static bool IsExplicitListMarkerLine(string line) =>
+        line.StartsWith("- ", StringComparison.Ordinal) || line.StartsWith('•');
 
     private static string FormatScheduleDateTime(DateTime utc, CultureInfo vi)
     {

@@ -20,6 +20,8 @@ internal sealed class CommunityCleanupEventConfiguration : IEntityTypeConfigurat
         builder.Property(e => e.ProgressNote).HasMaxLength(1000);
         builder.Property(e => e.RejectionReason).HasMaxLength(500);
         builder.Property(e => e.CancelReason).HasMaxLength(500);
+        builder.Property(e => e.FacebookPostId).HasMaxLength(100);
+        builder.Property(e => e.FacebookPageUrl).HasMaxLength(500);
         builder.Property(e => e.MaxParticipants).HasDefaultValue(50);
         builder.Property(e => e.ProgressPercent).HasDefaultValue(0);
 

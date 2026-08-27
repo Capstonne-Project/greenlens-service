@@ -48,6 +48,14 @@ public sealed class CommunityCleanupEvent : SoftDeletableEntity
     public DateTime? CancelledAt { get; private set; }
     public string? CancelReason { get; private set; }
 
+    /// <summary>Latest Facebook Page photo post id from Graph API ({pageId}_{storyId}).</summary>
+    public string? FacebookPostId { get; private set; }
+
+    /// <summary>Permalink of the latest Facebook Page share.</summary>
+    public string? FacebookPageUrl { get; private set; }
+
+    public DateTime? FacebookPageSharedAt { get; private set; }
+
     // ── Navigation ──
     public Report? Report { get; private set; }
     public User? CreatedByLeo { get; private set; }
@@ -185,6 +193,15 @@ public sealed class CommunityCleanupEvent : SoftDeletableEntity
         Status = CommunityCleanupStatus.Cancelled;
         CancelReason = reason;
         CancelledAt = DateTime.UtcNow;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>Stores the latest Facebook Page share; overwritten on each successful re-share.</summary>
+    public void RecordFacebookPageShare(string postId, string pageUrl)
+    {
+        FacebookPostId = postId;
+        FacebookPageUrl = pageUrl;
+        FacebookPageSharedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
     }
 

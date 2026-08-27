@@ -68,7 +68,19 @@ public sealed class CommunityCleanupsController(ISender sender) : ControllerBase
     [SwaggerResponse(404, "Không tìm thấy chương trình", typeof(ApiResponse))]
     [SwaggerResponse(422, "Tính năng chưa bật", typeof(ApiResponse))]
     public async Task<IActionResult> ShareToFacebookPageAsync([FromRoute] Guid eventId, CancellationToken ct)
-        => (await sender.Send(new ShareCommunityCleanupToFacebookPageCommand(eventId), ct)).ToHttp();
+    {
+        var result = await sender.Send(new ShareCommunityCleanupToFacebookPageCommand(eventId), ct);
+        if (result.IsFailure)
+            return result.ToHttp();
+
+        if (result.Value!.Success)
+            return result.ToHttp("Đã đăng bài lên Facebook Page Greenlens thành công.");
+
+        return result.ToHttp(
+            result.Value.ErrorMessage is { Length: > 0 } detail
+                ? $"Không thể đăng bài lên Facebook Page. {detail}"
+                : "Không thể đăng bài lên Facebook Page. Vui lòng thử lại hoặc dùng nút chia sẻ thủ công.");
+    }
 
     [HttpPost("{eventId:guid}/close-join")]
     [Authorize(Roles = "LEO,Admin")]
