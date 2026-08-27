@@ -92,7 +92,7 @@ public sealed class LocalOfficesController(ISender sender) : ControllerBase
             "hasActiveCommunityCleanup (true = chỉ báo cáo đang có chương trình cộng đồng active; false = loại trừ; bỏ qua = tất cả), " +
             "teamScope (company | community — lọc báo cáo đang do đội công ty hoặc đội phường xử lý), " +
             "khoảng ngày tạo (fromDate, toDate — ISO date, inclusive theo ngày UTC), " +
-            "sắp xếp theo: code, status, severity, priority, createdAt, assignmentCount (mặc định: mới nhất). " +
+            "sắp xếp theo: code, status, severity, priority, createdAt, assignAt/assignedAt, assignmentCount (mặc định: mới nhất). " +
             "Mỗi assignment trả beforeImageUrls/afterImageUrls và progressNote mới nhất của chu kỳ phân công hiện tại.")]
     [SwaggerResponse(200, "Danh sách báo cáo kèm tiến độ", typeof(ApiResponse<GetOfficeReportsResponse>))]
     [SwaggerResponse(404, "Chưa gán local office", typeof(ApiResponse))]
