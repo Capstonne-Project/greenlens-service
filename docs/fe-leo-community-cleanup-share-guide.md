@@ -2,7 +2,7 @@
 
 > **Phiên bản:** 2026-08-27 · **Backend:** GreenLens API v1  
 > **Audience:** LEO Web (Next.js trên Vercel)  
-> **Liên quan:** [`community-cleanup-feature-spec.md`](./community-cleanup-feature-spec.md) · [`community-cleanup-ui-test-guide.md`](./community-cleanup-ui-test-guide.md)
+> **Liên quan:** [`community-cleanup-feature-spec.md`](./community-cleanup-feature-spec.md) · [`community-cleanup-ui-test-guide.md`](./community-cleanup-ui-test-guide.md) · [`fe-facebook-sdk-share-dialog-guide.md`](./fe-facebook-sdk-share-dialog-guide.md) *(tùy chọn — FB SDK Share Dialog)*
 
 Tài liệu hướng dẫn FE tích hợp **dialog “Tạo chương trình thành công”** + **chia sẻ mạng xã hội** sau khi LEO mở chương trình dọn dẹp cộng đồng, và **landing page public** phục vụ Open Graph (Facebook preview).
 
@@ -366,7 +366,7 @@ export default async function CommunityCleanupPublicPage({
 
 | Nền tảng | Cách FE | Ghi chú |
 |----------|---------|---------|
-| **Facebook** | `share.facebookShareUrl` hoặc `window.open` | Preview lấy từ OG trên landing public |
+| **Facebook** | `share.facebookShareUrl` hoặc `window.open` (mặc định); hoặc FB SDK Share Dialog — xem [`fe-facebook-sdk-share-dialog-guide.md`](./fe-facebook-sdk-share-dialog-guide.md) | Preview lấy từ OG trên landing public |
 | **X (Twitter)** | `share.twitterShareUrl` | Text + URL encoded sẵn |
 | **LinkedIn** | `share.linkedInShareUrl` | Share by URL |
 | **Copy link** | `share.url` | Clipboard |
@@ -390,6 +390,7 @@ BE **không** đăng bài tự động lên Facebook/Instagram (cần Meta App R
 - [ ] Nút Instagram/Threads = copy + download (không expect auto-post)
 - [ ] Test Facebook Debugger với URL production thật
 - [ ] **Không** share link `/officer/community`
+- [ ] *(Nếu dùng FB SDK)* Trang `/privacy` public — xem [`fe-facebook-sdk-share-dialog-guide.md` §8](./fe-facebook-sdk-share-dialog-guide.md#8-trang-privacy--hướng-dẫn-chi-tiết)
 
 ---
 
