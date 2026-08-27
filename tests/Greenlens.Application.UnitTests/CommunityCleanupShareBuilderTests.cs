@@ -25,7 +25,7 @@ public sealed class CommunityCleanupShareBuilderTests
             createdByLeoId: Guid.NewGuid(),
             leaderUserId: Guid.NewGuid(),
             leaderTeamId: Guid.NewGuid(),
-            title: "NHIÊU LỘC",
+            title: "nhiêu lộc",
             description: """
                 Nón, áo khoác hoặc găng tay chống nắng
                 01 bộ đồ dự phòng (phòng trường hợp bị bẩn hoặc ướt)
@@ -79,6 +79,10 @@ public sealed class CommunityCleanupShareBuilderTests
             • Thời gian hoạt động có thể thay đổi tùy theo khối lượng rác thực tế
             • Hãy tuân thủ hướng dẫn an toàn và phối hợp cùng đội nhóm để đạt hiệu quả cao nhất
 
+            📞 Hỗ trợ & liên hệ
+
+            098 773 0708
+
             #GreenLens #DonDepCongDong
             """);
         share.Caption.Should().Be(expected);
@@ -122,5 +126,42 @@ public sealed class CommunityCleanupShareBuilderTests
         share.Caption.Should().Contain("• Nón");
         share.Caption.Should().NotContain("• Ngày kết thúc:");
         share.Caption.Should().NotContain("- Găng tay");
+    }
+
+    [Fact]
+    public void Build_SingleLineDescription_NoBulletPrefix()
+    {
+        var ev = CommunityCleanupEvent.Create(
+            reportId: Guid.NewGuid(),
+            createdByLeoId: Guid.NewGuid(),
+            leaderUserId: Guid.NewGuid(),
+            leaderTeamId: Guid.NewGuid(),
+            title: "Dọn rác test",
+            description: "Mang găng tay, nón và nước uống",
+            startsAt: new DateTime(2026, 8, 9, 2, 0, 0, DateTimeKind.Utc),
+            endsAt: null,
+            joinClosesAt: null,
+            maxParticipants: 40,
+            meetingNote: null,
+            meetingLatitude: null,
+            meetingLongitude: null);
+
+        var report = Report.Create(
+            "RPT-2026-0101",
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Severity.Low,
+            "Test",
+            10m,
+            106m,
+            "TP.HCM",
+            null,
+            null);
+
+        var share = CommunityCleanupShareBuilder.Build(ev, report, null, PublicWeb);
+
+        share.Caption.Should().Contain("🎒 Chuẩn bị cá nhân");
+        share.Caption.Should().Contain("Mang găng tay, nón và nước uống");
+        share.Caption.Should().NotContain("• Mang găng tay");
     }
 }

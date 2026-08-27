@@ -61,6 +61,7 @@ public sealed class ShareCommunityCleanupToFacebookPageCommandHandlerTests
                 PageAccessToken = "token"
             }),
             Substitute.For<IFacebookPagePublisher>(),
+            Substitute.For<IUnitOfWork>(),
             NullLogger<ShareCommunityCleanupToFacebookPageCommandHandler>.Instance);
     }
 

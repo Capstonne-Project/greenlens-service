@@ -12,4 +12,15 @@ public sealed class FacebookPostUrlTests
             .Should()
             .Be("https://www.facebook.com/642977455573500/posts/122189729354922710");
     }
+
+    [Fact]
+    public void BuildShareLabel_UsesUppercaseTitle()
+    {
+        var label = FacebookPostUrl.BuildShareLabel("Dọn rác Hiệp Bình");
+
+        label.Should().StartWith("Greenlens – 🌱 THÔNG TIN THAM GIA ");
+        label.Should().Contain("HIỆP BÌNH");
+        label.Should().EndWith("CÙNG GREENLENS 🌱");
+        label.Should().NotContain("Dọn rác");
+    }
 }

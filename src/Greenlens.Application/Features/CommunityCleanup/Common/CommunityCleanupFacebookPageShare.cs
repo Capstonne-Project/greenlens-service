@@ -11,7 +11,7 @@ using Microsoft.Extensions.Options;
 namespace Greenlens.Application.Features.CommunityCleanup.Common;
 
 /// <summary>
-/// Builds share payload and publishes a link post to the configured Facebook Page.
+/// Builds share payload and publishes a photo post to the configured Facebook Page.
 /// </summary>
 internal static class CommunityCleanupFacebookPageShare
 {
@@ -22,6 +22,7 @@ internal static class CommunityCleanupFacebookPageShare
         IOptions<PublicWebOptions> publicWebOptions,
         IOptions<MetaPageOptions> metaPageOptions,
         IFacebookPagePublisher facebookPagePublisher,
+        IUnitOfWork uow,
         ILogger logger,
         CancellationToken ct)
     {
@@ -60,11 +61,21 @@ internal static class CommunityCleanupFacebookPageShare
 
         if (postResult.IsSuccess)
         {
+            var pageLink = CommunityCleanupFacebookPageLinks.FromPost(ev, postResult.Value!);
+            ev.RecordFacebookPageShare(postResult.Value!, pageLink.Href);
+            await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+            logger.LogInformation(
+                "Facebook Page share saved for community cleanup {EventId}, post {PostId}",
+                ev.Id,
+                postResult.Value);
+
             return new CommunityCleanupFacebookAutoPostDto(
                 Attempted: true,
                 Success: true,
                 PostId: postResult.Value,
-                PageUrl: BuildFacebookPostUrl(postResult.Value!),
+                PageUrl: pageLink.Label,
+                PageLink: pageLink.Href,
                 ErrorCode: null,
                 ErrorMessage: null);
         }
@@ -79,10 +90,8 @@ internal static class CommunityCleanupFacebookPageShare
             Success: false,
             PostId: null,
             PageUrl: null,
+            PageLink: null,
             ErrorCode: postResult.Error?.Code,
             ErrorMessage: postResult.Error?.Message);
     }
-
-    private static string BuildFacebookPostUrl(string postId) =>
-        FacebookPostUrl.FromPostId(postId);
 }

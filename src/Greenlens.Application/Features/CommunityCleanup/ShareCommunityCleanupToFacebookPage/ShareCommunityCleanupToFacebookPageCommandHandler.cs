@@ -20,6 +20,7 @@ public sealed class ShareCommunityCleanupToFacebookPageCommandHandler(
     IOptions<PublicWebOptions> publicWebOptions,
     IOptions<MetaPageOptions> metaPageOptions,
     IFacebookPagePublisher facebookPagePublisher,
+    IUnitOfWork uow,
     ILogger<ShareCommunityCleanupToFacebookPageCommandHandler> logger)
     : IRequestHandler<ShareCommunityCleanupToFacebookPageCommand, Result<CommunityCleanupFacebookAutoPostDto>>
 {
@@ -38,6 +39,7 @@ public sealed class ShareCommunityCleanupToFacebookPageCommandHandler(
             publicWebOptions,
             metaPageOptions,
             facebookPagePublisher,
+            uow,
             logger,
             ct).ConfigureAwait(false);
     }

@@ -57,14 +57,24 @@ public sealed record CommunityCleanupEventDetailResponse(
     bool IsLeader,
     CommunityCleanupMediaSummaryDto MediaSummary,
     CommunityCleanupMediaDto Media,
-    CommunityCleanupShareDto Share);
+    CommunityCleanupShareDto Share,
+    CommunityCleanupFacebookPageLinkDto? FacebookPage = null);
+
+/// <summary>Latest Facebook Page post link for display (label) and navigation (href).</summary>
+public sealed record CommunityCleanupFacebookPageLinkDto(
+    string Href,
+    string Label,
+    DateTime? SharedAt = null);
 
 /// <summary>Result of publishing a community cleanup event to the configured Facebook Page.</summary>
 public sealed record CommunityCleanupFacebookAutoPostDto(
     bool Attempted,
     bool Success,
     string? PostId,
+    /// <summary>Display text derived from event title (use as link caption).</summary>
     string? PageUrl,
+    /// <summary>Actual Facebook permalink for href.</summary>
+    string? PageLink,
     string? ErrorCode,
     string? ErrorMessage);
 
