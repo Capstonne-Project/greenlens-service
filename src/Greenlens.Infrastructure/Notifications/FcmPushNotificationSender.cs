@@ -33,7 +33,7 @@ internal sealed class FcmPushNotificationSender(
                 Notification = new AndroidNotification
                 {
                     Sound = "default",
-                    ClickAction = "FLUTTER_NOTIFICATION_CLICK"
+                    ChannelId = "default"
                 }
             }
         };
