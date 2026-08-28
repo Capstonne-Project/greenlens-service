@@ -165,6 +165,33 @@ public sealed class GetOfficeReportsQueryHandler(
             "assignmentcount" => request.SortDesc
                 ? baseQuery.OrderByDescending(r => r.Assignments.Count)
                 : baseQuery.OrderBy(r => r.Assignments.Count),
+            "assignat" or "assignedat" => request.SortDesc
+                ? baseQuery.OrderByDescending(r =>
+                    r.Assignments
+                        .Where(a => a.Status == AssignmentStatus.Assigned
+                            || a.Status == AssignmentStatus.InProgress)
+                        .Select(a => (DateTime?)a.AssignedAt)
+                        .Max()
+                    ?? (r.Status == ReportStatus.Reopened || r.Status == ReportStatus.InProgress
+                        ? null
+                        : r.Assignments
+                            .Where(a => a.Status != AssignmentStatus.Declined)
+                            .Select(a => (DateTime?)a.AssignedAt)
+                            .Max())
+                    ?? DateTime.MinValue)
+                : baseQuery.OrderBy(r =>
+                    r.Assignments
+                        .Where(a => a.Status == AssignmentStatus.Assigned
+                            || a.Status == AssignmentStatus.InProgress)
+                        .Select(a => (DateTime?)a.AssignedAt)
+                        .Max()
+                    ?? (r.Status == ReportStatus.Reopened || r.Status == ReportStatus.InProgress
+                        ? null
+                        : r.Assignments
+                            .Where(a => a.Status != AssignmentStatus.Declined)
+                            .Select(a => (DateTime?)a.AssignedAt)
+                            .Max())
+                    ?? DateTime.MaxValue),
             _ => baseQuery.OrderByDescending(r => r.CreatedAt)
         };
 

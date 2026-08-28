@@ -16,6 +16,7 @@ using Greenlens.Application.Features.CommunityCleanup.GetOfficeCommunityQueueSta
 using Greenlens.Application.Features.CommunityCleanup.GetOpenCommunityCleanups;
 using Greenlens.Application.Features.CommunityCleanup.JoinCommunityCleanup;
 using Greenlens.Application.Features.CommunityCleanup.RejectCommunityVerification;
+using Greenlens.Application.Features.CommunityCleanup.ShareCommunityCleanupToFacebookPage;
 using Greenlens.Application.Features.CommunityCleanup.StartCommunityCleanup;
 using Greenlens.Application.Features.CommunityCleanup.SubmitCommunityBeforeImages;
 using Greenlens.Application.Features.CommunityCleanup.SubmitCommunityVerification;
@@ -57,6 +58,29 @@ public sealed class CommunityCleanupsController(ISender sender) : ControllerBase
             request.StartsAt, request.EndsAt, request.JoinClosesAt,
             request.MaxParticipants ?? 50, request.MeetingNote,
             request.MeetingLatitude, request.MeetingLongitude), ct)).ToHttpCreated();
+
+    [HttpPost("{eventId:guid}/share/facebook-page")]
+    [Authorize(Roles = "LEO,Admin")]
+    [SwaggerOperation(
+        Summary = "[LEO] Đăng chương trình lên Facebook Page",
+        Description = "Gọi khi LEO bấm nút Facebook trong dialog chia sẻ. Đăng ảnh báo cáo (share.imageUrl) + caption (share.caption) lên Page qua Meta Graph API POST /photos.")]
+    [SwaggerResponse(200, "Kết quả đăng Page", typeof(ApiResponse<CommunityCleanupFacebookAutoPostDto>))]
+    [SwaggerResponse(404, "Không tìm thấy chương trình", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Tính năng chưa bật", typeof(ApiResponse))]
+    public async Task<IActionResult> ShareToFacebookPageAsync([FromRoute] Guid eventId, CancellationToken ct)
+    {
+        var result = await sender.Send(new ShareCommunityCleanupToFacebookPageCommand(eventId), ct);
+        if (result.IsFailure)
+            return result.ToHttp();
+
+        if (result.Value!.Success)
+            return result.ToHttp("Đã đăng bài lên Facebook Page Greenlens thành công.");
+
+        return result.ToHttp(
+            result.Value.ErrorMessage is { Length: > 0 } detail
+                ? $"Không thể đăng bài lên Facebook Page. {detail}"
+                : "Không thể đăng bài lên Facebook Page. Vui lòng thử lại hoặc dùng nút chia sẻ thủ công.");
+    }
 
     [HttpPost("{eventId:guid}/close-join")]
     [Authorize(Roles = "LEO,Admin")]

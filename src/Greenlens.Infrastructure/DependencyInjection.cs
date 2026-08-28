@@ -292,6 +292,21 @@ public static class DependencyInjection
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
+        services.AddOptions<Application.Common.Options.MetaPageOptions>()
+            .Bind(configuration.GetSection(Application.Common.Options.MetaPageOptions.SectionName))
+            .Validate(
+                options => !options.AutoPostEnabled || options.IsConfigured,
+                "Meta PageId and PageAccessToken are required when AutoPostEnabled is true")
+            .ValidateOnStart();
+
+        services.AddHttpClient("MetaGraph", client =>
+        {
+            client.BaseAddress = new Uri("https://graph.facebook.com/");
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
+
+        services.AddScoped<IFacebookPagePublisher, Meta.MetaGraphPagePublisher>();
+
         // ── Map Migrations ────────────────────────────────
         services.AddScoped<IAdministrativeRegionRepository, AdministrativeRegionRepository>();
         services.AddScoped<IAdministrativeUnitRepository, AdministrativeUnitRepository>();
