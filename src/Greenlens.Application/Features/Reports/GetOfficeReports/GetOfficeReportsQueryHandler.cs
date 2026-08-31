@@ -203,29 +203,29 @@ public sealed class GetOfficeReportsQueryHandler(
             .Include(r => r.Assignments)
                 .ThenInclude(a => a.Team)
                     .ThenInclude(t => t!.WasteTags)
-                        .ThenInclude(tw => tw.WasteTag)
-            .Include(r => r.Assignments)
-                .ThenInclude(a => a.ProgressUpdates)
-            .Include(r => r.StatusHistory)
-            .Skip((request.Page - 1) * request.PageSize)
-            .Take(request.PageSize)
-            .ToListAsync(ct)
-            .ConfigureAwait(false);
+                                .ThenInclude(tw => tw.WasteTag)
+                    .Include(r => r.Assignments)
+                        .ThenInclude(a => a.ProgressUpdates)
+                    .Include(r => r.StatusHistory)
+                    .Skip((request.Page - 1) * request.PageSize)
+                    .Take(request.PageSize)
+                    .ToListAsync(ct)
+                    .ConfigureAwait(false);
 
-        var items = pageReports.Select(MapOfficeReportItem).ToList();
+                var items = pageReports.Select(MapOfficeReportItem).ToList();
 
-        logger.LogInformation(
-            "LEO {UserId} fetched {Count} reports for office {OfficeId} (page {Page})",
-            currentUser.UserId, items.Count, officeInfo.LocalOfficeId, request.Page);
+                logger.LogInformation(
+                    "LEO {UserId} fetched {Count} reports for office {OfficeId} (page {Page})",
+                    currentUser.UserId, items.Count, officeInfo.LocalOfficeId, request.Page);
 
-        return new GetOfficeReportsResponse(
-            officeInfo.LocalOfficeId,
-            officeInfo.LocalOfficeName,
-            officeInfo.WardCode,
-            officeInfo.WardName,
-            items,
-            pagination);
-    }
+                return new GetOfficeReportsResponse(
+                    officeInfo.LocalOfficeId,
+                    officeInfo.LocalOfficeName,
+                    officeInfo.WardCode,
+                    officeInfo.WardName,
+                    items,
+                    pagination);
+            }
 
     private static OfficeReportItem MapOfficeReportItem(Report r)
     {
