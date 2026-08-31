@@ -105,6 +105,9 @@ public enum NotificationType
     /// <summary>Draft BR-CMU-*: Leader checked in / event started — notifies other participants.</summary>
     CommunityCleanupStarted,
 
+    /// <summary>Draft BR-CMU-006: Leader formally started the cleanup — notifies the LEO (program owner).</summary>
+    CommunityCleanupLeaderStarted,
+
     /// <summary>Draft BR-CMU-*: Leader posted a progress update (percent/photos) — notifies participants.</summary>
     CommunityCleanupProgressUpdated,
 

@@ -30,6 +30,7 @@ public sealed class CommunityCleanupStartedNotificationHandlerTests
         var leaderId = Guid.NewGuid();
         var joinedMember = Guid.NewGuid();
         var checkedInMember = Guid.NewGuid();
+        var leoId = Guid.NewGuid();
 
         var rows = new List<CommunityCleanupParticipant>
         {
@@ -42,13 +43,20 @@ public sealed class CommunityCleanupStartedNotificationHandlerTests
         _participants.GetByEventIdAsync(eventId, Arg.Any<CancellationToken>())
             .Returns(rows);
 
-        var evt = new CommunityCleanupStartedEvent(eventId, Guid.NewGuid(), "Dọn rác Hiệp Bình", leaderId, Guid.NewGuid());
+        var evt = new CommunityCleanupStartedEvent(eventId, Guid.NewGuid(), "Dọn rác Hiệp Bình", leaderId, leoId);
 
         await _sut.Handle(evt, CancellationToken.None);
 
         await _notifications.Received(1).SendFromTemplateAsync(
             joinedMember,
             NotificationType.CommunityCleanupStarted,
+            Arg.Is<Dictionary<string, string>>(d => d["title"] == "Dọn rác Hiệp Bình"),
+            eventId,
+            Arg.Any<CancellationToken>());
+
+        await _notifications.Received(1).SendFromTemplateAsync(
+            leoId,
+            NotificationType.CommunityCleanupLeaderStarted,
             Arg.Is<Dictionary<string, string>>(d => d["title"] == "Dọn rác Hiệp Bình"),
             eventId,
             Arg.Any<CancellationToken>());
@@ -69,23 +77,53 @@ public sealed class CommunityCleanupStartedNotificationHandlerTests
     }
 
     [Fact]
-    public async Task Handle_NoJoinedMembers_SkipsNotification_BR_CMU_006()
+    public async Task Handle_LeoReceivesLeaderStartedNotification_BR_CMU_006()
     {
         var eventId = Guid.NewGuid();
         var leaderId = Guid.NewGuid();
+        var leoId = Guid.NewGuid();
 
         _participants.GetByEventIdAsync(eventId, Arg.Any<CancellationToken>())
             .Returns([CommunityCleanupParticipant.Create(eventId, leaderId, CommunityCleanupParticipantRole.Leader)]);
 
-        var evt = new CommunityCleanupStartedEvent(eventId, Guid.NewGuid(), "Dọn rác Hiệp Bình", leaderId, Guid.NewGuid());
+        var evt = new CommunityCleanupStartedEvent(eventId, Guid.NewGuid(), "Dọn rác Hiệp Bình", leaderId, leoId);
+
+        await _sut.Handle(evt, CancellationToken.None);
+
+        await _notifications.Received(1).SendFromTemplateAsync(
+            leoId,
+            NotificationType.CommunityCleanupLeaderStarted,
+            Arg.Is<Dictionary<string, string>>(d => d["title"] == "Dọn rác Hiệp Bình"),
+            eventId,
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_NoJoinedMembers_StillNotifiesLeo_BR_CMU_006()
+    {
+        var eventId = Guid.NewGuid();
+        var leaderId = Guid.NewGuid();
+        var leoId = Guid.NewGuid();
+
+        _participants.GetByEventIdAsync(eventId, Arg.Any<CancellationToken>())
+            .Returns([CommunityCleanupParticipant.Create(eventId, leaderId, CommunityCleanupParticipantRole.Leader)]);
+
+        var evt = new CommunityCleanupStartedEvent(eventId, Guid.NewGuid(), "Dọn rác Hiệp Bình", leaderId, leoId);
 
         await _sut.Handle(evt, CancellationToken.None);
 
         await _notifications.DidNotReceive().SendFromTemplateAsync(
             Arg.Any<Guid>(),
-            Arg.Any<NotificationType>(),
+            NotificationType.CommunityCleanupStarted,
             Arg.Any<Dictionary<string, string>>(),
             Arg.Any<Guid?>(),
+            Arg.Any<CancellationToken>());
+
+        await _notifications.Received(1).SendFromTemplateAsync(
+            leoId,
+            NotificationType.CommunityCleanupLeaderStarted,
+            Arg.Any<Dictionary<string, string>>(),
+            eventId,
             Arg.Any<CancellationToken>());
     }
 }

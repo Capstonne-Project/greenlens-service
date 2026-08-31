@@ -8,10 +8,10 @@ using Microsoft.Extensions.Logging;
 namespace Greenlens.Application.Features.Notifications.EventHandlers;
 
 /// <summary>
-/// Notifies joined participants (excluding the Leader) once when the cleanup formally starts.
+/// Notifies joined participants (excluding the Leader) and the LEO once when the cleanup formally starts.
 /// </summary>
 /// <remarks>
-/// Implements: BR-CMU-006 (start event notifies participants).
+/// Implements: BR-CMU-006 (start event notifies participants; LEO informed on formal start).
 /// Leader check-in is a separate step and must NOT emit this notification — mobile calls
 /// check-in then start in sequence; notifying on both caused duplicate pushes.
 /// </remarks>
@@ -28,8 +28,8 @@ internal sealed class CommunityCleanupStartedNotificationHandler(
             .ConfigureAwait(false);
 
         logger.LogInformation(
-            "Community cleanup {EventId} started, notifying {Count} joined participant(s)",
-            notification.EventId, recipients.Count);
+            "Community cleanup {EventId} started, notifying {Count} joined participant(s) and LEO {LeoId}",
+            notification.EventId, recipients.Count, notification.LeoId);
 
         foreach (var userId in recipients)
         {
@@ -40,6 +40,13 @@ internal sealed class CommunityCleanupStartedNotificationHandler(
                 notification.EventId,
                 ct).ConfigureAwait(false);
         }
+
+        await notificationService.SendFromTemplateAsync(
+            notification.LeoId,
+            NotificationType.CommunityCleanupLeaderStarted,
+            new Dictionary<string, string> { ["title"] = notification.Title },
+            notification.EventId,
+            ct).ConfigureAwait(false);
     }
 }
 

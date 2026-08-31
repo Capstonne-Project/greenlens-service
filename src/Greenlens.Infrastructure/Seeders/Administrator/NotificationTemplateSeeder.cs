@@ -221,9 +221,9 @@ internal static class NotificationTemplateSeeder
 
         Create(
             "nearby_report",
-            "Có báo cáo ô nhiễm gần bạn",
+            "Có báo cáo ô nhiễm gần khu vực bạn từng báo cáo",
             "Báo cáo {report_code} ({category_name}) vừa được ghi nhận tại {ward_name}, trong bán kính {nearby_radius_km} km quanh khu vực bạn từng báo cáo.",
-            "Nearby pollution report",
+            "Pollution report near your past report area",
             "Report {report_code} ({category_name}) was recorded within {nearby_radius_km} km of an area you previously reported.",
             NotificationType.NearbyReport),
 
@@ -437,8 +437,8 @@ internal static class NotificationTemplateSeeder
 
         Create(
             "community_cleanup_leader_assigned",
-            "Bạn được chỉ định làm Leader",
-            "Bạn được chỉ định làm Leader cho chương trình dọn cộng đồng \"{title}\". Hãy vào mục Việc của tôi để bắt đầu.",
+            "Bạn được chỉ định làm Trưởng nhóm",
+            "Bạn được chỉ định làm Trưởng nhóm cho chương trình dọn cộng đồng \"{title}\". Hãy vào mục Việc của tôi để bắt đầu.",
             "You were appointed Leader",
             "You were appointed Leader for the community cleanup program \"{title}\". Check My Tasks to get started.",
             NotificationType.CommunityCleanupLeaderAssigned),
@@ -446,10 +446,18 @@ internal static class NotificationTemplateSeeder
         Create(
             "community_cleanup_started",
             "Chương trình dọn cộng đồng đã bắt đầu",
-            "Leader đã có mặt và chương trình \"{title}\" đã bắt đầu. Hãy check-in nếu bạn đã đến điểm hẹn!",
+            "Trưởng nhóm đã có mặt và chương trình \"{title}\" đã bắt đầu. Hãy điểm danh nếu bạn đã đến điểm hẹn!",
             "Community cleanup started",
             "The Leader has arrived and \"{title}\" has started. Check in if you're at the meeting point!",
             NotificationType.CommunityCleanupStarted),
+
+        Create(
+            "community_cleanup_leader_started",
+            "Trưởng nhóm đã bắt đầu dọn dẹp",
+            "Trưởng nhóm đã bắt đầu chương trình \"{title}\". Theo dõi tiến độ trên dashboard.",
+            "Leader started cleanup",
+            "The Leader has started \"{title}\". Track progress on your dashboard.",
+            NotificationType.CommunityCleanupLeaderStarted),
 
         Create(
             "community_cleanup_progress_updated",
@@ -462,7 +470,7 @@ internal static class NotificationTemplateSeeder
         Create(
             "community_cleanup_verification_submitted",
             "Cần duyệt hoàn thành chương trình",
-            "Leader đã nộp minh chứng hoàn thành cho chương trình \"{title}\". Hãy vào duyệt.",
+            "Trưởng nhóm đã nộp minh chứng hoàn thành cho chương trình \"{title}\". Hãy vào duyệt.",
             "Cleanup evidence needs review",
             "The Leader submitted completion evidence for \"{title}\". Please review it.",
             NotificationType.CommunityCleanupVerificationSubmitted),
