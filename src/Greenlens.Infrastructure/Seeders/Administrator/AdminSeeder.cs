@@ -16,13 +16,13 @@ internal static class AdminSeeder
     private const string AdminPassword = "Admin@123456";
     private const string AdminFullName = "GreenLens Admin";
 
-    public static async Task SeedAsync(ApplicationDbContext db, ILogger logger)
+    public static async Task SeedAsync(ApplicationDbContext db, ILogger logger, string? r2PublicBaseUrl = null)
     {
         await SeedAdminAsync(db, logger).ConfigureAwait(false);
         await PollutionCategorySeeder.SeedAsync(db, logger).ConfigureAwait(false);
         await DepartmentSeeder.SeedAsync(db, logger).ConfigureAwait(false);
         await LocalOfficeSeeder.SeedAsync(db, logger).ConfigureAwait(false);
-        await GamificationSeeder.SeedAsync(db, logger).ConfigureAwait(false);
+        await GamificationSeeder.SeedAsync(db, logger, r2PublicBaseUrl: r2PublicBaseUrl).ConfigureAwait(false);
         await NotificationTemplateSeeder.SeedAsync(db, logger).ConfigureAwait(false);
         await SystemSettingsSeeder.SeedAsync(db, logger).ConfigureAwait(false);
         await MobileDemoSeeder.SeedAsync(db, logger).ConfigureAwait(false);

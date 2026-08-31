@@ -1,6 +1,7 @@
 using Greenlens.Infrastructure.Persistence;
 using Greenlens.Infrastructure.Persistence.Seeders.Location;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -24,6 +25,8 @@ public static class AdminSeederRunner
         // departments/offices which have FK to provinces.province_code.
         await scope.ServiceProvider.SeedLocationAsync().ConfigureAwait(false);
 
-        await AdminSeeder.SeedAsync(db, logger).ConfigureAwait(false);
+        var config = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+        var r2PublicUrl = config["R2:PublicUrl"];
+        await AdminSeeder.SeedAsync(db, logger, r2PublicUrl).ConfigureAwait(false);
     }
 }
