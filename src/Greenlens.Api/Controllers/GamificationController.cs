@@ -52,7 +52,7 @@ public sealed class GamificationController(ISender sender) : ControllerBase
     [SwaggerOperation(
         Summary = "Get full badge catalog (earned + locked)",
         Description = "Mỗi badge trả currentProgressValue + targetProgressValue + progressMetric để FE hiển thị tiến trình (vd. 3/5 duplicate_reports). " +
-            "progressMetric: verified_reports | points | streak_days | duplicate_reports | cleanup_events | reporter_count | hotspot_reports.")]
+            "progressMetric: verified_reports | points | streak_days | duplicate_reports | cleanup_events | reporter_count.")]
     [SwaggerResponse(200, "Badge catalog", typeof(ApiResponse<IReadOnlyList<BadgeCatalogItem>>))]
     public async Task<IActionResult> GetBadgeCatalog(CancellationToken ct)
     {

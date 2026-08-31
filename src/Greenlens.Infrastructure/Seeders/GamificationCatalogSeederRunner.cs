@@ -13,7 +13,9 @@ public static class GamificationCatalogSeederRunner
 {
     public static async Task RunAsync(string? connectionString = null, CancellationToken ct = default)
     {
-        var apiConfigDir = ResolveApiConfigDirectory();
+        RepoDotEnvLoader.LoadIfPresent();
+
+        var apiConfigDir = ResolveApiConfigDirectoryPublic();
         var config = new ConfigurationBuilder()
             .SetBasePath(apiConfigDir)
             .AddJsonFile("appsettings.json", optional: true)
@@ -36,7 +38,9 @@ public static class GamificationCatalogSeederRunner
         var logger = provider.GetRequiredService<ILoggerFactory>().CreateLogger("GamificationCatalogSeeder");
 
         await db.Database.MigrateAsync(ct).ConfigureAwait(false);
-        await GamificationSeeder.SeedAsync(db, logger, ct).ConfigureAwait(false);
+
+        var r2PublicUrl = config["R2:PublicUrl"];
+        await GamificationSeeder.SeedAsync(db, logger, ct, r2PublicUrl).ConfigureAwait(false);
         await NotificationTemplateSeeder.SeedAsync(db, logger).ConfigureAwait(false);
 
         var badgeCount = await db.Badges.CountAsync(ct).ConfigureAwait(false);
@@ -50,7 +54,10 @@ public static class GamificationCatalogSeederRunner
             badgeCount, templateCount);
     }
 
-    private static string ResolveApiConfigDirectory()
+    private static string ResolveApiConfigDirectory() =>
+        ResolveApiConfigDirectoryPublic();
+
+    internal static string ResolveApiConfigDirectoryPublic()
     {
         var candidates = new[]
         {

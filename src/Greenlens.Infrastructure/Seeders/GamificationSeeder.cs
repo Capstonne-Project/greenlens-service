@@ -18,40 +18,41 @@ internal static class GamificationSeeder
         string NameVi,
         string NameEn,
         string Description,
-        string IconUrl,
         int? RequiredReportCount,
         int? RequiredPoints,
-        int? RequiredStreakDays = null);
-
-    private const string R2PublicBase = "https://pub-d1de759d41364ae7890b5d1273065f8c.r2.dev";
+        int? RequiredStreakDays = null,
+        int? RequiredActionCount = null);
 
     private static readonly BadgeSeed[] DefaultBadges =
     [
         new("first_report", "Người Khởi Đầu", "First Reporter",
-            "Gửi báo cáo ô nhiễm đầu tiên được xác minh", $"{R2PublicBase}/badges/icons/first_report.png", 1, null),
+            "Gửi báo cáo ô nhiễm đầu tiên được xác minh", 1, null),
         new("eco_warrior", "Chiến Binh Xanh", "Eco Warrior",
-            "Gửi 10 báo cáo ô nhiễm được xác minh", $"{R2PublicBase}/badges/icons/eco_warrior.png", 10, null),
+            "Gửi 10 báo cáo ô nhiễm được xác minh", 10, null),
         new("green_champion", "Nhà Vô Địch Xanh", "Green Champion",
-            "Gửi 50 báo cáo ô nhiễm được xác minh", $"{R2PublicBase}/badges/icons/green_champion.png", 50, null),
+            "Gửi 50 báo cáo ô nhiễm được xác minh", 50, null),
         new("earth_guardian", "Người Bảo Vệ Trái Đất", "Earth Guardian",
-            "Gửi 100 báo cáo ô nhiễm được xác minh", $"{R2PublicBase}/badges/icons/earth_guardian.png", 100, null),
+            "Gửi 100 báo cáo ô nhiễm được xác minh", 100, null),
         new("streak_7d", "Bền Bỉ 7 Ngày", "7-Day Streak",
-            "Gửi báo cáo 7 ngày liên tiếp", $"{R2PublicBase}/badges/icons/streak_7d.png", null, null, RequiredStreakDays: 7),
+            "Gửi báo cáo 7 ngày liên tiếp", null, null, RequiredStreakDays: 7),
         new("streak_30d", "Kiên Trì 30 Ngày", "30-Day Streak",
-            "Gửi báo cáo 30 ngày liên tiếp", $"{R2PublicBase}/badges/icons/streak_30d.png", null, null, RequiredStreakDays: 30),
+            "Gửi báo cáo 30 ngày liên tiếp", null, null, RequiredStreakDays: 30),
         new("duplicate_finder", "Người Phát Hiện Trùng", "Duplicate Finder",
-            "5 báo cáo được xác nhận là trùng lặp, hỗ trợ phát hiện ô nhiễm", $"{R2PublicBase}/badges/icons/duplicate_finder.png", null, null),
+            "5 báo cáo được xác nhận là trùng lặp, hỗ trợ phát hiện ô nhiễm", null, null, RequiredActionCount: 5),
         new("community_voice", "Tiếng Nói Cộng Đồng", "Community Voice",
-            "Có báo cáo nhận ≥ 10 lượt xác nhận từ cộng đồng", $"{R2PublicBase}/badges/icons/community_voice.png", null, null),
-        new("rising_star", "Ngôi Sao Đang Lên", "Rising Star",
-            "Đạt Level 2 với 100 điểm tích lũy", $"{R2PublicBase}/badges/icons/rising_star.png", null, 100),
-        new("eco_expert", "Chuyên Gia Môi Trường", "Eco Expert",
-            "Đạt Level 4 với 1.500 điểm tích lũy", $"{R2PublicBase}/badges/icons/eco_expert.png", null, 1500),
-        new("green_legend", "Huyền Thoại Xanh", "Green Legend",
-            "Đạt Level 5 với 5.000 điểm tích lũy — thành tựu cao nhất", $"{R2PublicBase}/badges/icons/green_legend.png", null, 5000),
+            "Có báo cáo nhận ≥ 10 lượt xác nhận từ cộng đồng", null, null, RequiredActionCount: 10),
         new("cleanup_hero", "Anh Hùng Dọn Dẹp", "Cleanup Hero",
-            "Hoàn thành tham gia 2 chương trình dọn dẹp cộng đồng", $"{R2PublicBase}/badges/icons/cleanup_hero.png", null, null),
+            "Hoàn thành tham gia 2 chương trình dọn dẹp cộng đồng", null, null, RequiredActionCount: 2),
+        new("rising_star", "Ngôi Sao Đang Lên", "Rising Star",
+            "Đạt Level 2 với 100 điểm tích lũy", null, 100),
+        new("eco_expert", "Chuyên Gia Môi Trường", "Eco Expert",
+            "Đạt Level 4 với 1.500 điểm tích lũy", null, 1500),
+        new("green_legend", "Huyền Thoại Xanh", "Green Legend",
+            "Đạt Level 5 với 5.000 điểm tích lũy — thành tựu cao nhất", null, 5000),
     ];
+
+    private static readonly Dictionary<string, BadgeSeed> DefaultBadgesByCode =
+        DefaultBadges.ToDictionary(b => b.Code, StringComparer.OrdinalIgnoreCase);
 
     private static readonly (PointReason Action, int Points, string Description)[] DefaultConfigs =
     [
@@ -67,15 +68,52 @@ internal static class GamificationSeeder
     public static async Task SeedAsync(
         ApplicationDbContext db,
         ILogger logger,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        string? r2PublicBaseUrl = null)
     {
-        await SeedBadgesAsync(db, logger, ct).ConfigureAwait(false);
+        var publicBase = string.IsNullOrWhiteSpace(r2PublicBaseUrl)
+            ? BadgeIconCatalog.DefaultPublicBase
+            : r2PublicBaseUrl.Trim();
+
+        await RemoveRetiredBadgesAsync(db, logger, ct).ConfigureAwait(false);
+        await SeedBadgesAsync(db, logger, publicBase, ct).ConfigureAwait(false);
+        await SyncBadgeIconUrlsAsync(db, logger, publicBase, ct).ConfigureAwait(false);
         await SeedGamificationConfigsAsync(db, logger, ct).ConfigureAwait(false);
+    }
+
+    private static async Task RemoveRetiredBadgesAsync(
+        ApplicationDbContext db,
+        ILogger logger,
+        CancellationToken ct)
+    {
+        var retired = await db.Badges
+            .Where(b => BadgeIconCatalog.RetiredCodes.Contains(b.Code))
+            .Select(b => b.Id)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        if (retired.Count == 0)
+            return;
+
+        var userBadgeRows = await db.UserBadges
+            .Where(ub => retired.Contains(ub.BadgeId))
+            .ExecuteDeleteAsync(ct)
+            .ConfigureAwait(false);
+
+        var badgeRows = await db.Badges
+            .Where(b => retired.Contains(b.Id))
+            .ExecuteDeleteAsync(ct)
+            .ConfigureAwait(false);
+
+        logger.LogInformation(
+            "Removed {BadgeCount} retired badge(s) and {UserBadgeCount} user_badge row(s).",
+            badgeRows, userBadgeRows);
     }
 
     private static async Task SeedBadgesAsync(
         ApplicationDbContext db,
         ILogger logger,
+        string publicBase,
         CancellationToken ct)
     {
         var existingCodes = await db.Badges
@@ -97,10 +135,11 @@ internal static class GamificationSeeder
                 seed.NameVi,
                 seed.NameEn,
                 seed.Description,
-                seed.IconUrl,
+                BadgeIconCatalog.BuildIconUrl(seed.Code, publicBase),
                 seed.RequiredPoints,
                 seed.RequiredReportCount,
-                seed.RequiredStreakDays));
+                seed.RequiredStreakDays,
+                seed.RequiredActionCount));
             added++;
         }
 
@@ -112,6 +151,36 @@ internal static class GamificationSeeder
 
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
         logger.LogInformation("Gamification badges seeded: {Count} added.", added);
+    }
+
+    /// <summary>Refresh icon_url after designers replace PNGs on R2 (docs/UserBadge/icons source of truth).</summary>
+    private static async Task SyncBadgeIconUrlsAsync(
+        ApplicationDbContext db,
+        ILogger logger,
+        string publicBase,
+        CancellationToken ct)
+    {
+        var badges = await db.Badges
+            .Where(b => BadgeIconCatalog.ActiveCodes.Contains(b.Code))
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        var synced = 0;
+        foreach (var badge in badges)
+        {
+            var canonical = BadgeIconCatalog.BuildIconUrl(badge.Code, publicBase);
+            if (string.Equals(badge.IconUrl, canonical, StringComparison.Ordinal))
+                continue;
+
+            badge.Update(badge.NameVi, badge.NameEn, badge.Description, canonical);
+            synced++;
+        }
+
+        if (synced == 0)
+            return;
+
+        await db.SaveChangesAsync(ct).ConfigureAwait(false);
+        logger.LogInformation("Synced icon_url for {Count} badge(s).", synced);
     }
 
     private static async Task SeedGamificationConfigsAsync(
