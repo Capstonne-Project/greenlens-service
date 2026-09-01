@@ -27,7 +27,7 @@ public interface ISystemSettingsCache
 }
 
 /// <summary>
-/// Gọi sau admin PATCH hoặc Reset module.
+/// Gọi sau admin PATCH hoặc Reset module (thường qua <see cref="ISystemSettingsCacheInvalidationCollector.Schedule"/>).
 /// Refresh instance hiện tại + publish Redis để mọi replica production cập nhật ngay, không cần restart.
 /// </summary>
 public interface ISystemSettingsCacheInvalidator

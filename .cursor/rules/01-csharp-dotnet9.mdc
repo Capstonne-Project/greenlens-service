@@ -61,5 +61,9 @@ public class Handler {
 
 ## Comments
 
-- English in code. Vietnamese OK in XML doc when describing BR terminology.
-- Only **why** comments. Never **what** comments (`// increment counter` is forbidden).
+> Chi tiết bắt buộc: xem rule `11-code-section-notes.mdc`.
+
+- English hoặc **Tiếng Việt** — ưu tiên ngắn, dễ hiểu.
+- **Bắt buộc** ghi chú mục đích trên khối code mới/sửa (handler, cache, transaction, geo, …).
+- XML `///` trên class/interface khi luồng không hiển nhiên từ tên type.
+- Tránh comment từng dòng trivial; tránh văn dài lặp lại code.

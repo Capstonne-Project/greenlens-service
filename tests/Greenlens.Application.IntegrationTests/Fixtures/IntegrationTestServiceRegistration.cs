@@ -1,7 +1,7 @@
 using Greenlens.Application.Common.Behaviors;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
-using Greenlens.Infrastructure;
+using Greenlens.Infrastructure.Configuration;
 using Greenlens.Infrastructure.DomainEvents;
 using Greenlens.Infrastructure.Geo;
 using Greenlens.Infrastructure.Notifications;
@@ -58,6 +58,8 @@ internal static class IntegrationTestServiceRegistration
         services.AddScoped<ITransactionManager, TransactionManager>();
         services.AddScoped<IDomainEventCollector, DomainEventCollector>();
         services.AddScoped<INotificationDispatchCollector, NotificationDispatchCollector>();
+        services.AddScoped<ISystemSettingsCacheInvalidationCollector, SystemSettingsCacheInvalidationCollector>();
+        services.AddSingleton<ISystemSettingsCacheInvalidator, NoOpSystemSettingsCacheInvalidator>();
         services.AddSingleton<INotificationDispatchScheduler, NoOpNotificationDispatchScheduler>();
         services.AddScoped<IChangeTrackerCleaner, ChangeTrackerCleaner>();
         services.AddSingleton<IAuditLogger, NoOpAuditLogger>();
