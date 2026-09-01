@@ -9,7 +9,7 @@ public sealed class RequestReopenReportCommandValidator : AbstractValidator<Requ
 {
     public RequestReopenReportCommandValidator(ISystemSettingsProvider systemSettings)
     {
-        var (_, reopenMin, _) = ModuleSystemSettings.ValidationReasonLengths(systemSettings);
+        var (_, reopenMin) = ModuleSystemSettings.ValidationReasonLengths(systemSettings);
 
         RuleFor(x => x.Reason)
             .NotEmpty()
