@@ -28,6 +28,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -241,9 +242,11 @@ public static class DependencyInjection
         services.AddHostedService(sp => sp.GetRequiredService<BlockedWordCache>());
 
         // ── System settings cache (BR-ADM-010) ──
-        // Singleton + IHostedService: load DB lúc startup, subscribe Redis invalidation.
-        // ISystemSettingsProvider → handler đọc threshold; ISystemSettingsCacheInvalidator → admin PATCH/Reset.
-        services.AddSingleton<SystemSettingsProvider>();
+        // GetService<IConnectionMultiplexer>: null on dev không Redis; inject rõ ràng trên production.
+        services.AddSingleton<SystemSettingsProvider>(sp => new SystemSettingsProvider(
+            sp.GetRequiredService<IServiceScopeFactory>(),
+            sp.GetRequiredService<ILogger<SystemSettingsProvider>>(),
+            sp.GetService<IConnectionMultiplexer>()));
         services.AddSingleton<ISystemSettingsProvider>(sp => sp.GetRequiredService<SystemSettingsProvider>());
         services.AddSingleton<ISystemSettingsCache>(sp => sp.GetRequiredService<SystemSettingsProvider>());
         services.AddSingleton<ISystemSettingsCacheInvalidator>(sp => sp.GetRequiredService<SystemSettingsProvider>());
