@@ -123,6 +123,23 @@ internal sealed class R2FileStorageService : IFileStorageService, IDisposable
             StringComparison.Ordinal);
     }
 
+    public string? TryGetKeyFromOwnedPublicUrl(string url)
+    {
+        if (!IsOwnedPublicUrl(url))
+            return null;
+
+        if (!Uri.TryCreate(_options.PublicUrl.TrimEnd('/') + "/", UriKind.Absolute, out var publicBase))
+            return null;
+
+        if (!Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri))
+            return null;
+
+        var relative = publicBase.MakeRelativeUri(uri).ToString();
+        return string.IsNullOrWhiteSpace(relative)
+            ? null
+            : Uri.UnescapeDataString(relative.TrimEnd('/'));
+    }
+
     public async Task<StoredFileDownload?> DownloadAsync(
         string key,
         long maxSizeBytes,
