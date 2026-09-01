@@ -123,8 +123,10 @@ internal static class SystemSettingDefinitions
             "Áp dụng khi xác thực tọa độ GPS trên báo cáo. Tọa độ ngoài phạm vi kinh độ sẽ bị từ chối.",
             "°", 0, 180),
         Def(SystemSettingModule.Geo, "check_in_max_distance_meters", SystemSettingValueType.Int, "200",
-            "Khoảng cách check-in tối đa",
-            "Áp dụng khi đội dọn dẹp check-in tại hiện trường. Vị trí thiết bị cách điểm báo cáo quá xa sẽ bị từ chối.",
+            "Khoảng cách tối đa khi xác nhận có mặt tại hiện trường",
+            "Áp dụng khi đội dọn dẹp và người tham gia chương trình cộng đồng (công dân, người dẫn chương trình) xác nhận đã đến điểm dọn rác. " +
+            "Nếu vị trí đang đứng cách điểm báo cáo hoặc điểm tập trung quá xa so với mức này, hệ thống sẽ không cho xác nhận. " +
+            "Riêng chương trình cộng đồng: người tham gia có thể ghi rõ lý do để vẫn được xác nhận; cán bộ sẽ xem lại sau.",
             "m", 50, null),
         Def(SystemSettingModule.Geo, "exif_gps_mismatch_meters", SystemSettingValueType.Int, "200",
             "Ngưỡng lệch GPS trong ảnh",

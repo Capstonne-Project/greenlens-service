@@ -96,42 +96,27 @@ public sealed class UpdateProgressCommandHandler(
             return Errors.Reports.ReportNotFound;
         }
 
-        // BR-CLN-004: when progress photos are attached, compare report site vs EXIF GPS in each image.
-        if (request.ImageUrls.Count > 0)
-        {
-            var exifError = await ProgressUpdateExifGuard.ValidateProgressImageUrlsAsync(
-                    request.ImageUrls,
-                    report.Latitude,
-                    report.Longitude,
-                    fileStorage,
-                    exifAnalyzer,
-                    systemSettings,
-                    ct)
-                .ConfigureAwait(false);
+        // BR-CLN-004: mobile sends lat/lng from photo EXIF; compare against report site.
+        var locationError = await ProgressUpdateExifGuard.ValidateAsync(
+                request.Latitude,
+                request.Longitude,
+                report.Latitude,
+                report.Longitude,
+                request.ImageUrls,
+                fileStorage,
+                exifAnalyzer,
+                geoDistance,
+                systemSettings,
+                ct)
+            .ConfigureAwait(false);
 
-            if (exifError is not null)
-            {
-                logger.LogWarning(
-                    "Progress photo EXIF GPS too far from report {ReportId}: {ErrorCode}",
-                    request.ReportId,
-                    exifError.Code);
-                return exifError;
-            }
-        }
-        else
+        if (locationError is not null)
         {
-            // Fallback when no photos: device GPS must be near the site.
-            var maxProgressDistanceMeters = ModuleSystemSettings.ProgressUpdateMaxDistanceMeters(systemSettings);
-            var distance = await geoDistance.GetDistanceInMetersAsync(
-                request.Latitude, request.Longitude,
-                report.Latitude, report.Longitude, ct).ConfigureAwait(false);
-
-            if (distance > maxProgressDistanceMeters)
-            {
-                logger.LogWarning("Distance {Distance} is greater than {MaxProgressDistanceMeters} for report {ReportId}",
-                    distance, maxProgressDistanceMeters, request.ReportId);
-                return Errors.Progress.TooFarFromSite(distance);
-            }
+            logger.LogWarning(
+                "Progress location too far from report {ReportId}: {ErrorCode}",
+                request.ReportId,
+                locationError.Code);
+            return locationError;
         }
 
         var progressUpdate = AssignmentProgressUpdate.Create(

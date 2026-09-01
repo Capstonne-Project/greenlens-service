@@ -17,8 +17,57 @@ public sealed class ProgressUpdateExifGuardTests
     private const string ImageKey = "reports/r1/progress/photo.jpg";
 
     [Fact]
-    public async Task ValidateProgressImageUrls_ExifGpsTooFar_ReturnsPhotoTooFarError_BR_CLN_004()
+    public async Task Validate_SubmittedExifCoordsTooFarWithImages_ReturnsPhotoTooFarError_BR_CLN_004()
     {
+        var geoDistance = Substitute.For<IGeoDistanceService>();
+        geoDistance.GetDistanceInMetersAsync(ExifLat, ExifLng, SiteLat, SiteLng, Arg.Any<CancellationToken>())
+            .Returns(500d);
+
+        var error = await ProgressUpdateExifGuard.ValidateAsync(
+            ExifLat,
+            ExifLng,
+            SiteLat,
+            SiteLng,
+            [ImageUrl],
+            Substitute.For<IFileStorageService>(),
+            Substitute.For<IImageExifAnalyzer>(),
+            geoDistance,
+            new DefaultSystemSettingsProvider(),
+            CancellationToken.None);
+
+        Assert.NotNull(error);
+        Assert.Equal("PROGRESS_PHOTO_TOO_FAR", error.Code);
+    }
+
+    [Fact]
+    public async Task Validate_SubmittedExifCoordsNearSite_ReturnsNull_BR_CLN_004()
+    {
+        var geoDistance = Substitute.For<IGeoDistanceService>();
+        geoDistance.GetDistanceInMetersAsync(SiteLat + 0.0001m, SiteLng, SiteLat, SiteLng, Arg.Any<CancellationToken>())
+            .Returns(11d);
+
+        var error = await ProgressUpdateExifGuard.ValidateAsync(
+            SiteLat + 0.0001m,
+            SiteLng,
+            SiteLat,
+            SiteLng,
+            [],
+            Substitute.For<IFileStorageService>(),
+            Substitute.For<IImageExifAnalyzer>(),
+            geoDistance,
+            new DefaultSystemSettingsProvider(),
+            CancellationToken.None);
+
+        Assert.Null(error);
+    }
+
+    [Fact]
+    public async Task Validate_ImageFileExifTooFar_ReturnsPhotoTooFarError_BR_CLN_004()
+    {
+        var geoDistance = Substitute.For<IGeoDistanceService>();
+        geoDistance.GetDistanceInMetersAsync(SiteLat, SiteLng, SiteLat, SiteLng, Arg.Any<CancellationToken>())
+            .Returns(10d);
+
         var fileStorage = Substitute.For<IFileStorageService>();
         fileStorage.TryGetKeyFromOwnedPublicUrl(ImageUrl).Returns(ImageKey);
         fileStorage.DownloadAsync(ImageKey, Arg.Any<long>(), Arg.Any<CancellationToken>())
@@ -34,12 +83,15 @@ public sealed class ProgressUpdateExifGuardTests
                 null,
                 [ExifSuspicionEvaluator.GpsMismatchReason]));
 
-        var error = await ProgressUpdateExifGuard.ValidateProgressImageUrlsAsync(
-            [ImageUrl],
+        var error = await ProgressUpdateExifGuard.ValidateAsync(
             SiteLat,
             SiteLng,
+            SiteLat,
+            SiteLng,
+            [ImageUrl],
             fileStorage,
             exifAnalyzer,
+            geoDistance,
             new DefaultSystemSettingsProvider(),
             CancellationToken.None);
 
@@ -48,38 +100,12 @@ public sealed class ProgressUpdateExifGuardTests
     }
 
     [Fact]
-    public async Task ValidateProgressImageUrls_ExifGpsNearSite_ReturnsNull_BR_CLN_004()
+    public async Task Validate_ImageFileWithoutExif_SubmittedCoordsNearSite_ReturnsNull_BR_CLN_004()
     {
-        var fileStorage = Substitute.For<IFileStorageService>();
-        fileStorage.TryGetKeyFromOwnedPublicUrl(ImageUrl).Returns(ImageKey);
-        fileStorage.DownloadAsync(ImageKey, Arg.Any<long>(), Arg.Any<CancellationToken>())
-            .Returns(new StoredFileDownload([0x01], "image/jpeg", 1));
+        var geoDistance = Substitute.For<IGeoDistanceService>();
+        geoDistance.GetDistanceInMetersAsync(SiteLat, SiteLng, SiteLat, SiteLng, Arg.Any<CancellationToken>())
+            .Returns(10d);
 
-        var exifAnalyzer = Substitute.For<IImageExifAnalyzer>();
-        exifAnalyzer.Analyze(Arg.Any<ReadOnlyMemory<byte>>(), SiteLat, SiteLng)
-            .Returns(new ImageExifAnalysis(
-                true,
-                DateTime.UtcNow,
-                SiteLat + 0.0001m,
-                SiteLng,
-                null,
-                []));
-
-        var error = await ProgressUpdateExifGuard.ValidateProgressImageUrlsAsync(
-            [ImageUrl],
-            SiteLat,
-            SiteLng,
-            fileStorage,
-            exifAnalyzer,
-            new DefaultSystemSettingsProvider(),
-            CancellationToken.None);
-
-        Assert.Null(error);
-    }
-
-    [Fact]
-    public async Task ValidateProgressImageUrls_NoExifGps_ReturnsNull_BR_CLN_004()
-    {
         var fileStorage = Substitute.For<IFileStorageService>();
         fileStorage.TryGetKeyFromOwnedPublicUrl(ImageUrl).Returns(ImageKey);
         fileStorage.DownloadAsync(ImageKey, Arg.Any<long>(), Arg.Any<CancellationToken>())
@@ -89,12 +115,15 @@ public sealed class ProgressUpdateExifGuardTests
         exifAnalyzer.Analyze(Arg.Any<ReadOnlyMemory<byte>>(), SiteLat, SiteLng)
             .Returns(new ImageExifAnalysis(false, null, null, null, null, []));
 
-        var error = await ProgressUpdateExifGuard.ValidateProgressImageUrlsAsync(
-            [ImageUrl],
+        var error = await ProgressUpdateExifGuard.ValidateAsync(
             SiteLat,
             SiteLng,
+            SiteLat,
+            SiteLng,
+            [ImageUrl],
             fileStorage,
             exifAnalyzer,
+            geoDistance,
             new DefaultSystemSettingsProvider(),
             CancellationToken.None);
 
