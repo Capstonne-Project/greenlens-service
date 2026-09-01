@@ -58,6 +58,8 @@ public sealed class ResetSystemSettingsModuleCommandHandler(
                 s.Id,
                 s.Module.ToString(),
                 s.Key,
+                s.Title,
+                s.Unit,
                 s.ValueType.ToString(),
                 s.Value,
                 s.DefaultValue,
