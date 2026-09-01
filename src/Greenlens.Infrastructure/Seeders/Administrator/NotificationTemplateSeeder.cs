@@ -511,13 +511,17 @@ internal static class NotificationTemplateSeeder
             "company_manager_account_created",
             "Tài khoản Quản lý công ty GreenLens",
             "Xin chào {manager_name}, bạn đã được tạo tài khoản Quản lý công ty \"{company_name}\" trên GreenLens.\n\n" +
-            "Email đăng nhập: {email}\n" +
-            "Mật khẩu tạm: {temp_password}\n\n" +
+            "Email đăng nhập:\n" +
+            "{email}\n\n" +
+            "Mật khẩu tạm:\n" +
+            "{temp_password}\n\n" +
             "Vui lòng đăng nhập và đổi mật khẩu ngay lần đầu. Sau khi đổi mật khẩu, công ty sẽ được kích hoạt tự động.",
             "GreenLens company manager account created",
             "Hello {manager_name}, your Company Manager account for \"{company_name}\" on GreenLens is ready.\n\n" +
-            "Login email: {email}\n" +
-            "Temporary password: {temp_password}\n\n" +
+            "Login email:\n" +
+            "{email}\n\n" +
+            "Temporary password:\n" +
+            "{temp_password}\n\n" +
             "Please sign in and change your password on first login. The company will activate automatically afterward.",
             NotificationType.CompanyManagerAccountCreated),
 
@@ -525,13 +529,17 @@ internal static class NotificationTemplateSeeder
             "company_staff_account_created",
             "Tài khoản nhân viên công ty GreenLens",
             "Xin chào {staff_name}, bạn đã được tạo tài khoản nhân viên tại công ty \"{company_name}\" trên GreenLens.\n\n" +
-            "Email đăng nhập: {email}\n" +
-            "Mật khẩu tạm: {temp_password}\n\n" +
+            "Email đăng nhập:\n" +
+            "{email}\n\n" +
+            "Mật khẩu tạm:\n" +
+            "{temp_password}\n\n" +
             "Vui lòng đăng nhập và đổi mật khẩu ngay lần đầu.",
             "GreenLens company staff account created",
             "Hello {staff_name}, your Company Staff account for \"{company_name}\" on GreenLens is ready.\n\n" +
-            "Login email: {email}\n" +
-            "Temporary password: {temp_password}\n\n" +
+            "Login email:\n" +
+            "{email}\n\n" +
+            "Temporary password:\n" +
+            "{temp_password}\n\n" +
             "Please sign in and change your password on first login.",
             NotificationType.CompanyStaffAccountCreated),
 

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Mail;
+using System.Text;
 using Greenlens.Application.Common.Interfaces;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -142,8 +143,8 @@ internal sealed class SmtpEmailSender(
                                 </tr>
                                 <tr>
                                     <td style="padding: 40px;">
-                                        <h2 style="margin: 0 0 20px 0; color: #1f2937; font-size: 20px; font-weight: 600;">{subject}</h2>
-                                        <p style="margin: 0 0 20px 0; color: #374151; font-size: 16px; line-height: 1.6;">{message}</p>
+                                        <h2 style="margin: 0 0 20px 0; color: #1f2937; font-size: 20px; font-weight: 600;">{WebUtility.HtmlEncode(subject)}</h2>
+                                        {FormatNotificationMessageHtml(message)}
                                     </td>
                                 </tr>
                                 <tr>
@@ -160,6 +161,112 @@ internal sealed class SmtpEmailSender(
             """;
 
         await SendEmailAsync(toEmail, $"GreenLens - {subject}", body, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>Renders plain-text notification body as HTML with line breaks and credential highlight boxes.</summary>
+    internal static string FormatNotificationMessageHtml(string message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+            return string.Empty;
+
+        var lines = message.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+        var html = new StringBuilder();
+
+        for (var i = 0; i < lines.Length; i++)
+        {
+            var line = lines[i];
+
+            if (TryParseInlineCredential(line, out var inlineLabel, out var inlineValue))
+            {
+                AppendCredentialBlock(html, inlineLabel, inlineValue);
+                continue;
+            }
+
+            if (IsCredentialLabel(line, out var label))
+            {
+                string? value = null;
+                if (i + 1 < lines.Length && !string.IsNullOrWhiteSpace(lines[i + 1]))
+                {
+                    value = lines[i + 1].Trim();
+                    i++;
+                }
+
+                AppendCredentialBlock(html, label, value ?? string.Empty);
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                html.Append("<div style=\"height:8px;\"></div>");
+                continue;
+            }
+
+            html.Append(
+                $"""<p style="margin:0 0 12px 0;color:#374151;font-size:16px;line-height:1.6;">{WebUtility.HtmlEncode(line)}</p>""");
+        }
+
+        return html.ToString();
+    }
+
+    private static bool IsCredentialLabel(string line, out string label)
+    {
+        var trimmed = line.Trim();
+        if (trimmed is "Email đăng nhập:" or "Login email:")
+        {
+            label = trimmed;
+            return true;
+        }
+
+        if (trimmed is "Mật khẩu tạm:" or "Temporary password:")
+        {
+            label = trimmed;
+            return true;
+        }
+
+        label = string.Empty;
+        return false;
+    }
+
+    private static bool TryParseInlineCredential(string line, out string label, out string value)
+    {
+        (string Prefix, string Label)[] patterns =
+        [
+            ("Email đăng nhập: ", "Email đăng nhập:"),
+            ("Login email: ", "Login email:"),
+            ("Mật khẩu tạm: ", "Mật khẩu tạm:"),
+            ("Temporary password: ", "Temporary password:"),
+        ];
+
+        foreach (var (prefix, credentialLabel) in patterns)
+        {
+            if (!line.StartsWith(prefix, StringComparison.Ordinal))
+                continue;
+
+            label = credentialLabel;
+            value = line[prefix.Length..].Trim();
+            return true;
+        }
+
+        label = string.Empty;
+        value = string.Empty;
+        return false;
+    }
+
+    private static void AppendCredentialBlock(StringBuilder html, string label, string value)
+    {
+        html.Append(
+            $"""<p style="margin:16px 0 6px 0;color:#374151;font-size:14px;font-weight:600;">{WebUtility.HtmlEncode(label)}</p>""");
+
+        html.Append(
+            $"""
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 4px 0;">
+                <tr>
+                    <td style="padding:12px 16px;background-color:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;">
+                        <span style="font-family:Consolas,'Courier New',monospace;font-size:15px;color:#065f46;word-break:break-all;user-select:all;">{WebUtility.HtmlEncode(value)}</span>
+                    </td>
+                </tr>
+            </table>
+            """);
     }
 
     private async Task SendEmailAsync(string toEmail, string subject, string htmlBody, CancellationToken ct)
