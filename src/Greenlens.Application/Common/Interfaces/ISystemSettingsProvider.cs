@@ -3,7 +3,8 @@ using Greenlens.Domain.Enums;
 namespace Greenlens.Application.Common.Interfaces;
 
 /// <summary>
-/// Cached read access to active <see cref="Domain.Entities.SystemSetting"/> rows.
+/// Đọc system settings từ cache RAM (không query DB mỗi request).
+/// Handler check-in, submit report, map, … inject interface này.
 /// </summary>
 public interface ISystemSettingsProvider
 {
@@ -16,8 +17,20 @@ public interface ISystemSettingsProvider
     string GetString(SystemSettingModule module, string key, string fallback);
 }
 
-/// <summary>Invalidate cached settings after admin PATCH.</summary>
+/// <summary>
+/// Refresh cache trên đúng 1 API instance (không thông báo instance khác).
+/// Thường không gọi trực tiếp từ handler — dùng <see cref="ISystemSettingsCacheInvalidator"/> sau admin PATCH.
+/// </summary>
 public interface ISystemSettingsCache
 {
     Task RefreshAsync(CancellationToken ct = default);
+}
+
+/// <summary>
+/// Gọi sau admin PATCH hoặc Reset module.
+/// Refresh instance hiện tại + publish Redis để mọi replica production cập nhật ngay, không cần restart.
+/// </summary>
+public interface ISystemSettingsCacheInvalidator
+{
+    Task InvalidateAsync(CancellationToken ct = default);
 }

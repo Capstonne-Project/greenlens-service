@@ -23,7 +23,7 @@ public sealed record UpdateSystemSettingsResponse(
 
 public sealed class UpdateSystemSettingsCommandHandler(
     IApplicationDbContext db,
-    ISystemSettingsCache settingsCache,
+    ISystemSettingsCacheInvalidator settingsCacheInvalidator,
     IAuditLogger auditLogger,
     ILogger<UpdateSystemSettingsCommandHandler> logger)
     : IRequestHandler<UpdateSystemSettingsCommand, Result<UpdateSystemSettingsResponse>>
@@ -86,8 +86,18 @@ public sealed class UpdateSystemSettingsCommandHandler(
                 setting.IsActive));
         }
 
+        // Admin gửi giá trị trùng DB (vd. DB đã 200m, bấm Lưu lại 200m) — vẫn re-sync cache
+        // để sửa trường hợp RAM còn giá trị cũ (100km) dù DB đã đúng.
         if (updated.Count == 0)
+        {
+            await settingsCacheInvalidator.InvalidateAsync(ct).ConfigureAwait(false);
+
+            logger.LogInformation(
+                "System settings PATCH for module {Module} had no DB changes; cache re-synced from DB",
+                module);
+
             return Result<UpdateSystemSettingsResponse>.Success(new UpdateSystemSettingsResponse([]));
+        }
 
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
 
@@ -99,7 +109,8 @@ public sealed class UpdateSystemSettingsCommandHandler(
             newValues: JsonSerializer.Serialize(auditChanges),
             ct).ConfigureAwait(false);
 
-        await settingsCache.RefreshAsync(ct).ConfigureAwait(false);
+        // Sau khi ghi DB: refresh RAM + báo các API instance khác qua Redis (production multi-replica).
+        await settingsCacheInvalidator.InvalidateAsync(ct).ConfigureAwait(false);
 
         logger.LogInformation(
             "Updated {Count} system setting(s) in module {Module}",
