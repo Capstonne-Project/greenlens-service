@@ -241,9 +241,12 @@ public static class DependencyInjection
         services.AddHostedService(sp => sp.GetRequiredService<BlockedWordCache>());
 
         // ── System settings cache (BR-ADM-010) ──
+        // Singleton + IHostedService: load DB lúc startup, subscribe Redis invalidation.
+        // ISystemSettingsProvider → handler đọc threshold; ISystemSettingsCacheInvalidator → admin PATCH/Reset.
         services.AddSingleton<SystemSettingsProvider>();
         services.AddSingleton<ISystemSettingsProvider>(sp => sp.GetRequiredService<SystemSettingsProvider>());
         services.AddSingleton<ISystemSettingsCache>(sp => sp.GetRequiredService<SystemSettingsProvider>());
+        services.AddSingleton<ISystemSettingsCacheInvalidator>(sp => sp.GetRequiredService<SystemSettingsProvider>());
         services.AddHostedService(sp => sp.GetRequiredService<SystemSettingsProvider>());
 
         services.AddSingleton<IProfanityFilter, ProfanityFilter>();
