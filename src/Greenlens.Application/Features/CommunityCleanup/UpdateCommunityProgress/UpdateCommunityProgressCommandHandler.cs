@@ -55,39 +55,27 @@ public sealed class UpdateCommunityProgressCommandHandler(
         var targetLat = ev.MeetingLatitude ?? report.Latitude;
         var targetLng = ev.MeetingLongitude ?? report.Longitude;
 
-        if (request.ImageUrls.Count > 0)
-        {
-            var exifError = await ProgressUpdateExifGuard.ValidateProgressImageUrlsAsync(
-                    request.ImageUrls,
-                    targetLat,
-                    targetLng,
-                    fileStorage,
-                    exifAnalyzer,
-                    systemSettings,
-                    ct)
-                .ConfigureAwait(false);
+        // BR-CMU-008: mobile sends lat/lng from photo EXIF; compare against event/report site.
+        var locationError = await ProgressUpdateExifGuard.ValidateAsync(
+                request.Latitude,
+                request.Longitude,
+                targetLat,
+                targetLng,
+                request.ImageUrls,
+                fileStorage,
+                exifAnalyzer,
+                geoDistance,
+                systemSettings,
+                ct)
+            .ConfigureAwait(false);
 
-            if (exifError is not null)
-            {
-                logger.LogWarning(
-                    "Community progress photo EXIF GPS too far from event {EventId}: {ErrorCode}",
-                    request.EventId,
-                    exifError.Code);
-                return exifError;
-            }
-        }
-        else
+        if (locationError is not null)
         {
-            var maxProgressDistanceMeters = ModuleSystemSettings.ProgressUpdateMaxDistanceMeters(systemSettings);
-            var distance = await geoDistance.GetDistanceInMetersAsync(
-                request.Latitude, request.Longitude, targetLat, targetLng, ct).ConfigureAwait(false);
-
-            if (distance > maxProgressDistanceMeters)
-            {
-                logger.LogWarning("Distance {Distance} is greater than {MaxProgressDistanceMeters} for event {EventId}",
-                    distance, maxProgressDistanceMeters, request.EventId);
-                return Errors.Progress.TooFarFromSite(distance);
-            }
+            logger.LogWarning(
+                "Community progress location too far from event {EventId}: {ErrorCode}",
+                request.EventId,
+                locationError.Code);
+            return locationError;
         }
 
         try

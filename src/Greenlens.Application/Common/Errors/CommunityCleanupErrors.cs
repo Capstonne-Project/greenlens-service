@@ -84,9 +84,10 @@ public static partial class Errors
             "Bạn không có quyền xem thông tin này.",
             ErrorType.Forbidden);
 
-        public static Error CheckInTooFar => new(
+        public static Error CheckInTooFar(double distanceMeters) => new(
             "COMMUNITY_CHECKIN_TOO_FAR",
-            "Vị trí check-in cách điểm tập trung hơn 200m. Vui lòng di chuyển gần hơn.",
+            $"Vị trí của bạn cách điểm tập trung khoảng {GeoDistanceFormatting.Format(distanceMeters)}. " +
+            "Ghi rõ lý do để vẫn xác nhận có mặt.",
             ErrorType.BusinessRule);
 
         public static Error ReasonTooShort => new(

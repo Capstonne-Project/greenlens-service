@@ -6,9 +6,10 @@ public static partial class Errors
 {
     public static class Cleanup
     {
-        public static Error TooFarFromSite => new(
+        public static Error TooFarFromSite(double distanceMeters) => new(
             "CLEANUP_TOO_FAR",
-            "Vị trí check-in cách hiện trường hơn 200m. Vui lòng di chuyển gần hơn (BR-CLN-002).",
+            $"Vị trí của bạn cách hiện trường khoảng {GeoDistanceFormatting.Format(distanceMeters)}. " +
+            "Vui lòng di chuyển gần hơn (BR-CLN-002).",
             ErrorType.BusinessRule);
 
         public static Error CheckInRequired => new(

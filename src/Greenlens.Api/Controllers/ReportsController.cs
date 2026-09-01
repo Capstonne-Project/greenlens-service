@@ -496,8 +496,8 @@ public sealed class ReportsController(
         Summary = "[Cleaner/CompanyStaff/Inspector] Cập nhật tiến độ + URL ảnh (presign)",
         Description = "Team leader cập nhật % tiến độ, ghi chú, và tùy chọn danh sách publicUrl ảnh đã PUT lên R2 " +
             "(qua POST /v1/media/presign purpose=Progress). Tối đa 5 URL. Status không thay đổi. " +
-            "Khi có ảnh: BE so sánh EXIF GPS trong ảnh với vị trí điểm rác (progress_update_max_distance_meters). " +
-            "Khi không có ảnh: kiểm tra GPS thiết bị gửi lên.")]
+            "Khi có ảnh: mobile gửi latitude/longitude từ EXIF ảnh; BE so sánh với vị trí điểm rác (progress_update_max_distance_meters). " +
+            "Khi không có ảnh: kiểm tra latitude/longitude gửi lên.")]
     [SwaggerResponse(200, "Đã cập nhật, trả về URLs ảnh đã lưu", typeof(ApiResponse<UpdateProgressResponse>))]
     [SwaggerResponse(422, "Không phải leader, assignment không InProgress, percent ngoài khoảng 0–100, EXIF GPS ảnh quá xa hiện trường, hoặc vị trí thiết bị quá xa", typeof(ApiResponse))]
     public async Task<IActionResult> UpdateProgressAsync(
