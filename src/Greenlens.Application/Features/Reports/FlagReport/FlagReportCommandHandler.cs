@@ -26,9 +26,9 @@ public sealed class FlagReportCommandHandler(
     INotificationService notifications,
     IOfficerRecipientQuery officerRecipients,
     IUnitOfWork uow,
-    ISystemSettingsProvider systemSettings,
     ILogger<FlagReportCommandHandler> logger) : IRequestHandler<FlagReportCommand, Result>
 {
+    private const int NotifyThreshold = 3;
     public async Task<Result> Handle(FlagReportCommand request, CancellationToken ct)
     {
         logger.LogInformation("Flagging report {ReportId} as {FlagType}", request.ReportId, request.Type);
@@ -71,8 +71,7 @@ public sealed class FlagReportCommandHandler(
             .CountAsync(f => f.ReportId == request.ReportId && f.FlagType == request.Type, ct)
             .ConfigureAwait(false);
 
-        var notifyThreshold = ReportSystemSettings.FlagNotifyThreshold(systemSettings);
-        if (flagCount >= notifyThreshold)
+        if (flagCount >= NotifyThreshold)
         {
             logger.LogWarning("Report {ReportId} has {Count} flags of type {FlagType} → notifying reviewers", request.ReportId, flagCount, request.Type);
             await NotifyReviewersAsync(report, request.Type, flagCount, ct).ConfigureAwait(false);

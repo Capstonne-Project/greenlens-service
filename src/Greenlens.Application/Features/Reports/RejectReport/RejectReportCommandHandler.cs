@@ -27,7 +27,7 @@ public sealed class RejectReportCommandHandler(
 {
     public async Task<Result> Handle(RejectReportCommand request, CancellationToken ct)
     {
-        var (rejectMin, _, _) = ModuleSystemSettings.ValidationReasonLengths(systemSettings);
+        var (rejectMin, _) = ModuleSystemSettings.ValidationReasonLengths(systemSettings);
 
         logger.LogInformation("Rejecting report {ReportId}", request.ReportId);
 

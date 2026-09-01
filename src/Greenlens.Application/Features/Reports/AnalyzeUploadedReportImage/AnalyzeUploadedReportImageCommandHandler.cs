@@ -25,10 +25,10 @@ public sealed class AnalyzeUploadedReportImageCommandHandler(
     ITempImageStore tempStore,
     IPollutionCategoryRepository categories,
     IReportDescriptionGenerator descriptionGenerator,
+    ISystemSettingsProvider systemSettings,
     ILogger<AnalyzeUploadedReportImageCommandHandler> logger)
     : IRequestHandler<AnalyzeUploadedReportImageCommand, Result<AnalyzeReportImageResponse>>
 {
-    private const long MaxImageSizeBytes = 10 * 1024 * 1024;
     private const int TempTtlSeconds = 900;
 
     public async Task<Result<AnalyzeReportImageResponse>> Handle(
@@ -66,10 +66,11 @@ public sealed class AnalyzeUploadedReportImageCommandHandler(
             return Errors.Media.InvalidImageType;
         }
 
+        var maxImageSizeBytes = ReportSystemSettings.MaxImageSizeBytes(systemSettings);
         var downloadSw = Stopwatch.StartNew();
         var stored = await fileStorage.DownloadAsync(
                 request.Key,
-                MaxImageSizeBytes,
+                maxImageSizeBytes,
                 cancellationToken)
             .ConfigureAwait(false);
         downloadSw.Stop();

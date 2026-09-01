@@ -75,6 +75,8 @@ public sealed class UpdateSystemSettingsCommandHandler(
                 setting.Id,
                 setting.Module.ToString(),
                 setting.Key,
+                setting.Title,
+                setting.Unit,
                 setting.ValueType.ToString(),
                 setting.Value,
                 setting.DefaultValue,

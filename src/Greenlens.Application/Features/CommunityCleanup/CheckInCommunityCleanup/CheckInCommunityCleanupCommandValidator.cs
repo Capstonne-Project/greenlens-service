@@ -9,7 +9,7 @@ public sealed class CheckInCommunityCleanupCommandValidator : AbstractValidator<
     public CheckInCommunityCleanupCommandValidator(ISystemSettingsProvider systemSettings)
     {
         var (minLat, maxLat, minLng, maxLng) = ModuleSystemSettings.VietnamBounds(systemSettings);
-        var (rejectMin, _, _) = ModuleSystemSettings.ValidationReasonLengths(systemSettings);
+        var (rejectMin, _) = ModuleSystemSettings.ValidationReasonLengths(systemSettings);
 
         RuleFor(x => x.EventId).NotEmpty();
 

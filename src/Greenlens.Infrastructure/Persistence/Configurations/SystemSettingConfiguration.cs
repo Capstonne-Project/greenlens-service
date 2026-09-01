@@ -22,6 +22,13 @@ internal sealed class SystemSettingConfiguration : IEntityTypeConfiguration<Syst
             .HasMaxLength(100)
             .IsRequired();
 
+        builder.Property(x => x.Title)
+            .HasMaxLength(200)
+            .IsRequired();
+
+        builder.Property(x => x.Unit)
+            .HasMaxLength(20);
+
         builder.Property(x => x.ValueType)
             .HasConversion<string>()
             .HasMaxLength(20)
@@ -36,7 +43,7 @@ internal sealed class SystemSettingConfiguration : IEntityTypeConfiguration<Syst
             .IsRequired();
 
         builder.Property(x => x.Description)
-            .HasMaxLength(500)
+            .HasMaxLength(1000)
             .IsRequired();
 
         builder.Property(x => x.MinValue)

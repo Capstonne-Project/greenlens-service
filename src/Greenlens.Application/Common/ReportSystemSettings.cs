@@ -22,9 +22,6 @@ public static class ReportSystemSettings
     public static int RecurrenceRadiusMeters(ISystemSettingsProvider settings) =>
         settings.GetInt(SystemSettingModule.Reports, SystemSettingKeys.Reports.RecurrenceRadiusMeters, 25);
 
-    public static int RecurrenceLookbackDays(ISystemSettingsProvider settings) =>
-        settings.GetInt(SystemSettingModule.Reports, SystemSettingKeys.Reports.RecurrenceLookbackDays, 30);
-
     public static int RecurrenceMinDaysAfterClose(ISystemSettingsProvider settings) =>
         settings.GetInt(SystemSettingModule.Reports, SystemSettingKeys.Reports.RecurrenceMinDaysAfterClose, 0);
 
@@ -34,14 +31,11 @@ public static class ReportSystemSettings
     public static int MaxImagesPerReport(ISystemSettingsProvider settings) =>
         settings.GetInt(SystemSettingModule.Reports, SystemSettingKeys.Reports.MaxImagesPerReport, 5);
 
+    public static int MaxImageSizeMegabytes(ISystemSettingsProvider settings) =>
+        settings.GetInt(SystemSettingModule.Reports, SystemSettingKeys.Reports.MaxImageSizeMb, 10);
+
     public static long MaxImageSizeBytes(ISystemSettingsProvider settings) =>
-        settings.GetInt(SystemSettingModule.Reports, SystemSettingKeys.Reports.MaxImageSizeBytes, 10_485_760);
-
-    public static int MaxDraftsPerUser(ISystemSettingsProvider settings) =>
-        settings.GetInt(SystemSettingModule.Reports, SystemSettingKeys.Reports.MaxDraftsPerUser, 3);
-
-    public static int DraftRetentionDays(ISystemSettingsProvider settings) =>
-        settings.GetInt(SystemSettingModule.Reports, SystemSettingKeys.Reports.DraftRetentionDays, 7);
+        (long)MaxImageSizeMegabytes(settings) * 1024 * 1024;
 
     public static int AutoCloseResolvedDays(ISystemSettingsProvider settings) =>
         settings.GetInt(SystemSettingModule.Reports, SystemSettingKeys.Reports.AutoCloseResolvedDays, 2);
@@ -51,7 +45,4 @@ public static class ReportSystemSettings
 
     public static int MaxApprovedReopens(ISystemSettingsProvider settings) =>
         settings.GetInt(SystemSettingModule.Reports, SystemSettingKeys.Reports.MaxApprovedReopens, 1);
-
-    public static int FlagNotifyThreshold(ISystemSettingsProvider settings) =>
-        settings.GetInt(SystemSettingModule.Reports, SystemSettingKeys.Reports.FlagNotifyThreshold, 3);
 }
