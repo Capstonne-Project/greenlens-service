@@ -43,6 +43,11 @@ public interface IFileStorageService
     bool IsOwnedPublicUrl(string url, string key);
 
     /// <summary>
+    /// Resolves the object key from an owned public CDN URL. Returns null when the URL is invalid or external.
+    /// </summary>
+    string? TryGetKeyFromOwnedPublicUrl(string url);
+
+    /// <summary>
     /// Delete a file from cloud storage by its key.
     /// </summary>
     Task DeleteAsync(string fileKey, CancellationToken ct = default);

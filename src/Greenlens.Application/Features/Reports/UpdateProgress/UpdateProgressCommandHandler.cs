@@ -16,7 +16,7 @@ namespace Greenlens.Application.Features.Reports.UpdateProgress;
 /// TeamId resolved from JWT token — caller must be a team leader.
 /// Does NOT change report or assignment status. Each update is stored as history.
 /// </summary>
-/// <remarks>Implements: BR-CLN-004 (progress tracking).</remarks>
+/// <remarks>Implements: BR-CLN-004 (progress tracking, EXIF GPS near site when photos attached).</remarks>
 public sealed class UpdateProgressCommandHandler(
     IReportRepository reports,
     IReportAssignmentRepository assignments,
@@ -24,6 +24,7 @@ public sealed class UpdateProgressCommandHandler(
     ITeamMemberRepository teamMembers,
     IReportMediaRepository reportMedia,
     IFileStorageService fileStorage,
+    IImageExifAnalyzer exifAnalyzer,
     IGeoDistanceService geoDistance,
     ISystemSettingsProvider systemSettings,
     ICleanupAssignmentActivityNotifier activityNotifier,
@@ -95,17 +96,42 @@ public sealed class UpdateProgressCommandHandler(
             return Errors.Reports.ReportNotFound;
         }
 
-        // BR-CLN-004: progress-image updates must be submitted from near the site.
-        var maxProgressDistanceMeters = ModuleSystemSettings.ProgressUpdateMaxDistanceMeters(systemSettings);
-        var distance = await geoDistance.GetDistanceInMetersAsync(
-            request.Latitude, request.Longitude,
-            report.Latitude, report.Longitude, ct).ConfigureAwait(false);
-
-        if (distance > maxProgressDistanceMeters)
+        // BR-CLN-004: when progress photos are attached, compare report site vs EXIF GPS in each image.
+        if (request.ImageUrls.Count > 0)
         {
-            logger.LogWarning("Distance {Distance} is greater than {MaxProgressDistanceMeters} for report {ReportId}",
-                distance, maxProgressDistanceMeters, request.ReportId);
-            return Errors.Progress.TooFarFromSite(distance);
+            var exifError = await ProgressUpdateExifGuard.ValidateProgressImageUrlsAsync(
+                    request.ImageUrls,
+                    report.Latitude,
+                    report.Longitude,
+                    fileStorage,
+                    exifAnalyzer,
+                    systemSettings,
+                    ct)
+                .ConfigureAwait(false);
+
+            if (exifError is not null)
+            {
+                logger.LogWarning(
+                    "Progress photo EXIF GPS too far from report {ReportId}: {ErrorCode}",
+                    request.ReportId,
+                    exifError.Code);
+                return exifError;
+            }
+        }
+        else
+        {
+            // Fallback when no photos: device GPS must be near the site.
+            var maxProgressDistanceMeters = ModuleSystemSettings.ProgressUpdateMaxDistanceMeters(systemSettings);
+            var distance = await geoDistance.GetDistanceInMetersAsync(
+                request.Latitude, request.Longitude,
+                report.Latitude, report.Longitude, ct).ConfigureAwait(false);
+
+            if (distance > maxProgressDistanceMeters)
+            {
+                logger.LogWarning("Distance {Distance} is greater than {MaxProgressDistanceMeters} for report {ReportId}",
+                    distance, maxProgressDistanceMeters, request.ReportId);
+                return Errors.Progress.TooFarFromSite(distance);
+            }
         }
 
         var progressUpdate = AssignmentProgressUpdate.Create(

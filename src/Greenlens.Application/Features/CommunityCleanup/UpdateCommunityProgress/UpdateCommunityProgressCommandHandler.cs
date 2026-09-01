@@ -1,4 +1,5 @@
 using Greenlens.Application.Common;
+using Greenlens.Application.Features.Reports.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
@@ -15,6 +16,7 @@ public sealed class UpdateCommunityProgressCommandHandler(
     IReportRepository reports,
     IReportMediaRepository reportMedia,
     IFileStorageService fileStorage,
+    IImageExifAnalyzer exifAnalyzer,
     IGeoDistanceService geoDistance,
     ISystemSettingsProvider systemSettings,
     ICurrentUser currentUser,
@@ -50,18 +52,42 @@ public sealed class UpdateCommunityProgressCommandHandler(
             return Errors.Reports.ReportNotFound;
 
         // BR-CMU-008: progress updates must be submitted from near the site (hard block, no override).
-        var maxProgressDistanceMeters = ModuleSystemSettings.ProgressUpdateMaxDistanceMeters(systemSettings);
         var targetLat = ev.MeetingLatitude ?? report.Latitude;
         var targetLng = ev.MeetingLongitude ?? report.Longitude;
 
-        var distance = await geoDistance.GetDistanceInMetersAsync(
-            request.Latitude, request.Longitude, targetLat, targetLng, ct).ConfigureAwait(false);
-
-        if (distance > maxProgressDistanceMeters)
+        if (request.ImageUrls.Count > 0)
         {
-            logger.LogWarning("Distance {Distance} is greater than {MaxProgressDistanceMeters} for event {EventId}",
-                distance, maxProgressDistanceMeters, request.EventId);
-            return Errors.Progress.TooFarFromSite(distance);
+            var exifError = await ProgressUpdateExifGuard.ValidateProgressImageUrlsAsync(
+                    request.ImageUrls,
+                    targetLat,
+                    targetLng,
+                    fileStorage,
+                    exifAnalyzer,
+                    systemSettings,
+                    ct)
+                .ConfigureAwait(false);
+
+            if (exifError is not null)
+            {
+                logger.LogWarning(
+                    "Community progress photo EXIF GPS too far from event {EventId}: {ErrorCode}",
+                    request.EventId,
+                    exifError.Code);
+                return exifError;
+            }
+        }
+        else
+        {
+            var maxProgressDistanceMeters = ModuleSystemSettings.ProgressUpdateMaxDistanceMeters(systemSettings);
+            var distance = await geoDistance.GetDistanceInMetersAsync(
+                request.Latitude, request.Longitude, targetLat, targetLng, ct).ConfigureAwait(false);
+
+            if (distance > maxProgressDistanceMeters)
+            {
+                logger.LogWarning("Distance {Distance} is greater than {MaxProgressDistanceMeters} for event {EventId}",
+                    distance, maxProgressDistanceMeters, request.EventId);
+                return Errors.Progress.TooFarFromSite(distance);
+            }
         }
 
         try

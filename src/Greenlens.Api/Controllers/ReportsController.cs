@@ -9,6 +9,7 @@ using Greenlens.Application.Features.Reports.DispatchToCompany;
 using Greenlens.Application.Features.Reports.GetCompanyQueue;
 using Greenlens.Application.Features.Reports.GetCompanyAssignments;
 using Greenlens.Application.Features.Reports.GetCompanyReportDetail;
+using Greenlens.Application.Features.Reports.CheckExifLocation;
 using Greenlens.Application.Features.Reports.CloseReport;
 using Greenlens.Application.Features.Reports.ConfirmDuplicate;
 using Greenlens.Application.Features.Reports.DeleteDraft;
@@ -136,6 +137,24 @@ public sealed class ReportsController(
             command.SizeBytes);
         return (await sender.Send(command, ct)).ToHttp();
     }
+
+    [HttpPost("check-exif-location")]
+    [Authorize(Roles = "Citizen")]
+    [Tags("📋 Reports — Citizen Flow")]
+    [SwaggerOperation(
+        Summary = "[Citizen] Kiểm tra EXIF GPS trước khi submit",
+        Description =
+            "So sánh vị trí người dùng chọn trên bản đồ với GPS nhúng trong ảnh (EXIF). " +
+            "Trả shouldWarn=true khi khoảng cách vượt ngưỡng cấu hình hệ thống (exif_gps_mismatch_meters). " +
+            "Chỉ mang tính cảnh báo — không chặn submit. " +
+            "Nguồn ảnh: tempImageId (sau analyze/analyze-uploaded) hoặc metadata R2 (publicUrl, key, fileName, contentType, sizeBytes).")]
+    [SwaggerResponse(200, "Kết quả so sánh EXIF GPS", typeof(ApiResponse<CheckExifLocationResponse>))]
+    [SwaggerResponse(400, "Thiếu nguồn ảnh, GPS không hợp lệ, hoặc tempImageId hết hạn", typeof(ApiResponse))]
+    [SwaggerResponse(404, "Object R2 không tồn tại", typeof(ApiResponse))]
+    public async Task<IActionResult> CheckExifLocationAsync(
+        [FromBody] CheckExifLocationCommand command,
+        CancellationToken ct)
+        => (await sender.Send(command, ct)).ToHttp();
 
     // ═══════════════════════════════════════════
     // ██  CRUD
@@ -477,9 +496,10 @@ public sealed class ReportsController(
         Summary = "[Cleaner/CompanyStaff/Inspector] Cập nhật tiến độ + URL ảnh (presign)",
         Description = "Team leader cập nhật % tiến độ, ghi chú, và tùy chọn danh sách publicUrl ảnh đã PUT lên R2 " +
             "(qua POST /v1/media/presign purpose=Progress). Tối đa 5 URL. Status không thay đổi. " +
-            "Yêu cầu vị trí GPS hiện tại cách hiện trường tối đa 200m (mặc định).")]
+            "Khi có ảnh: BE so sánh EXIF GPS trong ảnh với vị trí điểm rác (progress_update_max_distance_meters). " +
+            "Khi không có ảnh: kiểm tra GPS thiết bị gửi lên.")]
     [SwaggerResponse(200, "Đã cập nhật, trả về URLs ảnh đã lưu", typeof(ApiResponse<UpdateProgressResponse>))]
-    [SwaggerResponse(422, "Không phải leader, assignment không InProgress, percent ngoài khoảng 0–100, hoặc vị trí quá xa hiện trường", typeof(ApiResponse))]
+    [SwaggerResponse(422, "Không phải leader, assignment không InProgress, percent ngoài khoảng 0–100, EXIF GPS ảnh quá xa hiện trường, hoặc vị trí thiết bị quá xa", typeof(ApiResponse))]
     public async Task<IActionResult> UpdateProgressAsync(
         [FromRoute] Guid id,
         [FromBody] UpdateProgressRequest request,
