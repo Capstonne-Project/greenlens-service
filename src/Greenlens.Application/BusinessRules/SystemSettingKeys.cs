@@ -12,17 +12,13 @@ public static class SystemSettingKeys
         public const string DuplicateMaxCandidates = "duplicate_max_candidates";
         public const string DuplicateMergePointsRatio = "duplicate_merge_points_ratio";
         public const string RecurrenceRadiusMeters = "recurrence_radius_meters";
-        public const string RecurrenceLookbackDays = "recurrence_lookback_days";
         public const string RecurrenceMinDaysAfterClose = "recurrence_min_days_after_close";
         public const string RecurrenceMaxDaysAfterClose = "recurrence_max_days_after_close";
         public const string MaxImagesPerReport = "max_images_per_report";
-        public const string MaxImageSizeBytes = "max_image_size_bytes";
-        public const string MaxDraftsPerUser = "max_drafts_per_user";
-        public const string DraftRetentionDays = "draft_retention_days";
+        public const string MaxImageSizeMb = "max_image_size_mb";
         public const string AutoCloseResolvedDays = "auto_close_resolved_days";
         public const string ReopenWindowDays = "reopen_window_days";
         public const string MaxApprovedReopens = "max_approved_reopens";
-        public const string FlagNotifyThreshold = "flag_notify_threshold";
     }
 
     public static class Sla
@@ -34,7 +30,6 @@ public static class SystemSettingKeys
         public const string ResolveDaysLow = "sla_resolve_days_low";
         public const string OverduePendingHours = "overdue_pending_hours";
         public const string UnassignedVerifiedHours = "unassigned_verified_hours";
-        public const string VerifyBreachPriorityBoost = "sla_verify_breach_priority_boost";
     }
 
     public static class Geo
@@ -57,7 +52,6 @@ public static class SystemSettingKeys
         public const string DefaultDetailLimit = "map_default_detail_limit";
         public const string MaxDetailLimit = "map_max_detail_limit";
         public const string DefaultGridLevel = "map_default_grid_level";
-        public const string ViewportDefaultDays = "map_viewport_default_days";
         public const string ViewportMinDays = "map_viewport_min_days";
         public const string ViewportMaxDays = "map_viewport_max_days";
         public const string MaxAggregateRows = "map_max_aggregate_rows";
@@ -76,7 +70,6 @@ public static class SystemSettingKeys
         public const string ProgressStaleHours = "progress_stale_hours";
         public const string ProgressEscalateHours = "progress_escalate_hours";
         public const string DeclineWindowHours = "decline_window_hours";
-        public const string ProgressUpdateIntervalHours = "progress_update_interval_hours";
     }
 
     public static class Notifications
@@ -86,16 +79,10 @@ public static class SystemSettingKeys
         public const string MaxPerTypePerDay = "max_notifications_per_type_per_day";
     }
 
-    public static class Gamification
-    {
-        public const string DuplicateMergePointsRatio = "duplicate_merge_points_ratio";
-    }
-
     public static class Auth
     {
         public const string MaxFailedLoginAttempts = "max_failed_login_attempts";
         public const string LockoutMinutes = "lockout_minutes";
-        public const string CaptchaAfterFailedAttempts = "captcha_after_failed_attempts";
         public const string OtpMaxAttempts = "otp_max_attempts";
         public const string AccountSoftDeleteRetentionDays = "account_soft_delete_retention_days";
     }
@@ -110,8 +97,6 @@ public static class SystemSettingKeys
     {
         public const string StaffInvitationExpiryDays = "staff_invitation_expiry_days";
         public const string InvitationResponseDays = "invitation_response_days";
-        public const string MaxTasksPerTeam = "max_tasks_per_team";
-        public const string TeamWorkloadWarningThreshold = "team_workload_warning_threshold";
         public const string ContractWarningDays = "contract_warning_days";
     }
 
@@ -141,7 +126,6 @@ public static class SystemSettingKeys
         public const string ResolveDaysHigh = "inspection_sla_resolve_days_high";
         public const string ResolveDaysMedium = "inspection_sla_resolve_days_medium";
         public const string ResolveDaysLow = "inspection_sla_resolve_days_low";
-        public const string EvidenceMaxPerRequest = "inspection_evidence_max_per_request";
     }
 
     public static class Ai
@@ -156,6 +140,5 @@ public static class SystemSettingKeys
     {
         public const string RejectReasonMinLength = "reject_reason_min_length";
         public const string ReopenReasonMinLength = "reopen_reason_min_length";
-        public const string EscalationReasonMinLength = "escalation_reason_min_length";
     }
 }

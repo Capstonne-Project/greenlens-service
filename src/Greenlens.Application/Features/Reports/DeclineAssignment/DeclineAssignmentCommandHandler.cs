@@ -24,7 +24,7 @@ public sealed class DeclineAssignmentCommandHandler(
 {
     public async Task<Result> Handle(DeclineAssignmentCommand request, CancellationToken ct)
     {
-        var (rejectMin, _, _) = ModuleSystemSettings.ValidationReasonLengths(systemSettings);
+        var (rejectMin, _) = ModuleSystemSettings.ValidationReasonLengths(systemSettings);
         var (_, _, declineWindowHours) = ModuleSystemSettings.CleanupProgress(systemSettings);
 
         logger.LogInformation("Declining assignment for report {ReportId}", request.ReportId);

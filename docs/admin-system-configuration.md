@@ -3,7 +3,7 @@
 > **Project:** SU26SE049 GreenLens  
 > **Feature:** Hybrid system configuration (`system_settings` table + in-memory cache)  
 > **Audience:** Admin Web FE, Mobile (read-only via runtime behavior — no direct admin API)  
-> **Last updated:** 2026-08-24 (PR-8 AI/OTP, PR-9 org/analytics/spam wiring)
+> **Last updated:** 2026-09-01 (`title`, `unit`, bounds sync, catalog prune 13 retired keys, geo unbounded max, `max_image_size_mb`)
 
 ---
 
@@ -31,8 +31,8 @@ Admin PATCH → system_settings (DB) → ISystemSettingsCache.RefreshAsync()
 Handlers / Jobs / Validators ← ISystemSettingsProvider (snapshot)
 ```
 
-- **Seeder:** `SystemSettingsSeeder` — idempotent, ~80 keys  
-- **Migration:** `202608241700_AddSystemSettings`  
+- **Seeder:** `SystemSettingsSeeder` — idempotent sync: xóa key retired, thêm key mới, đồng bộ `title`/`description`/`unit`/`minValue`/`maxValue` (**73 keys** active)  
+- **Migration:** `202608241700_AddSystemSettings`, `202609011200_AddSystemSettingTitle`, `202609011330_AddSystemSettingUnit`
 - **Accessors:** `ReportSystemSettings`, `ModuleSystemSettings` (typed fallbacks)
 
 ---
@@ -69,12 +69,16 @@ Response `data.items[]`:
 | Field | Mô tả |
 |-------|--------|
 | `key` | Snake_case key |
+| `title` | Nhãn ngắn tiếng Việt (hiển thị form) |
+| `unit` | Đơn vị hiển thị cạnh ô nhập (vd. `m`, `MB`, `ngày`). `null` = không hiện suffix |
 | `valueType` | `Int`, `Decimal`, `Bool`, `String`, `Json` |
 | `value` | Giá trị hiện tại |
 | `defaultValue` | Giá trị seed / reset |
-| `description` | Mô tả tiếng Việt |
-| `minValue` / `maxValue` | Nullable — FE validate trước submit |
+| `description` | Mô tả tiếng Việt (khi áp dụng + hệ thống làm gì) |
+| `minValue` / `maxValue` | Nullable — FE validate trước submit. `maxValue: null` = không giới hạn trên (4 key Geo khoảng cách mét) |
 | `isActive` | Luôn `true` khi active |
+
+**Quy ước copy:** `title` và `description` 100% tiếng Việt, không gắn mã BR, **không** chứa đơn vị. `title` = tên dễ hiểu; `unit` = đơn vị cạnh input (FE render `[input] m`); `description` = ngữ cảnh áp dụng + hành vi hệ thống.
 
 ### 2.3 Cập nhật (bulk theo module)
 
@@ -113,17 +117,15 @@ Reset **toàn bộ key** trong module về `defaultValue` từ seeder.
 | `duplicate_max_candidates` | 20 | 5–100 | |
 | `duplicate_merge_points_ratio` | 0.5 | 0–1 | Điểm khi gộp trùng |
 | `recurrence_radius_meters` | 25 | 10–500 | Tái phạm |
-| `recurrence_lookback_days` | 30 | 1–365 | |
 | `recurrence_min_days_after_close` | **0** | 0–365 | 0 = flag ngay sau Closed |
 | `recurrence_max_days_after_close` | 30 | 1–365 | |
 | `max_images_per_report` | 5 | 1–10 | |
-| `max_image_size_bytes` | 10485760 | 1MB–50MB | |
-| `max_drafts_per_user` | 3 | 1–20 | |
-| `draft_retention_days` | 7 | 1–90 | |
+| `max_image_size_mb` | **10** | 1–50 | Admin nhập MB; runtime quy đổi sang bytes |
 | `auto_close_resolved_days` | **2** | 1–30 | Chờ xác nhận citizen |
 | `reopen_window_days` | 7 | 1–90 | |
 | `max_approved_reopens` | 1 | 0–5 | |
-| `flag_notify_threshold` | 3 | 1–20 | |
+
+**Hardcode (không còn trong system_settings):** `max_drafts_per_user` = 3, `flag_notify_threshold` = 3, `draft_retention_days` = 7 (job dọn nháp), lý do escalate cleanup team → LEO = **20 ký tự** (hardcode validator, không config).
 
 ### SLA (`sla`)
 
@@ -133,17 +135,19 @@ Reset **toàn bộ key** trong module về `defaultValue` từ seeder.
 | `sla_resolve_days_critical/high/medium/low` | 3 / 5 / 7 / 10 |
 | `overdue_pending_hours` | 72 |
 | `unassigned_verified_hours` | 24 |
-| `sla_verify_breach_priority_boost` | 100 |
 
 ### Geo (`geo`)
 
-| Key | Default |
-|-----|---------|
-| `vietnam_min/max_latitude` | 8 / 24 |
-| `vietnam_min/max_longitude` | 102 / 110 |
-| `check_in_max_distance_meters` | 200 |
-| `exif_gps_mismatch_meters` | 200 |
-| `inspection_soft_gps_meters` | 200 |
+| Key | Default | Min–Max | Ghi chú |
+|-----|---------|---------|---------|
+| `vietnam_min/max_latitude` | 8 / 24 | 0–90 | |
+| `vietnam_min/max_longitude` | 102 / 110 | 0–180 | |
+| `check_in_max_distance_meters` | 200 | 50 – **∞** | `maxValue: null` |
+| `exif_gps_mismatch_meters` | 200 | 50 – **∞** | `maxValue: null` |
+| `inspection_soft_gps_meters` | 200 | 50 – **∞** | `maxValue: null` |
+| `progress_update_max_distance_meters` | 200 | 50 – **∞** | `maxValue: null` |
+
+4 key khoảng cách mét: admin nhập tùy ý ≥ min; BE/FE không giới hạn trần (`maxValue: null`).
 
 ### Map (`map`) — **không hotspot**
 
@@ -153,7 +157,7 @@ Reset **toàn bộ key** trong module về `defaultValue` từ seeder.
 | `map_max_bounding_lat/lng_span` | 6 / 8 |
 | `map_default/max_detail_limit` | 200 / 500 |
 | `map_default_grid_level` | 3 |
-| `map_viewport_default/min/max_days` | 30 / 7 / 90 |
+| `map_viewport_min/max_days` | 7 / 90 | Default query param `days=30` hardcode trong API |
 | `map_max_aggregate_rows` | 50000 |
 
 ### Officer (`officer`)
@@ -167,12 +171,11 @@ Reset **toàn bộ key** trong module về `defaultValue` từ seeder.
 
 ### Cleanup (`cleanup`)
 
-| Key | Default |
-|-----|---------|
-| `progress_stale_hours` | 24 |
-| `progress_escalate_hours` | 48 |
-| `decline_window_hours` | 24 |
-| `progress_update_interval_hours` | 24 |
+| Key | Default | Ghi chú |
+|-----|---------|---------|
+| `progress_stale_hours` | 24 | Nhắc đội dọn dẹp |
+| `progress_escalate_hours` | 48 | Cảnh báo **LEO phường** (không escalate lên DEO) |
+| `decline_window_hours` | 24 | Cửa sổ từ chối nhiệm vụ |
 
 ### Notifications (`notifications`)
 
@@ -188,7 +191,6 @@ Reset **toàn bộ key** trong module về `defaultValue` từ seeder.
 |-----|---------|
 | `max_failed_login_attempts` | 5 |
 | `lockout_minutes` | 30 |
-| `captcha_after_failed_attempts` | 3 |
 | `otp_max_attempts` | 5 |
 | `account_soft_delete_retention_days` | 90 |
 
@@ -198,9 +200,9 @@ Reset **toàn bộ key** trong module về `defaultValue` từ seeder.
 |-----|---------|---------|
 | `staff_invitation_expiry_days` | 7 | Hết hạn lời mời |
 | `invitation_response_days` | 7 | Placeholder template lời mời |
-| `max_tasks_per_team` | 6 | **Chưa wire** consumer |
-| `team_workload_warning_threshold` | 5 | **Chưa wire** consumer |
 | `contract_warning_days` | **`[30,7,1]`** (Json) | Job cảnh báo hết hạn HĐ + DEO alert horizon |
+
+**Workload đội dọn dẹp:** đọc từ `WorkloadLimitsOptions` (`appsettings`) — không qua system_settings.
 
 JSON `contract_warning_days`: mảng số nguyên dương (ngày trước `ContractEndDate`). BE parse, loại ≤0, distinct, sort desc. DEO dashboard dùng **max** phần tử làm “trong X ngày”.
 
@@ -208,20 +210,81 @@ JSON `contract_warning_days`: mảng số nguyên dương (ngày trước `Contr
 
 | Key | Default | Min–Max | Consumer |
 |-----|---------|---------|----------|
-| `ai_timeout_seconds` | 5 | 1–60 | `AiClassificationService` |
+| `ai_timeout_seconds` | **30** | 1–60 | `AiClassificationService` |
 | `ai_compare_timeout_seconds` | 15 | 1–120 | `AiImageCompareService` |
 | `ai_temp_image_ttl_seconds` | 900 (15 phút) | 60–3600 | `TempImageStore` |
 | `presign_upload_ttl_minutes` | 15 | 1–120 | `PresignMediaUploadCommandHandler` |
 
 `AiOptions.BaseUrl` vẫn đọc từ `appsettings` / user-secrets — **không** nằm trong system_settings.
 
-### Comments, Community, Retention, Rate limits, Inspection, Validation
+### Comments (`comments`)
 
-Xem đầy đủ trong `SystemSettingDefinitions.cs` và `SystemSettingKeys.cs`.
+| Key | Default | Min–Max |
+|-----|---------|---------|
+| `comment_edit_window_minutes` | 15 | 1–1440 |
+| `comment_ban_duration_days` | 7 | 1–90 |
 
-**Inspection — chưa wire:** `inspection_evidence_max_per_request`.
+### Community cleanup (`community_cleanup`)
+
+| Key | Default | Min–Max |
+|-----|---------|---------|
+| `community_before_images_max` | 5 | 1–20 |
+| `check_in_reminder_minutes_before_start` | 15 | 5–120 |
+
+### Data retention (`data_retention`)
+
+| Key | Default | Min–Max |
+|-----|---------|---------|
+| `media_retention_years` | 2 | 1–10 |
+| `audit_log_retention_months` | 12 | 6–60 |
+| `status_history_retention_months` | 12 | 6–60 |
+
+### Rate limits (`rate_limits`)
+
+| Key | Default | Min–Max |
+|-----|---------|---------|
+| `submit_max_per_hour` | 5 | 1–50 |
+| `submit_max_per_day` | 20 | 1–100 |
+| `submit_lock_seconds` | 3600 | 60–86400 |
+
+### Inspection (`inspection`)
+
+| Key | Default | Min–Max |
+|-----|---------|---------|
+| `inspection_sla_resolve_days_critical/high/medium/low` | 3 / 5 / 7 / 10 | 1–30 (low: 1–60) |
+
+**Chưa wire:** `inspection_evidence_max_per_request` (retired khỏi catalog).
+
+### Validation (`validation`)
+
+| Key | Default | Min–Max |
+|-----|---------|---------|
+| `reject_reason_min_length` | 20 | 5–500 |
+| `reopen_reason_min_length` | 20 | 5–500 |
+
+**Retired:** `escalation_reason_min_length` (LEO→DEO escalate đã gỡ; cleanup escalate hardcode 20 ký tự).
+
+### Key đã gỡ khỏi catalog (13 — seeder xóa DB)
+
+| Module | Key | Lý do |
+|--------|-----|--------|
+| `reports` | `recurrence_lookback_days` | Không dùng |
+| `reports` | `max_image_size_bytes` | → `max_image_size_mb` |
+| `reports` | `max_drafts_per_user` | Hardcode 3 |
+| `reports` | `draft_retention_days` | Hardcode 7 ngày |
+| `reports` | `flag_notify_threshold` | Hardcode 3 |
+| `sla` | `sla_verify_breach_priority_boost` | Trùng officer key |
+| `map` | `map_viewport_default_days` | Default `days=30` hardcode API |
+| `cleanup` | `progress_update_interval_hours` | Chưa implement |
+| `auth` | `captcha_after_failed_attempts` | CAPTCHA chưa implement |
+| `organization` | `max_tasks_per_team` | `WorkloadLimitsOptions` |
+| `organization` | `team_workload_warning_threshold` | `WorkloadLimitsOptions` |
+| `inspection` | `inspection_evidence_max_per_request` | Chưa implement |
+| `validation` | `escalation_reason_min_length` | LEO→DEO escalate gỡ |
 
 **Gamification module** có trong sidebar catalog nhưng **0 key** trong seeder (GET trả rỗng). **Ngưỡng badge** quản lý riêng qua `PATCH /v1/admin/badges/{id}/thresholds` (xem `docs/api-admin-module.md` §5.3).
+
+**Nguồn đầy đủ:** `SystemSettingDefinitions.cs`, `SystemSettingKeys.cs`.
 
 ---
 
@@ -243,7 +306,7 @@ Xem đầy đủ trong `SystemSettingDefinitions.cs` và `SystemSettingKeys.cs`.
 | Analytics | **GetAdminAlerts / GetDeoAlerts — message text `overdue_pending_hours`, contract horizon** |
 | Admin | **GetSpamSuspects — default `minReportsPerHour` ← `submit_max_per_hour` khi query param omitted** |
 | Retention | DataRetentionJob |
-| Validation | Reject, Reopen, Escalate, Decline reason min length |
+| Validation | Reject, Reopen, Decline reason min length (reject/reopen từ settings; decline dùng reject min) |
 | Media | PresignMediaUpload (TTL) |
 
 ### 4.1 Luồng notification — admin config có hiệu lực?
@@ -265,10 +328,10 @@ Xem đầy đủ trong `SystemSettingDefinitions.cs` và `SystemSettingKeys.cs`.
 | `Errors.*`, success message OTP | Giữ hardcode hoặc `.resx` i18n — **không** admin config |
 | `NotificationPlaceholders` khung câu tiếng Việt | Giữ; số đã từ settings |
 | Dashboard alert message (Admin/DEO) | **Đã wire số** (`overdue_pending_hours`, `contract_alert_horizon`) — câu vẫn string BE |
-| `max_tasks_per_team`, `team_workload_warning_threshold` | Wire consumer (backlog) |
-| `inspection_evidence_max_per_request` | Wire validator (backlog) |
+| `max_tasks_per_team`, `team_workload_warning_threshold` | `WorkloadLimitsOptions` (appsettings) |
+| `captcha_after_failed_attempts` | Stub đã gỡ — chưa triển khai CAPTCHA |
 
-**FE Admin UI:** label/form helper lấy từ `description` API; **không** hardcode số nghiệp vụ làm source of truth.
+**FE Admin UI:** label lấy từ `title`; tooltip/helper lấy từ `description` API; **không** hardcode số nghiệp vụ làm source of truth.
 
 ### Notification templates mới (thay `SendRawAsync`)
 
@@ -327,15 +390,15 @@ Mỗi module = **1 trang form** grouped theo nhóm con (accordion):
 
 **Reports example:**
 - Nhóm **Trùng lặp**: radius, time window, max candidates, merge ratio  
-- Nhóm **Tái phạm**: radius, lookback, min/max days after close  
-- Nhóm **Vòng đời**: auto-close, reopen, drafts, images  
+- Nhóm **Tái phạm**: radius, min/max days after close  
+- Nhóm **Vòng đời**: auto-close, reopen, images (MB)
 
 **Control theo `valueType`:**
 
 | Type | UI control |
 |------|------------|
-| `Int` | Number input + min/max hint |
-| `Decimal` | Number input (step 0.01) |
+| `Int` | Number input + `unit` suffix (vd. `200` + `m`) |
+| `Decimal` | Number input (step 0.01) + `unit` suffix |
 | `Bool` | Switch |
 | `String` | Text input |
 | `Json` | JSON editor (vd. `contract_warning_days`: `[30,7,1]`) |
@@ -345,8 +408,8 @@ Mỗi module = **1 trang form** grouped theo nhóm con (accordion):
 1. **Hiển thị default:** badge “Mặc định: 25” cạnh field; nút “Khôi phục” từng field về `defaultValue`  
 2. **Dirty state:** PATCH chỉ gửi key đã đổi  
 3. **Reset module:** modal xác nhận → `POST .../reset`  
-4. **Validation client:** dùng `minValue`/`maxValue` từ API; hiển thị lỗi BE ProblemDetails  
-5. **Tooltip:** `description` làm helper text  
+4. **Validation client:** dùng `minValue`/`maxValue` từ API; **`maxValue: null`** = không giới hạn trên (4 key Geo khoảng cách — xem bảng Geo §3); hiển thị lỗi BE ProblemDetails  
+5. **Tooltip:** `description` làm helper text; **label field** dùng `title`; **suffix input** dùng `unit` (ẩn nếu `null`)
 6. **Không hiển thị hotspot** — module đã bỏ  
 7. **Cảnh báo thay đổi SLA/rate limit:** banner “Ảnh hưởng job Hangfire & queue — có hiệu lực sau vài giây (cache refresh)”
 8. **Xác nhận trước khi áp dụng (bắt buộc):** Khi admin sửa một hoặc nhiều giá trị rồi bấm **Áp dụng / Lưu**, FE **phải** hiện dialog xác nhận trước khi gọi API — không submit thẳng. Dialog nên:

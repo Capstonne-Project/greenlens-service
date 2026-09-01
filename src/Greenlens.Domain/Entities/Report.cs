@@ -518,9 +518,10 @@ public sealed class Report : SoftDeletableEntity
     public void MarkSlaVerifyBreached() => SlaVerifyBreached = true;
 
     /// <summary>
-    /// BR-ORG-014 (legacy): Clears LocalOffice assignment for department queue routing.
-    /// No longer invoked by SLA verification breach — reports stay with assigned LEO.
+    /// Legacy: Clears LocalOffice assignment for department queue routing.
+    /// Removed from API — ward LEO is the sole verifier; no manual DEO escalation.
     /// </summary>
+    [Obsolete("BR-ORG-016 retired — EscalateReport endpoint removed.")]
     public void EscalateToDepartment()
     {
         AssignedOfficeId = null;

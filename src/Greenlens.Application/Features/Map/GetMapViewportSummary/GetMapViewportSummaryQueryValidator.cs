@@ -11,7 +11,7 @@ public sealed class GetMapViewportSummaryQueryValidator : AbstractValidator<GetM
     {
         var (minLat, maxLat, minLng, maxLng) = ModuleSystemSettings.VietnamBounds(systemSettings);
         var (maxLatSpan, maxLngSpan) = ModuleSystemSettings.MapBoundingSpans(systemSettings);
-        var (_, minDays, maxDays) = ModuleSystemSettings.MapViewportDays(systemSettings);
+        var (minDays, maxDays) = ModuleSystemSettings.MapViewportDayBounds(systemSettings);
 
         RuleFor(x => x.MinLat)
             .InclusiveBetween(minLat, maxLat);

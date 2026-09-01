@@ -30,9 +30,6 @@ public static class ModuleSystemSettings
     public static int SlaUnassignedVerifiedHours(ISystemSettingsProvider s) =>
         s.GetInt(SystemSettingModule.Sla, SystemSettingKeys.Sla.UnassignedVerifiedHours, 24);
 
-    public static int SlaVerifyBreachPriorityBoost(ISystemSettingsProvider s) =>
-        s.GetInt(SystemSettingModule.Sla, SystemSettingKeys.Sla.VerifyBreachPriorityBoost, 100);
-
     public static (int SeverityWeight, int ReporterWeight, int AgeDivisorHours, int SlaBreachBoost) OfficerPriority(
         ISystemSettingsProvider s) =>
         (
@@ -93,9 +90,8 @@ public static class ModuleSystemSettings
     public static int MapMaxAggregateRows(ISystemSettingsProvider s) =>
         s.GetInt(SystemSettingModule.Map, SystemSettingKeys.Map.MaxAggregateRows, 50_000);
 
-    public static (int DefaultDays, int MinDays, int MaxDays) MapViewportDays(ISystemSettingsProvider s) =>
+    public static (int MinDays, int MaxDays) MapViewportDayBounds(ISystemSettingsProvider s) =>
         (
-            s.GetInt(SystemSettingModule.Map, SystemSettingKeys.Map.ViewportDefaultDays, 30),
             s.GetInt(SystemSettingModule.Map, SystemSettingKeys.Map.ViewportMinDays, 7),
             s.GetInt(SystemSettingModule.Map, SystemSettingKeys.Map.ViewportMaxDays, 90));
 
@@ -106,12 +102,11 @@ public static class ModuleSystemSettings
             s.GetInt(SystemSettingModule.Notifications, SystemSettingKeys.Notifications.NearbyReportMaxRecipients, 100),
             s.GetInt(SystemSettingModule.Notifications, SystemSettingKeys.Notifications.MaxPerTypePerDay, 20));
 
-    public static (int MaxFailedAttempts, int LockoutMinutes, int CaptchaAfterAttempts) AuthLockout(
+    public static (int MaxFailedAttempts, int LockoutMinutes) AuthLockout(
         ISystemSettingsProvider s) =>
         (
             s.GetInt(SystemSettingModule.Auth, SystemSettingKeys.Auth.MaxFailedLoginAttempts, 5),
-            s.GetInt(SystemSettingModule.Auth, SystemSettingKeys.Auth.LockoutMinutes, 30),
-            s.GetInt(SystemSettingModule.Auth, SystemSettingKeys.Auth.CaptchaAfterFailedAttempts, 3));
+            s.GetInt(SystemSettingModule.Auth, SystemSettingKeys.Auth.LockoutMinutes, 30));
 
     public static int CommentEditWindowMinutes(ISystemSettingsProvider s) =>
         s.GetInt(SystemSettingModule.Comments, SystemSettingKeys.Comments.EditWindowMinutes, 15);
@@ -167,12 +162,11 @@ public static class ModuleSystemSettings
             s.GetInt(SystemSettingModule.Ai, SystemSettingKeys.Ai.TempImageTtlSeconds, 900),
             s.GetInt(SystemSettingModule.Ai, SystemSettingKeys.Ai.PresignUploadTtlMinutes, 15));
 
-    public static (int RejectMin, int ReopenMin, int EscalationMin) ValidationReasonLengths(
+    public static (int RejectMin, int ReopenMin) ValidationReasonLengths(
         ISystemSettingsProvider s) =>
         (
             s.GetInt(SystemSettingModule.Validation, SystemSettingKeys.Validation.RejectReasonMinLength, 20),
-            s.GetInt(SystemSettingModule.Validation, SystemSettingKeys.Validation.ReopenReasonMinLength, 20),
-            s.GetInt(SystemSettingModule.Validation, SystemSettingKeys.Validation.EscalationReasonMinLength, 50));
+            s.GetInt(SystemSettingModule.Validation, SystemSettingKeys.Validation.ReopenReasonMinLength, 20));
 
     public static decimal ComputePriorityScore(
         ISystemSettingsProvider s,
