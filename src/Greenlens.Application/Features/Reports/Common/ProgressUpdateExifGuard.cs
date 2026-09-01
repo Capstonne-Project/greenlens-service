@@ -41,11 +41,7 @@ internal static class ProgressUpdateExifGuard
                 .ConfigureAwait(false);
 
             if (submittedDistance > maxDistanceMeters)
-            {
-                return imageUrls.Count > 0
-                    ? Errors.Progress.PhotoTooFarFromSite(submittedDistance)
-                    : Errors.Progress.TooFarFromSite(submittedDistance);
-            }
+                return Errors.Progress.TooFarFromSite(submittedDistance);
         }
 
         if (imageUrls.Count == 0)
@@ -101,7 +97,7 @@ internal static class ProgressUpdateExifGuard
                 exif.Longitude.Value);
 
             if (distanceMeters > maxDistanceMeters)
-                return Errors.Progress.PhotoTooFarFromSite(distanceMeters);
+                return Errors.Progress.TooFarFromSite(distanceMeters);
         }
 
         // Có ảnh nhưng không có tọa độ body lẫn EXIF → không thể xác minh hiện trường.

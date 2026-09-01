@@ -36,7 +36,7 @@ public sealed class ProgressUpdateExifGuardTests
             CancellationToken.None);
 
         Assert.NotNull(error);
-        Assert.Equal("PROGRESS_PHOTO_TOO_FAR", error.Code);
+        Assert.Equal("PROGRESS_TOO_FAR", error.Code);
     }
 
     [Fact]
@@ -96,7 +96,7 @@ public sealed class ProgressUpdateExifGuardTests
             CancellationToken.None);
 
         Assert.NotNull(error);
-        Assert.Equal("PROGRESS_PHOTO_TOO_FAR", error.Code);
+        Assert.Equal("PROGRESS_TOO_FAR", error.Code);
     }
 
     [Fact]
