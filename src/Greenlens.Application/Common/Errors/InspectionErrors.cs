@@ -74,7 +74,7 @@ public static partial class Errors
 
         public static Error TooFarFromSite(double distanceMeters) => new(
             "INSPECTION_TOO_FAR",
-            $"Vị trí của bạn cách hiện trường khoảng {GeoDistanceFormatting.Format(distanceMeters)} (BR-INS-004).",
+            $"Vị trí của bạn cách hiện trường khoảng {GeoDistanceFormatting.Format(distanceMeters)}",
             ErrorType.BusinessRule);
 
         public static Error CheckInRequired => new(
