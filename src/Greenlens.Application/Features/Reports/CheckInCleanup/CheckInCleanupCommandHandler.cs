@@ -68,7 +68,7 @@ public sealed class CheckInCleanupCommandHandler(
         if (distance > maxCheckInDistanceMeters)
         {
             logger.LogWarning("Distance {Distance} is greater than {MaxCheckInDistanceMeters}", distance, maxCheckInDistanceMeters);
-            return Errors.Cleanup.TooFarFromSite;
+            return Errors.Cleanup.TooFarFromSite(distance);
         }
 
         // BR-CLN-003: Check-in transitions to InProgress

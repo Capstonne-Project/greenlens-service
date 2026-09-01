@@ -72,9 +72,9 @@ public static partial class Errors
             "Báo cáo này đã có hồ sơ xử phạt đang hoạt động.",
             ErrorType.Conflict);
 
-        public static Error TooFarFromSite => new(
+        public static Error TooFarFromSite(double distanceMeters) => new(
             "INSPECTION_TOO_FAR",
-            "Vị trí check-in cách hiện trường hơn 200m (BR-INS-004).",
+            $"Vị trí của bạn cách hiện trường khoảng {GeoDistanceFormatting.Format(distanceMeters)} (BR-INS-004).",
             ErrorType.BusinessRule);
 
         public static Error CheckInRequired => new(

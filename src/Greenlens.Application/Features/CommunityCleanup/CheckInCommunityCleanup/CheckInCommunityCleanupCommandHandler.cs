@@ -53,7 +53,7 @@ public sealed class CheckInCommunityCleanupCommandHandler(
         if (isOutOfRange && string.IsNullOrWhiteSpace(request.Reason))
         {
             logger.LogWarning("Check-in distance {Distance}m exceeds {Max}m for event {EventId}", distance, maxCheckInDistanceMeters, request.EventId);
-            return Errors.CommunityCleanup.CheckInTooFar;
+            return Errors.CommunityCleanup.CheckInTooFar(distance);
         }
 
         try

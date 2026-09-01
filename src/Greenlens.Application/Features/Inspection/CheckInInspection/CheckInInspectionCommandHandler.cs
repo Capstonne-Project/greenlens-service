@@ -58,7 +58,7 @@ public sealed class CheckInInspectionCommandHandler(
         if (distance > maxCheckInDistanceMeters)
         {
             logger.LogWarning("Distance check failed for inspection {InspectionId}. Distance: {Distance}m", request.InspectionId, distance);
-            return Errors.Inspections.TooFarFromSite;
+            return Errors.Inspections.TooFarFromSite(distance);
         }
 
         // Draft → InProgress
