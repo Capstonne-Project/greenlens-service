@@ -129,4 +129,63 @@ public sealed class ProgressUpdateExifGuardTests
 
         Assert.Null(error);
     }
+
+    [Fact]
+    public async Task Validate_MissingBodyCoords_UsesImageFileExifNearSite_ReturnsNull_BR_CLN_004()
+    {
+        var geoDistance = Substitute.For<IGeoDistanceService>();
+
+        var fileStorage = Substitute.For<IFileStorageService>();
+        fileStorage.TryGetKeyFromOwnedPublicUrl(ImageUrl).Returns(ImageKey);
+        fileStorage.DownloadAsync(ImageKey, Arg.Any<long>(), Arg.Any<CancellationToken>())
+            .Returns(new StoredFileDownload([0x01], "image/jpeg", 1));
+
+        var exifAnalyzer = Substitute.For<IImageExifAnalyzer>();
+        exifAnalyzer.Analyze(Arg.Any<ReadOnlyMemory<byte>>(), SiteLat, SiteLng)
+            .Returns(new ImageExifAnalysis(true, DateTime.UtcNow, SiteLat, SiteLng, null, []));
+
+        var error = await ProgressUpdateExifGuard.ValidateAsync(
+            0m,
+            0m,
+            SiteLat,
+            SiteLng,
+            [ImageUrl],
+            fileStorage,
+            exifAnalyzer,
+            geoDistance,
+            new DefaultSystemSettingsProvider(),
+            CancellationToken.None);
+
+        Assert.Null(error);
+    }
+
+    [Fact]
+    public async Task Validate_MissingBodyCoordsAndNoImageExif_ReturnsLocationRequired_BR_CLN_004()
+    {
+        var geoDistance = Substitute.For<IGeoDistanceService>();
+
+        var fileStorage = Substitute.For<IFileStorageService>();
+        fileStorage.TryGetKeyFromOwnedPublicUrl(ImageUrl).Returns(ImageKey);
+        fileStorage.DownloadAsync(ImageKey, Arg.Any<long>(), Arg.Any<CancellationToken>())
+            .Returns(new StoredFileDownload([0x01], "image/jpeg", 1));
+
+        var exifAnalyzer = Substitute.For<IImageExifAnalyzer>();
+        exifAnalyzer.Analyze(Arg.Any<ReadOnlyMemory<byte>>(), SiteLat, SiteLng)
+            .Returns(new ImageExifAnalysis(false, null, null, null, null, []));
+
+        var error = await ProgressUpdateExifGuard.ValidateAsync(
+            0m,
+            0m,
+            SiteLat,
+            SiteLng,
+            [ImageUrl],
+            fileStorage,
+            exifAnalyzer,
+            geoDistance,
+            new DefaultSystemSettingsProvider(),
+            CancellationToken.None);
+
+        Assert.NotNull(error);
+        Assert.Equal("PROGRESS_LOCATION_REQUIRED", error.Code);
+    }
 }

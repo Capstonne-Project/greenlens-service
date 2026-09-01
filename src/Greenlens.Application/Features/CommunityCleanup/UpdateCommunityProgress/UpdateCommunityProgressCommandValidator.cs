@@ -1,6 +1,7 @@
 using FluentValidation;
 using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
+using Greenlens.Application.Features.Reports.Common;
 
 namespace Greenlens.Application.Features.CommunityCleanup.UpdateCommunityProgress;
 
@@ -15,10 +16,12 @@ public sealed class UpdateCommunityProgressCommandValidator : AbstractValidator<
 
         // BR-REP-003: Vietnam GPS bounds
         RuleFor(x => x.Latitude)
-            .InclusiveBetween(minLat, maxLat)
-            .WithMessage($"Latitude phải trong khoảng {minLat}–{maxLat} (Việt Nam).");
+            .Must((cmd, lat) => ProgressUpdateCoordinates.IsMissing(lat, cmd.Longitude)
+                || (lat >= minLat && lat <= maxLat))
+            .WithMessage($"Latitude phải trong khoảng {minLat}–{maxLat} (Việt Nam), hoặc 0 khi chưa có GPS ảnh.");
         RuleFor(x => x.Longitude)
-            .InclusiveBetween(minLng, maxLng)
-            .WithMessage($"Longitude phải trong khoảng {minLng}–{maxLng} (Việt Nam).");
+            .Must((cmd, lng) => ProgressUpdateCoordinates.IsMissing(cmd.Latitude, lng)
+                || (lng >= minLng && lng <= maxLng))
+            .WithMessage($"Longitude phải trong khoảng {minLng}–{maxLng} (Việt Nam), hoặc 0 khi chưa có GPS ảnh.");
     }
 }

@@ -72,9 +72,10 @@ public sealed class UpdateCommunityProgressCommandHandler(
         if (locationError is not null)
         {
             logger.LogWarning(
-                "Community progress location too far from event {EventId}: {ErrorCode}",
+                "Community progress location rejected for event {EventId}: {ErrorCode} — {Message}",
                 request.EventId,
-                locationError.Code);
+                locationError.Code,
+                locationError.Message);
             return locationError;
         }
 

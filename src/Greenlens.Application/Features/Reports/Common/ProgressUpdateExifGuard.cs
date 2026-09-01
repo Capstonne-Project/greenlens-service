@@ -27,20 +27,25 @@ internal static class ProgressUpdateExifGuard
         CancellationToken ct)
     {
         var maxDistanceMeters = ModuleSystemSettings.ProgressUpdateMaxDistanceMeters(systemSettings);
+        var hasSubmittedCoords = !ProgressUpdateCoordinates.IsMissing(submittedLatitude, submittedLongitude);
 
-        var submittedDistance = await geoDistance.GetDistanceInMetersAsync(
-                submittedLatitude,
-                submittedLongitude,
-                siteLatitude,
-                siteLongitude,
-                ct)
-            .ConfigureAwait(false);
-
-        if (submittedDistance > maxDistanceMeters)
+        // Body coords từ EXIF mobile — bỏ qua bước này nếu app gửi (0,0) và sẽ đọc EXIF trong file R2.
+        if (hasSubmittedCoords)
         {
-            return imageUrls.Count > 0
-                ? Errors.Progress.PhotoTooFarFromSite(submittedDistance)
-                : Errors.Progress.TooFarFromSite(submittedDistance);
+            var submittedDistance = await geoDistance.GetDistanceInMetersAsync(
+                    submittedLatitude,
+                    submittedLongitude,
+                    siteLatitude,
+                    siteLongitude,
+                    ct)
+                .ConfigureAwait(false);
+
+            if (submittedDistance > maxDistanceMeters)
+            {
+                return imageUrls.Count > 0
+                    ? Errors.Progress.PhotoTooFarFromSite(submittedDistance)
+                    : Errors.Progress.TooFarFromSite(submittedDistance);
+            }
         }
 
         if (imageUrls.Count == 0)
@@ -51,6 +56,7 @@ internal static class ProgressUpdateExifGuard
             siteLatitude,
             siteLongitude,
             maxDistanceMeters,
+            hasSubmittedCoords,
             fileStorage,
             exifAnalyzer,
             systemSettings,
@@ -62,12 +68,14 @@ internal static class ProgressUpdateExifGuard
         decimal siteLatitude,
         decimal siteLongitude,
         int maxDistanceMeters,
+        bool hasSubmittedCoords,
         IFileStorageService fileStorage,
         IImageExifAnalyzer exifAnalyzer,
         ISystemSettingsProvider systemSettings,
         CancellationToken ct)
     {
         var maxImageSizeBytes = ReportSystemSettings.MaxImageSizeBytes(systemSettings);
+        var validatedPhotoLocation = hasSubmittedCoords;
 
         foreach (var rawUrl in imageUrls)
         {
@@ -84,6 +92,8 @@ internal static class ProgressUpdateExifGuard
             if (!exif.Latitude.HasValue || !exif.Longitude.HasValue)
                 continue;
 
+            validatedPhotoLocation = true;
+
             var distanceMeters = GeoMath.HaversineMeters(
                 siteLatitude,
                 siteLongitude,
@@ -93,6 +103,10 @@ internal static class ProgressUpdateExifGuard
             if (distanceMeters > maxDistanceMeters)
                 return Errors.Progress.PhotoTooFarFromSite(distanceMeters);
         }
+
+        // Có ảnh nhưng không có tọa độ body lẫn EXIF → không thể xác minh hiện trường.
+        if (!validatedPhotoLocation)
+            return Errors.Progress.LocationRequired;
 
         return null;
     }
