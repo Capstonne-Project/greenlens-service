@@ -52,7 +52,11 @@ public sealed class CheckInCommunityCleanupCommandHandler(
         var isOutOfRange = distance > maxCheckInDistanceMeters;
         if (isOutOfRange && string.IsNullOrWhiteSpace(request.Reason))
         {
-            logger.LogWarning("Check-in distance {Distance}m exceeds {Max}m for event {EventId}", distance, maxCheckInDistanceMeters, request.EventId);
+            logger.LogWarning(
+                "Check-in distance {Distance}m exceeds max {Max}m for event {EventId} (setting: check_in_max_distance_meters)",
+                distance,
+                maxCheckInDistanceMeters,
+                request.EventId);
             return Errors.CommunityCleanup.CheckInTooFar(distance);
         }
 
