@@ -113,9 +113,14 @@ public sealed class UpdateProgressCommandHandler(
         if (locationError is not null)
         {
             logger.LogWarning(
-                "Progress location too far from report {ReportId}: {ErrorCode}",
+                "Progress location rejected for report {ReportId}: {ErrorCode} — {Message} " +
+                "(setting progress_update_max_distance_meters={MaxMeters}m, submitted {Latitude},{Longitude})",
                 request.ReportId,
-                locationError.Code);
+                locationError.Code,
+                locationError.Message,
+                ModuleSystemSettings.ProgressUpdateMaxDistanceMeters(systemSettings),
+                request.Latitude,
+                request.Longitude);
             return locationError;
         }
 
