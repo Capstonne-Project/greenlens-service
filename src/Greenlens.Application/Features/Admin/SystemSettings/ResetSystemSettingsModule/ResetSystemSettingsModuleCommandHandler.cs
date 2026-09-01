@@ -18,7 +18,7 @@ public sealed record ResetSystemSettingsModuleCommand(string Module)
 
 public sealed class ResetSystemSettingsModuleCommandHandler(
     IApplicationDbContext db,
-    ISystemSettingsCacheInvalidator settingsCacheInvalidator,
+    ISystemSettingsCacheInvalidationCollector settingsCacheInvalidationCollector,
     IAuditLogger auditLogger,
     ILogger<ResetSystemSettingsModuleCommandHandler> logger)
     : IRequestHandler<ResetSystemSettingsModuleCommand, Result<GetSystemSettingsResponse>>
@@ -48,8 +48,8 @@ public sealed class ResetSystemSettingsModuleCommandHandler(
             newValues: JsonSerializer.Serialize(new { module = module.ToString(), count = settings.Count }),
             ct: ct).ConfigureAwait(false);
 
-        // Reset xong → đồng bộ cache toàn cluster (local + Redis pub/sub), không cần restart API.
-        await settingsCacheInvalidator.InvalidateAsync(ct).ConfigureAwait(false);
+        // Schedule — refresh sau commit (tránh đọc DB cũ trong transaction).
+        settingsCacheInvalidationCollector.Schedule();
 
         logger.LogInformation("Reset {Count} system setting(s) in module {Module}", settings.Count, module);
 

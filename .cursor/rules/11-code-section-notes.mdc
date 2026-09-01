@@ -1,0 +1,62 @@
+---
+description: Bắt buộc ghi chú ngắn trên từng khối code mới/sửa — giải thích tác dụng, dễ đọc.
+alwaysApply: true
+---
+
+# Code Section Notes (bắt buộc)
+
+Mỗi lần **thêm code mới** hoặc **sửa code cũ**, phải có ghi chú giúp đọc nhanh hiểu **đoạn đó làm gì và vì sao cần có**.
+
+## Phạm vi
+
+- Handler, service, provider, behavior, filter, job, config DI.
+- Logic nghiệp vụ không hiển nhiên từ tên method (cache, transaction defer, geo, idempotency, …).
+- **Không** comment từng dòng trivial (`// tăng i`, `// return result`).
+
+## Ngôn ngữ
+
+- **Tiếng Việt** hoặc **English** — ưu tiên ngắn, dễ hiểu cho team.
+- XML `///` trên class/interface public/internal quan trọng (1–3 câu luồng chính).
+
+## Format khuyến nghị
+
+```csharp
+// ── Mục đích khối (1 dòng) ──
+
+// Schedule refresh sau commit — tránh đọc DB chưa commit trong transaction.
+settingsCacheInvalidationCollector.Schedule();
+```
+
+```csharp
+/// <summary>
+/// Cache settings in-memory; admin PATCH → invalidate sau commit + Redis pub/sub.
+/// </summary>
+internal sealed class SystemSettingsProvider { ... }
+```
+
+## Nội dung ghi chú phải trả lời (ngắn)
+
+1. **Làm gì?** (tác dụng khối code)
+2. **Vì sao?** (nếu không hiển nhiên — timing, cache, BR, side-effect)
+
+## Ví dụ
+
+```csharp
+// ❌ Thừa — lặp lại code
+// Gọi SaveChangesAsync
+await db.SaveChangesAsync(ct);
+
+// ❌ Quá dài
+// Hàm này sẽ lấy dữ liệu từ database bằng Entity Framework Core...
+
+// ✅ Đủ — biết ngay mục đích
+// Ghi DB trước; cache refresh được schedule sau commit (TransactionBehavior).
+await db.SaveChangesAsync(ct);
+settingsCacheInvalidationCollector.Schedule();
+```
+
+## Checklist trước khi xong task
+
+- [ ] Mỗi khối logic mới/sửa có ít nhất **1 ghi chú mục đích** (hoặc XML trên type).
+- [ ] Ghi chú **ngắn** (thường 1 dòng; tối đa 2–3 dòng nếu luồng phức tạp).
+- [ ] Không xóa ghi chú giải thích **why/timing** khi refactor trừ khi code đã rõ hơn.

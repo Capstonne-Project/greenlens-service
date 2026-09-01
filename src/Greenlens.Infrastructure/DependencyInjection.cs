@@ -113,6 +113,7 @@ public static class DependencyInjection
         services.AddScoped<ITransactionManager, TransactionManager>();
         services.AddScoped<IDomainEventCollector, DomainEventCollector>();
         services.AddScoped<INotificationDispatchCollector, NotificationDispatchCollector>();
+        services.AddScoped<ISystemSettingsCacheInvalidationCollector, SystemSettingsCacheInvalidationCollector>();
         services.AddScoped<IChangeTrackerCleaner, ChangeTrackerCleaner>();
 
         // ── Identity & Auth ──────────────────────────────

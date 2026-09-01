@@ -18,6 +18,8 @@ public sealed class TransactionBehavior<TRequest, TResponse>(
     IDomainEventCollector eventCollector,
     INotificationDispatchCollector notificationDispatchCollector,
     INotificationDispatchScheduler notificationDispatchScheduler,
+    ISystemSettingsCacheInvalidationCollector systemSettingsCacheInvalidationCollector,
+    ISystemSettingsCacheInvalidator systemSettingsCacheInvalidator,
     IChangeTrackerCleaner changeTrackerCleaner,
     IPublisher publisher,
     ILogger<TransactionBehavior<TRequest, TResponse>> logger)
@@ -54,6 +56,8 @@ public sealed class TransactionBehavior<TRequest, TResponse>(
 
             FlushDeferredNotificationDispatches();
 
+            await FlushDeferredSystemSettingsCacheInvalidationAsync(cancellationToken).ConfigureAwait(false);
+
             try
             {
                 await PublishDeferredDomainEventsAsync(cancellationToken).ConfigureAwait(false);
@@ -72,6 +76,7 @@ public sealed class TransactionBehavior<TRequest, TResponse>(
         {
             eventCollector.Clear();
             notificationDispatchCollector.Clear();
+            systemSettingsCacheInvalidationCollector.Clear();
 
             await transactionManager.RollbackAsync(cancellationToken).ConfigureAwait(false);
 
@@ -85,6 +90,14 @@ public sealed class TransactionBehavior<TRequest, TResponse>(
     {
         foreach (var notificationId in notificationDispatchCollector.DrainAll())
             notificationDispatchScheduler.Enqueue(notificationId);
+    }
+
+    private async Task FlushDeferredSystemSettingsCacheInvalidationAsync(CancellationToken ct)
+    {
+        if (!systemSettingsCacheInvalidationCollector.TryConsumeScheduled())
+            return;
+
+        await systemSettingsCacheInvalidator.InvalidateAsync(ct).ConfigureAwait(false);
     }
 
     private async Task PublishDeferredDomainEventsAsync(CancellationToken ct)
