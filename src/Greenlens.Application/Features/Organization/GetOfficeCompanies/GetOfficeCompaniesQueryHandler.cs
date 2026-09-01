@@ -1,8 +1,9 @@
-using Greenlens.Application.Common;
 using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
+using Greenlens.Application.Common.Models;
+using Greenlens.Application.Features.Organization.Common;
 using Greenlens.Domain.Common;
-using Greenlens.Domain.Entities;
+using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -10,56 +11,151 @@ using Microsoft.Extensions.Logging;
 namespace Greenlens.Application.Features.Organization.GetOfficeCompanies;
 
 /// <summary>
-/// Resolves LEO's local office by ICurrentUser, then returns active companies
-/// whose service area matches the office's ward.
-/// Used on LEO dashboard to see which companies operate in their ward.
+/// Returns paginated companies serving the LEO's ward with search, filter, and sort.
 /// </summary>
-/// <remarks>Implements: BR-CMP-005 (active check), BR-CMP-008 (service area match).</remarks>
+/// <remarks>Implements: BR-CMP-005, BR-CMP-008, BR-ORG-003.</remarks>
 public sealed class GetOfficeCompaniesQueryHandler(
     ICurrentUser currentUser,
+    IUserRepository users,
     ILocalOfficeRepository offices,
     IEnvironmentalServiceCompanyRepository companies,
+    IReportRepository reports,
     ILogger<GetOfficeCompaniesQueryHandler> logger)
     : IRequestHandler<GetOfficeCompaniesQuery, Result<GetOfficeCompaniesResponse>>
 {
+    private static readonly ReportStatus[] ActiveReportStatuses =
+    [
+        ReportStatus.Verified,
+        ReportStatus.InProgress,
+        ReportStatus.Resolved
+    ];
+
     public async Task<Result<GetOfficeCompaniesResponse>> Handle(
-        GetOfficeCompaniesQuery request, CancellationToken ct)
+        GetOfficeCompaniesQuery request,
+        CancellationToken ct)
     {
-        logger.LogInformation("Getting office companies for user {UserId}", currentUser.UserId);
+        logger.LogInformation("Getting ward companies for LEO {UserId}", currentUser.UserId);
 
-        // 1. Find LEO's assigned office
-        var office = await offices.QueryAsNoTracking()
-            .FirstOrDefaultAsync(o => o.OfficerId == currentUser.UserId, ct)
+        var scopeResult = await LeoOfficeScope.ResolveAsync(users, offices, currentUser.UserId, ct)
             .ConfigureAwait(false);
+        if (!scopeResult.IsSuccess)
+            return scopeResult.Error!;
 
-        if (office is null)
-        {
-            logger.LogWarning("Office not found for user ID {UserId}", currentUser.UserId);
-            return Errors.Organization.OfficeNotFound;
-        }
+        var office = scopeResult.Value!.Office;
+        var wardCode = office.WardCode;
 
-        // 2. Find active companies serving this ward
-        var items = await companies.QueryAsNoTracking()
+        var query = companies.QueryAsNoTracking()
             .Include(c => c.ServiceAreas)
             .Include(c => c.Staff)
-            .Where(c => c.Status == CompanyStatus.Active)
-            .Where(c => c.ServiceAreas.Any(sa => sa.WardCode == office.WardCode))
-            .OrderBy(c => c.Name)
+            .Where(c => c.ServiceAreas.Any(sa => sa.WardCode == wardCode));
+
+        if (request.Status.HasValue)
+            query = query.Where(c => c.Status == request.Status.Value);
+
+        if (request.ContractType.HasValue)
+            query = query.Where(c => c.ContractType == request.ContractType.Value);
+
+        if (!string.IsNullOrWhiteSpace(request.Search))
+        {
+            var term = request.Search.Trim().ToLower();
+            query = query.Where(c =>
+                c.Name.ToLower().Contains(term) ||
+                c.ContractNumber.ToLower().Contains(term) ||
+                (c.TaxCode != null && c.TaxCode.ToLower().Contains(term)) ||
+                (c.Phone != null && c.Phone.ToLower().Contains(term)) ||
+                (c.Email != null && c.Email.ToLower().Contains(term)));
+        }
+
+        query = request.SortBy?.Trim().ToLowerInvariant() switch
+        {
+            "name" => request.SortDesc ? query.OrderByDescending(c => c.Name) : query.OrderBy(c => c.Name),
+            "status" => request.SortDesc ? query.OrderByDescending(c => c.Status) : query.OrderBy(c => c.Status),
+            "contractnumber" => request.SortDesc
+                ? query.OrderByDescending(c => c.ContractNumber)
+                : query.OrderBy(c => c.ContractNumber),
+            "staffcount" => request.SortDesc
+                ? query.OrderByDescending(c => c.Staff.Count)
+                : query.OrderBy(c => c.Staff.Count),
+            "createdat" => request.SortDesc
+                ? query.OrderByDescending(c => c.CreatedAt)
+                : query.OrderBy(c => c.CreatedAt),
+            _ => query.OrderBy(c => c.Name)
+        };
+
+        var totalCount = await query.CountAsync(ct).ConfigureAwait(false);
+        var pagination = PaginationMeta.Create(request.Page, request.PageSize, totalCount);
+
+        var pageCompanies = await query
+            .Skip((request.Page - 1) * request.PageSize)
+            .Take(request.PageSize)
+            .Select(c => new
+            {
+                c.Id,
+                c.Name,
+                c.ContractNumber,
+                ContractType = c.ContractType.ToString(),
+                Status = c.Status.ToString(),
+                c.ContractStartDate,
+                c.ContractEndDate,
+                c.TaxCode,
+                c.Phone,
+                c.Email,
+                ServiceAreaCount = c.ServiceAreas.Count,
+                StaffCount = c.Staff.Count,
+                c.CreatedAt
+            })
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        if (pageCompanies.Count == 0)
+        {
+            return new GetOfficeCompaniesResponse(
+                office.Id,
+                office.Name,
+                wardCode,
+                office.Ward?.Name ?? wardCode,
+                [],
+                pagination);
+        }
+
+        var companyIds = pageCompanies.Select(c => c.Id).ToList();
+        var activeCounts = await reports.QueryAsNoTracking()
+            .Where(r => r.AssignedOfficeId == office.Id)
+            .Where(r => r.AssignedCompanyId != null && companyIds.Contains(r.AssignedCompanyId.Value))
+            .Where(r => ActiveReportStatuses.Contains(r.Status))
+            .GroupBy(r => r.AssignedCompanyId!.Value)
+            .Select(g => new { CompanyId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.CompanyId, x => x.Count, ct)
+            .ConfigureAwait(false);
+
+        var items = pageCompanies
             .Select(c => new OfficeCompanyItem(
                 c.Id,
                 c.Name,
                 c.ContractNumber,
-                c.ContractType.ToString(),
-                c.Status.ToString(),
+                c.ContractType,
+                c.Status,
+                c.ContractStartDate,
+                c.ContractEndDate,
+                c.TaxCode,
                 c.Phone,
                 c.Email,
-                c.ServiceAreas.Count,
-                c.Staff.Count))
-            .ToListAsync(ct)
-            .ConfigureAwait(false);
+                c.ServiceAreaCount,
+                c.StaffCount,
+                activeCounts.GetValueOrDefault(c.Id),
+                c.CreatedAt))
+            .ToList();
 
-        logger.LogInformation("Office companies found: {Count}", items.Count);
+        logger.LogInformation(
+            "Ward companies for office {OfficeId}: {Count}/{Total}",
+            office.Id, items.Count, totalCount);
 
-        return new GetOfficeCompaniesResponse(items);
+        return new GetOfficeCompaniesResponse(
+            office.Id,
+            office.Name,
+            wardCode,
+            office.Ward?.Name ?? wardCode,
+            items,
+            pagination);
     }
 }

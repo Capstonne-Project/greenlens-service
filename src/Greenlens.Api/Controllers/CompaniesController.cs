@@ -7,6 +7,7 @@ using Greenlens.Application.Features.Organization.DeleteEnvironmentalCompany;
 using Greenlens.Application.Features.Organization.ResetCompanyManagerPassword;
 using Greenlens.Application.Features.Organization.GetCompanies;
 using Greenlens.Application.Features.Organization.GetOfficeCompanies;
+using Greenlens.Application.Features.Organization.GetOfficeCompanyById;
 using Greenlens.Application.Features.Organization.GetCompanyById;
 using Greenlens.Application.Features.Organization.GetCompanyServiceAreas;
 using Greenlens.Application.Features.Organization.GetCompanyStaff;
@@ -21,6 +22,7 @@ using Greenlens.Application.Features.Organization.GetContractHistory;
 using Greenlens.Application.Features.Organization.GetCompanyKpi;
 using Greenlens.Application.Features.Reports.GetOfficerKpi;
 using Greenlens.Domain.Entities;
+using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -94,11 +96,40 @@ public sealed class CompaniesController(ISender sender) : ControllerBase
     [Authorize(Roles = "LEO")]
     [Tags("📌 LEO Dashboard")]
     [SwaggerOperation(
-        Summary = "[LEO] Công ty phục vụ phường/xã của tôi",
-        Description = "Trả về danh sách công ty đang hoạt động (Active) có vùng phục vụ bao gồm phường/xã mà LEO đang quản lý. Tự động xác định office từ tài khoản LEO đang đăng nhập.")]
+        Summary = "[LEO] Danh sách công ty phụ trách phường/xã của tôi",
+        Description = "Trả về công ty có vùng phục vụ bao gồm phường/xã mà LEO đang quản lý (scope từ tài khoản đăng nhập). " +
+            "Hỗ trợ phân trang, tìm kiếm (tên, mã HĐ, MST, SĐT, email), lọc theo trạng thái và loại HĐ. " +
+            "Sắp xếp: name, status, contractNumber, staffCount, createdAt (mặc định: name). " +
+            "Dispatch dropdown: truyền thêm `status=Active`.")]
     [SwaggerResponse(200, "Danh sách công ty", typeof(ApiResponse<GetOfficeCompaniesResponse>))]
-    public async Task<IActionResult> GetMyWardCompaniesAsync(CancellationToken ct)
-        => (await sender.Send(new GetOfficeCompaniesQuery(), ct)).ToHttp();
+    [SwaggerResponse(403, "LEO chưa được gán phường/xã", typeof(ApiResponse))]
+    public async Task<IActionResult> GetMyWardCompaniesAsync(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] CompanyStatus? status = null,
+        [FromQuery] ContractType? contractType = null,
+        [FromQuery] string? search = null,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] bool sortDesc = false,
+        CancellationToken ct = default)
+        => (await sender.Send(
+            new GetOfficeCompaniesQuery(page, pageSize, status, contractType, search, sortBy, sortDesc),
+            ct)).ToHttp();
+
+    [HttpGet("my-ward/{id:guid}")]
+    [Authorize(Roles = "LEO")]
+    [Tags("📌 LEO Dashboard")]
+    [SwaggerOperation(
+        Summary = "[LEO] Chi tiết công ty phụ trách phường/xã của tôi",
+        Description = "Trả về thông tin công ty khi công ty có vùng phục vụ tại phường/xã của LEO đăng nhập. " +
+            "Bao gồm vùng phục vụ tại phường, toàn bộ vùng phục vụ, số nhân sự/đội, số báo cáo đang xử lý và đã đóng tại phường.")]
+    [SwaggerResponse(200, "Chi tiết công ty", typeof(ApiResponse<OfficeCompanyDetailResponse>))]
+    [SwaggerResponse(404, "Công ty không tồn tại hoặc không phục vụ phường của LEO", typeof(ApiResponse))]
+    [SwaggerResponse(403, "LEO chưa được gán phường/xã", typeof(ApiResponse))]
+    public async Task<IActionResult> GetMyWardCompanyByIdAsync(
+        [FromRoute] Guid id,
+        CancellationToken ct)
+        => (await sender.Send(new GetOfficeCompanyByIdQuery(id), ct)).ToHttp();
 
     [HttpGet]
     [Authorize(Roles = "DEO,Admin")]
