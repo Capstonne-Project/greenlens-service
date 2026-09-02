@@ -22,4 +22,17 @@ public interface IWardBoundaryLookupService
 
     /// <summary>Trả về ranh giới tỉnh dạng GeoJSON geometry (qua ST_AsGeoJSON), hoặc null nếu chưa có boundary.</summary>
     Task<string?> GetProvinceBoundaryGeoJsonAsync(string provinceCode, CancellationToken ct = default);
+
+    /// <summary>
+    /// Trả về ranh giới GeoJSON của TẤT CẢ tỉnh trong 1 query (code → geoJson), dùng cho citizen
+    /// map bước 1 (toàn quốc) — tránh N+1 khi tô ranh giới 34 tỉnh cùng lúc.
+    /// </summary>
+    Task<IReadOnlyDictionary<string, string>> GetAllProvinceBoundaryGeoJsonAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Trả về ranh giới GeoJSON của toàn bộ ward thuộc 1 tỉnh trong 1 query (code → geoJson), dùng
+    /// cho citizen map bước 2 (drill-down phường/xã) — tránh N+1 khi tô ranh giới hàng chục ward.
+    /// </summary>
+    Task<IReadOnlyDictionary<string, string>> GetWardBoundaryGeoJsonByProvinceAsync(
+        string provinceCode, CancellationToken ct = default);
 }
