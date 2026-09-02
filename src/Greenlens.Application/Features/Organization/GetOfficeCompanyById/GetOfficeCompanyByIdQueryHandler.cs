@@ -46,21 +46,24 @@ public sealed class GetOfficeCompanyByIdQueryHandler(
         var office = scopeResult.Value!.Office;
         var wardCode = office.WardCode;
 
+        // Cùng filter SQL như GetOfficeCompanies — tránh 404 khi Include+ThenInclude(Ward) không hydrate ServiceAreas.
         var company = await companies.QueryAsNoTracking()
             .Include(c => c.Department)
-            .Include(c => c.ServiceAreas)
-                .ThenInclude(sa => sa.Ward)
             .Include(c => c.Staff)
-            .FirstOrDefaultAsync(c => c.Id == request.Id, ct)
+            .Where(c => c.Id == request.Id)
+            .Where(c => c.ServiceAreas.Any(sa => sa.WardCode == wardCode))
+            .FirstOrDefaultAsync(ct)
             .ConfigureAwait(false);
 
         if (company is null)
         {
-            logger.LogWarning("Company {CompanyId} not found", request.Id);
+            logger.LogWarning(
+                "Company {CompanyId} not found or does not serve ward {WardCode}",
+                request.Id, wardCode);
             return Errors.Organization.CompanyNotFound;
         }
 
-        var accessError = CompanyAccessAuthorization.ValidateLeoViewAccess(company, scopeResult.Value.Leo, wardCode);
+        var accessError = CompanyAccessAuthorization.ValidateLeoViewAccess(scopeResult.Value.Leo);
         if (accessError is not null)
         {
             logger.LogWarning(
@@ -69,14 +72,18 @@ public sealed class GetOfficeCompanyByIdQueryHandler(
             return accessError;
         }
 
-        var serviceAreas = company.ServiceAreas
-            .OrderBy(sa => sa.Ward?.Name)
+        // Projection join Ward trong SQL — không phụ thuộc ThenInclude char(5) FK.
+        var serviceAreas = await companies.QueryAsNoTracking()
+            .Where(c => c.Id == request.Id)
+            .SelectMany(c => c.ServiceAreas)
             .Select(sa => new CompanyServiceAreaDto(
                 sa.Id,
                 sa.WardCode,
-                sa.Ward?.Name ?? sa.WardCode,
-                sa.Ward?.ProvinceCode ?? ""))
-            .ToList();
+                sa.Ward != null ? sa.Ward.Name : sa.WardCode,
+                sa.Ward != null ? sa.Ward.ProvinceCode : ""))
+            .OrderBy(sa => sa.WardName)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
 
         var wardServiceArea = serviceAreas.First(sa => sa.WardCode == wardCode);
 
