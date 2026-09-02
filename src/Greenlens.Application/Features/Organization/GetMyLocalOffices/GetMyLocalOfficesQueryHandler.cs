@@ -52,15 +52,10 @@ public sealed class GetMyLocalOfficesQueryHandler(
         var baseQuery = localOffices.QueryAsNoTracking()
             .Where(o => o.DepartmentId == deptInfo.DepartmentId);
 
-        // 3. Apply search filter (office name, ward name, officer name)
-        if (!string.IsNullOrWhiteSpace(request.Search))
-        {
-            var keyword = request.Search.Trim().ToLower();
-            baseQuery = baseQuery.Where(o =>
-                o.Name.ToLower().Contains(keyword) ||
-                (o.Ward != null && o.Ward.Name.ToLower().Contains(keyword)) ||
-                (o.Officer != null && o.Officer.FullName.ToLower().Contains(keyword)));
-        }
+        // 3. Apply search filter — tokenize ở Application, ILike ở repo (Npgsql).
+        var searchTokens = VietnameseTextSearch.Tokenize(request.Search);
+        if (searchTokens.Count > 0)
+            baseQuery = localOffices.ApplySearchTokens(baseQuery, searchTokens);
 
         // 4. Apply isOnboarded filter
         if (request.IsOnboarded.HasValue)
