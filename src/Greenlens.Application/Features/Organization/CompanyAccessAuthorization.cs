@@ -26,19 +26,14 @@ internal static class CompanyAccessAuthorization
         return null;
     }
 
-    public static Error? ValidateLeoViewAccess(
-        EnvironmentalServiceCompany company,
-        User actor,
-        string wardCode)
+    /// <summary>Role/office assignment only — ward scope is enforced in SQL by LEO company handlers.</summary>
+    public static Error? ValidateLeoViewAccess(User actor)
     {
         if (actor.Role != UserRole.LEO)
             return Errors.Auth.Forbidden;
 
         if (!actor.LocalOfficeId.HasValue)
             return Errors.Organization.OfficerNoOffice;
-
-        if (!company.ServiceAreas.Any(sa => sa.WardCode == wardCode))
-            return Errors.Organization.CompanyNotFound;
 
         return null;
     }
