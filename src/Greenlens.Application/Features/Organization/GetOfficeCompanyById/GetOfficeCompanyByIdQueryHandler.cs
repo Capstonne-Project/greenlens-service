@@ -72,16 +72,16 @@ public sealed class GetOfficeCompanyByIdQueryHandler(
             return accessError;
         }
 
-        // Projection join Ward trong SQL — không phụ thuộc ThenInclude char(5) FK.
+        // Projection join Ward trong SQL — OrderBy trên entity field, không trên DTO record.
         var serviceAreas = await companies.QueryAsNoTracking()
             .Where(c => c.Id == request.Id)
             .SelectMany(c => c.ServiceAreas)
+            .OrderBy(sa => sa.Ward != null ? sa.Ward.Name : sa.WardCode)
             .Select(sa => new CompanyServiceAreaDto(
                 sa.Id,
                 sa.WardCode,
                 sa.Ward != null ? sa.Ward.Name : sa.WardCode,
                 sa.Ward != null ? sa.Ward.ProvinceCode : ""))
-            .OrderBy(sa => sa.WardName)
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
