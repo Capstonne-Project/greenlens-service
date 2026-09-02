@@ -97,6 +97,19 @@ public sealed class Badge : BaseEntity
         }
     }
 
+    /// <summary>Seeder/catalog sync — cập nhật đủ 4 trục eligibility theo giá trị seed mặc định.</summary>
+    public void SyncEligibilityThresholds(
+        int? requiredPoints,
+        int? requiredReportCount,
+        int? requiredStreakDays,
+        int? requiredActionCount)
+    {
+        RequiredPoints = requiredPoints;
+        RequiredReportCount = requiredReportCount;
+        RequiredStreakDays = requiredStreakDays;
+        RequiredActionCount = requiredActionCount;
+    }
+
     public void Activate() => IsActive = true;
 
     public void Deactivate() => IsActive = false;

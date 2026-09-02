@@ -65,10 +65,6 @@ public sealed class PenaltyIssuedPointsHandlerTests
                 && c.Reason == PointReason.PenaltyIssued
                 && c.ReportId == report.Id),
             Arg.Any<CancellationToken>());
-
-        await _sender.Received(1).Send(
-            Arg.Is<CheckBadgesCommand>(c => c.UserId == reporterId),
-            Arg.Any<CancellationToken>());
     }
 
     [Fact]

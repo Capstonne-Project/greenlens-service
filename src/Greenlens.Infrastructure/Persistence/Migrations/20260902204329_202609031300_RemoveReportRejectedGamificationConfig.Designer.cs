@@ -3,17 +3,20 @@ using System;
 using Greenlens.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace Greenlens.Infrastructure.Migrations
+namespace Greenlens.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260902204329_202609031300_RemoveReportRejectedGamificationConfig")]
+    partial class _202609031300_RemoveReportRejectedGamificationConfig
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1376,7 +1379,7 @@ namespace Greenlens.Infrastructure.Migrations
                             Id = new Guid("a0000001-0000-0000-0000-000000000006"),
                             ActionType = "FraudPenalty",
                             CreatedAt = new DateTime(2026, 7, 10, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Phạt gian lận — trừ toàn bộ điểm",
+                            Description = "BR-GAM-006: Phạt gian lận — trừ toàn bộ điểm",
                             IsActive = true,
                             Points = -100
                         },

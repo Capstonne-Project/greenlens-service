@@ -50,7 +50,6 @@ public sealed class PenaltyIssuedPointsHandler(
             PointReason.PenaltyIssued,
             notification.ReportId,
             "PenaltyIssued",
-            checkBadges: true,
             ct).ConfigureAwait(false);
     }
 }
