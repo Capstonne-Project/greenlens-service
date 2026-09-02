@@ -4,6 +4,7 @@ using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Features.Organization.Common;
 using Greenlens.Application.Features.Organization.GetCompanyById;
 using Greenlens.Domain.Common;
+using Greenlens.Domain.Entities.Location;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -20,6 +21,7 @@ public sealed class GetOfficeCompanyByIdQueryHandler(
     IUserRepository users,
     ILocalOfficeRepository offices,
     IEnvironmentalServiceCompanyRepository companies,
+    IWardRepository wards,
     IEnvironmentalTeamRepository teams,
     IReportRepository reports,
     ILogger<GetOfficeCompanyByIdQueryHandler> logger)
@@ -44,14 +46,15 @@ public sealed class GetOfficeCompanyByIdQueryHandler(
             return scopeResult.Error!;
 
         var office = scopeResult.Value!.Office;
-        var wardCode = office.WardCode;
+        var wardCode = office.WardCode.Trim();
 
-        // Cùng filter SQL như GetOfficeCompanies — tránh 404 khi Include+ThenInclude(Ward) không hydrate ServiceAreas.
+        // Include ServiceAreas (không ThenInclude Ward) — tránh join char(5) làm collection rỗng.
         var company = await companies.QueryAsNoTracking()
             .Include(c => c.Department)
+            .Include(c => c.ServiceAreas)
             .Include(c => c.Staff)
             .Where(c => c.Id == request.Id)
-            .Where(c => c.ServiceAreas.Any(sa => sa.WardCode == wardCode))
+            .Where(c => c.ServiceAreas.Any(sa => sa.WardCode.Trim() == wardCode))
             .FirstOrDefaultAsync(ct)
             .ConfigureAwait(false);
 
@@ -72,20 +75,42 @@ public sealed class GetOfficeCompanyByIdQueryHandler(
             return accessError;
         }
 
-        // Projection join Ward trong SQL — OrderBy trên entity field, không trên DTO record.
-        var serviceAreas = await companies.QueryAsNoTracking()
-            .Where(c => c.Id == request.Id)
-            .SelectMany(c => c.ServiceAreas)
-            .OrderBy(sa => sa.Ward != null ? sa.Ward.Name : sa.WardCode)
-            .Select(sa => new CompanyServiceAreaDto(
-                sa.Id,
-                sa.WardCode,
-                sa.Ward != null ? sa.Ward.Name : sa.WardCode,
-                sa.Ward != null ? sa.Ward.ProvinceCode : ""))
-            .ToListAsync(ct)
-            .ConfigureAwait(false);
+        // Lookup tên phường riêng — Ward.Code char(5) không join ổn định trong projection.
+        var wardCodes = company.ServiceAreas
+            .Select(sa => sa.WardCode.Trim())
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
 
-        var wardServiceArea = serviceAreas.First(sa => sa.WardCode == wardCode);
+        var wardLookup = new Dictionary<string, Ward>(StringComparer.Ordinal);
+        foreach (var code in wardCodes)
+        {
+            var ward = await wards.GetByCodeAsync(code, ct).ConfigureAwait(false);
+            if (ward is not null)
+                wardLookup[code] = ward;
+        }
+
+        var serviceAreas = company.ServiceAreas
+            .Select(sa =>
+            {
+                var code = sa.WardCode.Trim();
+                wardLookup.TryGetValue(code, out var ward);
+                return new CompanyServiceAreaDto(
+                    sa.Id,
+                    code,
+                    ward?.Name ?? code,
+                    ward?.ProvinceCode.Trim() ?? "");
+            })
+            .OrderBy(sa => sa.WardName)
+            .ToList();
+
+        var wardServiceArea = serviceAreas.FirstOrDefault(sa => sa.WardCode == wardCode);
+        if (wardServiceArea is null)
+        {
+            logger.LogWarning(
+                "Ward service area {WardCode} missing for company {CompanyId} after load",
+                wardCode, request.Id);
+            return Errors.Organization.CompanyNotFound;
+        }
 
         var activeReportCount = await reports.QueryAsNoTracking()
             .Where(r => r.AssignedOfficeId == office.Id)
