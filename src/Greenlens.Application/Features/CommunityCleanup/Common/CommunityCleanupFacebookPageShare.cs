@@ -55,7 +55,7 @@ internal static class CommunityCleanupFacebookPageShare
             return Errors.Meta.ShareImageRequired;
 
         var postResult = await facebookPagePublisher.PublishPhotoPostAsync(
-            share.Caption,
+            MarkdownPlainText.ToPlainPreservingLinks(share.Caption),
             share.ImageUrl,
             ct).ConfigureAwait(false);
 
