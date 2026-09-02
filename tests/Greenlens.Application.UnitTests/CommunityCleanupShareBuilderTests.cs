@@ -79,11 +79,13 @@ public sealed class CommunityCleanupShareBuilderTests
             • Thời gian hoạt động có thể thay đổi tùy theo khối lượng rác thực tế
             • Hãy tuân thủ hướng dẫn an toàn và phối hợp cùng đội nhóm để đạt hiệu quả cao nhất
 
+            📲 Tải ứng dụng GreenLens tại https://leo.greenlens.test để cùng chung tay bảo vệ môi trường nhé!
+
             📞 Hỗ trợ & liên hệ
 
             098 773 0708
 
-            #GreenLens #DonDepCongDong
+            #GreenLens #DonDepCongDong #CaiNhinDonDep #ChamSocMoiTruong
             """);
         share.Caption.Should().Be(expected);
         share.FacebookShareUrl.Should().Contain("facebook.com/sharer/sharer.php?u=");
