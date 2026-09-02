@@ -1,5 +1,6 @@
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Entities;
+using Greenlens.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace Greenlens.Infrastructure.Persistence.Repositories;
@@ -41,5 +42,19 @@ internal sealed class UserPointsRepository(ApplicationDbContext db)
             .Include(x => x.Transactions)
             .FirstOrDefaultAsync(x => x.UserId == userId, ct)
             .ConfigureAwait(false);
+    }
+
+    public async Task<bool> HasTransactionForReportAsync(
+        Guid userId, Guid reportId, PointReason reason, CancellationToken ct = default)
+    {
+        // Ignore soft-delete filters — unique index may still see deleted rows on PostgreSQL.
+        return await (
+            from pt in Context.PointTransactions.IgnoreQueryFilters()
+            join up in Context.UserPoints.IgnoreQueryFilters() on pt.UserPointsId equals up.Id
+            where up.UserId == userId
+                  && pt.ReportId == reportId
+                  && pt.Reason == reason
+            select pt.Id
+        ).AnyAsync(ct).ConfigureAwait(false);
     }
 }

@@ -3,17 +3,20 @@ using System;
 using Greenlens.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace Greenlens.Infrastructure.Migrations
+namespace Greenlens.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260902203906_202609031200_FixGamificationPointsAndConfig")]
+    partial class _202609031200_FixGamificationPointsAndConfig
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1370,6 +1373,15 @@ namespace Greenlens.Infrastructure.Migrations
                             Description = "Báo cáo trùng được gộp: +50% điểm báo cáo gốc (ReportVerified). Giá trị Points chỉ mang tính tham chiếu; runtime tính động.",
                             IsActive = true,
                             Points = 5
+                        },
+                        new
+                        {
+                            Id = new Guid("a0000001-0000-0000-0000-000000000005"),
+                            ActionType = "ReportRejected",
+                            CreatedAt = new DateTime(2026, 7, 10, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Báo cáo bị từ chối (không hợp lệ)",
+                            IsActive = true,
+                            Points = -5
                         },
                         new
                         {

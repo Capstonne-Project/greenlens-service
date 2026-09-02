@@ -56,7 +56,6 @@ public sealed class CommunityCleanupParticipationPointsHandler(
                 PointReason.CommunityCleanupParticipation,
                 notification.EventId,
                 "CommunityCleanupParticipation",
-                checkBadges: false,
                 ct).ConfigureAwait(false);
 
             await GamificationPointAwarder.TryCheckBadgesAsync(sender, participant.UserId, ct)

@@ -11,7 +11,9 @@ namespace Greenlens.Application.Features.Gamification.CheckBadges;
 
 /// <summary>
 /// Checks all active badges and awards any that the user qualifies for but hasn't earned yet.
-/// Typically triggered after AwardPoints.
+/// Triggered immediately (same request) by: ReportVerified/Resolved events, ReportSubmitted (streak),
+/// DuplicateMerged, CommunityCleanupCompleted, ConfirmDuplicate (community_voice), AwardPoints (level).
+/// BadgeRecheckJob 08:00 ICT is only a safety-net backfill.
 /// </summary>
 /// <remarks>Implements: BR-GAM-004, BR-NTF-002 (BadgeEarned / BadgeProgressNear notifications).</remarks>
 public sealed record CheckBadgesCommand(Guid UserId) : IRequest<Result<CheckBadgesResponse>>, INoTransaction;
@@ -95,12 +97,16 @@ public sealed class CheckBadgesCommandHandler(
 
             foreach (var badge in newlyAwardedBadges)
             {
-                var alreadyNotified = await db.Set<Notification>()
-                    .AsNoTracking()
-                    .AnyAsync(n => n.RecipientId == request.UserId
-                                   && n.Type == NotificationType.BadgeEarned
-                                   && n.ReferenceId == badge.Id, ct)
-                    .ConfigureAwait(false);
+                // Dedup theo badge code — tránh notify lại khi catalog badge đổi UUID (BadgeRecheckJob 08:00 ICT).
+                var alreadyNotified = await (
+                    from n in db.Set<Notification>().AsNoTracking()
+                    join b in db.Set<Badge>().AsNoTracking() on n.ReferenceId equals b.Id
+                    where n.RecipientId == request.UserId
+                          && n.Type == NotificationType.BadgeEarned
+                          && b.Code == badge.Code
+                    select n.Id
+                ).AnyAsync(ct).ConfigureAwait(false);
+
                 if (alreadyNotified)
                 {
                     logger.LogDebug(
