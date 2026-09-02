@@ -22,7 +22,9 @@ internal sealed class R2FileStorageService : IFileStorageService, IDisposable
         var config = new AmazonS3Config
         {
             ServiceURL = $"https://{_options.AccountId}.r2.cloudflarestorage.com",
-            ForcePathStyle = true
+            ForcePathStyle = true,
+            // Tránh GetObject treo vô hạn khi VPS không reach được R2 API.
+            Timeout = TimeSpan.FromSeconds(30),
         };
 
         _s3 = new AmazonS3Client(
@@ -150,6 +152,8 @@ internal sealed class R2FileStorageService : IFileStorageService, IDisposable
 
         try
         {
+            _logger.LogDebug("R2 GetObject start | key={Key} maxBytes={MaxBytes}", key, maxSizeBytes);
+
             using var response = await _s3.GetObjectAsync(
                     new GetObjectRequest
                     {
@@ -160,7 +164,14 @@ internal sealed class R2FileStorageService : IFileStorageService, IDisposable
                 .ConfigureAwait(false);
 
             if (response.ContentLength <= 0 || response.ContentLength > maxSizeBytes)
+            {
+                _logger.LogWarning(
+                    "R2 GetObject rejected size | key={Key} contentLength={ContentLength} maxBytes={MaxBytes}",
+                    key,
+                    response.ContentLength,
+                    maxSizeBytes);
                 return null;
+            }
 
             using var buffer = new MemoryStream((int)response.ContentLength);
             await response.ResponseStream.CopyToAsync(buffer, ct).ConfigureAwait(false);
@@ -168,14 +179,30 @@ internal sealed class R2FileStorageService : IFileStorageService, IDisposable
             if (buffer.Length <= 0 || buffer.Length > maxSizeBytes)
                 return null;
 
+            _logger.LogDebug(
+                "R2 GetObject OK | key={Key} bytes={Bytes}",
+                key,
+                buffer.Length);
+
             return new StoredFileDownload(
                 buffer.ToArray(),
                 response.Headers.ContentType ?? "application/octet-stream",
                 buffer.Length);
         }
-        catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        catch (AmazonS3Exception ex)
         {
+            _logger.LogWarning(
+                ex,
+                "R2 GetObject failed | key={Key} status={StatusCode} errorCode={ErrorCode}",
+                key,
+                ex.StatusCode,
+                ex.ErrorCode);
             return null;
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            _logger.LogWarning("R2 GetObject cancelled | key={Key}", key);
+            throw;
         }
     }
 
