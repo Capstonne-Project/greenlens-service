@@ -23,9 +23,12 @@ namespace Greenlens.Api.Controllers;
 public sealed class CommentsController(ISender sender) : ControllerBase
 {
     [HttpGet("reports/{reportId:guid}/comments")]
+    [AllowAnonymous]
     [SwaggerOperation(
-        Summary = "[Auth] Danh sách bình luận trên báo cáo",
-        Description = "Phân trang bình luận (kèm likeCount / likedByMe / parentCommentId). Citizen không thấy bình luận đã ẩn.")]
+        Summary = "Danh sách bình luận trên báo cáo (public — xem không cần đăng nhập)",
+        Description = "Phân trang bình luận (kèm likeCount / likedByMe / parentCommentId). Khách vãng lai (chưa đăng nhập) " +
+            "xem được danh sách nhưng likedByMe/canEdit/canDelete luôn false. Citizen không thấy bình luận đã ẩn. " +
+            "Viết/thích/sửa/xóa bình luận vẫn yêu cầu đăng nhập (các endpoint khác trong controller này).")]
     [SwaggerResponse(200, "Danh sách bình luận", typeof(ApiResponse<GetReportCommentsResponse>))]
     [SwaggerResponse(404, "Báo cáo không tồn tại", typeof(ApiResponse))]
     public async Task<IActionResult> GetReportCommentsAsync(
