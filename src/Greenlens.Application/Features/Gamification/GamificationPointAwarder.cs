@@ -40,7 +40,6 @@ internal static class GamificationPointAwarder
         PointReason reason,
         Guid? referenceId,
         string eventLabel,
-        bool checkBadges,
         CancellationToken ct)
     {
         var awardResult = await sender
@@ -66,11 +65,6 @@ internal static class GamificationPointAwarder
         logger.LogInformation(
             "Awarded {Points} {EventLabel} points to user {UserId} (reference={ReferenceId})",
             points, eventLabel, userId, referenceId);
-
-        if (checkBadges)
-        {
-            await sender.Send(new CheckBadgesCommand(userId), ct).ConfigureAwait(false);
-        }
 
         return true;
     }

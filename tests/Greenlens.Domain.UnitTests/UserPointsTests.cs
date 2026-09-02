@@ -37,12 +37,12 @@ public sealed class UserPointsTests
     }
 
     [Fact]
-    public void AwardPoints_Rejected_Deducts5Points()
+    public void AwardPoints_NegativeDeduction_ReducesTotal_BR_GAM_001()
     {
         var sut = CreateSut();
         sut.AwardPoints(10, PointReason.ReportVerified, Guid.NewGuid());
 
-        sut.AwardPoints(-5, PointReason.ReportRejected, Guid.NewGuid());
+        sut.AwardPoints(-5, PointReason.FraudPenalty, null);
 
         Assert.Equal(5, sut.TotalPoints);
     }
@@ -52,7 +52,7 @@ public sealed class UserPointsTests
     {
         var sut = CreateSut();
 
-        sut.AwardPoints(-5, PointReason.ReportRejected, Guid.NewGuid());
+        sut.AwardPoints(-5, PointReason.FraudPenalty, null);
 
         Assert.Equal(0, sut.TotalPoints);
     }

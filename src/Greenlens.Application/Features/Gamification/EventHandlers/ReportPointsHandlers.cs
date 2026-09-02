@@ -37,7 +37,6 @@ public sealed class ReportVerifiedPointsHandler(
                 PointReason.ReportVerified,
                 notification.ReportId,
                 "ReportVerified",
-                checkBadges: false,
                 ct).ConfigureAwait(false);
         }
 
@@ -68,40 +67,11 @@ public sealed class ReportResolvedPointsHandler(
                 PointReason.ReportResolved,
                 notification.ReportId,
                 "ReportResolved",
-                checkBadges: false,
                 ct).ConfigureAwait(false);
         }
 
         await GamificationPointAwarder.TryCheckBadgesAsync(sender, notification.ReporterId, ct)
             .ConfigureAwait(false);
-    }
-}
-
-public sealed class ReportRejectedPointsHandler(
-    ISender sender,
-    IApplicationDbContext db,
-    ILogger<ReportRejectedPointsHandler> logger)
-    : INotificationHandler<ReportRejectedEvent>
-{
-    public async Task Handle(ReportRejectedEvent notification, CancellationToken ct)
-    {
-        var points = await GamificationPointAwarder
-            .GetConfiguredPointsAsync(db, PointReason.ReportRejected, -5, ct)
-            .ConfigureAwait(false);
-
-        if (points == 0)
-            return;
-
-        await GamificationPointAwarder.TryAwardAsync(
-            sender,
-            logger,
-            notification.ReporterId,
-            points,
-            PointReason.ReportRejected,
-            notification.ReportId,
-            "ReportRejected",
-            checkBadges: false,
-            ct).ConfigureAwait(false);
     }
 }
 

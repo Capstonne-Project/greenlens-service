@@ -46,10 +46,10 @@ internal sealed class PointTransactionConfiguration : IEntityTypeConfiguration<P
 
         builder.Property(x => x.Reason).HasConversion<string>().HasMaxLength(50);
 
-        // Idempotency index: one transaction per report + reason
+        // Idempotency index: one active transaction per report + reason
         builder.HasIndex(x => new { x.UserPointsId, x.ReportId, x.Reason })
             .HasDatabaseName("ix_point_tx_idempotent")
-            .HasFilter("\"report_id\" IS NOT NULL")
+            .HasFilter("\"report_id\" IS NOT NULL AND \"deleted_at\" IS NULL")
             .IsUnique();
 
         // Period query index (leaderboard)
