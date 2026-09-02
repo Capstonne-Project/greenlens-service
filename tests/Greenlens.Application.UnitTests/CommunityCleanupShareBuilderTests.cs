@@ -79,7 +79,7 @@ public sealed class CommunityCleanupShareBuilderTests
             • Thời gian hoạt động có thể thay đổi tùy theo khối lượng rác thực tế
             • Hãy tuân thủ hướng dẫn an toàn và phối hợp cùng đội nhóm để đạt hiệu quả cao nhất
 
-            📲 Tải ứng dụng GreenLens tại https://leo.greenlens.test để cùng chung tay bảo vệ môi trường nhé!
+            📲 Tải ứng dụng tại [GreenLens](https://leo.greenlens.test) để cùng chung tay bảo vệ môi trường nhé!
 
             📞 Hỗ trợ & liên hệ
 

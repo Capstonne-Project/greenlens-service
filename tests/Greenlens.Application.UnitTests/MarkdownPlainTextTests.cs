@@ -25,4 +25,21 @@ public sealed class MarkdownPlainTextTests
         plain.Should().NotContain("](https://");
         plain.Should().Contain("• Mục tiêu 1");
     }
+
+    [Fact]
+    public void ToPlainPreservingLinks_KeepsUrlAfterLabel()
+    {
+        const string markdown = "Tải tại [GreenLens](https://greenlens-portal.vercel.app) nhé!";
+
+        var plain = MarkdownPlainText.ToPlainPreservingLinks(markdown);
+
+        plain.Should().Be("Tải tại GreenLens (https://greenlens-portal.vercel.app) nhé!");
+    }
+
+    [Fact]
+    public void FormatLink_BuildsMarkdownInlineLink()
+    {
+        MarkdownPlainText.FormatLink("GreenLens", "https://greenlens-portal.vercel.app/")
+            .Should().Be("[GreenLens](https://greenlens-portal.vercel.app)");
+    }
 }

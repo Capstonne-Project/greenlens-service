@@ -7,6 +7,10 @@ namespace Greenlens.Application.Common;
 /// </summary>
 internal static partial class MarkdownPlainText
 {
+    /// <summary>Markdown inline link — FE có thể render; Facebook post dùng <see cref="ToPlainPreservingLinks"/>.</summary>
+    public static string FormatLink(string label, string url) =>
+        $"[{label}]({url.TrimEnd('/')})";
+
     public static string ToPlain(string? markdown)
     {
         if (string.IsNullOrWhiteSpace(markdown))
@@ -26,11 +30,36 @@ internal static partial class MarkdownPlainText
         return text.Trim();
     }
 
+    /// <summary>
+    /// Plain text cho Facebook/social: giữ URL sau label để client auto-linkify (không hỗ trợ anchor markdown).
+    /// </summary>
+    public static string ToPlainPreservingLinks(string? markdown)
+    {
+        if (string.IsNullOrWhiteSpace(markdown))
+            return string.Empty;
+
+        var text = markdown;
+
+        text = ImageRegex().Replace(text, "$1");
+        text = LinkWithUrlRegex().Replace(text, "$1 ($2)");
+        text = BoldItalicRegex().Replace(text, "$1");
+        text = InlineCodeRegex().Replace(text, "$1");
+        text = HeadingRegex().Replace(text, "$1");
+        text = BlockquoteRegex().Replace(text, "$1");
+        text = ListMarkerRegex().Replace(text, "• ");
+        text = HorizontalRuleRegex().Replace(text, string.Empty);
+
+        return text.Trim();
+    }
+
     [GeneratedRegex(@"!\[([^\]]*)\]\([^)]+\)", RegexOptions.Compiled)]
     private static partial Regex ImageRegex();
 
     [GeneratedRegex(@"\[([^\]]+)\]\([^)]+\)", RegexOptions.Compiled)]
     private static partial Regex LinkRegex();
+
+    [GeneratedRegex(@"\[([^\]]+)\]\(([^)]+)\)", RegexOptions.Compiled)]
+    private static partial Regex LinkWithUrlRegex();
 
     [GeneratedRegex(@"\*\*([^*]+)\*\*|\*([^*]+)\*|__([^_]+)__|_([^_]+)_", RegexOptions.Compiled)]
     private static partial Regex BoldItalicRegex();
