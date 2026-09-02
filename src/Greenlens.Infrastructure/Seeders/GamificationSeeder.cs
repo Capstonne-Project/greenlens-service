@@ -60,8 +60,7 @@ internal static class GamificationSeeder
         (PointReason.ReportResolved, 20, "Báo cáo đã xử lý xong (cleanup hoàn tất)"),
         (PointReason.PenaltyIssued, 20, "Biên bản xử phạt được ban hành"),
         (PointReason.DuplicateReport, 5, "Báo cáo trùng được gộp: +50% điểm báo cáo gốc (ReportVerified)"),
-        (PointReason.ReportRejected, -5, "Báo cáo bị từ chối (không hợp lệ)"),
-        (PointReason.FraudPenalty, -100, "BR-GAM-006: Phạt gian lận — trừ toàn bộ điểm"),
+        (PointReason.FraudPenalty, -100, "Phạt gian lận — trừ toàn bộ điểm"),
         (PointReason.CommunityCleanupParticipation, 15, "Tham gia và check-in một chương trình dọn dẹp cộng đồng đã hoàn thành"),
     ];
 
@@ -77,6 +76,7 @@ internal static class GamificationSeeder
 
         await RemoveRetiredBadgesAsync(db, logger, ct).ConfigureAwait(false);
         await SeedBadgesAsync(db, logger, publicBase, ct).ConfigureAwait(false);
+        await SyncBadgeThresholdsAsync(db, logger, ct).ConfigureAwait(false);
         await SyncBadgeIconUrlsAsync(db, logger, publicBase, ct).ConfigureAwait(false);
         await SeedGamificationConfigsAsync(db, logger, ct).ConfigureAwait(false);
     }
@@ -151,6 +151,43 @@ internal static class GamificationSeeder
 
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
         logger.LogInformation("Gamification badges seeded: {Count} added.", added);
+    }
+
+    /// <summary>Đồng bộ ngưỡng badge theo code — prod có thể lệch UUID/threshold sau migration cũ.</summary>
+    private static async Task SyncBadgeThresholdsAsync(
+        ApplicationDbContext db,
+        ILogger logger,
+        CancellationToken ct)
+    {
+        var badges = await db.Badges.ToListAsync(ct).ConfigureAwait(false);
+        var synced = 0;
+
+        foreach (var badge in badges)
+        {
+            if (!DefaultBadgesByCode.TryGetValue(badge.Code, out var seed))
+                continue;
+
+            var needsUpdate = badge.RequiredReportCount != seed.RequiredReportCount
+                || badge.RequiredPoints != seed.RequiredPoints
+                || badge.RequiredStreakDays != seed.RequiredStreakDays
+                || badge.RequiredActionCount != seed.RequiredActionCount;
+
+            if (!needsUpdate)
+                continue;
+
+            badge.SyncEligibilityThresholds(
+                seed.RequiredPoints,
+                seed.RequiredReportCount,
+                seed.RequiredStreakDays,
+                seed.RequiredActionCount);
+            synced++;
+        }
+
+        if (synced == 0)
+            return;
+
+        await db.SaveChangesAsync(ct).ConfigureAwait(false);
+        logger.LogInformation("Synced badge thresholds for {Count} badge(s).", synced);
     }
 
     /// <summary>Refresh icon_url after designers replace PNGs on R2 (docs/UserBadge/icons source of truth).</summary>
