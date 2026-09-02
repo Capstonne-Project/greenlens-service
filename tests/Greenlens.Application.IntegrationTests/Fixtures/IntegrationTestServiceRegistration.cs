@@ -53,6 +53,7 @@ internal static class IntegrationTestServiceRegistration
         services.AddScoped<IOtpRepository, OtpRepository>();
         services.AddScoped<IPasswordHasher, BcryptPasswordHasher>();
         services.AddScoped<ILocalOfficeRepository, LocalOfficeRepository>();
+        services.AddScoped<IWardRepository, WardRepository>();
         services.AddScoped<IWardBoundaryLookupService, WardBoundaryLookupService>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<ITransactionManager, TransactionManager>();
