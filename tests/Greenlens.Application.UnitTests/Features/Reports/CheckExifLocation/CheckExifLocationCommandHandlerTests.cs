@@ -2,6 +2,7 @@ using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Features.Reports;
 using Greenlens.Application.Features.Reports.CheckExifLocation;
 using Greenlens.Application.UnitTests.TestDoubles;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
 
 namespace Greenlens.Application.UnitTests.Features.Reports.CheckExifLocation;
@@ -42,7 +43,8 @@ public sealed class CheckExifLocationCommandHandlerTests
             tempStore,
             Substitute.For<IFileStorageService>(),
             exifAnalyzer,
-            new DefaultSystemSettingsProvider());
+            new DefaultSystemSettingsProvider(),
+            Substitute.For<ILogger<CheckExifLocationCommandHandler>>());
 
         var result = await sut.Handle(
             new CheckExifLocationCommand(
@@ -88,7 +90,8 @@ public sealed class CheckExifLocationCommandHandlerTests
             tempStore,
             Substitute.For<IFileStorageService>(),
             exifAnalyzer,
-            new DefaultSystemSettingsProvider());
+            new DefaultSystemSettingsProvider(),
+            Substitute.For<ILogger<CheckExifLocationCommandHandler>>());
 
         var result = await sut.Handle(
             new CheckExifLocationCommand(
@@ -119,7 +122,8 @@ public sealed class CheckExifLocationCommandHandlerTests
             tempStore,
             Substitute.For<IFileStorageService>(),
             Substitute.For<IImageExifAnalyzer>(),
-            new DefaultSystemSettingsProvider());
+            new DefaultSystemSettingsProvider(),
+            Substitute.For<ILogger<CheckExifLocationCommandHandler>>());
 
         var result = await sut.Handle(
             new CheckExifLocationCommand(
