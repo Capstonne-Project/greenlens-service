@@ -19,7 +19,7 @@ internal static class CommunityCleanupShareBuilder
         PublicWebOptions publicWeb)
     {
         var url = publicWeb.BuildCommunityCleanupUrl(ev.Id);
-        var caption = BuildCaption(ev, report);
+        var caption = BuildCaption(ev, report, publicWeb);
         var encodedUrl = Uri.EscapeDataString(url);
         var encodedCaption = Uri.EscapeDataString(caption);
 
@@ -33,7 +33,7 @@ internal static class CommunityCleanupShareBuilder
             Hashtags: DefaultHashtags);
     }
 
-    private static string BuildCaption(CommunityCleanupEvent ev, Report report)
+    private static string BuildCaption(CommunityCleanupEvent ev, Report report, PublicWebOptions publicWeb)
     {
         var vi = CultureInfo.GetCultureInfo("vi-VN");
         var sb = new StringBuilder();
@@ -77,11 +77,14 @@ internal static class CommunityCleanupShareBuilder
         sb.AppendLine("• Thời gian hoạt động có thể thay đổi tùy theo khối lượng rác thực tế");
         sb.AppendLine("• Hãy tuân thủ hướng dẫn an toàn và phối hợp cùng đội nhóm để đạt hiệu quả cao nhất");
         sb.AppendLine();
+        // Link portal — cùng PublicWeb:BaseUrl (prod: https://greenlens-portal.vercel.app).
+        sb.AppendLine($"📲 Tải ứng dụng GreenLens tại {publicWeb.BaseUrl.TrimEnd('/')} để cùng chung tay bảo vệ môi trường nhé!");
+        sb.AppendLine();
         sb.AppendLine("📞 Hỗ trợ & liên hệ");
         sb.AppendLine();
         sb.AppendLine("098 773 0708");
         sb.AppendLine();
-        sb.Append("#GreenLens #DonDepCongDong");
+        sb.Append("#GreenLens #DonDepCongDong #CaiNhinDonDep #ChamSocMoiTruong");
 
         return NormalizeLineEndings(sb.ToString());
     }
