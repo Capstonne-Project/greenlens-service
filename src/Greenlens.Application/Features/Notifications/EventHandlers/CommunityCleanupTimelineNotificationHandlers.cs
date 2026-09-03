@@ -50,6 +50,32 @@ internal sealed class CommunityCleanupStartedNotificationHandler(
     }
 }
 
+/// <summary>Notifies the LEO (program owner) when the Leader uploads before (on-site) images.</summary>
+/// <remarks>Implements: BR-CMU-008 (Leader uploads before images), BR-REP-014 (before images on report).</remarks>
+internal sealed class CommunityCleanupBeforeImagesUploadedNotificationHandler(
+    INotificationService notificationService,
+    ILogger<CommunityCleanupBeforeImagesUploadedNotificationHandler> logger)
+    : INotificationHandler<CommunityCleanupBeforeImagesUploadedEvent>
+{
+    public async Task Handle(CommunityCleanupBeforeImagesUploadedEvent notification, CancellationToken ct)
+    {
+        logger.LogInformation(
+            "Community cleanup {EventId}: Leader uploaded {Count} before image(s), notifying LEO {LeoId}",
+            notification.EventId, notification.ImageCount, notification.LeoId);
+
+        await notificationService.SendFromTemplateAsync(
+            notification.LeoId,
+            NotificationType.CommunityCleanupBeforeImagesUploaded,
+            new Dictionary<string, string>
+            {
+                ["title"] = notification.Title,
+                ["image_count"] = notification.ImageCount.ToString()
+            },
+            notification.EventId,
+            ct).ConfigureAwait(false);
+    }
+}
+
 /// <summary>
 /// Notifies the LEO (program owner) when the Leader posts a progress update.
 /// Citizens do NOT need this — see remarks on CommunityCleanupLeaderCheckedInNotificationHandler.

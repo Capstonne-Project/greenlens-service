@@ -228,11 +228,13 @@ public static class DependencyInjection
                 ConnectionMultiplexer.Connect(redisConnection));
             services.AddSingleton<IReportSubmissionRateLimiter, RateLimiting.RedisReportSubmissionRateLimiter>();
             services.AddSingleton<IIdempotencyStore, Idempotency.RedisIdempotencyStore>();
+            services.AddSingleton<ILeaderboardCache, Gamification.RedisLeaderboardCache>();
         }
         else
         {
             services.AddSingleton<IReportSubmissionRateLimiter, RateLimiting.InMemoryReportSubmissionRateLimiter>();
             services.AddSingleton<IIdempotencyStore, Idempotency.InMemoryIdempotencyStore>();
+            services.AddSingleton<ILeaderboardCache, Gamification.InMemoryLeaderboardCache>();
         }
 
         services.AddScoped<IIdempotencyContext, Idempotency.IdempotencyContext>();

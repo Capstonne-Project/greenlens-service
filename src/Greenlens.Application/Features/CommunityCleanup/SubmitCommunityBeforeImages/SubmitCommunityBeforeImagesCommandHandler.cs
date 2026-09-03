@@ -9,6 +9,10 @@ using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.CommunityCleanup.SubmitCommunityBeforeImages;
 
+/// <remarks>
+/// Implements: BR-CMU-008 (Leader uploads before images), BR-REP-014 (before images on report).
+/// Raises <see cref="CommunityCleanupBeforeImagesUploadedEvent"/> so the LEO is notified via outbox.
+/// </remarks>
 public sealed class SubmitCommunityBeforeImagesCommandHandler(
     ICommunityCleanupEventRepository events,
     IReportMediaRepository reportMedia,
@@ -49,6 +53,10 @@ public sealed class SubmitCommunityBeforeImagesCommandHandler(
             reportMedia.Add(ReportMedia.Create(ev.ReportId, MediaType.Before, trimmed, "image/jpeg", 0L, currentUser.UserId));
             savedUrls.Add(trimmed);
         }
+
+        // Domain event → LEO notification sau commit (UnitOfWork dispatches domain events).
+        ev.AddDomainEvent(new CommunityCleanupBeforeImagesUploadedEvent(
+            ev.Id, ev.Title, ev.CreatedByLeoId, savedUrls.Count));
 
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
         logger.LogInformation("Community cleanup {EventId}: {Count} before images saved by Leader {UserId}",
