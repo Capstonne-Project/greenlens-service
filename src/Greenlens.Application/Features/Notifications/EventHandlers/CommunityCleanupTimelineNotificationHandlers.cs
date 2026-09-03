@@ -150,7 +150,8 @@ internal sealed class CommunityCleanupVerificationRejectedNotificationHandler(
     }
 }
 
-/// <summary>Notifies every participant (Leader included) once the LEO approves the cleanup as complete.</summary>
+/// <summary>Notifies checked-in participants (Leader included) once the LEO approves the cleanup as complete.</summary>
+/// <remarks>Implements: BR-CMU-010 — approving LEO is excluded (they performed the action).</remarks>
 internal sealed class CommunityCleanupVerifiedNotificationHandler(
     ICommunityCleanupParticipantRepository participants,
     INotificationService notificationService,
@@ -160,16 +161,17 @@ internal sealed class CommunityCleanupVerifiedNotificationHandler(
     public async Task Handle(CommunityCleanupVerifiedEvent notification, CancellationToken ct)
     {
         var all = await participants.GetByEventIdAsync(notification.EventId, ct).ConfigureAwait(false);
+        // Chỉ participant đã check-in; loại LEO vừa bấm duyệt (thường trùng CreatedByLeoId).
         var recipients = all
             .Where(p => p.Status == CommunityCleanupParticipantStatus.CheckedIn)
             .Select(p => p.UserId)
+            .Where(id => id != notification.VerifiedByLeoId)
             .Distinct()
             .ToList();
-        recipients = CommunityCleanupNotificationHelpers.WithLeo(recipients, notification.LeoId);
 
         logger.LogInformation(
-            "Community cleanup {EventId} verified, notifying {Count} recipient(s) (incl. LEO)",
-            notification.EventId, recipients.Count);
+            "Community cleanup {EventId} verified, notifying {Count} participant(s) (excl. approving LEO {LeoId})",
+            notification.EventId, recipients.Count, notification.VerifiedByLeoId);
 
         foreach (var userId in recipients)
         {

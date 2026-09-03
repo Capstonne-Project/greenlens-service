@@ -27,8 +27,8 @@ public sealed record CommunityCleanupVerificationSubmittedEvent(Guid EventId, Gu
 /// <summary>Raised when the LEO rejects submitted evidence. Notifies the Leader.</summary>
 public sealed record CommunityCleanupVerificationRejectedEvent(Guid EventId, string Title, Guid LeaderUserId, string Reason) : IDomainEvent;
 
-/// <summary>Raised alongside CommunityCleanupCompletedEvent, for the Notifications module to notify participants + the LEO (kept separate from the gamification-only event).</summary>
-public sealed record CommunityCleanupVerifiedEvent(Guid EventId, string Title, Guid LeoId) : IDomainEvent;
+/// <summary>Raised alongside CommunityCleanupCompletedEvent — notifies checked-in participants (not the approving LEO).</summary>
+public sealed record CommunityCleanupVerifiedEvent(Guid EventId, string Title, Guid VerifiedByLeoId) : IDomainEvent;
 
 /// <summary>Raised when the Leader checks in on-site. Notifies other participants + the LEO that the Leader has arrived.</summary>
 public sealed record CommunityCleanupLeaderCheckedInEvent(Guid EventId, string Title, Guid LeaderUserId, Guid LeoId) : IDomainEvent;
