@@ -169,7 +169,7 @@ public sealed class CommunityCleanupEvent : SoftDeletableEntity
         UpdatedAt = DateTime.UtcNow;
 
         AddDomainEvent(new CommunityCleanupCompletedEvent(Id, ReportId));
-        AddDomainEvent(new CommunityCleanupVerifiedEvent(Id, Title, CreatedByLeoId));
+        AddDomainEvent(new CommunityCleanupVerifiedEvent(Id, Title, leoId));
     }
 
     /// <summary>BR-CMU-011: LEO rejects, reason ≥ 20 chars (validated by caller). PendingVerification → InProgress.</summary>
