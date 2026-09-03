@@ -111,6 +111,9 @@ public enum NotificationType
     /// <summary>Draft BR-CMU-*: Leader posted a progress update (percent/photos) — notifies participants.</summary>
     CommunityCleanupProgressUpdated,
 
+    /// <summary>Draft BR-CMU-008: Leader uploaded before (on-site) images — notifies the LEO.</summary>
+    CommunityCleanupBeforeImagesUploaded,
+
     /// <summary>Draft BR-CMU-*: Leader submitted completion evidence — notifies the LEO to review.</summary>
     CommunityCleanupVerificationSubmitted,
 

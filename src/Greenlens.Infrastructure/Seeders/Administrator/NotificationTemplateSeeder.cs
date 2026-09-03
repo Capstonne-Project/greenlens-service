@@ -468,6 +468,14 @@ internal static class NotificationTemplateSeeder
             NotificationType.CommunityCleanupProgressUpdated),
 
         Create(
+            "community_cleanup_before_images_uploaded",
+            "Trưởng nhóm đã tải ảnh hiện trường",
+            "Trưởng nhóm đã tải {image_count} ảnh hiện trường cho chương trình \"{title}\".",
+            "Leader uploaded before images",
+            "The Leader uploaded {image_count} before image(s) for \"{title}\".",
+            NotificationType.CommunityCleanupBeforeImagesUploaded),
+
+        Create(
             "community_cleanup_verification_submitted",
             "Cần duyệt hoàn thành chương trình",
             "Trưởng nhóm đã nộp minh chứng hoàn thành cho chương trình \"{title}\". Hãy vào duyệt.",
