@@ -18,6 +18,7 @@ public sealed class AwardPointsCommandHandler(
     IUnitOfWork unitOfWork,
     IChangeTrackerCleaner changeTrackerCleaner,
     ISender sender,
+    ILeaderboardCache leaderboardCache,
     ILogger<AwardPointsCommandHandler> logger)
     : IRequestHandler<AwardPointsCommand, Result<AwardPointsResponse>>
 {
@@ -87,6 +88,9 @@ public sealed class AwardPointsCommandHandler(
         // Level badges (rising_star…) cần total_points mới — recheck ngay, không đợi BadgeRecheckJob 08:00 ICT.
         changeTrackerCleaner.ClearTrackedEntities();
         await sender.Send(new CheckBadgesCommand(request.UserId), ct).ConfigureAwait(false);
+
+        // BR-GAM-005: điểm đổi → xóa leaderboard cache để lần đọc tiếp theo lấy ranking mới.
+        await leaderboardCache.InvalidateAsync(ct).ConfigureAwait(false);
 
         return new AwardPointsResponse(
             request.Points, userPoints.TotalPoints, userPoints.Level, WasSkipped: false);

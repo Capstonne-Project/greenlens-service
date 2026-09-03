@@ -1,9 +1,11 @@
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Application.Features.Gamification;
 using Greenlens.Domain.Common;
 using Greenlens.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Greenlens.Application.Features.Gamification.GetLeaderboard;
 
@@ -34,12 +36,24 @@ public sealed record LeaderboardEntry(
     int Level);
 
 public sealed class GetLeaderboardQueryHandler(
-    IUserPointsRepository userPointsRepo)
+    IUserPointsRepository userPointsRepo,
+    ILeaderboardCache leaderboardCache,
+    ILogger<GetLeaderboardQueryHandler> logger)
     : IRequestHandler<GetLeaderboardQuery, Result<LeaderboardResponse>>
 {
     public async Task<Result<LeaderboardResponse>> Handle(
         GetLeaderboardQuery request, CancellationToken ct)
     {
+        var cacheKey = LeaderboardCacheKeys.Build(request.Period, request.Top, request.Year, request.Month);
+        var cached = await leaderboardCache.GetAsync(cacheKey, ct).ConfigureAwait(false);
+        if (cached is not null)
+        {
+            logger.LogDebug("Leaderboard cache hit for {CacheKey}", cacheKey);
+            return cached;
+        }
+
+        LeaderboardResponse response;
+
         if (request.Period == LeaderboardPeriod.AllTime)
         {
             var allTimeEntries = await userPointsRepo.QueryAsNoTracking()
@@ -64,7 +78,7 @@ public sealed class GetLeaderboardQueryHandler(
                 e.TotalPoints,
                 GamificationHelpers.CalculateLevel(e.TotalPoints))).ToList();
 
-            return new LeaderboardResponse(
+            response = new LeaderboardResponse(
                 LeaderboardPeriod.AllTime,
                 Year: null,
                 Month: null,
@@ -72,38 +86,43 @@ public sealed class GetLeaderboardQueryHandler(
                 PeriodEnd: null,
                 allTimeRanked);
         }
+        else
+        {
+            var (periodStart, periodEnd, year, month) = GamificationHelpers.GetPeriodRange(
+                request.Period,
+                request.Year,
+                request.Month);
 
-        var (periodStart, periodEnd, year, month) = GamificationHelpers.GetPeriodRange(
-            request.Period,
-            request.Year,
-            request.Month);
+            var entries = await userPointsRepo.QueryAsNoTracking()
+                .Where(up => !up.IsLocked)
+                .Select(up => new
+                {
+                    up.UserId,
+                    up.User!.FullName,
+                    up.User.AvatarUrl,
+                    up.TotalPoints,
+                    PeriodPoints = up.Transactions
+                        .Where(t => t.CreatedAt >= periodStart && t.CreatedAt < periodEnd)
+                        .Sum(t => t.Points)
+                })
+                .Where(x => x.PeriodPoints > 0)
+                .OrderByDescending(x => x.PeriodPoints)
+                .Take(request.Top)
+                .ToListAsync(ct)
+                .ConfigureAwait(false);
 
-        var entries = await userPointsRepo.QueryAsNoTracking()
-            .Where(up => !up.IsLocked)
-            .Select(up => new
-            {
-                up.UserId,
-                up.User!.FullName,
-                up.User.AvatarUrl,
-                up.TotalPoints,
-                PeriodPoints = up.Transactions
-                    .Where(t => t.CreatedAt >= periodStart && t.CreatedAt < periodEnd)
-                    .Sum(t => t.Points)
-            })
-            .Where(x => x.PeriodPoints > 0)
-            .OrderByDescending(x => x.PeriodPoints)
-            .Take(request.Top)
-            .ToListAsync(ct)
-            .ConfigureAwait(false);
+            var ranked = entries.Select((e, i) => new LeaderboardEntry(
+                Rank: i + 1,
+                e.UserId,
+                e.FullName,
+                e.AvatarUrl,
+                e.PeriodPoints,
+                GamificationHelpers.CalculateLevel(e.TotalPoints))).ToList();
 
-        var ranked = entries.Select((e, i) => new LeaderboardEntry(
-            Rank: i + 1,
-            e.UserId,
-            e.FullName,
-            e.AvatarUrl,
-            e.PeriodPoints,
-            GamificationHelpers.CalculateLevel(e.TotalPoints))).ToList();
+            response = new LeaderboardResponse(request.Period, year, month, periodStart, periodEnd, ranked);
+        }
 
-        return new LeaderboardResponse(request.Period, year, month, periodStart, periodEnd, ranked);
+        await leaderboardCache.SetAsync(cacheKey, response, ct).ConfigureAwait(false);
+        return response;
     }
 }

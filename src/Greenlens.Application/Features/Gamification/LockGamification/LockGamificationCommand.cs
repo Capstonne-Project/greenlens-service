@@ -1,4 +1,5 @@
 using Greenlens.Application.Common;
+using Greenlens.Application.Common.Interfaces;
 using Greenlens.Application.Common.Interfaces.Persistence;
 using Greenlens.Domain.Common;
 using MediatR;
@@ -23,6 +24,7 @@ public sealed class LockGamificationCommandHandler(
     IUserRepository userRepo,
     IUserPointsRepository userPointsRepo,
     IUnitOfWork unitOfWork,
+    ILeaderboardCache leaderboardCache,
     ILogger<LockGamificationCommandHandler> logger)
     : IRequestHandler<LockGamificationCommand, Result<LockGamificationResponse>>
 {
@@ -56,6 +58,9 @@ public sealed class LockGamificationCommandHandler(
         logger.LogInformation("Gamification locked for user {UserId}. Deducted {Points} points. Reason: {Reason}. Until: {Until}", request.TargetUserId, deducted, request.Reason, userPoints.LockedUntil);
 
         await unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        // Lock/deduct điểm → ranking thay đổi; invalidate leaderboard cache (BR-GAM-005).
+        await leaderboardCache.InvalidateAsync(ct).ConfigureAwait(false);
 
         return new LockGamificationResponse(deducted, userPoints.LockedUntil!.Value);
     }

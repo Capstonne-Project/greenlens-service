@@ -82,6 +82,7 @@ public sealed class GamificationReportPointsFlowTests
         await ctx.SaveChangesAsync();
 
         var sender = Substitute.For<ISender>();
+        var leaderboardCache = Substitute.For<ILeaderboardCache>();
         var handler = new AwardPointsCommandHandler(
             new UserPointsRepository(ctx),
             new UnitOfWork(
@@ -91,6 +92,7 @@ public sealed class GamificationReportPointsFlowTests
                 Substitute.For<IDomainEventCollector>()),
             new ChangeTrackerCleaner(ctx),
             sender,
+            leaderboardCache,
             NullLogger<AwardPointsCommandHandler>.Instance);
 
         var result = await handler.Handle(
@@ -120,6 +122,7 @@ public sealed class GamificationReportPointsFlowTests
         await ctx.SaveChangesAsync();
 
         var sender = Substitute.For<ISender>();
+        var leaderboardCache = Substitute.For<ILeaderboardCache>();
         var handler = new AwardPointsCommandHandler(
             new UserPointsRepository(ctx),
             new UnitOfWork(
@@ -129,6 +132,7 @@ public sealed class GamificationReportPointsFlowTests
                 Substitute.For<IDomainEventCollector>()),
             new ChangeTrackerCleaner(ctx),
             sender,
+            leaderboardCache,
             NullLogger<AwardPointsCommandHandler>.Instance);
 
         var command = new AwardPointsCommand(user.Id, 10, PointReason.ReportVerified, reportId);

@@ -32,3 +32,6 @@ public sealed record CommunityCleanupVerifiedEvent(Guid EventId, string Title, G
 
 /// <summary>Raised when the Leader checks in on-site. Notifies other participants + the LEO that the Leader has arrived.</summary>
 public sealed record CommunityCleanupLeaderCheckedInEvent(Guid EventId, string Title, Guid LeaderUserId, Guid LeoId) : IDomainEvent;
+
+/// <summary>Raised when the Leader uploads before (on-site) images. Notifies the LEO (program owner).</summary>
+public sealed record CommunityCleanupBeforeImagesUploadedEvent(Guid EventId, string Title, Guid LeoId, int ImageCount) : IDomainEvent;
