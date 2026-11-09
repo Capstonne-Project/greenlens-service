@@ -1,0 +1,67 @@
+# =============================================================================
+# Greenlens — CI (build + test)
+#
+# Runs on every pull request (any target branch) and on pushes to the
+# long-lived branches so the README badge reflects their state.
+# Deployment stays in deploy.yml (push to main only).
+#
+# Integration tests use Testcontainers (postgis/postgis) — GitHub-hosted
+# ubuntu runners ship with Docker, so no extra setup is needed.
+# =============================================================================
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: Build & test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Build.props') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Restore
+        run: dotnet restore Greenlens.sln
+
+      - name: Build
+        run: dotnet build Greenlens.sln --no-restore --configuration Release
+
+      - name: Test
+        run: >
+          dotnet test Greenlens.sln --no-build --configuration Release
+          --logger "trx;LogFilePrefix=test-results"
+          --results-directory TestResults
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: TestResults/**/*.trx
+          if-no-files-found: ignore
