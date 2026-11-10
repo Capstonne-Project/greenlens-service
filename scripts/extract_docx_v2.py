@@ -89,6 +89,6 @@ def extract_docx(input_path: str, output_path: str):
 
 if __name__ == '__main__':
     if len(sys.argv) < 3:
-        print('Usage: python extract_docx_v2.py <input.docx> <output.md>')
+        print('Usage: python scripts/extract_docx_v2.py <input.docx> <output.md>')
         sys.exit(1)
     extract_docx(sys.argv[1], sys.argv[2])
