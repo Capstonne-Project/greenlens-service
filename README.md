@@ -38,6 +38,7 @@
 ## 📋 Table of Contents
 
 - [Overview](#-overview)
+- [Mobile App Preview](#-mobile-app-preview)
 - [My Contributions](#-my-contributions)
 - [Business Rules at a Glance](#-business-rules-at-a-glance)
 - [Features](#-features)
@@ -70,6 +71,30 @@ The backend owns the core business logic: **authentication**, **report lifecycle
 | Localization     | vi-VN, en-US        |
 
 > **Project Code:** SU26SE049 — FPT University capstone, Semester SU26
+
+---
+
+## 📱 Mobile App Preview
+
+How a citizen reports pollution in the GreenLens mobile app, which this backend powers. The screenshots come from the "How GreenLens works" section of the [GreenLens portal](https://greenlens-portal.vercel.app/), captured in a phone-sized viewport. The app UI is in Vietnamese.
+
+<table>
+  <tr>
+    <th width="33%">1 · Browse the map &amp; pick a photo</th>
+    <th width="33%">2 · AI analyzes the photo</th>
+    <th width="33%">3 · Pin the location &amp; submit</th>
+  </tr>
+  <tr>
+    <td><img src="docs/images/mobile/step-01-map-capture.jpg" alt="Report map and photo picker in the GreenLens app"/></td>
+    <td><img src="docs/images/mobile/step-02-ai-analysis.jpg" alt="AI result: pollution type, confidence, suggested severity and description"/></td>
+    <td><img src="docs/images/mobile/step-03-location-submit.jpg" alt="Confirm location, choose waste tags and submit the report"/></td>
+  </tr>
+  <tr>
+    <td>See nearby reports on the map, then take a photo or choose one from the gallery.</td>
+    <td>AI detects the pollution type, confidence and severity (Low → Critical) and suggests a description the citizen can edit.</td>
+    <td>Confirm the GPS address, tag the waste types and submit. The report enters the officer verification queue.</td>
+  </tr>
+</table>
 
 ---
 
