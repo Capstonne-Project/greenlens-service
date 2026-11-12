@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
+using Greenlens.Infrastructure.Configuration;
 
 namespace Greenlens.Infrastructure.Persistence;
 
@@ -12,12 +13,16 @@ internal sealed class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<A
 {
     public ApplicationDbContext CreateDbContext(string[] args)
     {
+        // dotnet ef doesn't run Program.cs, so the API's .env loader never fires here.
+        DotEnvLoader.Load();
+
         var basePath = Path.Combine(Directory.GetCurrentDirectory(), "..", "Greenlens.Api");
 
         var config = new ConfigurationBuilder()
             .SetBasePath(basePath)
             .AddJsonFile("appsettings.json", optional: true)
             .AddJsonFile("appsettings.Development.json", optional: true)
+            .AddEnvironmentVariables()
             .Build();
 
         var connectionString = config.GetConnectionString("DefaultConnection")

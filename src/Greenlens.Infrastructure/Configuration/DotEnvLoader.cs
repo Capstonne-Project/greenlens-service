@@ -1,8 +1,8 @@
-namespace Greenlens.Api.Configuration;
+namespace Greenlens.Infrastructure.Configuration;
 
 /// <summary>
-/// Loads key/value pairs from a <c>.env</c> file into process environment variables
-/// before <see cref="WebApplication.CreateBuilder"/> runs.
+/// Loads key/value pairs from a <c>.env</c> file into process environment variables.
+/// Shared by the API host, EF design-time factory and CLI seeders.
 /// </summary>
 /// <remarks>
 /// ASP.NET Core maps env vars to configuration via double-underscore nesting
@@ -10,7 +10,7 @@ namespace Greenlens.Api.Configuration;
 /// Values from <c>.env</c> always overwrite existing process environment variables
 /// so local secrets win over stale shell vars or launch profile defaults.
 /// </remarks>
-internal static class DotEnvLoader
+public static class DotEnvLoader
 {
     public static void Load()
     {

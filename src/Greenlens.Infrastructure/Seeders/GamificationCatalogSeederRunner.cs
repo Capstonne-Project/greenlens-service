@@ -1,3 +1,4 @@
+using Greenlens.Infrastructure.Configuration;
 using Greenlens.Infrastructure.Persistence;
 using Greenlens.Infrastructure.Seeders;
 using Greenlens.Infrastructure.Seeders.Administrator;
@@ -13,7 +14,7 @@ public static class GamificationCatalogSeederRunner
 {
     public static async Task RunAsync(string? connectionString = null, CancellationToken ct = default)
     {
-        RepoDotEnvLoader.LoadIfPresent();
+        DotEnvLoader.Load();
 
         var apiConfigDir = ResolveApiConfigDirectoryPublic();
         var config = new ConfigurationBuilder()

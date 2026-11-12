@@ -1,10 +1,10 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Greenlens.Api.Configuration;
 using Greenlens.Api.Extensions;
 using Greenlens.Api.Swagger;
 using Greenlens.Api.Middlewares;
 using Greenlens.Infrastructure;
+using Greenlens.Infrastructure.Configuration;
 using Greenlens.Infrastructure.Seeders.Administrator;
 using Hangfire;
 using Microsoft.AspNetCore.HttpOverrides;
